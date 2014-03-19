@@ -1,0 +1,56 @@
+# See https://github.com/jigish/slate#readme
+
+config defaultToCurrentScreen         true
+config nudgePercentOf                 screenSize
+config resizePercentOf                screenSize
+config focusPreferSameApp             false
+config focusCheckWidthMax             3000
+config checkDefaultsOnLoad            true
+config windowHintsShowIcons           true
+config windowHintsSpread              true
+config windowHintsSpreadPadding       2
+config windowHintsIgnoreHiddenWindows false
+
+alias top-half       move screenOriginX;screenOriginY                               screenSizeX;screenSizeY/2
+alias bottom-half    move screenOriginX;screenOriginY+screenSizeY/2                 screenSizeX;screenSizeY/2
+alias left-half      move screenOriginX;screenOriginY                               screenSizeX/2;screenSizeY
+alias right-half     move screenOriginX+screenSizeX/2;screenOriginY                 screenSizeX/2;screenSizeY
+alias top-left       move screenOriginX;screenOriginY                               screenSizeX/2;screenSizeY/2
+alias top-right      move screenOriginX+screenSizeX/2;screenOriginY                 screenSizeX/2;screenSizeY/2
+alias bottom-left    move screenOriginX;screenOriginY+screenSizeY/2                 screenSizeX/2;screenSizeY/2
+alias bottom-right   move screenOriginX+screenSizeX/2;screenOriginY+screenSizeY/2   screenSizeX/2;screenSizeY/2
+alias maximized      move screenOriginX;screenOriginY                               screenSizeX;screenSizeY
+alias center         move screenOriginX+screenSizeX/10;screenOriginY+screenSizeY/10 screenOriginX+screenSizeX*4/5;screenOriginY+screenSizeY*4/5
+
+# Positioning
+bind w:ctrl;alt;cmd     ${top-half}
+bind x:ctrl;alt;cmd     ${bottom-half}
+bind a:ctrl;alt;cmd     ${left-half}
+bind d:ctrl;alt;cmd     ${right-half}
+bind q:ctrl;alt;cmd     ${top-left}
+bind e:ctrl;alt;cmd     ${top-right}
+bind z:ctrl;alt;cmd     ${bottom-left}
+bind c:ctrl;alt;cmd     ${bottom-right}
+bind s:ctrl;alt;cmd     ${center}
+bind space:ctrl;alt;cmd ${maximized}
+
+# Resize Bindings
+bind right:ctrl;cmd;alt resize +20 +0
+bind left:ctrl;cmd;alt  resize -20 +0
+bind up:ctrl;cmd;alt    resize +0  -20
+bind down:ctrl;cmd;alt  resize +0  +20
+
+# Nudge Bindings
+bind right:ctrl;alt     nudge +20 +0
+bind left:ctrl;alt      nudge -20 +0
+bind up:ctrl;alt        nudge +0  -20
+bind down:ctrl;alt      nudge +0  +20
+
+# Window Hints
+bind tab:alt hint
+
+# Layout
+layout EmacsAndChrome   'iTerm':REPEAT         move screenOriginX;screenOriginY screenSizeX*0.55;screenSizeY
+layout EmacsAndChrome   'Google Chrome':REPEAT move screenOriginX+screenSizeX*0.55;screenOriginY screenSizeX*0.45;screenSizeY
+
+bind 1:ctrl;alt;cmd     layout EmacsAndChrome
