@@ -58,6 +58,9 @@
 (global-set-key (kbd "C-c C-b") 'magit-blame-mode)
 (diminish 'magit-auto-revert-mode)
 
+;; gist
+(maybe-install-and-require 'gist)
+
 ;; yasnippet
 (maybe-install-and-require 'yasnippet)
 (diminish 'yas-minor-mode " Y")
