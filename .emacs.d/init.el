@@ -85,7 +85,9 @@
 (add-to-list 'golden-ratio-exclude-modes "ediff-mode")
 
 ;; IDO
+(maybe-install-and-require 'ido-ubiquitous)
 (ido-mode t)
+(ido-ubiquitous)
 (setq ido-enable-flex-matching t)
 (global-set-key "\M-x"
                 (lambda ()
