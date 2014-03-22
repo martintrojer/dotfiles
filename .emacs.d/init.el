@@ -58,8 +58,10 @@
 (global-set-key (kbd "C-c C-b") 'magit-blame-mode)
 (diminish 'magit-auto-revert-mode)
 
-;; gist
-(maybe-install-and-require 'gist)
+;; yagist
+(maybe-install-and-require 'yagist)
+(maybe-install-and-require 'kaesar)
+(setq yagist-encrypt-risky-config t)
 
 ;; yasnippet
 (maybe-install-and-require 'yasnippet)
