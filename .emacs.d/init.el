@@ -77,8 +77,10 @@
 ;;(global-git-gutter-mode t)
 (global-set-key (kbd "C-x C-g") 'git-gutter:toggle)
 
-;; rgrep key binding
-(global-set-key (kbd "C-x M-f") 'rgrep)
+;; silver searcher
+(maybe-install-and-require 'ag)
+(setq ag-highlight-search t)
+(global-set-key (kbd "C-x M-f") 'ag-files)
 
 ;; Golden Ratio
 (maybe-install-and-require 'golden-ratio)
