@@ -9,6 +9,8 @@ alias nano=$VISUAL
 alias vim=$VISUAL
 alias vi=$VISUAL
 
+alias devbox='ssh localhost -p 2222'
+
 #xmodmap ~/.xmodmap 2>/dev/null
 
 export PATH=$PATH:/Users/martin/.gem/ruby/2.0.0/bin
