@@ -283,6 +283,8 @@
 ;; ERC
 (setq erc-hide-list '("JOIN" "PART" "QUIT"))
 (setq erc-nick "martintrojer")
+(setq erc-server "localhost")
+(erc-spelling-mode 1)
 
 ;; =============================================================
 ;; Settings
