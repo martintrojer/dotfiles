@@ -356,10 +356,6 @@
 
   (cider-find-and-clear-repl-buffer)
 
-  ;; (with-current-buffer "test.log"
-  ;;   (kill-region (point-min) (point-max))
-  ;;   (save-buffer))
-
   (with-current-buffer (current-nrepl-server-buffer)
     (kill-region (point-min) (point-max))))
 
@@ -367,6 +363,17 @@
                                  (interactive)
                                  (clear-buffers)
                                  (clojure-test-run-tests)))
+
+(defun clj-reset ()
+  (interactive)
+  (with-current-buffer "user.clj"
+    (cider-load-current-buffer))
+  (with-current-buffer (cider-current-repl-buffer)
+    (goto-char (point-max))
+    (insert "(reset)")
+    (cider-repl-return)))
+
+(global-set-key (kbd "C-c r") 'clj-reset)
 
 ;; =============================================================
 ;; OSX
