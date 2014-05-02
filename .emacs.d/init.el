@@ -221,6 +221,13 @@
 (require 'flyspell)
 (diminish 'flyspell-mode "FP")
 
+;; linum
+(if window-system
+  (setq linum-format "%d")
+  (setq linum-format "%d "))
+(setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode js-mode css-mode c-mode-common))
+(--each linum-modes (add-hook (intern (s-concat (symbol-name it) "-hook")) 'linum-mode))
+
 ;; show time
 (setq display-time-24hr-format t)
 (setq display-time-load-average t)
