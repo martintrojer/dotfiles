@@ -134,7 +134,12 @@
 (maybe-install-and-require 'ag)
 (setq ag-highlight-search t)
 (setq ag-reuse-buffers t)
-(global-set-key (kbd "C-x M-f") 'ag-files)
+(defun ag-search (string file-regex directory)
+  (interactive (list (read-from-minibuffer "Search string: " (ag/dwim-at-point))
+                     (read-from-minibuffer "In filenames matching PCRE: " (ag/buffer-extension-regex))
+                     (read-directory-name "Directory: " (ag/project-root default-directory))))
+  (ag/search string directory :file-regex file-regex))
+(global-set-key (kbd "C-x M-f") 'ag-search)
 
 ;; eldoc
 (diminish 'eldoc-mode "ED")
