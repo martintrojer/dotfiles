@@ -227,6 +227,11 @@
 (maybe-install-and-require 'jvm-mode)
 (jvm-mode)
 
+;; recentf mode
+(recentf-mode)
+(setq recentf-max-menu-items 25)
+(global-set-key (kbd "C-x C-r") 'recentf-open-files)
+
 (winner-mode)       ;; C-c right/left
 (show-paren-mode)
 (global-auto-revert-mode t)
