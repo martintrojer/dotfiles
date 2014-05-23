@@ -241,8 +241,13 @@
 ;; =============================================================
 ;; Color theme
 
-(maybe-install-and-require 'flatland-theme)
-(load-theme 'flatland t)
+(if window-system
+    (progn
+      (maybe-install-and-require 'flatland-theme)
+      (load-theme 'flatland t))
+  (progn
+      (maybe-install-and-require 'cyberpunk-theme)
+      (load-theme 'cyberpunk t)))
 
 ;; =============================================================
 ;; Key bindings
