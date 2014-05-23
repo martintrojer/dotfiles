@@ -138,6 +138,7 @@
 (diminish 'eldoc-mode "ED")
 (add-hook 'cider-mode-hook 'cider-turn-on-eldoc-mode)
 (add-hook 'cider-repl-mode-hook 'cider-turn-on-eldoc-mode)
+(add-hook 'emacs-lisp-mode-hook 'eldoc-mode)
 
 ;; hl-sexp
 (maybe-install-and-require 'hl-sexp)
@@ -384,6 +385,8 @@
 (when (eq 'darwin system-type)
 
   (global-set-key (kbd "M-3") '(lambda () (interactive) (insert "#")))
+
+  (setq exec-path (cons "/usr/local/bin" exec-path))
 
   (defun copy-from-osx ()
     (shell-command-to-string "pbpaste"))
