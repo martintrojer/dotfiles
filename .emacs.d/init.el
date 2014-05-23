@@ -303,6 +303,7 @@
 (defalias 'yes-or-no-p 'y-or-n-p)
 (setq scroll-step 1)
 (setq scroll-error-top-bottom t)
+(blink-cursor-mode -1)
 
 ;; remove trailing whitespace
 (add-hook 'before-save-hook 'delete-trailing-whitespace)
