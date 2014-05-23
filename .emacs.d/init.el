@@ -392,7 +392,8 @@
 
   (global-set-key (kbd "M-3") '(lambda () (interactive) (insert "#")))
 
-  (setq exec-path (cons "/usr/local/bin" exec-path))
+  (maybe-install-and-require 'exec-path-from-shell)
+  (exec-path-from-shell-initialize)
 
   (defun copy-from-osx ()
     (shell-command-to-string "pbpaste"))
