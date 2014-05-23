@@ -73,6 +73,7 @@
 (diminish 'cider-mode " Cdr")
 (setq cider-repl-wrap-history t)
 (setq cider-repl-history-size 1000)
+(setq cider-popup-stacktraces nil)
 (setq cider-repl-history-file "~/.emacs.d/cider-history")
 (add-hook 'cider-repl-mode-hook 'subword-mode)
 
