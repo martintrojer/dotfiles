@@ -240,8 +240,8 @@
 ;; =============================================================
 ;; Color theme
 
-(maybe-install-and-require 'cyberpunk-theme)
-(load-theme 'cyberpunk t)
+(maybe-install-and-require 'flatland-theme)
+(load-theme 'flatland t)
 
 ;; =============================================================
 ;; Key bindings

@@ -1,4 +1,4 @@
-{:user {:plugins [[cider/cider-nrepl "0.6.0"]
+{:user {:plugins [[cider/cider-nrepl "0.7.0-SNAPSHOT"]
                   [jonase/eastwood "0.1.0"]
                   [lein-ancient "0.5.4"]
                   [lein-cljsbuild "0.3.3"]
