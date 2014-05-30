@@ -76,6 +76,7 @@
 (setq cider-popup-stacktraces nil)
 (setq cider-repl-history-file "~/.emacs.d/cider-history")
 (add-hook 'cider-repl-mode-hook 'subword-mode)
+(global-set-key (kbd "C-c C-s") 'clojure-toggle-keyword-string)
 
 ;; clj-refactor
 (maybe-install-and-require 'clj-refactor)
