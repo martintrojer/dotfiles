@@ -89,9 +89,6 @@
 (maybe-install-and-require 'align-cljlet)
 (global-set-key (kbd "C-c C-a") 'align-cljlet)
 
-;; slamhound
-(maybe-install-and-require 'slamhound)
-
 ;; paredit
 (maybe-install-and-require 'paredit)
 (diminish 'paredit-mode "Pe")
