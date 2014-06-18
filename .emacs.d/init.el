@@ -98,6 +98,12 @@
 (add-hook 'cider-repl-mode-hook 'paredit-mode)
 (add-hook 'clojure-mode-hook 'paredit-mode)
 
+;; projectile
+(maybe-install-and-require 'projectile)
+(setq projectile-mode-line-lighter "p")
+(add-hook 'clojure-mode-hook 'projectile-on)
+(add-hook 'ruby-mode-hook 'projectile-on)
+
 ;; utop / OCaml
 (maybe-install-and-require 'utop)
 (autoload 'utop-setup-ocaml-buffer "utop" "Toplevel for OCaml" t)
