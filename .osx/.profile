@@ -1,6 +1,8 @@
 export PS1="\u:\w$ "
 alias ls="ls -G -F"
-export LS_COLORS="ow=01;90:di=01;90"
+
+export CLICOLOR=1
+export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 
 export VISUAL="emacs -Q -nw"
 export TERM=xterm-256color
