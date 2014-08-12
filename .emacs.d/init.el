@@ -101,8 +101,8 @@
 ;; projectile
 (maybe-install-and-require 'projectile)
 (setq projectile-mode-line-lighter "p")
-(add-hook 'clojure-mode-hook 'projectile-on)
-(add-hook 'ruby-mode-hook 'projectile-on)
+(add-hook 'clojure-mode-hook 'projectile-mode)
+(add-hook 'ruby-mode-hook 'projectile-mode)
 
 ;; utop / OCaml
 (maybe-install-and-require 'utop)
