@@ -64,6 +64,9 @@
 (maybe-install-and-require 'restclient)
 (add-to-list 'auto-mode-alist '("\\.http\\'" . restclient-mode))
 
+;; HTML
+(setq auto-mode-alist (cons '("\\.mustache$" . html-mode) auto-mode-alist))
+
 ;; =============================================================
 ;; Minor modes
 
