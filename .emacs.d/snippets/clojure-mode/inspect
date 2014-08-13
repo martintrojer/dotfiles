@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: inspect
+# key: inspect
+# --
+(defn inspect [n v]
+  (log/info "*" n v)
+  v)
