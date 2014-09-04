@@ -76,7 +76,7 @@
 (diminish 'cider-mode " Cdr")
 (setq cider-repl-wrap-history t)
 (setq cider-repl-history-size 1000)
-(setq cider-popup-stacktraces nil)
+(setq cider-show-error-buffer 'except-in-repl)
 (setq cider-repl-history-file "~/.emacs.d/cider-history")
 (add-hook 'cider-repl-mode-hook 'subword-mode)
 (global-set-key (kbd "C-c C-s") 'clojure-toggle-keyword-string)
