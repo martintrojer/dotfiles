@@ -18,7 +18,3 @@ alias devbox='ssh localhost -p 2222'
 
 export PATH=$PATH:/Users/martin/.gem/ruby/2.0.0/bin
 
-# work
-
-export AM_DEVBOX_MEMORY=2048
-
