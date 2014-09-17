@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: src
+# key: src
+# --
+(clojure.repl/source $0)
