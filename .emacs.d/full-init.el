@@ -89,7 +89,6 @@
 
 ;; Cider
 (maybe-install-and-require 'cider)
-(maybe-install-and-require 'cider-tracing)
 (diminish 'cider-mode " Cdr")
 (setq cider-repl-wrap-history t)
 (setq cider-repl-history-size 1000)
@@ -117,7 +116,6 @@
 (add-hook 'scheme-mode-hook 'paredit-mode)
 (add-hook 'cider-repl-mode-hook 'paredit-mode)
 (add-hook 'clojure-mode-hook 'paredit-mode)
-(add-hook 'inferior-lisp-mode-hook 'paredit-mode)
 
 ;; projectile
 (maybe-install-and-require 'projectile)
