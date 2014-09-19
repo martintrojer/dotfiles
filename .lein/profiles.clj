@@ -8,4 +8,7 @@
                   [lein-try "0.4.1"]
                   [lein-vanity "0.2.0"]]
         :dependencies [[clojure-complete "0.2.3"]
-                       [criterium "0.4.3"]]}}
+                       [criterium "0.4.3"]
+                       [pjstadig/humane-test-output "0.6.0"]]
+        :injections [(require 'pjstadig.humane-test-output)
+                     (pjstadig.humane-test-output/activate!)]}}
