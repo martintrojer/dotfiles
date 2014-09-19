@@ -43,7 +43,7 @@
 (add-hook 'clojure-mode-hook
           '(lambda ()
              (define-key clojure-mode-map
-               "\C-c\M-n"
+               "\C-c\C-k"
                '(lambda ()
                   (interactive)
                   (let ((current-point (point)))
@@ -53,7 +53,7 @@
                         (goto-char ns-idx)
                         (let ((sym (symbol-at-point)))
                           (message (format "Loading %s ..." sym))
-                          (lisp-eval-string (format "(require '%s)" sym))
+                          (lisp-eval-string (format "(require '%s :reload)" sym))
                           (lisp-eval-string (format "(in-ns '%s)" sym)))))
                     (goto-char current-point))))))
 
