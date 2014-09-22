@@ -38,7 +38,6 @@
 ;; Clojure
 (maybe-install-and-require 'clojure-mode)
 (setq auto-mode-alist (cons '("\\.cljs$" . clojure-mode) auto-mode-alist))
-(setq inferior-lisp-program "lein repl")
 (add-hook 'clojure-mode-hook
           '(lambda ()
              (define-key clojure-mode-map
@@ -55,6 +54,15 @@
                           (lisp-eval-string (format "(require '%s :reload)" sym))
                           (lisp-eval-string (format "(in-ns '%s)" sym)))))
                     (goto-char current-point))))))
+(setq inferior-lisp-program "lein repl")
+(add-hook 'inferior-lisp-mode-hook
+          '(lambda ()
+             (define-key inferior-lisp-mode-map
+               "\C-cl"
+               '(lambda ()
+                  (interactive)
+                  (erase-buffer)
+                  (lisp-eval-string "")))))
 
 ;; Tuareg / OCaml
 (setq save-abbrevs nil)
