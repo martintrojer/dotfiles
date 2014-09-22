@@ -37,7 +37,6 @@
 
 ;; Clojure
 (maybe-install-and-require 'clojure-mode)
-(maybe-install-and-require 'clojure-test-mode)
 (setq auto-mode-alist (cons '("\\.cljs$" . clojure-mode) auto-mode-alist))
 (setq inferior-lisp-program "lein repl")
 (add-hook 'clojure-mode-hook
@@ -378,35 +377,6 @@
       (backward-char) (insert "\n"))
     (indent-region begin end))
   (message "Ah, much better!"))
-
-(defun current-nrepl-server-buffer ()
-  (let ((nrepl-server-buf (replace-regexp-in-string "connection" "server" (nrepl-current-connection-buffer))))
-    (when nrepl-server-buf
-      (get-buffer nrepl-server-buf))))
-
-(defun clear-buffers ()
-  (interactive)
-
-  (cider-find-and-clear-repl-buffer)
-
-  (with-current-buffer (current-nrepl-server-buffer)
-    (kill-region (point-min) (point-max))))
-
-(global-set-key (kbd "C-c :") '(lambda ()
-                                 (interactive)
-                                 (clear-buffers)
-                                 (clojure-test-run-tests)))
-
-(defun clj-reset ()
-  (interactive)
-  (with-current-buffer "user.clj"
-    (cider-load-current-buffer))
-  (with-current-buffer (cider-current-repl-buffer)
-    (goto-char (point-max))
-    (insert "(reset)")
-    (cider-repl-return)))
-
-(global-set-key (kbd "C-c r") 'clj-reset)
 
 ;; =============================================================
 ;; OSX
