@@ -208,6 +208,8 @@
 (maybe-install-and-require 'company)
 (diminish 'company-mode)
 (add-hook 'after-init-hook 'global-company-mode)
+(require 'company-etags)
+(add-to-list 'company-etags-modes 'clojure-mode)
 
 ;; browse-kill-ring
 (maybe-install-and-require 'browse-kill-ring)
