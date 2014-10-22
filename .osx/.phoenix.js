@@ -1,13 +1,11 @@
 var mash = [ 'cmd', 'alt', 'ctrl' ],
     mashMove = [ 'alt', 'ctrl' ],
-    nudgePixels = 10,
-    padding = 4,
-    previousSizes = {};
+    nudgePixels = 5;
 
 // Positioning
 
 api.bind( 'space', mash, function() {
-   Window.focusedWindow().toggleFullscreen();
+   Window.focusedWindow().toFullScreen();
 });
 
 api.bind( 'q', mash, function() {
@@ -58,11 +56,11 @@ api.bind( 'left', mash, function() {
 // // Layouts
 
 api.bind( '1', mash, function() {
-   var chromeWindow = App.findByTitle('Google Chrome').findWindowNotMatchingTitle('^Developer Tools -'),
+   var chromeWindow = App.findByTitle('Google Chrome').firstWindow();
    emacsWindow = App.findByTitle('iTerm').firstWindow();
    api.alert( 'Emacs + Chrome', 0.25 );
    if ( emacsWindow ) {
-      sublimeWindow.toW();
+      emacsWindow.toW();
    }
    if ( chromeWindow ) {
       chromeWindow.toE();
@@ -73,11 +71,17 @@ api.bind( '1', mash, function() {
 
 Window.prototype.toGrid = function( x, y, width, height ) {
    var screen = this.screen().frameWithoutDockOrMenu();
+   extrax = 0
+   if (((width == 1.0) && (height == 1.0)) ||
+       (x == 0.0)) {
+      extrax = 4;
+   }
+   // api.alert(extrax, 1.0);
    this.setFrame({
-      x: Math.round( x * screen.width ) + padding + screen.x,
-      y: Math.round( y * screen.height ) + padding + screen.y,
-      width: Math.round( width * screen.width ) - ( 2 * padding ),
-      height: Math.round( height * screen.height ) - ( 2 * padding )
+      x: Math.round( x * screen.width ) + screen.x - extrax,
+      y: Math.round( y * screen.height ) + screen.y,
+      width: Math.round( width * screen.width ) + extrax,
+      height: Math.round( height * screen.height )
    });
    this.focusWindow();
    return this;
@@ -85,6 +89,9 @@ Window.prototype.toGrid = function( x, y, width, height ) {
 
 Window.prototype.toFullScreen = function() {
    return this.toGrid( 0, 0, 1, 1 );
+};
+Window.prototype.toCenter = function() {
+   return this.toGrid( 0.1, 0.1, 0.8, 0.8 );
 };
 Window.prototype.toN = function() {
    return this.toGrid( 0, 0, 1, 0.5 );
@@ -109,17 +116,6 @@ Window.prototype.toW = function() {
 };
 Window.prototype.toNW = function() {
    return this.toGrid( 0, 0, 0.5, 0.5 );
-};
-Window.prototype.toggleFullscreen = function() {
-   if ( previousSizes[ this ] ) {
-      this.setFrame( previousSizes[ this ] );
-      delete previousSizes[ this ];
-   }
-   else {
-      previousSizes[ this ] = this.frame();
-      this.toFullScreen();
-   }
-   return this;
 };
 
 
