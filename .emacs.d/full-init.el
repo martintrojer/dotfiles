@@ -53,7 +53,13 @@
                           (message (format "Loading %s ..." sym))
                           (lisp-eval-string (format "(require '%s :reload)" sym))
                           (lisp-eval-string (format "(in-ns '%s)" sym)))))
-                    (goto-char current-point))))))
+                    (goto-char current-point))))
+             (define-key clojure-mode-map
+               "\M-."
+               '(lambda (next-p)
+                  (interactive "P")
+                  (find-tag (first (last (split-string (symbol-name (symbol-at-point)) "/")))
+                            next-p)))))
 (setq inferior-lisp-program "lein repl")
 (add-hook 'inferior-lisp-mode-hook
           '(lambda ()
