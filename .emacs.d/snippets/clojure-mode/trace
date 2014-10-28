@@ -2,4 +2,4 @@
 # name: trace
 # key: trace
 # --
-[clojure.tools.trace :refer [deftrace]]
+clojure.tools.trace/deftrace
