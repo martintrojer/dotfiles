@@ -80,6 +80,20 @@
                 ("\\.topml$" . tuareg-mode))
               auto-mode-alist))
 
+;; Haskell
+(maybe-install-and-require 'haskell-mode)
+(require 'haskell-interactive-mode)
+(add-hook 'haskell-mode-hook 'interactive-haskell-mode)
+(add-hook 'haskell-mode-hook 'haskell-indentation-mode)
+
+(custom-set-variables
+  '(haskell-process-suggest-remove-import-lines t)
+  '(haskell-process-auto-import-loaded-modules t)
+  '(haskell-process-log t))
+
+;(diminish 'haskell-interactive-mode)
+;(diminish 'haskell-indentation-mode)
+
 ;; markdown
 (maybe-install-and-require 'markdown-mode)
 (add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-mode))
@@ -255,7 +269,7 @@
 (if window-system
   (setq linum-format "%d")
   (setq linum-format "%d "))
-(setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode js-mode html-mode css-mode c-mode-common))
+(setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode haskell-mode js-mode html-mode css-mode c-mode-common))
 (--each linum-modes (add-hook (intern (s-concat (symbol-name it) "-hook")) 'linum-mode))
 
 ;; show time
