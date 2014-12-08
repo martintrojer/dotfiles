@@ -38,37 +38,38 @@
 ;; Clojure
 (maybe-install-and-require 'clojure-mode)
 (setq auto-mode-alist (cons '("\\.cljs$" . clojure-mode) auto-mode-alist))
+(setq inferior-lisp-program "lein repl")
+
+(defun reload-current-clj-ns (next-p)
+  (interactive "P")
+  (let ((current-point (point)))
+    (goto-char (point-min))
+    (let ((ns-idx (re-search-forward clojure-namespace-name-regex nil t)))
+      (when ns-idx
+        (goto-char ns-idx)
+        (let ((sym (symbol-at-point)))
+          (message (format "Loading %s ..." sym))
+          (lisp-eval-string (format "(require '%s :reload)" sym))
+          (when (not next-p) (lisp-eval-string (format "(in-ns '%s)" sym))))))
+    (goto-char current-point)))
+
+(defun find-tag-without-ns (next-p)
+  (interactive "P")
+  (find-tag (first (last (split-string (symbol-name (symbol-at-point)) "/")))
+            next-p))
+
+(defun erase-inf-buffer ()
+  (interactive)
+  (erase-buffer)
+  (lisp-eval-string ""))
+
 (add-hook 'clojure-mode-hook
           '(lambda ()
-             (define-key clojure-mode-map
-               "\C-c\C-k"
-               '(lambda ()
-                  (interactive)
-                  (let ((current-point (point)))
-                    (goto-char (point-min))
-                    (let ((ns-idx (re-search-forward clojure-namespace-name-regex nil t)))
-                      (when ns-idx
-                        (goto-char ns-idx)
-                        (let ((sym (symbol-at-point)))
-                          (message (format "Loading %s ..." sym))
-                          (lisp-eval-string (format "(require '%s :reload)" sym))
-                          (lisp-eval-string (format "(in-ns '%s)" sym)))))
-                    (goto-char current-point))))
-             (define-key clojure-mode-map
-               "\M-."
-               '(lambda (next-p)
-                  (interactive "P")
-                  (find-tag (first (last (split-string (symbol-name (symbol-at-point)) "/")))
-                            next-p)))))
-(setq inferior-lisp-program "lein repl")
+             (define-key clojure-mode-map "\C-c\C-k" 'reload-current-clj-ns)
+             (define-key clojure-mode-map "\M-." 'find-tag-without-ns)))
 (add-hook 'inferior-lisp-mode-hook
           '(lambda ()
-             (define-key inferior-lisp-mode-map
-               "\C-cl"
-               '(lambda ()
-                  (interactive)
-                  (erase-buffer)
-                  (lisp-eval-string "")))))
+             (define-key inferior-lisp-mode-map "\C-cl" 'erase-inf-buffer)))
 
 ;; Tuareg / OCaml
 (setq save-abbrevs nil)
@@ -227,9 +228,33 @@
 ;; company mode
 (maybe-install-and-require 'company)
 (diminish 'company-mode)
-(add-hook 'after-init-hook 'global-company-mode)
+
+(defun get-clj-completions (prefix)
+  (let* ((proc (inferior-lisp-proc))
+         (comint-filt (process-filter proc))
+         (kept ""))
+    (set-process-filter proc (lambda (proc string) (setq kept (concat kept string))))
+    (process-send-string proc (format "(complete.core/completions \"%s\")\n"
+                                      (substring-no-properties prefix)))
+    (while (accept-process-output proc 0.1))
+    (setq completions (read kept))
+    (set-process-filter proc comint-filt)
+    completions))
+
+(defun company-infclj (command &optional arg &rest ignored)
+  (interactive (list 'interactive))
+
+  (cl-case command
+    (interactive (company-begin-backend 'company-infclj))
+    (prefix (and (eq major-mode 'inferior-lisp-mode)
+                 (company-grab-symbol)))
+    (candidates (get-clj-completions arg))))
+
+(add-to-list 'company-backends 'company-infclj)
+
 (require 'company-etags)
 (add-to-list 'company-etags-modes 'clojure-mode)
+(add-hook 'after-init-hook 'global-company-mode)
 
 ;; browse-kill-ring
 (maybe-install-and-require 'browse-kill-ring)
