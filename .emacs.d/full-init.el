@@ -172,7 +172,7 @@
 ;; git gutter
 (maybe-install-and-require 'git-gutter)
 (diminish 'git-gutter-mode "GG")
-;;(global-git-gutter-mode t)
+;; (global-git-gutter-mode t)
 (global-set-key (kbd "C-x C-g") 'git-gutter:toggle)
 
 ;; silver searcher
@@ -311,7 +311,6 @@
 (setq recentf-max-menu-items 25)
 (global-set-key (kbd "C-x C-r") 'recentf-open-files)
 
-(winner-mode)       ;; C-c right/left
 (show-paren-mode)
 (global-auto-revert-mode t)
 (column-number-mode t)
@@ -363,15 +362,6 @@
 (setq scheme-program-name "csi")
 ;;(setq scheme-program-name "petite")
 
-;; Python
-(setq python-shell-interpreter "python3")
-
-;; ERC
-(setq erc-hide-list '("JOIN" "PART" "QUIT"))
-(setq erc-nick "martintrojer")
-(setq erc-server "irc.freenode.org")
-(erc-spelling-mode 1)
-
 ;; =============================================================
 ;; Settings
 
@@ -406,6 +396,7 @@
 (setq backup-directory-alist
       `(("." . ,(expand-file-name
                  (concat user-emacs-directory "backups")))))
+
 ;; Make backups of files, even when they're in version control
 (setq vc-make-backup-files t)
 
@@ -413,11 +404,6 @@
 (require 'saveplace)
 (setq-default save-place t)
 (setq save-place-file (expand-file-name "places" user-emacs-directory))
-
-;; server
-(require 'server)
-(unless (server-running-p)
-  (server-start))
 
 ;; =============================================================
 ;; Handy functions
