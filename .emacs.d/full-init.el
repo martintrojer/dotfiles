@@ -66,10 +66,20 @@
   (erase-buffer)
   (lisp-eval-string ""))
 
+(defun switch-to-inf-lisp (eob-p)
+  (interactive "P")
+  (if (get-buffer "*inferior-lisp*")
+    (pop-to-buffer "*inferior-lisp*")
+    (run-lisp "lein repl"))
+  (when (not eob-p)
+    (push-mark)
+    (goto-char (point-max))))
+
 (add-hook 'clojure-mode-hook
           '(lambda ()
              (define-key clojure-mode-map "\C-c\C-k" 'reload-current-clj-ns)
-             (define-key clojure-mode-map "\M-." 'find-tag-without-ns)))
+             (define-key clojure-mode-map "\M-." 'find-tag-without-ns)
+             (define-key clojure-mode-map "\C-c\C-z" 'switch-to-inf-lisp)))
 (add-hook 'inferior-lisp-mode-hook
           '(lambda ()
              (define-key inferior-lisp-mode-map "\C-cl" 'erase-inf-buffer)))
