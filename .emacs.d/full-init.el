@@ -18,7 +18,7 @@
 (require 'package)
 
 (add-to-list 'package-archives
-             '("melpa" . "http://melpa-stable.milkbox.net/packages/") t)
+             '("melpa" . "http://stable.melpa.org/packages/") t)
 
 (add-to-list 'package-archives
 	     '("marmalade" . "http://marmalade-repo.org/packages/") t)
@@ -41,20 +41,17 @@
 ;; Clojure
 (maybe-install-and-require 'clojure-mode)
 (setq auto-mode-alist (cons '("\\.cljs$" . clojure-mode) auto-mode-alist))
-(setq inferior-lisp-program "lein repl")
+
+(maybe-install-and-require 'inf-clojure)
+(setq inf-clojure-prompt-read-only nil)
+(add-hook 'clojure-mode-hook 'inf-clojure-minor-mode)
 
 (defun reload-current-clj-ns (next-p)
   (interactive "P")
-  (let ((current-point (point)))
-    (goto-char (point-min))
-    (let ((ns-idx (re-search-forward clojure-namespace-name-regex nil t)))
-      (when ns-idx
-        (goto-char ns-idx)
-        (let ((sym (symbol-at-point)))
-          (message (format "Loading %s ..." sym))
-          (lisp-eval-string (format "(require '%s :reload)" sym))
-          (when (not next-p) (lisp-eval-string (format "(in-ns '%s)" sym))))))
-    (goto-char current-point)))
+  (let ((ns (clojure-find-ns)))
+    (message (format "Loading %s ..." ns))
+    (inf-clojure-eval-string (format "(require '%s :reload)" ns))
+    (when (not next-p) (inf-clojure-eval-string (format "(in-ns '%s)" ns)))))
 
 (defun find-tag-without-ns (next-p)
   (interactive "P")
@@ -63,26 +60,19 @@
 
 (defun erase-inf-buffer ()
   (interactive)
-  (erase-buffer)
-  (lisp-eval-string ""))
-
-(defun switch-to-inf-lisp (eob-p)
-  (interactive "P")
-  (if (get-buffer "*inferior-lisp*")
-    (pop-to-buffer "*inferior-lisp*")
-    (run-lisp "lein repl"))
-  (when (not eob-p)
-    (push-mark)
-    (goto-char (point-max))))
+  (with-current-buffer (get-buffer "*inf-clojure*")
+    (erase-buffer))
+  (inf-clojure-eval-string ""))
 
 (add-hook 'clojure-mode-hook
           '(lambda ()
              (define-key clojure-mode-map "\C-c\C-k" 'reload-current-clj-ns)
              (define-key clojure-mode-map "\M-." 'find-tag-without-ns)
-             (define-key clojure-mode-map "\C-c\C-z" 'switch-to-inf-lisp)))
-(add-hook 'inferior-lisp-mode-hook
+             (define-key clojure-mode-map "\C-cl" 'erase-inf-buffer)
+             (define-key clojure-mode-map "\C-c\C-t" 'clojure-toggle-keyword-string)))
+(add-hook 'inf-clojure-mode-hook
           '(lambda ()
-             (define-key inferior-lisp-mode-map "\C-cl" 'erase-inf-buffer)))
+             (define-key inf-clojure-mode-map "\C-cl" 'erase-inf-buffer)))
 
 ;; Tuareg / OCaml
 (setq save-abbrevs nil)
@@ -136,7 +126,6 @@
 (setq cider-show-error-buffer 'except-in-repl)
 (setq cider-repl-history-file "~/.emacs.d/cider-history")
 (add-hook 'cider-repl-mode-hook 'subword-mode)
-(global-set-key (kbd "C-c C-s") 'clojure-toggle-keyword-string)
 
 ;; clj-refactor
 (maybe-install-and-require 'clj-refactor)
@@ -147,7 +136,9 @@
 
 ;; align-cljlet
 (maybe-install-and-require 'align-cljlet)
-(global-set-key (kbd "C-c C-a") 'align-cljlet)
+(add-hook 'clojure-mode-hook
+          '(lambda ()
+             (define-key clojure-mode-map "\C-c\C-y" 'align-cljlet)))
 
 ;; paredit
 (maybe-install-and-require 'paredit)
@@ -241,29 +232,6 @@
 ;; company mode
 (maybe-install-and-require 'company)
 (diminish 'company-mode)
-
-(defun get-clj-completions (prefix)
-  (let* ((proc (inferior-lisp-proc))
-         (comint-filt (process-filter proc))
-         (kept ""))
-    (set-process-filter proc (lambda (proc string) (setq kept (concat kept string))))
-    (process-send-string proc (format "(complete.core/completions \"%s\")\n"
-                                      (substring-no-properties prefix)))
-    (while (accept-process-output proc 0.1))
-    (setq completions (read kept))
-    (set-process-filter proc comint-filt)
-    completions))
-
-(defun company-infclj (command &optional arg &rest ignored)
-  (interactive (list 'interactive))
-
-  (cl-case command
-    (interactive (company-begin-backend 'company-infclj))
-    (prefix (and (eq major-mode 'inferior-lisp-mode)
-                 (company-grab-symbol)))
-    (candidates (get-clj-completions arg))))
-
-(add-to-list 'company-backends 'company-infclj)
 
 (require 'company-etags)
 (add-to-list 'company-etags-modes 'clojure-mode)

@@ -3,5 +3,5 @@
 # key: inspect
 # --
 (defn inspect [n v]
-  (log/info "*" n v)
+  (println "*" n v)
   v)
