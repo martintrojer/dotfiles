@@ -44,6 +44,8 @@
 
 (maybe-install-and-require 'inf-clojure)
 (setq inf-clojure-prompt-read-only nil)
+(add-hook 'inf-clojure-minor-mode-hook
+          (lambda () (setq completion-at-point-functions nil)))
 (add-hook 'clojure-mode-hook 'inf-clojure-minor-mode)
 
 (defun reload-current-clj-ns (next-p)
