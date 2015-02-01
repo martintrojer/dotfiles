@@ -12,9 +12,14 @@ alias nano=$VISUAL
 alias vim=$VISUAL
 alias vi=$VISUAL
 
+alias dinit='$(boot2docker shellinit)'
+alias dps='docker ps --all'
+alias dimg='docker images'
+alias drmc='docker rm $(docker ps -a -q)'
+alias drmi='docker rmi $(docker images -q --filter "dangling=true")'
+
 alias devbox='ssh localhost -p 2222'
 
 #xmodmap ~/.xmodmap 2>/dev/null
 
 export PATH=$PATH:/Users/martin/.gem/ruby/2.0.0/bin
-
