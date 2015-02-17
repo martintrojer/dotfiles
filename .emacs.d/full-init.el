@@ -157,6 +157,10 @@
 (add-hook 'clojure-mode-hook 'projectile-mode)
 (add-hook 'ruby-mode-hook 'projectile-mode)
 
+;; inf-ruby
+(maybe-install-and-require 'inf-ruby)
+(add-hook 'ruby-mode-hook 'inf-ruby-minor-mode)
+
 ;; utop / OCaml
 (maybe-install-and-require 'utop)
 (autoload 'utop-setup-ocaml-buffer "utop" "Toplevel for OCaml" t)
