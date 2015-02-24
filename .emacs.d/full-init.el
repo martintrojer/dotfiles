@@ -76,6 +76,11 @@
           '(lambda ()
              (define-key inf-clojure-mode-map "\C-cl" 'erase-inf-buffer)))
 
+;; Golang
+(maybe-install-and-require 'go-mode)
+(maybe-install-and-require 'go-eldoc)
+;(add-hook 'go-mode-hook 'go-eldoc-setup)
+
 ;; Tuareg / OCaml
 (setq save-abbrevs nil)
 (diminish 'abbrev-mode)
@@ -281,7 +286,7 @@
 (if window-system
   (setq linum-format "%d")
   (setq linum-format "%d "))
-(setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode haskell-mode js-mode html-mode css-mode c-mode-common))
+(setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode go-mode haskell-mode js-mode html-mode css-mode c-mode-common))
 (--each linum-modes (add-hook (intern (s-concat (symbol-name it) "-hook")) 'linum-mode))
 
 ;; show time
