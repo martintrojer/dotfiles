@@ -12,3 +12,4 @@
 (package-install 'restclient)
 (package-install 'golden-ratio)
 (package-install 'kaesar)
+(package-install 'direx)

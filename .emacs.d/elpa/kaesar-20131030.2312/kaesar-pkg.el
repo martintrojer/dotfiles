@@ -1,1 +1,0 @@
-(define-package "kaesar" "20131030.2312" "Another AES algorithm encrypt/decrypt string with password." 'nil :url "https://github.com/mhayashi1120/Emacs-kaesar/raw/master/kaesar.el" :keywords '("data"))

@@ -1,0 +1,1 @@
+(define-package "kaesar" "20150220.305" "Another AES algorithm encrypt/decrypt string with password." '((cl-lib "0.3")) :url "https://github.com/mhayashi1120/Emacs-kaesar/raw/master/kaesar.el" :keywords '("data"))

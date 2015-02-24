@@ -3,7 +3,7 @@
 ;;; Code:
 (add-to-list 'load-path (or (file-name-directory #$) (car load-path)))
 
-;;;### (autoloads nil "kaesar" "kaesar.el" (21654 36579 0 0))
+;;;### (autoloads nil "kaesar" "kaesar.el" (21740 16944 0 0))
 ;;; Generated autoloads from kaesar.el
 
 (autoload 'kaesar-encrypt-bytes "kaesar" "\
@@ -13,7 +13,8 @@ See `kaesar-algorithm' list of the supported ALGORITHM .
 
 Do not forget do `clear-string' to UNIBYTE-STRING to keep privacy.
 
-To suppress the password prompt, set password to `kaesar-password' as a vector.
+To suppress the password prompt, set password to `kaesar-password' as
+ a vector.
 
 \(fn UNIBYTE-STRING &optional ALGORITHM)" nil nil)
 
@@ -56,12 +57,13 @@ This is a low level API to create the data which can be decrypted
 \(fn UNIBYTE-STRING KEY-INPUT &optional IV-INPUT ALGORITHM)" nil nil)
 
 (autoload 'kaesar-decrypt "kaesar" "\
-Decrypt a ENCRYPTED-STRING which was encrypted by `kaesar-encrypt' with KEY-INPUT.
+Decrypt a ENCRYPTED-STRING was encrypted by `kaesar-encrypt' with KEY-INPUT.
 IV-INPUT may be required if ALGORITHM need this.
 
 Do not forget do `clear-string' or `fillarray' to KEY-INPUT to keep privacy.
 
-This is a low level API to decrypt data that was encrypted by other implementation.
+This is a low level API to decrypt data that was encrypted
+ by other implementation.
 
 \(fn ENCRYPTED-STRING KEY-INPUT &optional IV-INPUT ALGORITHM)" nil nil)
 
