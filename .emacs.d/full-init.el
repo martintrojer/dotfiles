@@ -122,6 +122,10 @@
 ;; HTML
 (setq auto-mode-alist (cons '("\\.mustache$" . html-mode) auto-mode-alist))
 
+;; Direx
+(maybe-install-and-require 'direx)
+(global-set-key (kbd "C-x C-j") 'direx-project:jump-to-project-root)
+
 ;; =============================================================
 ;; Minor modes
 
