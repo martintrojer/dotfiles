@@ -1,5 +1,4 @@
 var mash = [ 'cmd', 'alt', 'ctrl' ],
-    mashMove = [ 'alt', 'ctrl' ],
     nudgePixels = 5;
 
 // Positioning
@@ -53,11 +52,11 @@ api.bind( 'left', mash, function() {
    Window.focusedWindow().nudgeLeft();
 });
 
-// // Layouts
+// Layouts
 
 api.bind( '1', mash, function() {
    var chromeWindow = App.findByTitle('Google Chrome').firstWindow();
-   emacsWindow = App.findByTitle('iTerm').firstWindow();
+   var emacsWindow = App.findByTitle('iTerm').firstWindow();
    api.alert( 'Emacs + Chrome', 0.25 );
    if ( emacsWindow ) {
       emacsWindow.toW();
@@ -67,7 +66,20 @@ api.bind( '1', mash, function() {
    }
 });
 
-// // Helpers
+api.bind( 'i', mash, function() { App.focusWindow('iTerm') });
+api.bind( 'g', mash, function() { App.focusWindow('Emacs') });
+api.bind( 'n', mash, function() { App.focusWindow('Google Chrome') });
+api.bind( 'b', mash, function() { App.focusWindow('Safari') });
+
+api.bind( '.', mash, function() { App.focusWindow('Activity Monitor') });
+api.bind( 't', mash, function() { App.focusWindow('TweetDeck') });
+api.bind( 'r', mash, function() { App.focusWindow('Textual IRC Client') });
+api.bind( 'm', mash, function() { App.focusWindow('Messages') });
+api.bind( 'o', mash, function() { App.focusWindow('Spotify') });
+
+api.bind( 'h', mash, function() { App.focusWindow('HipChat') });
+
+// Helpers
 
 Window.prototype.toGrid = function( x, y, width, height ) {
    var screen = this.screen().frameWithoutDockOrMenu();
@@ -159,12 +171,29 @@ App.findByTitle = function( title ) {
    });
 };
 
+App.focusWindow = function(title) {
+   var win = App.findByTitle(title);
+   if (win != null && win.firstWindow() != undefined) {
+      win.firstWindow().focusWindow();
+   }
+};
+
 App.prototype.findWindowMatchingTitle = function( title ) {
    var regexp = new RegExp( title );
    return _( this.visibleWindows() ).find( function( win ) {
       return regexp.test( win.title() );
    });
 };
+
 App.prototype.firstWindow = function() {
    return this.visibleWindows()[ 0 ];
 };
+
+App.showMatchingTitles = function(title) {
+   this.runningApps().map( function(x) {
+      var title = x.title();
+      if (title.indexOf(title) == 0) {
+         api.alert(x.title());
+      }
+   });
+}
