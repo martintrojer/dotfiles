@@ -97,6 +97,10 @@
 (add-hook 'haskell-mode-hook 'interactive-haskell-mode)
 (add-hook 'haskell-mode-hook 'haskell-indentation-mode)
 
+(add-hook 'haskell-mode-hook
+          '(lambda ()
+             (define-key haskell-mode-map "\C-c\C-h" 'hoogle)))
+
 (custom-set-variables
   '(haskell-process-suggest-remove-import-lines t)
   '(haskell-process-auto-import-loaded-modules t)
@@ -159,6 +163,10 @@
 (add-hook 'scheme-mode-hook 'paredit-mode)
 (add-hook 'cider-repl-mode-hook 'paredit-mode)
 (add-hook 'clojure-mode-hook 'paredit-mode)
+
+;; flycheck
+(maybe-install-and-require 'flycheck)
+(add-hook 'after-init-hook #'global-flycheck-mode)
 
 ;; projectile
 (maybe-install-and-require 'projectile)
