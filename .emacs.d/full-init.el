@@ -126,6 +126,9 @@
 ;; HTML
 (setq auto-mode-alist (cons '("\\.mustache$" . html-mode) auto-mode-alist))
 
+;; Docker
+(maybe-install-and-require 'dockerfile-mode)
+
 ;; Direx
 (maybe-install-and-require 'direx)
 (global-set-key (kbd "C-x C-j") 'direx-project:jump-to-project-root)
