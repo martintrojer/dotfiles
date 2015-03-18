@@ -43,7 +43,6 @@
 (setq auto-mode-alist (cons '("\\.cljs$" . clojure-mode) auto-mode-alist))
 
 (maybe-install-and-require 'inf-clojure)
-(setq inf-clojure-prompt-read-only nil)
 (add-hook 'inf-clojure-minor-mode-hook
           (lambda () (setq completion-at-point-functions nil)))
 (add-hook 'clojure-mode-hook 'inf-clojure-minor-mode)
@@ -63,8 +62,7 @@
 (defun erase-inf-buffer ()
   (interactive)
   (with-current-buffer (get-buffer "*inf-clojure*")
-    (erase-buffer))
-  (inf-clojure-eval-string ""))
+    (inf-clojure-clear-repl-buffer)))
 
 (add-hook 'clojure-mode-hook
           '(lambda ()
