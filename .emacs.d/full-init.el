@@ -167,6 +167,14 @@
 (add-hook 'cider-repl-mode-hook 'paredit-mode)
 (add-hook 'clojure-mode-hook 'paredit-mode)
 
+;; smartparens
+(maybe-install-and-require 'smartparens)
+(sp-use-paredit-bindings)
+(add-hook 'haskell-mode-hook 'smartparens-mode)
+(add-hook 'haskell-interactive-mode-hook 'smartparens-mode)
+(add-hook 'ruby-mode-hook 'smartparens-mode)
+(add-hook 'inf-clojure-mode-hook 'smartparens-mode)
+
 ;; flycheck
 (maybe-install-and-require 'flycheck)
 (add-hook 'after-init-hook #'global-flycheck-mode)
