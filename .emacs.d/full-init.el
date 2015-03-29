@@ -168,6 +168,7 @@
 ;; smartparens
 (maybe-install-and-require 'smartparens)
 (sp-use-paredit-bindings)
+(sp-pair "'" nil :actions :rem)
 (add-hook 'haskell-mode-hook 'smartparens-mode)
 (add-hook 'haskell-interactive-mode-hook 'smartparens-mode)
 (add-hook 'ruby-mode-hook 'smartparens-mode)
