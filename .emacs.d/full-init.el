@@ -205,6 +205,7 @@
 (global-set-key (kbd "C-c C-g") 'magit-status)
 (global-set-key (kbd "C-c C-b") 'magit-blame-mode)
 (diminish 'magit-auto-revert-mode)
+(setq magit-last-seen-setup-instructions "1.4.0")
 
 ;; git gutter
 (maybe-install-and-require 'git-gutter)
