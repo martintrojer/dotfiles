@@ -127,6 +127,20 @@
 ;; Docker
 (maybe-install-and-require 'dockerfile-mode)
 
+;; Dired
+(require 'dired)
+(setq dired-dwim-target t)
+(defun kill-dired-buffers ()
+  (interactive)
+  (mapc (lambda (buffer)
+          (when (eq 'dired-mode (buffer-local-value 'major-mode buffer))
+            (kill-buffer buffer)))
+        (buffer-list)))
+(add-hook 'dired-mode-hook
+          '(lambda ()
+             (define-key dired-mode-map "\C-x\M-q" 'wdired-change-to-wdired-mode)
+             (define-key dired-mode-map "\C-x\M-f" 'find-name-dired)))
+
 ;; =============================================================
 ;; Minor modes
 
