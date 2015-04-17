@@ -190,7 +190,7 @@
 
 ;; projectile
 (maybe-install-and-require 'projectile)
-(setq projectile-mode-line-lighter "P")
+(setq projectile-mode-line '(:eval (format " P[%s]" (projectile-project-name))))
 (add-hook 'clojure-mode-hook 'projectile-mode)
 (add-hook 'ruby-mode-hook 'projectile-mode)
 
