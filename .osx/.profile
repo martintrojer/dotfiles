@@ -12,7 +12,7 @@ alias nano=$VISUAL
 alias vim=$VISUAL
 alias vi=$VISUAL
 
-alias dinit='$(docker-machine env docker-dev)'
+alias dinit='eval $(docker-machine env docker-dev)'
 alias dps='docker ps --all'
 alias dimg='docker images'
 alias drmc='docker rm $(docker ps -a -q)'
