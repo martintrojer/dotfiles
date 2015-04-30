@@ -117,11 +117,11 @@
 ;; Yaml
 (maybe-install-and-require 'yaml-mode)
 
-;; HTML
-(setq auto-mode-alist (cons '("\\.mustache$" . html-mode) auto-mode-alist))
-
 ;; Docker
 (maybe-install-and-require 'dockerfile-mode)
+
+;; Mustache
+(maybe-install-and-require 'mustache-mode)
 
 ;; Dired
 (require 'dired)
