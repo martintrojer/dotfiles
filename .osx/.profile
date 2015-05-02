@@ -8,6 +8,8 @@ export VISUAL="emacs -Q -nw"
 export TERM=xterm-256color
 export JAVA_HOME=$(/usr/libexec/java_home)
 
+alias git=hub
+
 alias nano=$VISUAL
 alias vim=$VISUAL
 alias vi=$VISUAL
