@@ -334,13 +334,10 @@
 ;; =============================================================
 ;; Color theme
 
-(if window-system
-    (progn
-      (maybe-install-and-require 'flatland-theme)
-      (load-theme 'flatland t))
-  (progn
-      (maybe-install-and-require 'cyberpunk-theme)
-      (load-theme 'cyberpunk t)))
+
+(when (not (getenv "notheme"))
+  (maybe-install-and-require 'flatland-theme)
+  (load-theme 'flatland t))
 
 ;; =============================================================
 ;; Key bindings
