@@ -334,7 +334,6 @@
 ;; =============================================================
 ;; Color theme
 
-
 (when (not (getenv "notheme"))
   (maybe-install-and-require 'flatland-theme)
   (load-theme 'flatland t))
