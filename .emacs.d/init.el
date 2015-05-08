@@ -245,10 +245,12 @@
 
 ;; idle-highlight-mode
 (maybe-install-and-require 'idle-highlight-mode)
+(custom-set-faces '(idle-highlight ((t (:background "#4e4e4e")))))
 (add-hook 'clojure-mode-hook 'idle-highlight-mode)
 (add-hook 'lisp-mode-hook 'idle-highlight-mode)
 (add-hook 'scheme-mode-hook 'idle-highlight-mode)
 (add-hook 'emacs-lisp-mode-hook 'idle-highlight-mode)
+(add-hook 'haskell-mode-hook 'idle-highlight-mode)
 
 ;; Golden Ratio
 (maybe-install-and-require 'golden-ratio)
@@ -334,9 +336,17 @@
 ;; =============================================================
 ;; Color theme
 
-(when (not (getenv "notheme"))
-  (maybe-install-and-require 'flatland-theme)
-  (load-theme 'flatland t))
+(maybe-install-and-require 'flatland-theme)
+(when (not window-system)
+  (let ((bg-one (assoc "flatland-bg+1" flatland-colors-alist))
+        (bg-two (assoc "flatland-bg+2" flatland-colors-alist)))
+    (setq flatland-colors-alist (delete bg-one flatland-colors-alist))
+    (add-to-list 'flatland-colors-alist (cons "flatland-bg+1" (cdr bg-two))))
+  (custom-set-faces
+   '(company-preview ((t (:background "brightyellow" :foreground "wheat"))))
+   '(company-tooltip ((t (:background "brightyellow" :foreground "black"))))))
+
+(load-theme 'flatland t)
 
 ;; =============================================================
 ;; Key bindings
