@@ -16,6 +16,7 @@ alias vi=$VISUAL
 
 #alias dinit='eval $(docker-machine env docker-dev)'
 alias dinit='$(boot2docker shellinit)'
+alias da='docker attach'
 alias dps='docker ps --all'
 alias dimg='docker images'
 alias drmc='docker rm $(docker ps -a -q)'
