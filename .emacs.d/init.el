@@ -417,7 +417,7 @@
 (setq c-basic-offset 3)
 (setq c-indent-level 3)
 (setq c++-tab-always-indent nil)
-(setq js-indent-level 3)
+(setq js-indent-level 2)
 
 ;; Write backup files to own directory
 (setq backup-directory-alist
