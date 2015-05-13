@@ -320,6 +320,11 @@
 (setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode go-mode haskell-mode js-mode html-mode css-mode c-mode-common))
 (--each linum-modes (add-hook (intern (s-concat (symbol-name it) "-hook")) 'linum-mode))
 
+;; avy
+(maybe-install-and-require 'avy)
+(global-set-key (kbd "M-g f") 'avy-goto-line)
+(global-set-key (kbd "M-g w") 'avy-goto-word-1)
+
 ;; jvm-mode
 (maybe-install-and-require 'jvm-mode)
 (jvm-mode)
