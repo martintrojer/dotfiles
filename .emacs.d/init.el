@@ -107,6 +107,8 @@
 ;(diminish 'haskell-interactive-mode)
 ;(diminish 'haskell-indentation-mode)
 
+(setq auto-mode-alist (cons '("\\.purs$" . haskell-mode) auto-mode-alist))
+
 ;; markdown
 (maybe-install-and-require 'markdown-mode)
 (add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-mode))
