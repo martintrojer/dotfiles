@@ -84,11 +84,10 @@ api.bind( 'h', mash, function() { App.focusWindow('HipChat') });
 Window.prototype.toGrid = function( x, y, width, height ) {
    var screen = this.screen().frameWithoutDockOrMenu();
    extrax = 0
-   if (((width == 1.0) && (height == 1.0)) ||
-       (x == 0.0)) {
+   if ((width == 1.0) && (height == 1.0) && (x == 0.0) && (screen.x == 4)) {
       extrax = 4;
    }
-   // api.alert(extrax, 1.0);
+   // api.alert(screen.x, 1.0);
    this.setFrame({
       x: Math.round( x * screen.width ) + screen.x - extrax,
       y: Math.round( y * screen.height ) + screen.y,
