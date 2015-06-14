@@ -327,6 +327,11 @@
 (global-set-key (kbd "M-g f") 'avy-goto-line)
 (global-set-key (kbd "M-g w") 'avy-goto-word-1)
 
+;; show time
+(setq display-time-24hr-format t)
+(setq display-time-load-average t)
+(display-time)
+
 ;; jvm-mode
 (maybe-install-and-require 'jvm-mode)
 (jvm-mode)
