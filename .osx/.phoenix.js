@@ -73,6 +73,7 @@ api.bind( 'b', mash, function() { App.focusWindow('Safari') });
 
 api.bind( '.', mash, function() { App.focusWindow('Activity Monitor') });
 api.bind( 't', mash, function() { App.focusWindow('TweetDeck') });
+api.bind( 'k', mash, function() { App.focusWindow('Slack') });
 api.bind( 'r', mash, function() { App.focusWindow('Textual IRC Client') });
 api.bind( 'm', mash, function() { App.focusWindow('Messages') });
 api.bind( 'o', mash, function() { App.focusWindow('Spotify') });
