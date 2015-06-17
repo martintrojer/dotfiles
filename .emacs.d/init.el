@@ -145,11 +145,14 @@
 ;; Cider
 (maybe-install-and-require 'cider)
 (diminish 'cider-mode " Cdr")
-(setq cider-repl-wrap-history t)
-(setq cider-repl-history-size 1000)
-(setq cider-show-error-buffer 'except-in-repl)
 (setq cider-repl-history-file "~/.emacs.d/cider-history")
-(add-hook 'cider-repl-mode-hook 'subword-mode)
+(setq cider-repl-use-pretty-printing t)
+(setq cider-repl-use-clojure-font-lock t)
+(setq cider-repl-result-prefix ";; => ")
+(setq cider-repl-wrap-history t)
+(setq cider-repl-history-size 3000)
+(add-hook 'cider-mode-hook #'eldoc-mode)
+(setq cider-show-error-buffer 'except-in-repl)
 
 ;; clj-refactor
 (maybe-install-and-require 'clj-refactor)
@@ -234,8 +237,6 @@
 
 ;; eldoc
 (diminish 'eldoc-mode "ED")
-(add-hook 'cider-mode-hook 'cider-turn-on-eldoc-mode)
-(add-hook 'cider-repl-mode-hook 'cider-turn-on-eldoc-mode)
 (add-hook 'emacs-lisp-mode-hook 'eldoc-mode)
 
 ;; hl-sexp
@@ -247,7 +248,6 @@
 
 ;; idle-highlight-mode
 (maybe-install-and-require 'idle-highlight-mode)
-(custom-set-faces '(idle-highlight ((t (:background "#4e4e4e")))))
 (add-hook 'clojure-mode-hook 'idle-highlight-mode)
 (add-hook 'lisp-mode-hook 'idle-highlight-mode)
 (add-hook 'scheme-mode-hook 'idle-highlight-mode)
