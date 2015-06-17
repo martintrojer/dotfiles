@@ -382,6 +382,15 @@
 
 (global-set-key (kbd "RET") 'newline-and-indent)
 
+;; buffer-move
+(maybe-install-and-require 'buffer-move)
+(global-set-key (kbd "C-c <C-right>") '(lambda ()
+                                         (interactive)
+                                         (buf-move-right) (golden-ratio)))
+(global-set-key (kbd "C-c <C-left>") '(lambda ()
+                                        (interactive)
+                                        (buf-move-left) (golden-ratio)))
+
 ;; =============================================================
 ;; Mode Settings
 
