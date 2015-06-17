@@ -358,6 +358,11 @@
    '(company-preview ((t (:background "brightyellow" :foreground "wheat"))))
    '(company-tooltip ((t (:background "brightyellow" :foreground "black"))))))
 
+(custom-set-faces
+ '(region ((t (:background "#4c4f52"))))
+ '(linum ((t (:foreground "#555"))))
+ '(idle-highlight ((t (:background "#4e4e4e")))))
+
 (load-theme 'flatland t)
 
 ;; =============================================================
@@ -405,6 +410,7 @@
 (setq scroll-step 1)
 (setq scroll-error-top-bottom t)
 (blink-cursor-mode -1)
+(setq ring-bell-function 'ignore)
 
 ;; remove trailing whitespace
 (add-hook 'before-save-hook 'delete-trailing-whitespace)
