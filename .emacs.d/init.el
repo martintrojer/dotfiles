@@ -100,9 +100,9 @@
              (define-key haskell-mode-map "\C-c\C-h" 'hoogle)))
 
 (custom-set-variables
-  '(haskell-process-suggest-remove-import-lines t)
-  '(haskell-process-auto-import-loaded-modules t)
-  '(haskell-process-log t))
+ '(haskell-process-auto-import-loaded-modules t)
+ '(haskell-process-log t)
+ '(haskell-process-suggest-remove-import-lines t))
 
 ;(diminish 'haskell-interactive-mode)
 ;(diminish 'haskell-indentation-mode)
@@ -217,6 +217,7 @@
 (global-set-key (kbd "C-c C-b") 'magit-blame-mode)
 (diminish 'magit-auto-revert-mode)
 (setq magit-last-seen-setup-instructions "1.4.0")
+(setq magit-diff-refine-hunk t)
 
 ;; git gutter
 (maybe-install-and-require 'git-gutter)
@@ -359,9 +360,10 @@
    '(company-tooltip ((t (:background "brightyellow" :foreground "black"))))))
 
 (custom-set-faces
- '(region ((t (:background "#4c4f52"))))
+ '(diff-refine-added ((t (:inherit diff-added :background "#4e4e4e"))))
+ '(idle-highlight ((t (:background "#4e4e4e"))))
  '(linum ((t (:foreground "#555"))))
- '(idle-highlight ((t (:background "#4e4e4e")))))
+ '(region ((t (:background "#4c4f52")))))
 
 (load-theme 'flatland t)
 
