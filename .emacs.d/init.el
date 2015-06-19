@@ -335,6 +335,7 @@
 
 ;; jvm-mode
 (maybe-install-and-require 'jvm-mode)
+(setq jvm-mode-line-string " jvm[%d]")
 (jvm-mode)
 
 ;; recentf mode
