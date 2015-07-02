@@ -146,7 +146,7 @@
 (maybe-install-and-require 'cider)
 (diminish 'cider-mode " Cdr")
 (setq cider-repl-history-file "~/.emacs.d/cider-history")
-(setq cider-repl-use-pretty-printing t)
+(setq cider-repl-use-pretty-printing nil)
 (setq cider-repl-use-clojure-font-lock t)
 (setq cider-repl-result-prefix ";; => ")
 (setq cider-repl-wrap-history t)
