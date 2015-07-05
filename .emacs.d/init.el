@@ -79,16 +79,6 @@
 (maybe-install-and-require 'go-eldoc)
 ;(add-hook 'go-mode-hook 'go-eldoc-setup)
 
-;; Tuareg / OCaml
-(setq save-abbrevs nil)
-(diminish 'abbrev-mode)
-(maybe-install-and-require 'tuareg)
-(add-hook 'tuareg-mode-hook 'tuareg-imenu-set-imenu)
-(setq auto-mode-alist
-      (append '(("\\.ml[ily]?$" . tuareg-mode)
-                ("\\.topml$" . tuareg-mode))
-              auto-mode-alist))
-
 ;; Haskell
 (maybe-install-and-require 'haskell-mode)
 (require 'haskell-interactive-mode)
@@ -198,18 +188,6 @@
 ;; inf-ruby
 (maybe-install-and-require 'inf-ruby)
 (add-hook 'ruby-mode-hook 'inf-ruby-minor-mode)
-
-;; utop / OCaml
-(maybe-install-and-require 'utop)
-(autoload 'utop-setup-ocaml-buffer "utop" "Toplevel for OCaml" t)
-(add-hook 'tuareg-mode-hook 'utop-setup-ocaml-buffer)
-
-;; merlin / OCaml
-(maybe-install-and-require 'merlin)
-(diminish 'merlin-mode "MRL")
-(add-hook 'tuareg-mode-hook 'merlin-mode)
-(setq merlin-use-auto-complete-mode t)
-(setq merlin-error-after-save nil)
 
 ;; Magit
 (maybe-install-and-require 'magit)
