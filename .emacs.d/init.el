@@ -16,6 +16,7 @@
 ;; package
 
 (require 'package)
+(setq async-bytecomp-allowed-packages '())
 
 (add-to-list 'package-archives
              '("melpa" . "http://stable.melpa.org/packages/") t)
