@@ -16,6 +16,7 @@ alias vi=$VISUAL
 
 alias ddev='eval $(docker-machine env dev)'
 alias dosio='eval $(docker-machine env osio)'
+alias osio='export OSIO_LOCAL=`docker-machine ip osio`'
 alias da='docker attach'
 alias dps='docker ps --all'
 alias dimg='docker images'

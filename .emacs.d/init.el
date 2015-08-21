@@ -473,3 +473,9 @@
   (unless (getenv "TMUX")
     (setq interprogram-cut-function 'paste-to-osx)
     (setq interprogram-paste-function 'copy-from-osx)))
+
+(defun osio ()
+  (interactive)
+  (setenv "OSIO_LOCAL"
+          (s-trim
+           (shell-command-to-string "docker-machine ip osio"))))
