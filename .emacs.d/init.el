@@ -1,5 +1,8 @@
-;; =============================================================
-;; prelude
+;;; init.el -- Martin's emacs config
+
+;;; Commentary:
+
+;;; Code:
 
 ;; C-u 0 M-x byte-recompile-directory
 
@@ -16,308 +19,402 @@
 ;; package
 
 (require 'package)
-(setq async-bytecomp-allowed-packages '())
 
 (add-to-list 'package-archives
-             '("melpa" . "http://stable.melpa.org/packages/") t)
+             '("melpa-stable" . "http://stable.melpa.org/packages/") t)
 
 (add-to-list 'package-archives
 	     '("marmalade" . "http://marmalade-repo.org/packages/") t)
+
+(add-to-list 'package-archives
+             '("melpa" . "http://melpa.org/packages/") t)
 
 (package-initialize)
 
 (when (not package-archive-contents)
   (package-refresh-contents))
 
-(defun maybe-install-and-require (p)
-  (when (not (package-installed-p p))
-    (package-install p))
-  (require p))
-
-(maybe-install-and-require 'diminish)
+(when (not (package-installed-p 'use-package))
+  (package-install 'use-package))
+(require 'use-package)
 
 ;; =============================================================
 ;; Major modes
 
 ;; Clojure
-(maybe-install-and-require 'clojure-mode)
-(setq auto-mode-alist (cons '("\\.cljs$" . clojure-mode) auto-mode-alist))
+(use-package clojure-mode
+  :ensure t
+  :pin melpa-stable
+  :mode "\\.cljs$"
+  :config
+  (setq safe-local-variable-values
+	(quote
+	 ((eval define-clojure-indent
+		(snippet
+		 (quote defun))
+		(template
+		 (quote defun)))))))
 
-(maybe-install-and-require 'inf-clojure)
-(add-hook 'inf-clojure-minor-mode-hook
-          (lambda () (setq completion-at-point-functions nil)))
-(add-hook 'clojure-mode-hook 'inf-clojure-minor-mode)
+;; Cider
+(use-package cider
+  :ensure t
+  :defer t
+  :pin melpa-stable
+  :diminish (cider-mode . "Cdr")
+  :config
+  (setq cider-repl-history-file "~/.emacs.d/cider-history")
+  (setq cider-font-lock-dynamically '(macro core function var))
+  (setq cider-repl-use-pretty-printing nil)
+  (setq cider-repl-use-clojure-font-lock t)
+  (setq cider-repl-result-prefix ";; => ")
+  (setq cider-repl-wrap-history t)
+  (setq cider-repl-history-size 3000)
+  (setq cider-show-error-buffer 'except-in-repl)
+  (add-hook 'cider-mode-hook #'eldoc-mode))
 
-(defun reload-current-clj-ns (next-p)
-  (interactive "P")
-  (let ((ns (clojure-find-ns)))
-    (message (format "Loading %s ..." ns))
-    (inf-clojure-eval-string (format "(require '%s :reload)" ns))
-    (when (not next-p) (inf-clojure-eval-string (format "(in-ns '%s)" ns)))))
-
-(defun find-tag-without-ns (next-p)
-  (interactive "P")
-  (find-tag (first (last (split-string (symbol-name (symbol-at-point)) "/")))
-            next-p))
-
-(defun erase-inf-buffer ()
-  (interactive)
-  (with-current-buffer (get-buffer "*inf-clojure*")
-    (inf-clojure-clear-repl-buffer)))
-
-(add-hook 'clojure-mode-hook
-          '(lambda ()
-             (define-key clojure-mode-map "\C-c\C-k" 'reload-current-clj-ns)
-             (define-key clojure-mode-map "\M-." 'find-tag-without-ns)
-             (define-key clojure-mode-map "\C-cl" 'erase-inf-buffer)
-             (define-key clojure-mode-map "\C-c\C-t" 'clojure-toggle-keyword-string)))
-(add-hook 'inf-clojure-mode-hook
-          '(lambda ()
-             (define-key inf-clojure-mode-map "\C-cl" 'erase-inf-buffer)))
-
-;; Golang
-(maybe-install-and-require 'go-mode)
-(maybe-install-and-require 'go-eldoc)
-;(add-hook 'go-mode-hook 'go-eldoc-setup)
+;; Go lang
+(use-package go-mode
+  :ensure t
+  :defer t
+  :pin melpa-stable)
+(use-package go-eldoc
+  :ensure t
+  :defer t
+  :pin melpa-stable)
 
 ;; Haskell
-(maybe-install-and-require 'haskell-mode)
-(require 'haskell-interactive-mode)
-(add-hook 'haskell-mode-hook 'interactive-haskell-mode)
-(add-hook 'haskell-mode-hook 'haskell-indentation-mode)
+(use-package haskell-mode
+  :ensure t
+  :pin melpa-stable
+  :mode "\\.purs$"
+  :config
+  (require 'haskell-interactive-mode)
+  (add-hook 'haskell-mode-hook 'interactive-haskell-mode)
+  (add-hook 'haskell-mode-hook 'haskell-indentation-mode)
+  (add-hook 'haskell-mode-hook
+	    '(lambda ()
+	       (define-key haskell-mode-map "\C-c\C-h" 'hoogle)))
+  (setq haskell-process-auto-import-loaded-modules t)
+  (setq haskell-process-log t)
+  (setq haskell-process-suggest-remove-import-lines t))
 
-(add-hook 'haskell-mode-hook
-          '(lambda ()
-             (define-key haskell-mode-map "\C-c\C-h" 'hoogle)))
-
-(custom-set-variables
- '(haskell-process-auto-import-loaded-modules t)
- '(haskell-process-log t)
- '(haskell-process-suggest-remove-import-lines t))
-
-;(diminish 'haskell-interactive-mode)
-;(diminish 'haskell-indentation-mode)
-
-(setq auto-mode-alist (cons '("\\.purs$" . haskell-mode) auto-mode-alist))
-
-;; markdown
-(maybe-install-and-require 'markdown-mode)
-(add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-mode))
-
-;; Puppet
-(maybe-install-and-require 'puppet-mode)
+;; Markdown
+(use-package markdown-mode
+  :ensure t
+  :pin melpa-stable
+  :mode "\\.md\\'")
 
 ;; Yaml
-(maybe-install-and-require 'yaml-mode)
+(use-package yaml-mode
+  :ensure t
+  :defer t
+  :pin melpa-stable)
 
 ;; Docker
-(maybe-install-and-require 'dockerfile-mode)
+(use-package dockerfile-mode
+  :ensure t
+  :defer t
+  :pin melpa-stable)
 
 ;; Mustache
-(maybe-install-and-require 'mustache-mode)
+(use-package mustache-mode
+  :ensure t
+  :defer t
+  :pin melpa-stable)
 
 ;; Dired
-(require 'dired)
-(setq dired-dwim-target t)
-(defun kill-dired-buffers ()
-  (interactive)
-  (mapc (lambda (buffer)
-          (when (eq 'dired-mode (buffer-local-value 'major-mode buffer))
-            (kill-buffer buffer)))
-        (buffer-list)))
-(add-hook 'dired-mode-hook
-          '(lambda ()
-             (define-key dired-mode-map "\C-x\M-q" 'wdired-change-to-wdired-mode)
-             (define-key dired-mode-map "\C-x\M-f" 'find-name-dired)))
+(use-package dired
+  :config
+  (setq dired-dwim-target t)
+  (defun kill-dired-buffers ()
+    (interactive)
+    (mapc (lambda (buffer)
+	    (when (eq 'dired-mode (buffer-local-value 'major-mode buffer))
+	      (kill-buffer buffer)))
+	  (buffer-list)))
+  (add-hook 'dired-mode-hook
+	    '(lambda ()
+	       (define-key dired-mode-map "\C-x\M-q" 'wdired-change-to-wdired-mode)
+	       (define-key dired-mode-map "\C-x\M-f" 'find-name-dired))))
 
 ;; =============================================================
 ;; Minor modes
 
-;; Cider
-(maybe-install-and-require 'cider)
-(diminish 'cider-mode " Cdr")
-(setq cider-repl-history-file "~/.emacs.d/cider-history")
-(setq cider-repl-use-pretty-printing nil)
-(setq cider-repl-use-clojure-font-lock t)
-(setq cider-repl-result-prefix ";; => ")
-(setq cider-repl-wrap-history t)
-(setq cider-repl-history-size 3000)
-(add-hook 'cider-mode-hook #'eldoc-mode)
-(setq cider-show-error-buffer 'except-in-repl)
-
-;; clj-refactor
-(maybe-install-and-require 'clj-refactor)
-(diminish 'clj-refactor-mode)
-(add-hook 'clojure-mode-hook (lambda ()
-                               (clj-refactor-mode 1)
-                               (cljr-add-keybindings-with-prefix "C-c C-o")))
-
-;; align-cljlet
-(maybe-install-and-require 'align-cljlet)
-(add-hook 'clojure-mode-hook
-          '(lambda ()
-             (define-key clojure-mode-map "\C-c\C-y" 'align-cljlet)))
-
-;; paredit
-(maybe-install-and-require 'paredit)
-(diminish 'paredit-mode "Pe")
-(add-hook 'lisp-mode-hook 'paredit-mode)
-(add-hook 'emacs-lisp-mode-hook 'paredit-mode)
-(add-hook 'scheme-mode-hook 'paredit-mode)
-(add-hook 'cider-repl-mode-hook 'paredit-mode)
-(add-hook 'clojure-mode-hook 'paredit-mode)
-
-;; smartparens
-(maybe-install-and-require 'smartparens)
-(sp-use-paredit-bindings)
-(sp-pair "'" nil :actions :rem)
-(add-hook 'haskell-mode-hook 'smartparens-mode)
-(add-hook 'haskell-interactive-mode-hook 'smartparens-mode)
-(add-hook 'ruby-mode-hook 'smartparens-mode)
-(add-hook 'inf-clojure-mode-hook 'smartparens-mode)
-
-;; flycheck
-(maybe-install-and-require 'flycheck)
-(add-hook 'after-init-hook #'global-flycheck-mode)
-
-;; projectile
-(maybe-install-and-require 'projectile)
-(setq projectile-mode-line '(:eval (format " P[%s]" (projectile-project-name))))
-(add-hook 'clojure-mode-hook 'projectile-mode)
-(add-hook 'ruby-mode-hook 'projectile-mode)
-
-;; inf-ruby
-(maybe-install-and-require 'inf-ruby)
-(add-hook 'ruby-mode-hook 'inf-ruby-minor-mode)
+;; eldoc
+(use-package eldoc
+  :diminish (eldoc-mode . "ED")
+  :config
+  (add-hook 'emacs-lisp-mode-hook 'eldoc-mode))
 
 ;; Magit
-(maybe-install-and-require 'magit)
-(global-set-key (kbd "C-c C-g") 'magit-status)
-(global-set-key (kbd "C-c C-b") 'magit-blame-mode)
-(setq magit-last-seen-setup-instructions "1.4.0")
-(setq magit-revert-buffers 'silent)
-(setq magit-diff-refine-hunk t)
+(use-package magit
+  :ensure t
+  :pin melpa-stable
+  :bind (("C-c C-g" . magit-status)
+         ("C-c C-b" . magit-blame-mode))
+  :config
+  (setq magit-last-seen-setup-instructions "1.4.0")
+  (setq magit-revert-buffers 'silent)
+  (setq magit-diff-refine-hunk t))
 
-;; git gutter
-(maybe-install-and-require 'git-gutter)
-(diminish 'git-gutter-mode "GG")
-;; (global-git-gutter-mode t)
-(global-set-key (kbd "C-x C-g") 'git-gutter:toggle)
+;; Paredit
+(use-package paredit
+  :ensure t
+  :pin melpa-stable
+  :diminish (paredit-mode . "Pe")
+  :config
+  (add-hook 'lisp-mode-hook 'paredit-mode)
+  (add-hook 'emacs-lisp-mode-hook 'paredit-mode)
+  (add-hook 'scheme-mode-hook 'paredit-mode)
+  (add-hook 'cider-repl-mode-hook 'paredit-mode)
+  (add-hook 'clojure-mode-hook 'paredit-mode))
 
-;; silver searcher
-(maybe-install-and-require 'ag)
-(setq ag-highlight-search t)
-(setq ag-reuse-buffers t)
-(defun ag-search (string file-regex directory)
-  (interactive (list (read-from-minibuffer "Search string: " (ag/dwim-at-point))
-                     (read-from-minibuffer "In filenames matching PCRE: " (ag/buffer-extension-regex))
-                     (read-directory-name "Directory: " (ag/project-root default-directory))))
-  (ag/search string directory :file-regex file-regex))
-(global-set-key (kbd "C-x M-f") 'ag-search)
+;; Smartparens
+(use-package smartparens
+  :ensure t
+  :pin melpa-stable
+  :config
+  (sp-use-paredit-bindings)
+  (sp-pair "'" nil :actions :rem)
+  (add-hook 'haskell-mode-hook 'smartparens-mode)
+  (add-hook 'haskell-interactive-mode-hook 'smartparens-mode)
+  (add-hook 'ruby-mode-hook 'smartparens-mode)
+  (add-hook 'inf-clojure-mode-hook 'smartparens-mode))
 
-;; eldoc
-(diminish 'eldoc-mode "ED")
-(add-hook 'emacs-lisp-mode-hook 'eldoc-mode)
-
-;; hl-sexp
-(maybe-install-and-require 'hl-sexp)
-(add-hook 'clojure-mode-hook 'hl-sexp-mode)
-(add-hook 'lisp-mode-hook 'hl-sexp-mode)
-(add-hook 'scheme-mode-hook 'hl-sexp-mode)
-(add-hook 'emacs-lisp-mode-hook 'hl-sexp-mode)
-
-;; idle-highlight-mode
-(maybe-install-and-require 'idle-highlight-mode)
-(add-hook 'clojure-mode-hook 'idle-highlight-mode)
-(add-hook 'lisp-mode-hook 'idle-highlight-mode)
-(add-hook 'scheme-mode-hook 'idle-highlight-mode)
-(add-hook 'emacs-lisp-mode-hook 'idle-highlight-mode)
-(add-hook 'haskell-mode-hook 'idle-highlight-mode)
-
-;; Golden Ratio
-(maybe-install-and-require 'golden-ratio)
-(diminish 'golden-ratio-mode "AU")
-(golden-ratio-mode 1)
-(add-to-list 'golden-ratio-exclude-modes "ediff-mode")
-
-;; undo-tree
-(maybe-install-and-require 'undo-tree)
-(diminish 'undo-tree-mode "UT")
-(global-undo-tree-mode)
-
-;; yasnippet
-(maybe-install-and-require 'yasnippet)
-(diminish 'yas-minor-mode " Y")
-(maybe-install-and-require 'clojure-snippets)
-(yas-global-mode 1)
-(add-to-list 'yas-snippet-dirs "~/.emacs.d/snippets")
-(yas-load-directory "~/.emacs.d/snippets")
-
-;; company mode
-(maybe-install-and-require 'company)
-(diminish 'company-mode)
-
-(require 'company-etags)
-(add-to-list 'company-etags-modes 'clojure-mode)
-(add-hook 'after-init-hook 'global-company-mode)
-
-;; browse-kill-ring
-(maybe-install-and-require 'browse-kill-ring)
-(browse-kill-ring-default-keybindings)
-
-;; multiple cursors
-(maybe-install-and-require 'multiple-cursors)
-(global-set-key (kbd "C-c .") 'mc/mark-next-like-this)
-(global-set-key (kbd "C-c ,") 'mc/mark-previous-like-this)
-(global-set-key (kbd "C-c M-.") 'mc/mark-all-like-this)
+;; Company
+(use-package company
+  :ensure t
+  :pin melpa-stable
+  :diminish company-mode
+  :config
+  (global-company-mode))
 
 ;; IDO
-(maybe-install-and-require 'ido-ubiquitous)
-(ido-mode t)
-(ido-ubiquitous)
-(setq ido-enable-flex-matching t)
-(global-set-key "\M-x"
+(use-package ido-ubiquitous
+  :ensure t
+  :pin melpa-stable
+  :config
+  (ido-mode t)
+  (ido-ubiquitous)
+  (setq ido-enable-flex-matching t)
+  (global-set-key "\M-x"
                 (lambda ()
                   (interactive)
                   (call-interactively
-                   (intern (ido-completing-read "M-x " (all-completions "" obarray 'commandp))))))
+                   (intern (ido-completing-read "M-x " (all-completions "" obarray 'commandp)))))))
 
-;; expand region
-(maybe-install-and-require 'expand-region)
-(global-set-key (kbd "C-\\") 'er/expand-region)
+;; Projectile
+(use-package projectile
+  :ensure t
+  :pin melpa-stable
+  :config
+  (setq projectile-mode-line '(:eval (format " P[%s]" (projectile-project-name))))
+  (add-hook 'clojure-mode-hook 'projectile-mode)
+  (add-hook 'ruby-mode-hook 'projectile-mode))
 
-;; yagist
-(maybe-install-and-require 'yagist)
-(maybe-install-and-require 'kaesar)
-(setq yagist-encrypt-risky-config t)
+;; Yasnippet
+(use-package yasnippet
+  :ensure t
+  :pin melpa-stable
+  :diminish (yas-minor-mode . " Y")
+  :config
+  (yas-global-mode 1)
+  (add-to-list 'yas-snippet-dirs "~/.emacs.d/snippets")
+  (yas-load-directory "~/.emacs.d/snippets"))
 
-;; flyspell
-(require 'flyspell)
-(diminish 'flyspell-mode "FP")
+;; Silver searcher
+(use-package ag
+  :ensure t
+  :pin melpa-stable
+  :bind ("C-x M-f" . mt-ag-search)
+  :config
+  (setq ag-highlight-search t)
+  (setq ag-reuse-buffers t)
+  (defun mt-ag-search (string file-regex directory)
+    (interactive (list (read-from-minibuffer "Search string: " (ag/dwim-at-point))
+		       (read-from-minibuffer "In filenames matching PCRE: " (ag/buffer-extension-regex))
+		       (read-directory-name "Directory: " (ag/project-root default-directory))))
+    (ag/search string directory :file-regex file-regex)))
 
-;; linum
-(if window-system
-  (setq linum-format "%d")
-  (setq linum-format "%d "))
-(setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode go-mode haskell-mode js-mode html-mode css-mode c-mode-common))
-(--each linum-modes (add-hook (intern (s-concat (symbol-name it) "-hook")) 'linum-mode))
+;; Linum
+(use-package linum
+  :config
+  (if window-system
+      (setq linum-format "%d")
+    (setq linum-format "%d "))
+  (setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode go-mode haskell-mode js-mode html-mode css-mode c-mode-common))
+  (require 's)
+  (--each linum-modes (add-hook (intern (s-concat (symbol-name it) "-hook")) 'linum-mode)))
 
-;; avy
-(maybe-install-and-require 'avy)
-(global-set-key (kbd "M-g f") 'avy-goto-line)
-(global-set-key (kbd "M-g w") 'avy-goto-word-1)
+;; Flycheck
+(use-package flycheck
+  :ensure t
+  :pin melpa-stable
+  :config
+  (add-hook 'after-init-hook #'global-flycheck-mode))
 
-;; show time
-(setq display-time-24hr-format t)
-(setq display-time-load-average t)
-(display-time)
+;; Flyspell
+(use-package flyspell
+  :ensure t
+  :pin melpa-stable)
 
-;; jvm-mode
-(maybe-install-and-require 'jvm-mode)
-(setq jvm-mode-line-string " jvm[%d]")
-(jvm-mode)
+;; hl-sexp
+(use-package hl-sexp
+  :ensure t
+  :pin melpa-stable
+  :config
+  (add-hook 'clojure-mode-hook 'hl-sexp-mode)
+  (add-hook 'lisp-mode-hook 'hl-sexp-mode)
+  (add-hook 'scheme-mode-hook 'hl-sexp-mode)
+  (add-hook 'emacs-lisp-mode-hook 'hl-sexp-mode))
 
-;; recentf mode
+;; idle-highlight-mode
+(use-package idle-highlight-mode
+  :ensure t
+  :pin melpa-stable
+  :config
+  (add-hook 'clojure-mode-hook 'idle-highlight-mode)
+  (add-hook 'lisp-mode-hook 'idle-highlight-mode)
+  (add-hook 'scheme-mode-hook 'idle-highlight-mode)
+  (add-hook 'emacs-lisp-mode-hook 'idle-highlight-mode)
+  (add-hook 'haskell-mode-hook 'idle-highlight-mode))
+
+;; Golden ratio
+(use-package golden-ratio
+  :ensure t
+  :pin melpa-stable
+  :diminish (golden-ratio-mode . "AU")
+  :config
+  (golden-ratio-mode 1)
+  (add-to-list 'golden-ratio-exclude-modes "ediff-mode"))
+
+;; undo-tree
+(use-package undo-tree
+  :ensure t
+  :pin marmalade
+  :diminish (undo-tree-mode . "UT")
+  :config
+  (global-undo-tree-mode))
+
+;; browse-kill-ring
+(use-package browse-kill-ring
+  :ensure t
+  :pin melpa-stable
+  :config
+  (browse-kill-ring-default-keybindings))
+
+;; Multiple cursors
+(use-package multiple-cursors
+  :ensure t
+  :pin melpa-stable
+  :bind (("C-c ." . mc/mark-next-like-this)
+         ("C-c ," . mc/mark-previous-like-this)
+         ("C-c M-." . mc/mark-all-like-this)))
+
+;; Expand region
+(use-package expand-region
+  :ensure t
+  :pin melpa-stable
+  :bind ("C-\\" . er/expand-region))
+
+;; Yagist
+(use-package yagist
+  :ensure t
+  :defer t
+  :pin melpa-stable
+  :config
+  (setq yagist-encrypt-risky-config t))
+(use-package kaesar
+  :ensure t
+  :pin melpa-stable)
+
+;; Git gutter
+(use-package git-gutter
+  :ensure t
+  :pin melpa-stable
+  :diminish (git-gutter-mode . "GG")
+  :bind ("C-x C-g" . git-gutter:toggle))
+
+;; inf-ruby
+(use-package inf-ruby
+  :ensure t
+  :pin melpa-stable
+  :config
+  (add-hook 'ruby-mode-hook 'inf-ruby-minor-mode))
+
+;; Avy
+(use-package avy
+  :ensure t
+  :pin melpa-stable
+  :bind (("M-g f" . avy-goto-line)
+         ("M-g w" . any-goto-word-1)))
+
+;; JVM
+(use-package jvm-mode
+  :ensure t
+  :pin melpa-stable
+  :config
+  (setq jvm-mode-line-string " jvm[%d]")
+  (jvm-mode))
+
+;; buffer-move
+(use-package buffer-move
+  :ensure t
+  :pin melpa-stable
+  :bind (("C-c <C-right>" . mt-move-right)
+         ("C-c <C-left>" . mt-move-left))
+  :config
+  (defun mt-move-right ()
+    (interactive)
+    (buf-move-right) (golden-ratio))
+  (defun mt-move-left ()
+    (interactive)
+    (buf-move-left) (golden-ratio)))
+
+;; align-cljlet
+(use-package align-cljlet
+  :ensure t
+  :pin marmalade
+  :config
+  (add-hook 'clojure-mode-hook
+          '(lambda ()
+             (define-key clojure-mode-map "\C-c\C-y" 'align-cljlet))))
+
+;; clj-refactor
+(use-package clj-refactor
+  :ensure t
+  :pin melpa
+  :diminish clj-refactor-mode
+  :config
+  (add-hook 'clojure-mode-hook (lambda ()
+                               (clj-refactor-mode 1)
+                               (cljr-add-keybindings-with-prefix "C-c C-o"))))
+
+;; =============================================================
+;; Colors
+
+(use-package flatland-theme
+  :ensure t
+  :pin marmalade
+  :config
+  (when (not window-system)
+    (let ((bg-one (assoc "flatland-bg+1" flatland-colors-alist))
+	  (bg-two (assoc "flatland-bg+2" flatland-colors-alist)))
+      (setq flatland-colors-alist (delete bg-one flatland-colors-alist))
+      (add-to-list 'flatland-colors-alist (cons "flatland-bg+1" (cdr bg-two))))
+    (custom-set-faces
+     '(company-preview ((t (:background "brightyellow" :foreground "wheat"))))
+     '(company-tooltip ((t (:background "brightyellow" :foreground "black"))))))
+  (custom-set-faces
+   '(diff-refine-added ((t (:inherit diff-added :background "#4e4e4e"))))
+   '(idle-highlight ((t (:background "#4e4e4e"))))
+   '(linum ((t (:foreground "#555"))))
+   '(region ((t (:background "#4c4f52")))))
+  (load-theme 'flatland t))
+
+;; =============================================================
+;; Misc config
+
 (recentf-mode)
 (setq recentf-max-menu-items 25)
 (global-set-key (kbd "C-x C-r") 'recentf-open-files)
@@ -325,33 +422,6 @@
 (show-paren-mode)
 (global-auto-revert-mode t)
 (column-number-mode t)
-
-;; =============================================================
-;; Color theme
-
-(maybe-install-and-require 'flatland-theme)
-(when (not window-system)
-  (let ((bg-one (assoc "flatland-bg+1" flatland-colors-alist))
-        (bg-two (assoc "flatland-bg+2" flatland-colors-alist)))
-    (setq flatland-colors-alist (delete bg-one flatland-colors-alist))
-    (add-to-list 'flatland-colors-alist (cons "flatland-bg+1" (cdr bg-two))))
-  (custom-set-faces
-   '(company-preview ((t (:background "brightyellow" :foreground "wheat"))))
-   '(company-tooltip ((t (:background "brightyellow" :foreground "black"))))))
-
-(custom-set-faces
- '(diff-refine-added ((t (:inherit diff-added :background "#4e4e4e"))))
- '(idle-highlight ((t (:background "#4e4e4e"))))
- '(linum ((t (:foreground "#555"))))
- '(region ((t (:background "#4c4f52")))))
-
-(load-theme 'flatland t)
-
-;; =============================================================
-;; Key bindings
-
-;; ibuffer over list-buffers
-(global-set-key (kbd "C-x C-b") 'ibuffer)
 
 ;; comments
 (global-set-key (kbd "C-c ;") 'comment-or-uncomment-region)
@@ -363,37 +433,6 @@
 (global-set-key (kbd "C-M-r") 'isearch-backward)
 
 (global-set-key (kbd "RET") 'newline-and-indent)
-
-;; buffer-move
-(maybe-install-and-require 'buffer-move)
-(global-set-key (kbd "C-c <C-right>") '(lambda ()
-                                         (interactive)
-                                         (buf-move-right) (golden-ratio)))
-(global-set-key (kbd "C-c <C-left>") '(lambda ()
-                                        (interactive)
-                                        (buf-move-left) (golden-ratio)))
-
-;; =============================================================
-;; Mode Settings
-
-;; compojure
-(define-clojure-indent
-	(defroutes 'defun)
-	(GET 2)
-	(POST 2)
-	(PUT 2)
-	(DELETE 2)
-	(HEAD 2)
-	(ANY 2)
-	(context 2))
-
-;; Scheme; gambit / chicken / petite
-;;(setq scheme-program-name "gsi -:s,d-")
-(setq scheme-program-name "csi")
-;;(setq scheme-program-name "petite")
-
-;; =============================================================
-;; Settings
 
 (setq frame-title-format "%b")
 (set-default 'truncate-lines t)
@@ -458,8 +497,11 @@
 
   (global-set-key (kbd "M-3") '(lambda () (interactive) (insert "#")))
 
-  (maybe-install-and-require 'exec-path-from-shell)
-  (exec-path-from-shell-initialize)
+  (use-package exec-path-from-shell
+    :ensure t
+    :pin melpa-stable
+    :config
+    (exec-path-from-shell-initialize))
 
   (defun copy-from-osx ()
     (shell-command-to-string "pbpaste"))
@@ -479,3 +521,5 @@
   (setenv "OSIO_LOCAL"
           (s-trim
            (shell-command-to-string "docker-machine ip osio"))))
+
+;;; init.el ends here
