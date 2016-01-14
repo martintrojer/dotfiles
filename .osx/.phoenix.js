@@ -26,7 +26,6 @@ Window.prototype.toGrid = function(x, y, width, height) {
   if (((height == 1.0) || (height == 0.5)) && (x == 0.0) && (frame.x == 4)) {
     extrax = 4;
   }
-  alert(height);
   this.setFrame({
     x: Math.round( x * frame.width ) + frame.x - extrax,
     y: Math.round( y * frame.height ) + frame.y,
@@ -70,6 +69,7 @@ keys.push(Phoenix.bind('i', mash, function() { callApp('iTerm'); }));
 keys.push(Phoenix.bind('g', mash, function() { callApp('Emacs'); }));
 keys.push(Phoenix.bind('n', mash, function() { callApp('Google Chrome'); }));
 keys.push(Phoenix.bind('b', mash, function() { callApp('Safari'); }));
+keys.push(Phoenix.bind('t', mash, function() { callApp('TweetDeck'); }));
 keys.push(Phoenix.bind('l', mash, function() { callApp('Mail'); }));
 keys.push(Phoenix.bind('r', mash, function() { callApp('Calendar'); }));
 keys.push(Phoenix.bind('k', mash, function() { callApp('Slack'); }));
