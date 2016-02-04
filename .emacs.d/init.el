@@ -45,7 +45,6 @@
 (use-package clojure-mode
   :ensure t
   :pin melpa-stable
-  :mode "\\.cljs$"
   :config
   (setq safe-local-variable-values
 	(quote
