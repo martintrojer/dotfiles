@@ -382,7 +382,7 @@
 ;; clj-refactor
 (use-package clj-refactor
   :ensure t
-  :pin melpa
+  :pin melpa-stable
   :diminish clj-refactor-mode
   :config
   (add-hook 'clojure-mode-hook (lambda ()

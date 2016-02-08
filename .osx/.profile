@@ -22,3 +22,5 @@ alias dps='docker ps --all'
 alias dimg='docker images'
 alias drmc='docker rm $(docker ps -a -q)'
 alias drmi='docker rmi $(docker images -q --filter "dangling=true")'
+
+eval $(thefuck --alias)
