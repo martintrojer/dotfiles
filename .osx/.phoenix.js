@@ -49,6 +49,9 @@ keys.push(Phoenix.bind('a', mash, function () {
 keys.push(Phoenix.bind('s', mash, function () {
   Window.focusedWindow() && Window.focusedWindow().toGrid(0.1, 0.1, 0.8, 0.8);
 }));
+keys.push(Phoenix.bind('`', mash, function () {
+  Window.focusedWindow() && Window.focusedWindow().toGrid(0.05, 0.05, 0.9, 0.9);
+}));
 keys.push(Phoenix.bind('d', mash, function () {
   Window.focusedWindow() && Window.focusedWindow().toGrid(0.5, 0, 0.5, 1);
 }));
