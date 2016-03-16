@@ -3,6 +3,7 @@ alias ls="ls -G -F"
 
 export CLICOLOR=1
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
+export HISTFILESIZE=10240
 
 export VISUAL="emacs -Q -nw"
 export TERM=xterm-256color
