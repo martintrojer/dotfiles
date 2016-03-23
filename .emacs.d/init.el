@@ -97,6 +97,12 @@
   (setq haskell-process-log t)
   (setq haskell-process-suggest-remove-import-lines t))
 
+;; Elm
+(use-package elm-mode
+  :ensure t
+  :defer t
+  :pin melpa-stable)
+
 ;; Markdown
 (use-package markdown-mode
   :ensure t
@@ -119,7 +125,8 @@
 (use-package mustache-mode
   :ensure t
   :defer t
-  :pin melpa-stable)
+  :pin melpa-stable
+  :mode "\\.mustache\\'")
 
 ;; Dired
 (use-package dired
