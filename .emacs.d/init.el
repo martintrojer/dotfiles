@@ -69,6 +69,8 @@
   (setq cider-repl-wrap-history t)
   (setq cider-repl-history-size 3000)
   (setq cider-show-error-buffer 'except-in-repl)
+  (setq cider-repl-display-help-banner nil)
+  (setq cider-inject-dependencies-at-jack-in nil)
   (add-hook 'cider-mode-hook #'eldoc-mode))
 
 ;; Go lang
