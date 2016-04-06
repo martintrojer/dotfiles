@@ -84,6 +84,10 @@
   :pin melpa-stable)
 
 ;; Haskell
+;; make sure there is no local ghc in the path!
+;; stack setup
+;; stack install hlint ghc-mod
+
 (use-package haskell-mode
   :ensure t
   :pin melpa-stable
@@ -94,10 +98,16 @@
   (add-hook 'haskell-mode-hook 'haskell-indentation-mode)
   (add-hook 'haskell-mode-hook
 	    '(lambda ()
+         (ghc-init)
 	       (define-key haskell-mode-map "\C-c\C-h" 'hoogle)))
   (setq haskell-process-auto-import-loaded-modules t)
   (setq haskell-process-log t)
   (setq haskell-process-suggest-remove-import-lines t))
+
+(use-package ghc
+  :ensure t
+  :defer t
+  :pin melpa-stable)
 
 ;; Elm
 (use-package elm-mode
@@ -523,6 +533,10 @@
   (unless (getenv "TMUX")
     (setq interprogram-cut-function 'paste-to-osx)
     (setq interprogram-paste-function 'copy-from-osx)))
+
+(let ((local-path (expand-file-name "~/.local/bin")))
+  (setenv "PATH" (concat local-path ":" (getenv "PATH")))
+  (add-to-list 'exec-path local-path))
 
 (defun osio ()
   (interactive)
