@@ -9,6 +9,8 @@ export VISUAL="emacs -Q -nw"
 export TERM=xterm-256color
 export JAVA_HOME=$(/usr/libexec/java_home)
 
+export OSIO_LOCAL="localhost"
+
 alias git=hub
 
 alias nano=$VISUAL
@@ -16,8 +18,6 @@ alias vim=$VISUAL
 alias vi=$VISUAL
 
 alias ddev='eval $(docker-machine env dev)'
-alias dosio='eval $(docker-machine env osio)'
-alias osio='export OSIO_LOCAL=`docker-machine ip osio`'
 alias da='docker attach'
 alias dps='docker ps --all'
 alias dimg='docker images'
