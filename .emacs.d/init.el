@@ -86,7 +86,7 @@
 ;; Haskell
 ;; make sure there is no local ghc in the path!
 ;; stack setup
-;; stack install hlint ghc-mod
+;; stack install hlint hindent ghc-mod hdevtools
 
 (use-package haskell-mode
   :ensure t
@@ -94,17 +94,35 @@
   :mode "\\.purs$"
   :config
   (require 'haskell-interactive-mode)
-  (add-hook 'haskell-mode-hook 'interactive-haskell-mode)
-  (add-hook 'haskell-mode-hook 'haskell-indentation-mode)
+  (setq haskell-interactive-popup-errors nil
+        haskell-process-suggest-hoogle-imports t
+        haskell-process-suggest-remove-import-lines t
+        haskell-process-auto-import-loaded-modules t
+        hindent-style "chris-done"
+        haskell-stylish-on-save t
+        haskell-tags-on-save t
+        haskell-process-log t)
   (add-hook 'haskell-mode-hook
-	    '(lambda ()
-         (ghc-init)
-	       (define-key haskell-mode-map "\C-c\C-h" 'hoogle)))
-  (setq haskell-process-auto-import-loaded-modules t)
-  (setq haskell-process-log t)
-  (setq haskell-process-suggest-remove-import-lines t))
+            '(lambda ()
+               (setq-local completion-at-point-functions '(haskell-process-completions-at-point))
+               (haskell-indentation-mode t)
+               (interactive-haskell-mode t)
+               (ghc-init)
+               ;; (structured-haskell-mode t)
+               ))
+  (define-key haskell-mode-map "\C-c\C-h" 'hoogle))
 
 (use-package ghc
+  :ensure t
+  :defer t
+  :pin melpa-stable)
+
+(use-package hindent
+  :ensure t
+  :defer t
+  :pin melpa-stable)
+
+(use-package shm
   :ensure t
   :defer t
   :pin melpa-stable)
@@ -113,7 +131,8 @@
 (use-package elm-mode
   :ensure t
   :defer t
-  :pin melpa-stable)
+  :pin melpa-stable
+  :init (setq elm-indent-offset 4))
 
 ;; Markdown
 (use-package markdown-mode
@@ -260,7 +279,8 @@
   (if window-system
       (setq linum-format "%d")
     (setq linum-format "%d "))
-  (setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode go-mode haskell-mode js-mode html-mode css-mode c-mode-common))
+  (setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode
+                                   go-mode haskell-mode elm-mode js-mode html-mode css-mode c-mode-common))
   (require 's)
   (--each linum-modes (add-hook (intern (s-concat (symbol-name it) "-hook")) 'linum-mode)))
 
