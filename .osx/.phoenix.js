@@ -14,10 +14,12 @@ function callApp(appName) {
   var app = App.launch(appName);
   app.focus();
   var window = _.first(app.windows());
-  Mouse.moveTo({
-    x: window.topLeft().x + window.frame().width / 2,
-    y: window.topLeft().y + window.frame().height / 2
-  });
+  if (window) {
+    Mouse.moveTo({
+      x: window.topLeft().x + window.frame().width / 2,
+      y: window.topLeft().y + window.frame().height / 2
+    });
+  }
 }
 
 Window.prototype.toGrid = function(x, y, width, height) {
@@ -49,7 +51,7 @@ keys.push(Phoenix.bind('a', mash, function () {
 keys.push(Phoenix.bind('s', mash, function () {
   Window.focusedWindow() && Window.focusedWindow().toGrid(0.1, 0.1, 0.8, 0.8);
 }));
-keys.push(Phoenix.bind('`', mash, function () {
+keys.push(Phoenix.bind('=', mash, function () {
   Window.focusedWindow() && Window.focusedWindow().toGrid(0.05, 0.05, 0.9, 0.9);
 }));
 keys.push(Phoenix.bind('d', mash, function () {
