@@ -91,7 +91,6 @@
 (use-package haskell-mode
   :ensure t
   :pin melpa-stable
-  :mode "\\.purs$"
   :config
   (require 'haskell-interactive-mode)
   (setq haskell-interactive-popup-errors nil
@@ -133,6 +132,30 @@
   :defer t
   :pin melpa-stable
   :init (setq elm-indent-offset 4))
+
+;; Purescript
+(use-package purescript-mode
+  :ensure t
+  :defer t
+  :pin melpa
+  :config
+  (require 'psc-ide)
+  (add-hook 'purescript-mode-hook
+            (lambda ()
+              (psc-ide-mode)
+              (flycheck-mode)
+              (turn-on-purescript-indentation))))
+
+(use-package psci
+  :ensure t
+  :defer t
+  :pin melpa)
+
+(use-package psc-ide
+  :ensure t
+  :defer t
+  :pin melpa
+  :diminish (psc-ide-mode . "Pi"))
 
 ;; Markdown
 (use-package markdown-mode
@@ -280,7 +303,7 @@
       (setq linum-format "%d")
     (setq linum-format "%d "))
   (setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode
-                                   go-mode haskell-mode elm-mode js-mode html-mode css-mode c-mode-common))
+                                   go-mode haskell-mode purescripe-mode elm-mode purescript-mode js-mode html-mode css-mode c-mode-common))
   (require 's)
   (--each linum-modes (add-hook (intern (s-concat (symbol-name it) "-hook")) 'linum-mode)))
 
