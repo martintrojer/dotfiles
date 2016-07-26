@@ -1,6 +1,8 @@
 export PS1="\u:\w$ "
 alias ls="ls -G -F"
 
+export PATH="/usr/local/sbin:$PATH"
+
 export CLICOLOR=1
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 export HISTSIZE=1048576
@@ -9,8 +11,6 @@ export HISTFILESIZE=1048576
 export VISUAL="emacs -Q -nw"
 export TERM=xterm-256color
 export JAVA_HOME=$(/usr/libexec/java_home)
-
-export OSIO_LOCAL="localhost"
 
 alias nano=$VISUAL
 alias vim=$VISUAL
