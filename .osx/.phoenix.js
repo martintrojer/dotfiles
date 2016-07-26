@@ -36,51 +36,51 @@ Window.prototype.toGrid = function(x, y, width, height) {
   });
 }
 
-keys.push(Phoenix.bind('q', mash, function () {
-  Window.focusedWindow() && Window.focusedWindow().toGrid(0, 0, 0.5, 0.5);
+keys.push(new Key('q', mash, function () {
+  Window.focused() && Window.focused().toGrid(0, 0, 0.5, 0.5);
 }));
-keys.push(Phoenix.bind('w', mash, function () {
-  Window.focusedWindow() && Window.focusedWindow().toGrid(0, 0, 1, 0.5);
+keys.push(new Key('w', mash, function () {
+  Window.focused() && Window.focused().toGrid(0, 0, 1, 0.5);
 }));
-keys.push(Phoenix.bind('e', mash, function () {
-  Window.focusedWindow() && Window.focusedWindow().toGrid(0.5, 0, 0.5, 0.5);
+keys.push(new Key('e', mash, function () {
+  Window.focused() && Window.focused().toGrid(0.5, 0, 0.5, 0.5);
 }));
-keys.push(Phoenix.bind('a', mash, function () {
-  Window.focusedWindow() && Window.focusedWindow().toGrid(0, 0, 0.5, 1);
+keys.push(new Key('a', mash, function () {
+  Window.focused() && Window.focused().toGrid(0, 0, 0.5, 1);
 }));
-keys.push(Phoenix.bind('s', mash, function () {
-  Window.focusedWindow() && Window.focusedWindow().toGrid(0.1, 0.1, 0.8, 0.8);
+keys.push(new Key('s', mash, function () {
+  Window.focused() && Window.focused().toGrid(0.1, 0.1, 0.8, 0.8);
 }));
-keys.push(Phoenix.bind('=', mash, function () {
-  Window.focusedWindow() && Window.focusedWindow().toGrid(0.05, 0.05, 0.9, 0.9);
+keys.push(new Key('=', mash, function () {
+  Window.focused() && Window.focused().toGrid(0.05, 0.05, 0.9, 0.9);
 }));
-keys.push(Phoenix.bind('d', mash, function () {
-  Window.focusedWindow() && Window.focusedWindow().toGrid(0.5, 0, 0.5, 1);
+keys.push(new Key('d', mash, function () {
+  Window.focused() && Window.focused().toGrid(0.5, 0, 0.5, 1);
 }));
-keys.push(Phoenix.bind('z', mash, function () {
-  Window.focusedWindow() && Window.focusedWindow().toGrid(0, 0.5, 0.5, 0.5);
+keys.push(new Key('z', mash, function () {
+  Window.focused() && Window.focused().toGrid(0, 0.5, 0.5, 0.5);
 }));
-keys.push(Phoenix.bind('x', mash, function () {
-  Window.focusedWindow() && Window.focusedWindow().toGrid(0, 0.5, 1, 0.5);
+keys.push(new Key('x', mash, function () {
+  Window.focused() && Window.focused().toGrid(0, 0.5, 1, 0.5);
 }));
-keys.push(Phoenix.bind('c', mash, function () {
-  Window.focusedWindow() && Window.focusedWindow().toGrid(0.5, 0.5, 0.5, 0.5);
+keys.push(new Key('c', mash, function () {
+  Window.focused() && Window.focused().toGrid(0.5, 0.5, 0.5, 0.5);
 }));
-keys.push(Phoenix.bind('space', mash, function () {
-  Window.focusedWindow() && Window.focusedWindow().toGrid(0, 0, 1, 1);
+keys.push(new Key('space', mash, function () {
+  Window.focused() && Window.focused().toGrid(0, 0, 1, 1);
 }));
 
-keys.push(Phoenix.bind('i', mash, function() { callApp('iTerm'); }));
-keys.push(Phoenix.bind('g', mash, function() { callApp('Emacs'); }));
-keys.push(Phoenix.bind('n', mash, function() { callApp('Google Chrome'); }));
-keys.push(Phoenix.bind('b', mash, function() { callApp('Safari'); }));
-keys.push(Phoenix.bind('t', mash, function() { callApp('TweetDeck'); }));
-keys.push(Phoenix.bind('l', mash, function() { callApp('Mail'); }));
-keys.push(Phoenix.bind('r', mash, function() { callApp('Calendar'); }));
-keys.push(Phoenix.bind('k', mash, function() { callApp('Slack'); }));
-keys.push(Phoenix.bind('m', mash, function() { callApp('Messages'); }));
-keys.push(Phoenix.bind('y', mash, function() { callApp('Skype'); }));
-keys.push(Phoenix.bind('o', mash, function() { callApp('iTunes'); }));
-keys.push(Phoenix.bind('p', mash, function() { callApp('KeePassX'); }));
-keys.push(Phoenix.bind('.', mash, function() { callApp('Activity Monitor'); }));
-keys.push(Phoenix.bind('/', mash, function() { callApp('Finder'); }));
+keys.push(new Key('i', mash, function() { callApp('iTerm'); }));
+keys.push(new Key('g', mash, function() { callApp('Emacs'); }));
+keys.push(new Key('n', mash, function() { callApp('Google Chrome'); }));
+keys.push(new Key('b', mash, function() { callApp('Safari'); }));
+keys.push(new Key('t', mash, function() { callApp('TweetDeck'); }));
+keys.push(new Key('l', mash, function() { callApp('Mail'); }));
+keys.push(new Key('r', mash, function() { callApp('Calendar'); }));
+keys.push(new Key('k', mash, function() { callApp('Slack'); }));
+keys.push(new Key('m', mash, function() { callApp('Messages'); }));
+keys.push(new Key('y', mash, function() { callApp('Skype'); }));
+keys.push(new Key('o', mash, function() { callApp('iTunes'); }));
+keys.push(new Key('p', mash, function() { callApp('KeePassX'); }));
+keys.push(new Key('.', mash, function() { callApp('Activity Monitor'); }));
+keys.push(new Key('/', mash, function() { callApp('Finder'); }));
