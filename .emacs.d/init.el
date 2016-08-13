@@ -581,10 +581,4 @@
   (setenv "PATH" (concat local-path ":" (getenv "PATH")))
   (add-to-list 'exec-path local-path))
 
-(defun osio ()
-  (interactive)
-  (setenv "OSIO_LOCAL"
-          (s-trim
-           (shell-command-to-string "docker-machine ip osio"))))
-
 ;;; init.el ends here

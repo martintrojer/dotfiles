@@ -24,3 +24,5 @@ alias drmc='docker rm $(docker ps -a -q)'
 alias drmi='docker rmi $(docker images -q --filter "dangling=true")'
 
 eval $(thefuck --alias)
+
+test -e "${HOME}/.iterm2_shell_integration.bash" && source "${HOME}/.iterm2_shell_integration.bash"
