@@ -7,6 +7,7 @@ export CLICOLOR=1
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 export HISTSIZE=1048576
 export HISTFILESIZE=1048576
+export GPG_TTY=$(tty)
 
 export VISUAL="emacs -Q -nw"
 export TERM=xterm-256color
