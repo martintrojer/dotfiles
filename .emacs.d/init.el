@@ -86,7 +86,7 @@
 ;; Haskell
 ;; make sure there is no local ghc in the path!
 ;; stack setup
-;; stack install hlint hindent ghc-mod hdevtools
+;; stack install hlint hindent ghc-mod hdevtools ghcid intero
 
 (use-package haskell-mode
   :ensure t
@@ -104,12 +104,18 @@
   (add-hook 'haskell-mode-hook
             '(lambda ()
                (setq-local completion-at-point-functions '(haskell-process-completions-at-point))
+               (intero-mode)
                (haskell-indentation-mode t)
                (interactive-haskell-mode t)
                (ghc-init)
                ;; (structured-haskell-mode t)
                ))
   (define-key haskell-mode-map "\C-c\C-h" 'hoogle))
+
+(use-package intero
+  :ensure t
+  :defer t
+  :pin melpa-stable)
 
 (use-package ghc
   :ensure t
