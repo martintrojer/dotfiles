@@ -148,6 +148,8 @@
   (require 'psc-ide)
   (add-hook 'purescript-mode-hook
             (lambda ()
+              (repl-toggle-mode)
+              (inferior-psci-mode)
               (psc-ide-mode)
               (flycheck-mode)
               (turn-on-purescript-indentation))))
@@ -162,6 +164,13 @@
   :defer t
   :pin melpa
   :diminish (psc-ide-mode . "Pi"))
+
+(use-package repl-toggle
+  :ensure t
+  :defer t
+  :pin melpa-stable
+  :config
+  (add-to-list 'rtog/mode-repl-alist '(purescript-mode . psci)))
 
 ;; Markdown
 (use-package markdown-mode
