@@ -1,7 +1,7 @@
 export PS1="\u:\w$ "
 alias ls="ls -G -F"
 
-export PATH="/usr/local/sbin:$PATH"
+export PATH="/usr/local/sbin:$HOME/.local/bin:$PATH"
 
 export CLICOLOR=1
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
