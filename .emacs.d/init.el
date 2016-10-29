@@ -390,7 +390,7 @@
 ;; Expand region
 (use-package expand-region
   :ensure t
-  :pin melpa-stable
+  :pin melpa
   :bind ("C-\\" . er/expand-region))
 
 ;; Yagist
