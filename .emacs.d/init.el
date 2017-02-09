@@ -97,14 +97,17 @@
         haskell-process-suggest-hoogle-imports t
         haskell-process-suggest-remove-import-lines t
         haskell-process-auto-import-loaded-modules t
-        hindent-style "chris-done"
+        hindent-reformat-buffer-on-save t
         haskell-stylish-on-save t
         haskell-tags-on-save t
-        haskell-process-log t)
+        haskell-process-log t
+        haskell-process-args-stack-ghci '("--ghci-options=-ferror-spans"))
   (add-hook 'haskell-mode-hook
             '(lambda ()
                (setq-local completion-at-point-functions '(haskell-process-completions-at-point))
+               (flycheck-add-next-checker 'intero '(warning . haskell-hlint))
                (intero-mode)
+               (hindent-mode)
                (haskell-indentation-mode t)
                (interactive-haskell-mode t)
                (ghc-init)
