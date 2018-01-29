@@ -274,12 +274,11 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (global-company-mode))
 
 ;; IDO
-(use-package ido-ubiquitous
+(use-package ido-completing-read+
   :ensure t
   :pin melpa-stable
   :config
   (ido-mode t)
-  (ido-ubiquitous)
   (setq ido-enable-flex-matching t)
   (global-set-key "\M-x"
                 (lambda ()
