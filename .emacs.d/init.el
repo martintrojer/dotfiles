@@ -20,8 +20,8 @@
 
 (require 'package)
 
-;; (add-to-list 'package-archives
-;;              '("melpa" . "https://melpa.org/packages/") t)
+(add-to-list 'package-archives
+	     '("melpa" . "https://melpa.org/packages/") t)
 
 (add-to-list 'package-archives
              '("melpa-stable" . "https://stable.melpa.org/packages/") t)
@@ -37,6 +37,11 @@
 (when (not (package-installed-p 'use-package))
   (package-install 'use-package))
 (require 'use-package)
+
+(use-package diminish
+  :ensure t
+  :defer nil
+  :pin melpa-stable)
 
 ;; =============================================================
 ;; Major modes
@@ -90,7 +95,7 @@
 
 (use-package haskell-mode
   :ensure t
-  :pin melpa-stable
+  :pin melpa
   :config
   (require 'haskell-interactive-mode)
   (setq haskell-interactive-popup-errors nil
@@ -105,10 +110,10 @@
   (add-hook 'haskell-mode-hook
             '(lambda ()
                (setq-local completion-at-point-functions '(haskell-process-completions-at-point))
-               (flycheck-add-next-checker 'intero '(warning . haskell-hlint))
                (intero-mode)
                (hindent-mode)
                (haskell-indentation-mode t)
+               (flycheck-add-next-checker 'intero '(warning . haskell-hlint))
                ;; (interactive-haskell-mode t)
                ;; (structured-haskell-mode t)
                ))
