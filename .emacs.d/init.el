@@ -86,7 +86,7 @@
 ;; Haskell
 ;; make sure there is no local ghc in the path!
 ;; stack setup
-;; stack install hlint hindent ghc-mod hdevtools ghcid intero
+;;  stack install hlint hindent-5.2.2 hasktags stylish-haskell ghcid intero
 
 (use-package haskell-mode
   :ensure t
@@ -97,9 +97,9 @@
         haskell-process-suggest-hoogle-imports t
         haskell-process-suggest-remove-import-lines t
         haskell-process-auto-import-loaded-modules t
-        hindent-reformat-buffer-on-save t
+        hindent-reformat-buffer-on-save nil
         haskell-stylish-on-save t
-        haskell-tags-on-save t
+        haskell-tags-on-save nil
         haskell-process-log t
         haskell-process-args-stack-ghci '("--ghci-options=-ferror-spans"))
   (add-hook 'haskell-mode-hook
@@ -109,21 +109,27 @@
                (intero-mode)
                (hindent-mode)
                (haskell-indentation-mode t)
-               (interactive-haskell-mode t)
-               (ghc-init)
+               ;; (interactive-haskell-mode t)
                ;; (structured-haskell-mode t)
                ))
   (define-key haskell-mode-map "\C-c\C-h" 'hoogle))
 
+(defun intero-repl-add (&optional prompt-options)
+  "Add the current file to the target set in the REPL.
+If PROMPT-OPTIONS is non-nil, prompt with an options list."
+  (interactive "P")
+  (save-buffer)
+  (let ((file (intero-localize-path (intero-buffer-file-name))))
+    (intero-with-repl-buffer prompt-options
+      (comint-simple-send
+       (get-buffer-process (current-buffer))
+       (concat ":add " file)))))
+
 (use-package intero
   :ensure t
   :defer t
-  :pin melpa-stable)
-
-(use-package ghc
-  :ensure t
-  :defer t
-  :pin melpa-stable)
+  :pin melpa
+  :bind (("C-c C-k" . intero-repl-add)))
 
 (use-package hindent
   :ensure t
@@ -493,6 +499,8 @@
 
 ;; =============================================================
 ;; Misc config
+
+(setq default-buffer-file-coding-system 'utf-8-unix)
 
 (recentf-mode)
 (setq recentf-max-menu-items 25)
