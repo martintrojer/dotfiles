@@ -43,8 +43,23 @@
   :defer nil
   :pin melpa-stable)
 
+(add-to-list 'load-path "~/.emacs.d/site-lisp")
+
 ;; =============================================================
 ;; Major modes
+
+;; deadgrep
+(require 'deadgrep)
+(global-set-key (kbd "<f5>") #'deadgrep)
+
+;; Org
+
+(define-key global-map "\C-ca" 'org-agenda)
+(define-key global-map "\C-cl" 'org-store-link)
+;; C-c C-l insert link
+;; C-c C-o open link
+(setq org-cycle-include-plain-lists 'integrate)
+(setq org-log-done 'time)
 
 ;; Clojure
 (use-package clojure-mode
@@ -87,6 +102,49 @@
   :ensure t
   :defer t
   :pin melpa-stable)
+
+;; Ocaml
+(use-package tuareg
+        :ensure t
+        :config
+        (load "~/.opam/infer-4.06.1+flambda/share/emacs/site-lisp/tuareg-site-file")
+        (add-hook 'tuareg-mode-hook #'electric-pair-local-mode)
+        ;; (add-hook 'tuareg-mode-hook 'tuareg-imenu-set-imenu)
+        (setq auto-mode-alist
+              (append '(("\\.ml[ily]?$" . tuareg-mode)
+                        ("\\.topml$" . tuareg-mode))
+                      auto-mode-alist)))
+
+
+;; Merlin configuration
+(use-package merlin
+  :ensure t
+  :bind (("C-c C-;" . merlin-pop-stack)
+         ("C-c C-m" . mk)
+         ("C-c C-o" . merlin-document))
+  :config
+  (add-hook 'tuareg-mode-hook 'merlin-mode)
+  (add-hook 'reason-mode-hook 'merlin-mode)
+  (add-hook 'merlin-mode-hook #'company-mode)
+  (setq merlin-error-after-save nil))
+
+;; utop configuration
+(use-package utop
+  :ensure t
+  :config
+  (autoload 'utop-minor-mode "utop" "Minor mode for utop" t)
+  (add-hook 'tuareg-mode-hook 'utop-minor-mode)
+  )
+
+(defun mk ()
+  (interactive)
+  (compile "cd ~/infer && make -C infer/src -k byte")
+  )
+
+;; ## added by OPAM user-setup for emacs / base ## 56ab50dc8996d2bb95e7856a6eddb17b ## you can edit, but keep this line
+(require 'opam-user-setup "~/.emacs.d/opam-user-setup.el")
+;; ## end of OPAM user-setup addition for emacs / base ## keep this line
+
 
 ;; Haskell
 ;; make sure there is no local ghc in the path!
@@ -347,15 +405,15 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   :ensure t
   :pin melpa-stable)
 
-;; hl-sexp
-(use-package hl-sexp
-  :ensure t
-  :pin melpa-stable
-  :config
-  (add-hook 'clojure-mode-hook 'hl-sexp-mode)
-  (add-hook 'lisp-mode-hook 'hl-sexp-mode)
-  (add-hook 'scheme-mode-hook 'hl-sexp-mode)
-  (add-hook 'emacs-lisp-mode-hook 'hl-sexp-mode))
+;; ;; hl-sexp
+;; (use-package hl-sexp
+;;   :ensure t
+;;   :pin melpa-stable
+;;   :config
+;;   (add-hook 'clojure-mode-hook 'hl-sexp-mode)
+;;   (add-hook 'lisp-mode-hook 'hl-sexp-mode)
+;;   (add-hook 'scheme-mode-hook 'hl-sexp-mode)
+;;   (add-hook 'emacs-lisp-mode-hook 'hl-sexp-mode))
 
 ;; idle-highlight-mode
 (use-package idle-highlight-mode
@@ -375,6 +433,8 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   :diminish (golden-ratio-mode . "AU")
   :config
   (golden-ratio-mode 1)
+  ;; (setq golden-ratio-auto-scale t)
+  (setq split-width-threshold 200)
   (add-to-list 'golden-ratio-exclude-modes "ediff-mode"))
 
 ;; undo-tree
