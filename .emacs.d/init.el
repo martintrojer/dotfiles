@@ -84,11 +84,13 @@
 
 (require 'org-drill)
 (use-package org-drill-table
-  :ensure t)
+  :ensure t
+  :defer t)
 
 ;; Clojure
 (use-package clojure-mode
   :ensure t
+  :defer t
   :pin melpa-stable
   :config
   (setq safe-local-variable-values
@@ -129,21 +131,28 @@
   :pin melpa-stable)
 
 ;; Ocaml
+(use-package caml
+  :ensure t
+  :defer t
+  :pin melpa-stable)
 (use-package tuareg
-        :ensure t
-        :config
-        (load "~/.opam/infer-4.06.1+flambda/share/emacs/site-lisp/tuareg-site-file")
-        (add-hook 'tuareg-mode-hook #'electric-pair-local-mode)
-        ;; (add-hook 'tuareg-mode-hook 'tuareg-imenu-set-imenu)
-        (setq auto-mode-alist
-              (append '(("\\.ml[ily]?$" . tuareg-mode)
-                        ("\\.topml$" . tuareg-mode))
-                      auto-mode-alist)))
-
+  :ensure t
+  :defer t
+  :pin melpa-stable
+  :config
+  (load "~/.opam/infer-4.06.1+flambda/share/emacs/site-lisp/tuareg-site-file")
+  (add-hook 'tuareg-mode-hook #'electric-pair-local-mode)
+  ;; (add-hook 'tuareg-mode-hook 'tuareg-imenu-set-imenu)
+  (setq auto-mode-alist
+        (append '(("\\.ml[ily]?$" . tuareg-mode)
+                  ("\\.topml$" . tuareg-mode))
+                auto-mode-alist)))
 
 ;; Merlin configuration
 (use-package merlin
   :ensure t
+  :defer t
+  :pin melpa-stable
   :bind (("C-c C-;" . merlin-pop-stack)
          ("C-c C-m" . mk)
          ("C-c C-o" . merlin-document))
@@ -153,17 +162,18 @@
   (add-hook 'merlin-mode-hook #'company-mode)
   (setq merlin-error-after-save nil))
 
+(use-package ocp-indent
+  :ensure t
+  :defer t
+  :pin melpa-stable)
+
 ;; utop configuration
 (use-package utop
   :ensure t
+  :defer t
   :config
   (autoload 'utop-minor-mode "utop" "Minor mode for utop" t)
   (add-hook 'tuareg-mode-hook 'utop-minor-mode)
-  )
-
-(defun mk ()
-  (interactive)
-  (compile "cd ~/infer && make -C infer/src -k byte")
   )
 
 ;; ## added by OPAM user-setup for emacs / base ## 56ab50dc8996d2bb95e7856a6eddb17b ## you can edit, but keep this line
@@ -174,7 +184,7 @@
 ;; Haskell
 ;; make sure there is no local ghc in the path!
 ;; stack setup
-;;  stack install hlint hindent-5.2.2 hasktags stylish-haskell ghcid intero
+;;  stack install hlint hindent hasktags stylish-haskell ghcid intero
 
 (use-package haskell-mode
   :ensure t
