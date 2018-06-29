@@ -45,8 +45,29 @@
 
 (add-to-list 'load-path "~/.emacs.d/site-lisp")
 
+(server-start)
+
+(defun tsdate (ts)
+  (interactive (list (read-from-minibuffer "Timestamp: ")))
+  (message (format-time-string "%Y-%m-%d %H:%M:%S" (seconds-to-time (string-to-number ts))))
+  )
+
+(defun show-file-name ()
+  (interactive)
+  (kill-new (buffer-file-name))
+  (message (buffer-file-name)))
+
+(defun sort-lines-nocase ()
+  (interactive)
+  (let ((sort-fold-case t))
+    (call-interactively 'sort-lines)))
+
 ;; =============================================================
 ;; Major modes
+
+;; objc
+(add-to-list 'auto-mode-alist '("\\.m\\'" . c-mode))
+(add-to-list 'auto-mode-alist '("\\.mm\\'" . c++-mode))
 
 ;; deadgrep
 (require 'deadgrep)
@@ -60,6 +81,10 @@
 ;; C-c C-o open link
 (setq org-cycle-include-plain-lists 'integrate)
 (setq org-log-done 'time)
+
+(require 'org-drill)
+(use-package org-drill-table
+  :ensure t)
 
 ;; Clojure
 (use-package clojure-mode
@@ -403,7 +428,13 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 ;; Flyspell
 (use-package flyspell
   :ensure t
-  :pin melpa-stable)
+  :pin melpa-stable
+  :bind (("C-c £" . flyspell-buffer))
+  :config
+  (add-hook 'org-mode-hook 'flyspell-buffer)
+  (add-hook 'org-mode-hook 'flyspell-mode)
+  (add-hook 'markdown-mode-hook 'flyspell-buffer)
+  (add-hook 'markdown-mode-hook 'flyspell-mode))
 
 ;; ;; hl-sexp
 ;; (use-package hl-sexp

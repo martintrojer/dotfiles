@@ -16,6 +16,11 @@ export JAVA_HOME=$(/usr/libexec/java_home)
 alias nano=$VISUAL
 alias vim=$VISUAL
 alias vi=$VISUAL
+alias la='ls -lah'
+function ec
+{
+emacsclient "$1" &
+}
 
 alias ddev='eval $(docker-machine env dev)'
 alias da='docker attach'
