@@ -62,6 +62,11 @@
   (let ((sort-fold-case t))
     (call-interactively 'sort-lines)))
 
+(global-set-key (kbd "C-x <left>")  'windmove-left)
+(global-set-key (kbd "C-x <right>") 'windmove-right)
+(global-set-key (kbd "C-x <up>")    'windmove-up)
+(global-set-key (kbd "C-x <down>")  'windmove-down)
+
 ;; =============================================================
 ;; Major modes
 
@@ -476,6 +481,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (golden-ratio-mode 1)
   ;; (setq golden-ratio-auto-scale t)
   (setq split-width-threshold 200)
+  (setq split-height-threshold 120)
   (add-to-list 'golden-ratio-exclude-modes "ediff-mode"))
 
 ;; undo-tree

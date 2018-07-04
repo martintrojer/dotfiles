@@ -19,7 +19,7 @@ alias vi=$VISUAL
 alias la='ls -lah'
 function ec
 {
-emacsclient "$1" &
+emacsclient "$@" &
 }
 
 alias ddev='eval $(docker-machine env dev)'
