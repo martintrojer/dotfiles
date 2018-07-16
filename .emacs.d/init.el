@@ -136,6 +136,7 @@
   :pin melpa-stable)
 
 ;; Ocaml
+;; opam install tuareg merlin ocp-indent utop
 (use-package caml
   :ensure t
   :defer t
@@ -159,8 +160,9 @@
   :defer t
   :pin melpa-stable
   :bind (("C-c C-;" . merlin-pop-stack)
-         ("C-c C-m" . mk)
-         ("C-c C-o" . merlin-document))
+         ("C-c C-o" . merlin-document)
+         ("C-c C-m" . infer-mk)
+         ("C-c C-y" . infer-analyze))
   :config
   (add-hook 'tuareg-mode-hook 'merlin-mode)
   (add-hook 'reason-mode-hook 'merlin-mode)
@@ -589,24 +591,8 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 ;; =============================================================
 ;; Colors
 
-(use-package flatland-theme
-  :ensure t
-  :pin marmalade
-  :config
-  (when (not window-system)
-    (let ((bg-one (assoc "flatland-bg+1" flatland-colors-alist))
-	  (bg-two (assoc "flatland-bg+2" flatland-colors-alist)))
-      (setq flatland-colors-alist (delete bg-one flatland-colors-alist))
-      (add-to-list 'flatland-colors-alist (cons "flatland-bg+1" (cdr bg-two))))
-    (custom-set-faces
-     '(company-preview ((t (:background "brightyellow" :foreground "wheat"))))
-     '(company-tooltip ((t (:background "brightyellow" :foreground "black"))))))
-  (custom-set-faces
-   '(diff-refine-added ((t (:inherit diff-added :background "#4e4e4e"))))
-   '(idle-highlight ((t (:background "#4e4e4e"))))
-   '(linum ((t (:foreground "#555"))))
-   '(region ((t (:background "#4c4f52")))))
-  (load-theme 'flatland t))
+(use-package zenburn-theme
+  :ensure t)
 
 ;; =============================================================
 ;; Misc config
