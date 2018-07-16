@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: lpp
+# key: lpp
+# --
+L.d_strln @@ F.asprintf "%t" (fun fmt -> $0.pp (* Pp.text *) fmt $1);
