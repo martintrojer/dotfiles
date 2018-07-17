@@ -16,7 +16,16 @@ export VISUAL=nano
 alias la='ls -lah'
 function ec
 {
-emacsclient "$@" &
+    emacsclient "$@" &
+}
+function mvln
+{
+    fname=`basename "$1"`
+    dest=$(echo "$2" | sed 's:/*$::')
+    set -x
+    mv "$1" "$2"
+    ln -s "$dest/$fname" "$1"
+    set +x
 }
 
 alias ddev='eval $(docker-machine env dev)'
