@@ -136,7 +136,7 @@
   :pin melpa-stable)
 
 ;; Ocaml
-;; opam install tuareg merlin ocp-indent utop
+;; opam install tuareg merlin ocp-indent utop ocamlformat
 (use-package caml
   :ensure t
   :defer t
@@ -489,7 +489,6 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 ;; undo-tree
 (use-package undo-tree
   :ensure t
-  :pin marmalade
   :diminish (undo-tree-mode . "UT")
   :config
   (global-undo-tree-mode))
@@ -572,7 +571,6 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 ;; align-cljlet
 (use-package align-cljlet
   :ensure t
-  :pin marmalade
   :config
   (add-hook 'clojure-mode-hook
           '(lambda ()
