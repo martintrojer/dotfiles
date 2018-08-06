@@ -47,26 +47,6 @@
 
 (server-start)
 
-(defun tsdate (ts)
-  (interactive (list (read-from-minibuffer "Timestamp: ")))
-  (message (format-time-string "%Y-%m-%d %H:%M:%S" (seconds-to-time (string-to-number ts))))
-  )
-
-(defun show-file-name ()
-  (interactive)
-  (kill-new (buffer-file-name))
-  (message (buffer-file-name)))
-
-(defun sort-lines-nocase ()
-  (interactive)
-  (let ((sort-fold-case t))
-    (call-interactively 'sort-lines)))
-
-(global-set-key (kbd "C-x <left>")  'windmove-left)
-(global-set-key (kbd "C-x <right>") 'windmove-right)
-(global-set-key (kbd "C-x <up>")    'windmove-up)
-(global-set-key (kbd "C-x <down>")  'windmove-down)
-
 ;; =============================================================
 ;; Major modes
 
@@ -79,7 +59,6 @@
 (global-set-key (kbd "<f5>") #'deadgrep)
 
 ;; Org
-
 (define-key global-map "\C-ca" 'org-agenda)
 (define-key global-map "\C-cl" 'org-store-link)
 ;; C-c C-l insert link
@@ -159,10 +138,10 @@
   :ensure t
   :defer t
   :pin melpa-stable
-  :bind (("C-c C-;" . merlin-pop-stack)
-         ("C-c C-o" . merlin-document)
-         ("C-c C-m" . infer-mk)
-         ("C-c C-y" . infer-analyze))
+  :bind (("C-c C-\\" . merlin-pop-stack)
+         ("C-c C-o"  . merlin-document)
+         ("C-c C-m"  . infer-mk)
+         ("C-c C-y"  . infer-analyze))
   :config
   (add-hook 'tuareg-mode-hook 'merlin-mode)
   (add-hook 'reason-mode-hook 'merlin-mode)
@@ -595,6 +574,10 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 ;; =============================================================
 ;; Misc config
 
+(let ((local-path (expand-file-name "~/.local/bin")))
+  (setenv "PATH" (concat local-path ":" (getenv "PATH")))
+  (add-to-list 'exec-path local-path))
+
 (setq default-buffer-file-coding-system 'utf-8-unix)
 
 (recentf-mode)
@@ -613,6 +596,12 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 (global-set-key (kbd "C-r") 'isearch-backward-regexp)
 (global-set-key (kbd "C-M-s") 'isearch-forward)
 (global-set-key (kbd "C-M-r") 'isearch-backward)
+
+;; windmove
+(global-set-key (kbd "C-x <left>")  'windmove-left)
+(global-set-key (kbd "C-x <right>") 'windmove-right)
+(global-set-key (kbd "C-x <up>")    'windmove-up)
+(global-set-key (kbd "C-x <down>")  'windmove-down)
 
 (global-set-key (kbd "RET") 'newline-and-indent)
 
@@ -670,6 +659,26 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
       (backward-char) (insert "\n"))
     (indent-region begin end))
   (message "Ah, much better!"))
+
+(defun tsdate (ts)
+  (interactive (list (read-from-minibuffer "Timestamp: ")))
+  (message (format-time-string "%Y-%m-%d %H:%M:%S" (seconds-to-time (string-to-number ts))))
+  )
+
+(defun show-file-name ()
+  (interactive)
+  (kill-new (buffer-file-name))
+  (message (buffer-file-name)))
+
+(defun clear-shell ()
+   (interactive)
+   (let ((comint-buffer-maximum-size 0))
+     (comint-truncate-buffer)))
+
+(defun sort-lines-nocase ()
+  (interactive)
+  (let ((sort-fold-case t))
+    (call-interactively 'sort-lines)))
 
 ;; =============================================================
 ;; OSX
