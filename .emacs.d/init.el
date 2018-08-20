@@ -54,10 +54,6 @@
 (add-to-list 'auto-mode-alist '("\\.m\\'" . c-mode))
 (add-to-list 'auto-mode-alist '("\\.mm\\'" . c++-mode))
 
-;; deadgrep
-(require 'deadgrep)
-(global-set-key (kbd "<f5>") #'deadgrep)
-
 ;; Org
 (define-key global-map "\C-ca" 'org-agenda)
 (define-key global-map "\C-cl" 'org-store-link)
@@ -402,6 +398,11 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 		       (read-from-minibuffer "In filenames matching PCRE: " (ag/buffer-extension-regex))
 		       (read-directory-name "Directory: " (ag/project-root default-directory))))
     (ag/search string directory :file-regex file-regex)))
+
+;; Ripgrep
+(use-package deadgrep
+  :ensure t
+  :bind ("C-x M-d" . deadgrep))
 
 ;; Linum
 (use-package linum
