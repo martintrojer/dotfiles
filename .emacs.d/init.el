@@ -57,6 +57,7 @@
 ;; Org
 (define-key global-map "\C-ca" 'org-agenda)
 (define-key global-map "\C-cl" 'org-store-link)
+(define-key global-map "\C-cc" 'org-capture)
 ;; C-c C-l insert link
 ;; C-c C-o open link
 (setq org-cycle-include-plain-lists 'integrate)
@@ -433,16 +434,6 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (add-hook 'markdown-mode-hook 'flyspell-buffer)
   (add-hook 'markdown-mode-hook 'flyspell-mode))
 
-;; ;; hl-sexp
-;; (use-package hl-sexp
-;;   :ensure t
-;;   :pin melpa-stable
-;;   :config
-;;   (add-hook 'clojure-mode-hook 'hl-sexp-mode)
-;;   (add-hook 'lisp-mode-hook 'hl-sexp-mode)
-;;   (add-hook 'scheme-mode-hook 'hl-sexp-mode)
-;;   (add-hook 'emacs-lisp-mode-hook 'hl-sexp-mode))
-
 ;; idle-highlight-mode
 (use-package idle-highlight-mode
   :ensure t
@@ -527,12 +518,13 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
          ("M-g w" . any-goto-word-1)))
 
 ;; JVM
-(use-package jvm-mode
-  :ensure t
-  :pin melpa-stable
-  :config
-  (setq jvm-mode-line-string " jvm[%d]")
-  (jvm-mode))
+;; (use-package jvm-mode
+;;   :ensure t
+;;   :pin melpa-stable
+;;   :config
+;;   (setq jvm-mode-line-string " jvm[%d]")
+;;   (jvm-mode)
+;;   )
 
 ;; buffer-move
 (use-package buffer-move
@@ -565,6 +557,13 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (add-hook 'clojure-mode-hook (lambda ()
                                (clj-refactor-mode 1)
                                (cljr-add-keybindings-with-prefix "C-c C-o"))))
+
+;; scratch buffer
+(use-package persistent-scratch
+  :ensure t
+  :pin melpa
+  :config
+  (persistent-scratch-setup-default))
 
 ;; =============================================================
 ;; Colors
