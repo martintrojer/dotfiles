@@ -26,9 +26,6 @@
 (add-to-list 'package-archives
              '("melpa-stable" . "https://stable.melpa.org/packages/") t)
 
-(add-to-list 'package-archives
-             '("marmalade" . "http://marmalade-repo.org/packages/") t)
-
 (package-initialize)
 
 (when (not package-archive-contents)
@@ -322,6 +319,10 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (setq magit-revert-buffers 'silent)
   (setq magit-diff-refine-hunk t))
 
+(use-package monky
+  :ensure t
+  :pin melpa)
+
 ;; Paredit
 (use-package paredit
   :ensure t
@@ -394,6 +395,8 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   :config
   (setq ag-highlight-search t)
   (setq ag-reuse-buffers t)
+  ;; (custom-set-variables
+  ;;  '(ag-project-root-function (lambda (path) default-directory)))
   (defun mt-ag-search (string file-regex directory)
     (interactive (list (read-from-minibuffer "Search string: " (ag/dwim-at-point))
 		       (read-from-minibuffer "In filenames matching PCRE: " (ag/buffer-extension-regex))
