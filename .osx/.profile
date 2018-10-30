@@ -14,7 +14,7 @@ export JAVA_HOME=$(/usr/libexec/java_home)
 
 export VISUAL=nano
 alias la='ls -lah'
-alias serve='python -m SimpleHTTPServer 8000'
+alias serve='python -m SimpleHTTPServer 8081'
 function ec
 {
     emacsclient "$@" &

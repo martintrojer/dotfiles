@@ -59,6 +59,8 @@
 ;; C-c C-o open link
 (setq org-cycle-include-plain-lists 'integrate)
 (setq org-log-done 'time)
+(custom-set-variables
+ '(org-agenda-span 'fortnight))
 
 (require 'org-drill)
 (use-package org-drill-table
@@ -288,6 +290,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 (use-package dired
   :config
   (setq dired-dwim-target t)
+  (setq dired-listing-switches "-alh")
   (defun kill-dired-buffers ()
     (interactive)
     (mapc (lambda (buffer)
