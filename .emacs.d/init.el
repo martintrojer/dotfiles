@@ -67,6 +67,20 @@
   :ensure t
   :defer t)
 
+(use-package org-bookmark-heading
+  :ensure t)
+
+(use-package bm
+  :ensure t
+  :init
+  (if window-system
+      (progn
+        (setq bm-highlight-style 'bm-highlight-only-fringe)
+        (setq bm-marker 'bm-marker-left)))
+  :bind
+  ("<f2>" . bm-next)
+  ("<S-f2>" . bm-toggle))
+
 ;; Clojure
 (use-package clojure-mode
   :ensure t
