@@ -15,6 +15,8 @@ export JAVA_HOME=$(/usr/libexec/java_home)
 export VISUAL=nano
 alias la='ls -lah'
 alias serve='python -m SimpleHTTPServer 8081'
+alias turtle='stack ghci --package turtle --package text --package lens --package containers --package mtl --package aeson --package lens-aeson --package regex-pcre'
+
 function ec
 {
     emacsclient "$@" &
