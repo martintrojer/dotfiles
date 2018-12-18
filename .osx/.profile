@@ -19,7 +19,7 @@ alias turtle='stack ghci --package turtle --package text --package lens --packag
 
 function ec
 {
-    emacsclient "$@" &
+    emacsclient -n "$@"
 }
 function mvln
 {
@@ -43,3 +43,13 @@ eval $(thefuck --alias)
 eval `opam config env`
 
 test -e "${HOME}/.iterm2_shell_integration.bash" && source "${HOME}/.iterm2_shell_integration.bash"
+
+## FB
+export PATH="/Users/mtrojer/infer/infer/bin:/Users/mtrojer/devserver/scripts:$PATH"
+export BUILD_MODE=default
+alias fb='cd ~/fbsource/fbobjc'
+alias inf='cd ~/infer'
+alias imod='cd ~/infer/infer/models'
+alias ispec='cd ~/infer/infer/lib/specs'
+
+alias port_forward='ssh -L 8081:localhost:8081 dev'
