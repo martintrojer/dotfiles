@@ -21,6 +21,10 @@ function ec
 {
     emacsclient -n "$@"
 }
+function vdiff
+{
+    emacsclient -c --eval "(vdiff-files \"$1\" \"$2\")"
+}
 function mvln
 {
     fname=`basename "$1"`

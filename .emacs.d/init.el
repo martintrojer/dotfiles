@@ -305,6 +305,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   :config
   (setq dired-dwim-target t)
   (setq dired-listing-switches "-alh")
+  (define-key dired-mode-map "e" (lambda () (interactive) (eww-open-file (dired-get-file-for-visit))))
   (defun kill-dired-buffers ()
     (interactive)
     (mapc (lambda (buffer)
@@ -425,6 +426,10 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   :ensure t
   :bind ("C-x M-d" . deadgrep))
 
+;; vdiff
+(use-package vdiff
+  :ensure t)
+
 ;; Linum
 (use-package linum
   :config
@@ -475,7 +480,8 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   ;; (setq golden-ratio-auto-scale t)
   (setq split-width-threshold 200)
   (setq split-height-threshold 120)
-  (add-to-list 'golden-ratio-exclude-modes "ediff-mode"))
+  (add-to-list 'golden-ratio-exclude-modes "ediff-mode")
+  (add-to-list 'golden-ratio-exclude-modes "vdiff-mode"))
 
 ;; undo-tree
 (use-package undo-tree
