@@ -552,6 +552,9 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 ;;   (jvm-mode)
 ;;   )
 
+(require 'df-mode "~/.emacs.d/df-mode.el")
+(df-mode)
+
 ;; buffer-move
 (use-package buffer-move
   :ensure t
