@@ -5,8 +5,11 @@ export PATH="/usr/local/sbin:$HOME/.local/bin:$PATH"
 
 export CLICOLOR=1
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
+export HISTCONTROL=ignoredups:erasedups
 export HISTSIZE=1048576
 export HISTFILESIZE=1048576
+shopt -s histappend
+
 export GPG_TTY=$(tty)
 
 export TERM=xterm-256color
