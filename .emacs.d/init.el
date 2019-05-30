@@ -62,6 +62,24 @@
 (custom-set-variables
  '(org-agenda-span 'fortnight))
 
+(defun all-tags ()
+  (interactive)
+  (let ((buf-name "*ALL TAGS*"))
+    (with-current-buffer
+        (get-buffer-create buf-name)
+      (progn
+        (erase-buffer)
+        (insert (mapconcat 'identity
+                           (sort (mapcar
+                                  (lambda (tag)
+                                    (substring-no-properties (car tag)))
+                                  (org-global-tags-completion-table))
+                                 'string<)
+                           "\n")
+                )
+        (read-only-mode)))
+    (switch-to-buffer-other-window buf-name)))
+
 (require 'org-drill)
 (use-package org-drill-table
   :ensure t
