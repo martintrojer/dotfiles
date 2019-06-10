@@ -424,25 +424,25 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (yas-load-directory "~/.emacs.d/snippets"))
 
 ;; Silver searcher
-(use-package ag
-  :ensure t
-  :pin melpa-stable
-  :bind ("C-x M-f" . mt-ag-search)
-  :config
-  (setq ag-highlight-search t)
-  (setq ag-reuse-buffers t)
-  ;; (custom-set-variables
-  ;;  '(ag-project-root-function (lambda (path) default-directory)))
-  (defun mt-ag-search (string file-regex directory)
-    (interactive (list (read-from-minibuffer "Search string: " (ag/dwim-at-point))
-		       (read-from-minibuffer "In filenames matching PCRE: " (ag/buffer-extension-regex))
-		       (read-directory-name "Directory: " (ag/project-root default-directory))))
-    (ag/search string directory :file-regex file-regex)))
+;; (use-package ag
+;;   :ensure t
+;;   :pin melpa-stable
+;;   :bind ("C-x M-f" . mt-ag-search)
+;;   :config
+;;   (setq ag-highlight-search t)
+;;   (setq ag-reuse-buffers t)
+;;   ;; (custom-set-variables
+;;   ;;  '(ag-project-root-function (lambda (path) default-directory)))
+;;   (defun mt-ag-search (string file-regex directory)
+;;     (interactive (list (read-from-minibuffer "Search string: " (ag/dwim-at-point))
+;; 		       (read-from-minibuffer "In filenames matching PCRE: " (ag/buffer-extension-regex))
+;; 		       (read-directory-name "Directory: " (ag/project-root default-directory))))
+;;     (ag/search string directory :file-regex file-regex)))
 
 ;; Ripgrep
 (use-package deadgrep
   :ensure t
-  :bind ("C-x M-d" . deadgrep))
+  :bind ("C-x M-f" . deadgrep))
 
 ;; vdiff
 (use-package vdiff
