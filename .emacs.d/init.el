@@ -68,6 +68,7 @@
     (with-current-buffer
         (get-buffer-create buf-name)
       (progn
+        (read-only-mode -1)
         (erase-buffer)
         (insert (mapconcat 'identity
                            (sort (mapcar
@@ -77,7 +78,7 @@
                                  'string<)
                            "\n")
                 )
-        (read-only-mode)))
+        (read-only-mode 1)))
     (switch-to-buffer-other-window buf-name)))
 
 (require 'org-drill)
