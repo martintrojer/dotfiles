@@ -633,7 +633,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 (global-set-key (kbd "C-x C-r") 'recentf-open-files)
 
 (show-paren-mode)
-(global-auto-revert-mode t)
+(global-auto-revert-mode :global)
 (column-number-mode t)
 
 ;; comments
