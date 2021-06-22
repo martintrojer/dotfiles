@@ -154,7 +154,7 @@
   :defer t
   :pin melpa-stable
   :config
-  (load "~/.opam/infer-4.06.1+flambda/share/emacs/site-lisp/tuareg-site-file")
+  (load "~/.opam/ocaml-variants.4.08.1+flambda/share/emacs/site-lisp/tuareg-site-file")
   (add-hook 'tuareg-mode-hook #'electric-pair-local-mode)
   ;; (add-hook 'tuareg-mode-hook 'tuareg-imenu-set-imenu)
   (setq auto-mode-alist
@@ -455,7 +455,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (if window-system
       (setq linum-format "%d")
     (setq linum-format "%d "))
-  (setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode
+  (setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode makefile-mode
                                    go-mode haskell-mode purescripe-mode elm-mode purescript-mode js-mode html-mode css-mode c-mode-common))
   (require 's)
   (--each linum-modes (add-hook (intern (s-concat (symbol-name it) "-hook")) 'linum-mode)))
@@ -617,7 +617,9 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 ;; Colors
 
 (use-package zenburn-theme
-  :ensure t)
+  :ensure t
+  :config
+  (enable-theme 'zenburn))
 
 ;; =============================================================
 ;; Misc config

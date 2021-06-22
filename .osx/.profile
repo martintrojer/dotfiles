@@ -9,16 +9,17 @@ export HISTCONTROL=ignoredups:erasedups
 export HISTSIZE=1048576
 export HISTFILESIZE=1048576
 shopt -s histappend
+export BASH_SILENCE_DEPRECATION_WARNING=1
 
 export GPG_TTY=$(tty)
 
 export TERM=xterm-256color
 export JAVA_HOME=$(/usr/libexec/java_home)
 
-export VISUAL=nano
+export VISUAL=emacsclient
 alias la='ls -lah'
 alias serve='python -m SimpleHTTPServer 8081'
-alias turtle='stack ghci --package turtle --package text --package lens --package containers --package mtl --package aeson --package lens-aeson --package regex-pcre'
+alias turtle='stack ghci --package turtle --package text --package lens --package containers --package mtl --package aeson --package lens-aeson --package regex-with-pcre'
 
 function ec
 {
@@ -36,6 +37,11 @@ function mvln
     mv "$1" "$2"
     ln -s "$dest/$fname" "$1"
     set +x
+}
+
+function nukebook
+{
+    hg book | awk '{print $1}' | xargs hg book -d
 }
 
 alias ddev='eval $(docker-machine env dev)'
