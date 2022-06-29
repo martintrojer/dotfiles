@@ -141,18 +141,48 @@
   :defer t
   :pin melpa-stable)
 
+;; Rust
+(use-package rust-mode
+  :ensure t
+  :defer t
+  :pin melpa-stable
+  :config
+  (setq rust-format-on-save t)
+  (define-key rust-mode-map (kbd "C-c C-c") 'rust-compile))
+
+(use-package flycheck-rust
+  :ensure t
+  :defer t
+  :config
+  (with-eval-after-load 'rust-mode
+    (add-hook 'flycheck-mode-hook #'flycheck-rust-setup)))
+
+(use-package lsp-mode
+  :ensure t
+  :defer t
+  :pin melpa-stable
+  :init
+  (setq lsp-keymap-prefix "C-c l")
+  :hook ((rust-mode . lsp)
+         (lsp-mode . lsp-enable-which-key-integration)))
+
+(use-package which-key
+  :ensure t
+  :defer t
+  :hook ((rust-mode . which-key-mode)))
+
 ;; Ocaml
 ;; opam install tuareg merlin ocp-indent utop ocamlformat
 (use-package caml
   :ensure t
   :defer t
-  :pin melpa-stable)
+  :pin melpa)
 (use-package tuareg
   :ensure t
   :defer t
-  :pin melpa-stable
+  :pin melpa
   :config
-  (load "~/.opam/ocaml-variants.4.08.1+flambda/share/emacs/site-lisp/tuareg-site-file")
+  (load "~/.opam/4.12.0+flambda/share/emacs/site-lisp/tuareg-site-file.elc")
   (add-hook 'tuareg-mode-hook #'electric-pair-local-mode)
   ;; (add-hook 'tuareg-mode-hook 'tuareg-imenu-set-imenu)
   (setq auto-mode-alist
@@ -164,16 +194,20 @@
 (use-package merlin
   :ensure t
   :defer t
-  :pin melpa-stable
+  :pin melpa
   :bind (("C-c C-\\" . merlin-pop-stack)
          ("C-c C-o"  . merlin-document)
          ("C-c C-m"  . infer-mk)
-         ("C-c C-y"  . infer-analyze))
+         ("C-c C-T"  . infer-test))
   :config
   (add-hook 'tuareg-mode-hook 'merlin-mode)
-  (add-hook 'reason-mode-hook 'merlin-mode)
+  ;;  (add-hook 'reason-mode-hook 'merlin-mode)
   (add-hook 'merlin-mode-hook #'company-mode)
-  (setq merlin-error-after-save nil))
+  (setq merlin-error-after-save nil)
+  ;;(require 'merlin-comany)
+  )
+(add-hook 'tuareg-mode-hook 'merlin-mode)
+
 
 (use-package ocp-indent
   :ensure t
@@ -190,7 +224,7 @@
   )
 
 ;; ## added by OPAM user-setup for emacs / base ## 56ab50dc8996d2bb95e7856a6eddb17b ## you can edit, but keep this line
-(require 'opam-user-setup "~/.emacs.d/opam-user-setup.el")
+;; (require 'opam-user-setup "~/.emacs.d/opam-user-setup.el")
 ;; ## end of OPAM user-setup addition for emacs / base ## keep this line
 
 
@@ -198,6 +232,8 @@
 ;; make sure there is no local ghc in the path!
 ;; stack setup
 ;;  stack install hlint hindent hasktags stylish-haskell ghcid
+
+(setq haskell-stylish-on-save t)
 
 (use-package haskell-mode
   :ensure t
@@ -216,6 +252,7 @@
   (add-hook 'haskell-mode-hook
             '(lambda ()
                (setq-local completion-at-point-functions '(haskell-process-completions-at-point))
+               ;; (intero-mode)
                (hindent-mode)
                (haskell-indentation-mode t)
 ;;               (flycheck-add-next-checker 'intero '(warning . haskell-hlint))
@@ -435,15 +472,34 @@
   (if window-system
       (setq linum-format "%d")
     (setq linum-format "%d "))
-  (setq linum-modes '(clojure-mode emacs-lisp-mode tuareg-mode puppet-mode ruby-mode markdown-mode python-mode makefile-mode
-                                   go-mode haskell-mode purescripe-mode elm-mode purescript-mode js-mode html-mode css-mode c-mode-common))
+  (setq linum-modes '(c-mode-common
+                      clojure-mode
+                      css-mode
+                      elm-mode
+                      emacs-lisp-mode
+                      go-mode
+                      haskell-mode
+                      html-mode
+                      js-mode
+                      makefile-gmake-mode
+                      makefile-mode
+                      markdown-mode
+                      puppet-mode
+                      purescripe-mode
+                      purescript-mode
+                      python-mode
+                      ruby-mode
+                      rust-mode
+                      shell-script-mode
+                      thrift-mode
+                      tuareg-mode
+                      ))
   (require 's)
   (--each linum-modes (add-hook (intern (s-concat (symbol-name it) "-hook")) 'linum-mode)))
 
 ;; Flycheck
 (use-package flycheck
   :ensure t
-  :pin melpa-stable
   :config
   (add-hook 'after-init-hook #'global-flycheck-mode))
 
@@ -458,16 +514,16 @@
   (add-hook 'markdown-mode-hook 'flyspell-buffer)
   (add-hook 'markdown-mode-hook 'flyspell-mode))
 
-;; idle-highlight-mode
-(use-package idle-highlight-mode
-  :ensure t
-  :pin melpa-stable
-  :config
-  (add-hook 'clojure-mode-hook 'idle-highlight-mode)
-  (add-hook 'lisp-mode-hook 'idle-highlight-mode)
-  (add-hook 'scheme-mode-hook 'idle-highlight-mode)
-  (add-hook 'emacs-lisp-mode-hook 'idle-highlight-mode)
-  (add-hook 'haskell-mode-hook 'idle-highlight-mode))
+;; ;; idle-highlight-mode
+;; (use-package idle-highlight-mode
+;;   :ensure t
+;;   :pin melpa-stable
+;;   :config
+;;   (add-hook 'clojure-mode-hook 'idle-highlight-mode)
+;;   (add-hook 'lisp-mode-hook 'idle-highlight-mode)
+;;   (add-hook 'scheme-mode-hook 'idle-highlight-mode)
+;;   (add-hook 'emacs-lisp-mode-hook 'idle-highlight-mode)
+;;   (add-hook 'haskell-mode-hook 'idle-highlight-mode))
 
 ;; Golden ratio
 (use-package golden-ratio
@@ -577,14 +633,14 @@
              (define-key clojure-mode-map "\C-c\C-y" 'align-cljlet))))
 
 ;; clj-refactor
-(use-package clj-refactor
-  :ensure t
-  :pin melpa-stable
-  :diminish clj-refactor-mode
-  :config
-  (add-hook 'clojure-mode-hook (lambda ()
-                               (clj-refactor-mode 1)
-                               (cljr-add-keybindings-with-prefix "C-c C-o"))))
+;; (use-package clj-refactor
+;;   :ensure t
+;;   :pin melpa-stable
+;;   :diminish clj-refactor-mode
+;;   :config
+;;   (add-hook 'clojure-mode-hook (lambda ()
+;;                                (clj-refactor-mode 1)
+;;                                (cljr-add-keybindings-with-prefix "C-c C-o"))))
 
 ;; scratch buffer
 (use-package persistent-scratch
