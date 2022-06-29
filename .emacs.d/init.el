@@ -81,10 +81,8 @@
         (read-only-mode 1)))
     (switch-to-buffer-other-window buf-name)))
 
-(require 'org-drill)
-(use-package org-drill-table
-  :ensure t
-  :defer t)
+(use-package org-drill
+  :ensure t)
 
 (use-package org-bookmark-heading
   :ensure t)
@@ -199,7 +197,7 @@
 ;; Haskell
 ;; make sure there is no local ghc in the path!
 ;; stack setup
-;;  stack install hlint hindent hasktags stylish-haskell ghcid intero
+;;  stack install hlint hindent hasktags stylish-haskell ghcid
 
 (use-package haskell-mode
   :ensure t
@@ -218,31 +216,13 @@
   (add-hook 'haskell-mode-hook
             '(lambda ()
                (setq-local completion-at-point-functions '(haskell-process-completions-at-point))
-               (intero-mode)
                (hindent-mode)
                (haskell-indentation-mode t)
-               (flycheck-add-next-checker 'intero '(warning . haskell-hlint))
+;;               (flycheck-add-next-checker 'intero '(warning . haskell-hlint))
                ;; (interactive-haskell-mode t)
                ;; (structured-haskell-mode t)
                ))
   (define-key haskell-mode-map "\C-c\C-h" 'hoogle))
-
-(defun intero-repl-add (&optional prompt-options)
-  "Add the current file to the target set in the REPL.
-If PROMPT-OPTIONS is non-nil, prompt with an options list."
-  (interactive "P")
-  (save-buffer)
-  (let ((file (intero-localize-path (intero-buffer-file-name))))
-    (intero-with-repl-buffer prompt-options
-      (comint-simple-send
-       (get-buffer-process (current-buffer))
-       (concat ":add " file)))))
-
-(use-package intero
-  :ensure t
-  :defer t
-  :pin melpa
-  :bind (("C-c C-k" . intero-repl-add)))
 
 (use-package hindent
   :ensure t
