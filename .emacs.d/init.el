@@ -37,8 +37,7 @@
 
 (use-package diminish
   :ensure t
-  :defer nil
-  :pin melpa-stable)
+  :defer nil)
 
 (add-to-list 'load-path "~/.emacs.d/site-lisp")
 
@@ -98,54 +97,10 @@
   ("<f2>" . bm-next)
   ("<S-f2>" . bm-toggle))
 
-;; Clojure
-(use-package clojure-mode
-  :ensure t
-  :defer t
-  :pin melpa-stable
-  :config
-  (setq safe-local-variable-values
-	(quote
-	 ((eval define-clojure-indent
-		(snippet
-		 (quote defun))
-		(template
-		 (quote defun)))))))
-
-;; Cider
-(use-package cider
-  :ensure t
-  :defer t
-  :pin melpa-stable
-  :diminish (cider-mode . "Cdr")
-  :config
-  (setq cider-repl-history-file "~/.emacs.d/cider-history")
-  (setq cider-font-lock-dynamically '(macro core function var))
-  (setq cider-repl-use-pretty-printing nil)
-  (setq cider-repl-use-clojure-font-lock t)
-  (setq cider-repl-result-prefix ";; => ")
-  (setq cider-repl-wrap-history t)
-  (setq cider-repl-history-size 3000)
-  (setq cider-show-error-buffer 'except-in-repl)
-  (setq cider-repl-display-help-banner nil)
-  (setq cider-inject-dependencies-at-jack-in nil)
-  (add-hook 'cider-mode-hook #'eldoc-mode))
-
-;; Go lang
-(use-package go-mode
-  :ensure t
-  :defer t
-  :pin melpa-stable)
-(use-package go-eldoc
-  :ensure t
-  :defer t
-  :pin melpa-stable)
-
 ;; Rust
 (use-package rust-mode
   :ensure t
   :defer t
-  :pin melpa-stable
   :config
   (setq rust-format-on-save t)
   (define-key rust-mode-map (kbd "C-c C-c") 'rust-compile))
@@ -160,9 +115,9 @@
 (use-package lsp-mode
   :ensure t
   :defer t
-  :pin melpa-stable
   :init
   (setq lsp-keymap-prefix "C-c l")
+  (setq lsp-lens-enable nil)
   :hook ((rust-mode . lsp)
          (lsp-mode . lsp-enable-which-key-integration)))
 
@@ -175,12 +130,10 @@
 ;; opam install tuareg merlin ocp-indent utop ocamlformat
 (use-package caml
   :ensure t
-  :defer t
-  :pin melpa)
+  :defer t)
 (use-package tuareg
   :ensure t
   :defer t
-  :pin melpa
   :config
   (load "~/.opam/4.12.0+flambda/share/emacs/site-lisp/tuareg-site-file.elc")
   (add-hook 'tuareg-mode-hook #'electric-pair-local-mode)
@@ -194,7 +147,6 @@
 (use-package merlin
   :ensure t
   :defer t
-  :pin melpa
   :bind (("C-c C-\\" . merlin-pop-stack)
          ("C-c C-o"  . merlin-document)
          ("C-c C-m"  . infer-mk)
@@ -211,8 +163,7 @@
 
 (use-package ocp-indent
   :ensure t
-  :defer t
-  :pin melpa-stable)
+  :defer t)
 
 ;; utop configuration
 (use-package utop
@@ -237,7 +188,6 @@
 
 (use-package haskell-mode
   :ensure t
-  :pin melpa
   :config
   (require 'haskell-interactive-mode)
   (setq haskell-interactive-popup-errors nil
@@ -263,78 +213,17 @@
 
 (use-package hindent
   :ensure t
-  :defer t
-  :pin melpa-stable)
-
-(use-package shm
-  :ensure t
-  :defer t
-  :pin melpa-stable)
-
-;; Elm
-(use-package elm-mode
-  :ensure t
-  :defer t
-  :pin melpa-stable
-  :init (setq elm-indent-offset 4))
-
-;; Purescript
-(use-package purescript-mode
-  :ensure t
-  :defer t
-  :pin melpa
-  :config
-  (require 'psc-ide)
-  (add-hook 'purescript-mode-hook
-            (lambda ()
-              (repl-toggle-mode)
-              (inferior-psci-mode)
-              (psc-ide-mode)
-              (flycheck-mode)
-              (turn-on-purescript-indentation))))
-
-(use-package psci
-  :ensure t
-  :defer t
-  :pin melpa)
-
-(use-package psc-ide
-  :ensure t
-  :defer t
-  :pin melpa
-  :diminish (psc-ide-mode . "Pi"))
-
-(use-package repl-toggle
-  :ensure t
-  :defer t
-  :pin melpa-stable
-  :config
-  (add-to-list 'rtog/mode-repl-alist '(purescript-mode . psci)))
+  :defer t)
 
 ;; Markdown
 (use-package markdown-mode
   :ensure t
-  :pin melpa-stable
   :mode "\\.md\\'")
 
 ;; Yaml
 (use-package yaml-mode
   :ensure t
-  :defer t
-  :pin melpa-stable)
-
-;; Docker
-(use-package dockerfile-mode
-  :ensure t
-  :defer t
-  :pin melpa-stable)
-
-;; Mustache
-(use-package mustache-mode
-  :ensure t
-  :defer t
-  :pin melpa-stable
-  :mode "\\.mustache\\'")
+  :defer t)
 
 ;; Dired
 (use-package dired
@@ -365,7 +254,6 @@
 ;; Magit
 (use-package magit
   :ensure t
-  :pin melpa-stable
   :bind (("C-c C-g" . magit-status)
          ("C-c C-b" . magit-blame-mode))
   :config
@@ -373,38 +261,14 @@
   (setq magit-revert-buffers 'silent)
   (setq magit-diff-refine-hunk t))
 
+;; Monky (hg)
 (use-package monky
   :ensure t
   :pin melpa)
 
-;; Paredit
-(use-package paredit
-  :ensure t
-  :pin melpa-stable
-  :diminish (paredit-mode . "Pe")
-  :config
-  (add-hook 'lisp-mode-hook 'paredit-mode)
-  (add-hook 'emacs-lisp-mode-hook 'paredit-mode)
-  (add-hook 'scheme-mode-hook 'paredit-mode)
-  (add-hook 'cider-repl-mode-hook 'paredit-mode)
-  (add-hook 'clojure-mode-hook 'paredit-mode))
-
-;; Smartparens
-(use-package smartparens
-  :ensure t
-  :pin melpa-stable
-  :config
-  (sp-use-paredit-bindings)
-  (sp-pair "'" nil :actions :rem)
-  (add-hook 'haskell-mode-hook 'smartparens-mode)
-  (add-hook 'haskell-interactive-mode-hook 'smartparens-mode)
-  (add-hook 'ruby-mode-hook 'smartparens-mode)
-  (add-hook 'inf-clojure-mode-hook 'smartparens-mode))
-
 ;; Company
 (use-package company
   :ensure t
-  :pin melpa-stable
   :diminish company-mode
   :config
   (global-company-mode))
@@ -412,7 +276,6 @@
 ;; IDO
 (use-package ido-completing-read+
   :ensure t
-  :pin melpa-stable
   :config
   (ido-mode t)
   (setq ido-enable-flex-matching t)
@@ -422,40 +285,14 @@
                   (call-interactively
                    (intern (ido-completing-read "M-x " (all-completions "" obarray 'commandp)))))))
 
-;; Projectile
-(use-package projectile
-  :ensure t
-  :pin melpa-stable
-  :config
-  (setq projectile-mode-line '(:eval (format " P[%s]" (projectile-project-name))))
-  (add-hook 'clojure-mode-hook 'projectile-mode)
-  (add-hook 'ruby-mode-hook 'projectile-mode))
-
 ;; Yasnippet
 (use-package yasnippet
   :ensure t
-  :pin melpa-stable
   :diminish (yas-minor-mode . " Y")
   :config
   (yas-global-mode 1)
   (add-to-list 'yas-snippet-dirs "~/.emacs.d/snippets")
   (yas-load-directory "~/.emacs.d/snippets"))
-
-;; Silver searcher
-;; (use-package ag
-;;   :ensure t
-;;   :pin melpa-stable
-;;   :bind ("C-x M-f" . mt-ag-search)
-;;   :config
-;;   (setq ag-highlight-search t)
-;;   (setq ag-reuse-buffers t)
-;;   ;; (custom-set-variables
-;;   ;;  '(ag-project-root-function (lambda (path) default-directory)))
-;;   (defun mt-ag-search (string file-regex directory)
-;;     (interactive (list (read-from-minibuffer "Search string: " (ag/dwim-at-point))
-;; 		       (read-from-minibuffer "In filenames matching PCRE: " (ag/buffer-extension-regex))
-;; 		       (read-directory-name "Directory: " (ag/project-root default-directory))))
-;;     (ag/search string directory :file-regex file-regex)))
 
 ;; Ripgrep
 (use-package deadgrep
@@ -466,8 +303,11 @@
 (use-package vdiff
   :ensure t)
 
+(require 'dash)
+
 ;; Linum
 (use-package linum
+  :ensure t
   :config
   (if window-system
       (setq linum-format "%d")
@@ -506,7 +346,6 @@
 ;; Flyspell
 (use-package flyspell
   :ensure t
-  :pin melpa-stable
   :bind (("C-c £" . flyspell-buffer))
   :config
   (add-hook 'org-mode-hook 'flyspell-buffer)
@@ -514,21 +353,9 @@
   (add-hook 'markdown-mode-hook 'flyspell-buffer)
   (add-hook 'markdown-mode-hook 'flyspell-mode))
 
-;; ;; idle-highlight-mode
-;; (use-package idle-highlight-mode
-;;   :ensure t
-;;   :pin melpa-stable
-;;   :config
-;;   (add-hook 'clojure-mode-hook 'idle-highlight-mode)
-;;   (add-hook 'lisp-mode-hook 'idle-highlight-mode)
-;;   (add-hook 'scheme-mode-hook 'idle-highlight-mode)
-;;   (add-hook 'emacs-lisp-mode-hook 'idle-highlight-mode)
-;;   (add-hook 'haskell-mode-hook 'idle-highlight-mode))
-
 ;; Golden ratio
 (use-package golden-ratio
   :ensure t
-  :pin melpa-stable
   :diminish (golden-ratio-mode . "AU")
   :config
   (golden-ratio-mode 1)
@@ -538,24 +365,15 @@
   (add-to-list 'golden-ratio-exclude-modes "ediff-mode")
   (add-to-list 'golden-ratio-exclude-modes "vdiff-mode"))
 
-;; undo-tree
-(use-package undo-tree
-  :ensure t
-  :diminish (undo-tree-mode . "UT")
-  :config
-  (global-undo-tree-mode))
-
 ;; browse-kill-ring
 (use-package browse-kill-ring
   :ensure t
-  :pin melpa-stable
   :config
   (browse-kill-ring-default-keybindings))
 
 ;; Multiple cursors
 (use-package multiple-cursors
   :ensure t
-  :pin melpa-stable
   :bind (("C-c ." . mc/mark-next-like-this)
          ("C-c ," . mc/mark-previous-like-this)
          ("C-c M-." . mc/mark-all-like-this)))
@@ -563,57 +381,29 @@
 ;; Expand region
 (use-package expand-region
   :ensure t
-  :pin melpa
   :bind ("C-\\" . er/expand-region))
-
-;; Yagist
-(use-package yagist
-  :ensure t
-  :defer t
-  :pin melpa-stable
-  :config
-  (setq yagist-encrypt-risky-config t))
-(use-package kaesar
-  :ensure t
-  :pin melpa-stable)
 
 ;; Git gutter
 (use-package git-gutter
   :ensure t
-  :pin melpa-stable
   :diminish (git-gutter-mode . "GG")
   :bind ("C-x C-g" . git-gutter:toggle))
 
 ;; inf-ruby
 (use-package inf-ruby
   :ensure t
-  :pin melpa-stable
   :config
   (add-hook 'ruby-mode-hook 'inf-ruby-minor-mode))
 
 ;; Avy
 (use-package avy
   :ensure t
-  :pin melpa-stable
   :bind (("M-g f" . avy-goto-line)
          ("M-g w" . any-goto-word-1)))
-
-;; JVM
-;; (use-package jvm-mode
-;;   :ensure t
-;;   :pin melpa-stable
-;;   :config
-;;   (setq jvm-mode-line-string " jvm[%d]")
-;;   (jvm-mode)
-;;   )
-
-(require 'df-mode "~/.emacs.d/df-mode.el")
-(df-mode)
 
 ;; buffer-move
 (use-package buffer-move
   :ensure t
-  :pin melpa-stable
   :bind (("C-c <C-right>" . mt-move-right)
          ("C-c <C-left>" . mt-move-left))
   :config
@@ -624,28 +414,9 @@
     (interactive)
     (buf-move-left) (golden-ratio)))
 
-;; align-cljlet
-(use-package align-cljlet
-  :ensure t
-  :config
-  (add-hook 'clojure-mode-hook
-          '(lambda ()
-             (define-key clojure-mode-map "\C-c\C-y" 'align-cljlet))))
-
-;; clj-refactor
-;; (use-package clj-refactor
-;;   :ensure t
-;;   :pin melpa-stable
-;;   :diminish clj-refactor-mode
-;;   :config
-;;   (add-hook 'clojure-mode-hook (lambda ()
-;;                                (clj-refactor-mode 1)
-;;                                (cljr-add-keybindings-with-prefix "C-c C-o"))))
-
 ;; scratch buffer
 (use-package persistent-scratch
   :ensure t
-  :pin melpa
   :config
   (persistent-scratch-setup-default))
 
@@ -776,7 +547,6 @@
 
   (use-package exec-path-from-shell
     :ensure t
-    :pin melpa-stable
     :config
     (exec-path-from-shell-initialize))
 
