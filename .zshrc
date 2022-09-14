@@ -117,7 +117,9 @@ function mvln
     set +x
 }
 
-eval `opam config env`
+if [[ `which opam >/dev/null && $?` == 0 ]]; then
+    eval `opam config env`
+fi
 
 test -e "${HOME}/.iterm2_shell_integration.bash" && source "${HOME}/.iterm2_shell_integration.bash"
 
