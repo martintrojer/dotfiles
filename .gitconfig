@@ -15,3 +15,8 @@
 	oauth-token = U2FsdGVkX1/brDdCscmcyw11kQplKWfvzy84rXaEHXX3vTvkYUvAXeXTho1QjpViweVtqxbT76ymh6/mHIL/6g==
 [commit]
 	gpgsign = false
+[filter "lfs"]
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
