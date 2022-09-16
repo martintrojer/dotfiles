@@ -567,4 +567,60 @@
   (setenv "PATH" (concat local-path ":" (getenv "PATH")))
   (add-to-list 'exec-path local-path))
 
+;; =============================================================
+;; FB
+
+
+
+(require 'magit)
+(add-to-list 'magit-process-password-prompt-regexps "^Passcode or option .*: ?$")
+
+(setq org-file-apps
+      '((auto-mode . emacs)
+        ("\\.x?html?\\'" . default)
+        ("\\.pdf\\'" . default)))
+
+(defun infer-mk ()
+  (interactive)
+  (compile "cd ~/infer && make -C infer/src -k byte"))
+
+(defun infer-analyze ()
+  (interactive)
+  (shell-command "cd ~/fbsource/fbobjc && infer analyze --no-progress-bar -g -a infer &"))
+
+(defvar infer-capture-history nil "History for infer-capture")
+(defun infer-capture (task)
+  (interactive (list (read-from-minibuffer "Task: " (car infer-capture-history) nil nil 'infer-capture-history)))
+  (shell-command (concat "cd ~/fbsource/fbobjc && ./" task ".sh &")))
+
+(defun fbobjc (fnl)
+  (interactive (list (read-from-minibuffer "Filename (and line): ")))
+  (let* ((parts (split-string fnl ":"))
+         (filename (car parts))
+         (no-fbobjc (string-trim (car (last (split-string filename "fbobjc/")))))
+         (line (car (cdr parts))))
+    (find-file (concat "~/fbsource/fbobjc/" no-fbobjc))
+    (if (not (string= line ""))
+        (goto-line (string-to-number line)))))
+
+(delete 'Hg vc-handled-backends )
+
+(setq org-agenda-files (list
+                        "~/Dropbox (Meta)/docs/ClangPlugin.org"
+                        "~/Dropbox (Meta)/docs/FBSource.org"
+                        "~/Dropbox (Meta)/docs/Feedback.org"
+                        "~/Dropbox (Meta)/docs/Impact.org"
+                        "~/Dropbox (Meta)/docs/Infer.org"
+                        "~/Dropbox (Meta)/docs/Infra.org"
+                        "~/Dropbox (Meta)/docs/Interview.org"
+                        "~/Dropbox (Meta)/docs/JackInfer.org"
+                        "~/Dropbox (Meta)/docs/Meetings.org"
+                        "~/Dropbox (Meta)/docs/Oncall.org"
+                        "~/Dropbox (Meta)/docs/Stuff.org"
+                        "~/Dropbox (Meta)/docs/Work.org"
+                        "~/Dropbox (Meta)/docs/WWW.org"
+                        ))
+
+(setq org-default-notes-file "~/Dropbox (Meta)/docs/Work.org")
+
 ;;; init.el ends here
