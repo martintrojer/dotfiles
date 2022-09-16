@@ -135,7 +135,7 @@
   :ensure t
   :defer t
   :config
-  (load "~/.opam/4.12.0+flambda/share/emacs/site-lisp/tuareg-site-file.elc")
+  (load "~/.opam/4.14.0+flambda/share/emacs/site-lisp/tuareg-site-file.elc")
   (add-hook 'tuareg-mode-hook #'electric-pair-local-mode)
   ;; (add-hook 'tuareg-mode-hook 'tuareg-imenu-set-imenu)
   (setq auto-mode-alist
@@ -148,9 +148,8 @@
   :ensure t
   :defer t
   :bind (("C-c C-\\" . merlin-pop-stack)
-         ("C-c C-o"  . merlin-document)
-         ("C-c C-m"  . infer-mk)
-         ("C-c C-T"  . infer-test))
+         ("C-c C-c"  . infe-mk)
+         ("C-c C-o"  . merlin-document))
   :config
   (add-hook 'tuareg-mode-hook 'merlin-mode)
   ;;  (add-hook 'reason-mode-hook 'merlin-mode)
