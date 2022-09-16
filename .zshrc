@@ -94,20 +94,17 @@ zle -N znt-history-widget
 bindkey "^R" znt-history-widget
 
 export PATH="/usr/local/sbin:$HOME/.local/bin:$PATH"
-eval "$(/opt/homebrew/bin/brew shellenv)"
-#eval "$(homebrew/bin/brew shellenv)"
 
 export CLICOLOR=1
-export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
-export HISTCONTROL=ignoredups:erasedups
-export HISTSIZE=1048576
-export HISTFILESIZE=1048576
-
 export GPG_TTY=$(tty)
-
+export HISTCONTROL=ignoredups:erasedups
+export HISTFILESIZE=1048576
+export HISTSIZE=1048576
+export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 export TERM=xterm-256color
-
 export VISUAL=emacsclient
+
+alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python -m SimpleHTTPServer 8081'
 
 function vdiff
@@ -128,17 +125,18 @@ if [ -x "$(which opam)" ]; then
     eval `opam config env`
 fi
 
+test -e "/opt/homebrew/bin/brew" && eval "$(/opt/homebrew/bin/brew shellenv)"
+test -e "homebrew/bin/brew" && eval "$(homebrew/bin/brew shellenv)"
 test -e "${HOME}/.iterm2_shell_integration.bash" && source "${HOME}/.iterm2_shell_integration.bash"
-
-alias port_forward='ssh -L 8081:localhost:8081 dev'
 
 ## FB
 export PATH="/Users/mtrojer/infer/infer/bin:/Users/mtrojer/infer/facebook/dependencies/bin:/Users/mtrojer/devserver/scripts:$PATH"
+
 export BUILD_MODE=default
-export PATH="/home/mtrojer/devenv/bin:$PATH"
-export PKG_CONFIG_PATH=/home/mtrojer/devenv/lib/pkgconfig
 export LD_LIBRARY_PATH=/home/mtrojer/devenv/lib
 export MANPATH="/home/mtrojer/infer/infer/man":$MANPATH
+export PATH="/home/mtrojer/devenv/bin:$PATH"
+export PKG_CONFIG_PATH=/home/mtrojer/devenv/lib/pkgconfig
 
 function proxy
 {
