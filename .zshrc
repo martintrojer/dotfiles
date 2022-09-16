@@ -130,12 +130,11 @@ test -e "homebrew/bin/brew" && eval "$(homebrew/bin/brew shellenv)"
 test -e "${HOME}/.iterm2_shell_integration.bash" && source "${HOME}/.iterm2_shell_integration.bash"
 
 ## FB
-export PATH="/Users/mtrojer/infer/infer/bin:/Users/mtrojer/infer/facebook/dependencies/bin:/Users/mtrojer/devserver/scripts:$PATH"
+export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$HOME/devenv/bin:$PATH"
 
 export BUILD_MODE=default
 export LD_LIBRARY_PATH=/home/mtrojer/devenv/lib
-export MANPATH="/home/mtrojer/infer/infer/man":$MANPATH
-export PATH="/home/mtrojer/devenv/bin:$PATH"
+export MANPATH="$HOME/infer/infer/man":$MANPATH
 export PKG_CONFIG_PATH=/home/mtrojer/devenv/lib/pkgconfig
 
 function proxy
