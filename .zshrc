@@ -8,7 +8,7 @@ export ZSH="$HOME/.oh-my-zsh"
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-ZSH_THEME="robbyrussell"
+ZSH_THEME="minimal"
 
 # Set list of themes to pick from when loading at random
 # Setting this variable when ZSH_THEME=random will cause zsh to load
@@ -41,7 +41,7 @@ ZSH_THEME="robbyrussell"
 # DISABLE_AUTO_TITLE="true"
 
 # Uncomment the following line to enable command auto-correction.
-ENABLE_CORRECTION="true"
+# ENABLE_CORRECTION="true"
 
 # Uncomment the following line to display red dots whilst waiting for completion.
 # You can also set it to another string to have that shown instead of the default red dots.
@@ -70,7 +70,8 @@ ENABLE_CORRECTION="true"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(brew
+plugins=(
+         brew
          colorize
          common-aliases
          emacs
@@ -82,13 +83,19 @@ plugins=(brew
          ripgrep
          rust
          tmux
+         zsh-navigation-tools
         )
 
 # ======================================================
 # User configuration
 
+autoload znt-history-widget
+zle -N znt-history-widget
+bindkey "^R" znt-history-widget
+
 export PATH="/usr/local/sbin:$HOME/.local/bin:$PATH"
-eval "$(homebrew/bin/brew shellenv)"
+eval "$(/opt/homebrew/bin/brew shellenv)"
+#eval "$(homebrew/bin/brew shellenv)"
 
 export CLICOLOR=1
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
@@ -117,7 +124,7 @@ function mvln
     set +x
 }
 
-if [[ `which opam >/dev/null && $?` == 0 ]]; then
+if [ -x "$(which opam)" ]; then
     eval `opam config env`
 fi
 
@@ -133,10 +140,6 @@ export PKG_CONFIG_PATH=/home/mtrojer/devenv/lib/pkgconfig
 export LD_LIBRARY_PATH=/home/mtrojer/devenv/lib
 export MANPATH="/home/mtrojer/infer/infer/man":$MANPATH
 
-function nukebook
-{
-    hg book | awk '{print $1}' | xargs hg book -d
-}
 function proxy
 {
     export https_proxy=fwdproxy:8080
@@ -146,6 +149,10 @@ function unproxy
 {
     unset https_proxy
     unset http_proxy
+}
+function nukebook
+{
+    hg book | awk '{print $1}' | xargs hg book -d
 }
 
 # ======================================================
