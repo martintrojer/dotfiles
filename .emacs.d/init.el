@@ -569,7 +569,11 @@
 ;; =============================================================
 ;; FB
 
-
+(add-to-list 'auto-mode-alist '("\\.bzl\\'" . python-mode))
+(add-to-list 'auto-mode-alist '("/BUCK\\'" . python-mode))
+(add-to-list 'auto-mode-alist '("/BUCK\\.v2\\'" . python-mode))
+(add-to-list 'auto-mode-alist '("/TARGETS\\'" . python-mode))
+(add-to-list 'auto-mode-alist '("/TARGETS\\.v2\\'" . python-mode))
 
 (require 'magit)
 (add-to-list 'magit-process-password-prompt-regexps "^Passcode or option .*: ?$")
