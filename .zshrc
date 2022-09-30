@@ -71,6 +71,7 @@ ZSH_THEME="minimal"
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(
+         branch
          brew
          colorize
          common-aliases
@@ -102,7 +103,7 @@ export HISTFILESIZE=1048576
 export HISTSIZE=1048576
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 export TERM=xterm-256color
-export VISUAL=emacsclient
+export VISUAL="$HOME/.oh-my-zsh/plugins/emacs/emacsclient.sh -nw"
 
 alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python -m SimpleHTTPServer 8081'
