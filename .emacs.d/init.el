@@ -430,6 +430,9 @@
 ;; =============================================================
 ;; Misc config
 
+;; save the session state
+(desktop-save-mode 1)
+
 (let ((local-path (expand-file-name "~/.local/bin")))
   (setenv "PATH" (concat local-path ":" (getenv "PATH")))
   (add-to-list 'exec-path local-path))
