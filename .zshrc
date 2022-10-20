@@ -108,12 +108,15 @@ export VISUAL="$HOME/.oh-my-zsh/plugins/emacs/emacsclient.sh -nw"
 alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python -m SimpleHTTPServer 8081'
 
-function vdiff
-{
+vdiff () {
     emacsclient -c --eval "(vdiff-files \"$1\" \"$2\")"
 }
-function mvln
-{
+
+ediff () {
+    emacsclient -c --eval "(progn ((ediff-files \"$1\" \"$2\")))"
+}
+
+mvln () {
     fname=`basename "$1"`
     dest=$(echo "$2" | sed 's:/*$::')
     set -x
@@ -138,19 +141,31 @@ export LD_LIBRARY_PATH=/home/mtrojer/devenv/lib
 export MANPATH="$HOME/infer/infer/man":$MANPATH
 export PKG_CONFIG_PATH=/home/mtrojer/devenv/lib/pkgconfig
 
-function proxy
-{
+proxy () {
     export https_proxy=fwdproxy:8080
     export http_proxy=fwdproxy:8080
 }
-function unproxy
-{
+unproxy () {
     unset https_proxy
     unset http_proxy
 }
-function nukebook
-{
+nukebook () {
     hg book | awk '{print $1}' | xargs hg book -d
+}
+
+HOTLIST_FILE=~/.ncd_hotlist.txt
+
+znt_cd_hotlist=("${(f)$(<$HOTLIST_FILE)}")
+
+ncd_add () {
+    echo "$PWD" >> $HOTLIST_FILE
+    sort -o $HOTLIST_FILE $HOTLIST_FILE
+    znt_cd_hotlist=("${(f)$(<$HOTLIST_FILE)}")
+}
+
+ncd_rm () {
+    sed -i "/$1/d" $HOTLIST_FILE
+    znt_cd_hotlist=("${(f)$(<$HOTLIST_FILE)}")
 }
 
 # ======================================================
