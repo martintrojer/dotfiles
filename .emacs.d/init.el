@@ -6,6 +6,9 @@
 
 ;; C-u 0 M-x byte-recompile-directory
 
+;; On RPI for example
+;; (setq native-comp-async-jobs-number 1)
+
 (setq inhibit-startup-screen t)
 
 (if window-system
@@ -304,38 +307,6 @@
 
 (require 'dash)
 
-;; Linum
-(use-package linum
-  :ensure t
-  :config
-  (if window-system
-      (setq linum-format "%d")
-    (setq linum-format "%d "))
-  (setq linum-modes '(c-mode-common
-                      clojure-mode
-                      css-mode
-                      elm-mode
-                      emacs-lisp-mode
-                      go-mode
-                      haskell-mode
-                      html-mode
-                      js-mode
-                      makefile-gmake-mode
-                      makefile-mode
-                      markdown-mode
-                      puppet-mode
-                      purescripe-mode
-                      purescript-mode
-                      python-mode
-                      ruby-mode
-                      rust-mode
-                      shell-script-mode
-                      thrift-mode
-                      tuareg-mode
-                      ))
-  (require 's)
-  (--each linum-modes (add-hook (intern (s-concat (symbol-name it) "-hook")) 'linum-mode)))
-
 ;; Flycheck
 (use-package flycheck
   :ensure t
@@ -432,6 +403,8 @@
 
 ;; save the session state
 (desktop-save-mode 1)
+
+(global-display-line-numbers-mode)
 
 (let ((local-path (expand-file-name "~/.local/bin")))
   (setenv "PATH" (concat local-path ":" (getenv "PATH")))
