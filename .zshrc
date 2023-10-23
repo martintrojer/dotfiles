@@ -95,6 +95,7 @@ zle -N znt-history-widget
 bindkey "^R" znt-history-widget
 
 export PATH="/usr/local/sbin:$HOME/.local/bin:$PATH"
+export PATH="/opt/homebrew/opt/ruby@3.1/bin:$HOME/.local/share/gem/ruby/3.1.0/bin:$PATH"
 
 export CLICOLOR=1
 export GPG_TTY=$(tty)
