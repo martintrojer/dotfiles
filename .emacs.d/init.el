@@ -181,6 +181,10 @@
 ;; ## end of OPAM user-setup addition for emacs / base ## keep this line
 
 
+(use-package python-mode
+  :ensure t
+  )
+
 ;; Haskell
 ;; make sure there is no local ghc in the path!
 ;; stack setup
