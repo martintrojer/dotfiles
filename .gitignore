@@ -1,8 +1,12 @@
+.DS_Store
 .emacs.d/.emacs.desktop
+.emacs.d/.emacs.desktop.lock
+.emacs.d/.org-id-locations
 .emacs.d/.persistent-scratch
 .emacs.d/eln-cache
 .emacs.d/history
 .emacs.d/ido.last
+.emacs.d/network-security.data
 .emacs.d/recentf
 .emacs.d/transient
-
+.ghc/ghci_history
