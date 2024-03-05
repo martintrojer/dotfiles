@@ -1,1 +1,8 @@
-*
+.emacs.d/.emacs.desktop
+.emacs.d/.persistent-scratch
+.emacs.d/eln-cache
+.emacs.d/history
+.emacs.d/ido.last
+.emacs.d/recentf
+.emacs.d/transient
+
