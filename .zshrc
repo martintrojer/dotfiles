@@ -104,7 +104,7 @@ export HISTFILESIZE=1048576
 export HISTSIZE=1048576
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 export TERM=xterm-256color
-export VISUAL="$HOME/.oh-my-zsh/plugins/emacs/emacsclient.sh -nw"
+export VISUAL=nvim
 
 alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python -m SimpleHTTPServer 8081'
