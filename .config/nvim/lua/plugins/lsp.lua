@@ -1,17 +1,11 @@
-function is_rpi()
-	local res = false
-	local handle = io.popen("uname -r")
-	if handle ~= nil then
-		local result = handle:read("*a")
-		handle:close()
-		res = string.find(result, "rpi") ~= nil
-	end
-	return res
+local function is_rpi()
+	local res = vim.fn.system("uname -r")
+	return string.find(res, "rpi") ~= nil
 end
 
 if is_rpi() then
 	return {}
-else 
+else
 	return {
 		"neovim/nvim-lspconfig",
 		dependencies = {
