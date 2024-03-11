@@ -19,7 +19,6 @@ return { -- Fuzzy Finder (files, lsp, etc)
 		},
 		{ "nvim-telescope/telescope-ui-select.nvim" },
 		{ "nvim-tree/nvim-web-devicons" },
-		{ "nvim-telescope/telescope-live-grep-args.nvim" },
 		{ "nvim-telescope/telescope-file-browser.nvim" },
 	},
 	config = function()
@@ -47,7 +46,6 @@ return { -- Fuzzy Finder (files, lsp, etc)
 		-- Enable telescope extensions, if they are installed
 		pcall(telescope.load_extension, "fzf")
 		pcall(telescope.load_extension, "ui-select")
-		telescope.load_extension("live_grep_args")
 		telescope.load_extension("file_browser")
 		telescope.load_extension("bookmarks")
 		-- See `:help telescope.builtin`
@@ -57,13 +55,8 @@ return { -- Fuzzy Finder (files, lsp, etc)
 		vim.keymap.set("n", "<leader>sf", builtin.find_files, { desc = "[S]earch [F]iles" })
 		vim.keymap.set("n", "<leader>ss", builtin.builtin, { desc = "[S]earch [S]elect Telescope" })
 		vim.keymap.set("n", "<leader>sw", builtin.grep_string, { desc = "[S]earch current [W]ord" })
+		vim.keymap.set("n", "<leader>sg", builtin.live_grep, { desc = "[S]earch by [G]rep" })
 		vim.keymap.set("n", "<leader>sb", telescope.extensions.bookmarks.list, { desc = "[S]earch [B]ookmarks" })
-		vim.keymap.set(
-			"n",
-			"<leader>sg",
-			":lua require('telescope').extensions.live_grep_args.live_grep_args()<CR>",
-			{ desc = "[S]earch by [G]rep" }
-		)
 		vim.keymap.set("n", "<leader>sd", builtin.diagnostics, { desc = "[S]earch [D]iagnostics" })
 		vim.keymap.set("n", "<leader>sr", builtin.resume, { desc = "[S]earch [R]esume" })
 		vim.keymap.set("n", "<leader>s.", builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
