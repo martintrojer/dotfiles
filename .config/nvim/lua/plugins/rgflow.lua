@@ -1,5 +1,9 @@
+-- vim.keymap.set("n", "<leader>rr", function()
+-- 	require("lazy.core.loader").reload("rgflow.nvim")
+-- end, { desc = "Reload RgFlow" })
+
 return {
-	"mangelozzi/rgflow.nvim",
+	"martintrojer/rgflow.nvim",
 	opts = {
 		-- Set the default rip grep flags and options for when running a search via
 		-- RgFlow. Once changed via the UI, the previous search flags are used for
