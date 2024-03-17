@@ -78,6 +78,8 @@ vim.keymap.set("n", "]d", vim.diagnostic.goto_next, { desc = "Go to next [D]iagn
 vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Show diagnostic [E]rror messages" })
 vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagnostic [Q]uickfix list" })
 
+vim.keymap.set("n", "<leader>o", "<cmd>e %:h<CR>", { desc = "Open NeoTree" })
+
 -- TIP: Disable arrow keys in normal mode
 vim.keymap.set("n", "<left>", "<Nop>")
 vim.keymap.set("n", "<right>", "<Nop>")
