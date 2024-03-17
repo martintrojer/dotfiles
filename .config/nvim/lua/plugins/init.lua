@@ -10,4 +10,5 @@ return {
 		dependencies = { "nvim-lua/plenary.nvim" },
 		opts = { signs = false },
 	},
+	{ "aserowy/tmux.nvim", opts = {} },
 }
