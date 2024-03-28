@@ -20,7 +20,7 @@ vim.opt.showmode = false
 
 -- Sync clipboard between OS and Neovim.
 --  :help clipboard
--- vim.opt.clipboard = 'unnamedplus'
+vim.opt.clipboard = "unnamedplus"
 
 -- Enable break indent
 vim.opt.breakindent = true
