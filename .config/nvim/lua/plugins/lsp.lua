@@ -97,6 +97,7 @@ else
 				gopls = {},
 				pyright = {},
 				rust_analyzer = {},
+				typos_lsp = {},
 				-- `:help lspconfig-all` for a list of all the pre-configured LSPs
 
 				lua_ls = {
