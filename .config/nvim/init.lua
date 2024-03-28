@@ -68,6 +68,8 @@ vim.opt.spelllang = "en_us"
 -- [[ Basic Keymaps ]]
 --  :help vim.keymap.set()
 
+vim.keymap.set("v", "<leader>p", '"_dP', { desc = "Paste from register p without yanking" })
+
 -- Set highlight on search, but clear on pressing <Esc> in normal mode
 vim.opt.hlsearch = true
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>")
