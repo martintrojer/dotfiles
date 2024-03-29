@@ -1,5 +1,0 @@
-# -*- mode: snippet -*-
-# name: ov
-# key: ov
-# --
-Option.value ~default:"None" $0;

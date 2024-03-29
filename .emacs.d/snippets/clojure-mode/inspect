@@ -1,7 +1,0 @@
-# -*- mode: snippet -*-
-# name: inspect
-# key: inspect
-# --
-(defn inspect [n v]
-  (println "*" n v)
-  v)

@@ -1,5 +1,0 @@
-# -*- mode: snippet -*-
-# name: doc
-# key: doc
-# --
-(clojure.repl/doc $0)

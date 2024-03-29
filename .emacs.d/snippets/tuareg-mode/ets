@@ -1,5 +1,0 @@
-# -*- mode: snippet -*-
-# name: ets
-# key: ets
-# --
-L.d_strln @@ "" ^ List.fold $0 ~init:"" ~f:(fun a (exp, typ) -> a ^ Exp.to_string exp ^ " : " ^ Typ.to_string typ ^ "\n");

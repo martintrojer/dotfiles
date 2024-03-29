@@ -75,7 +75,6 @@ plugins=(
          brew
          colorize
          common-aliases
-         emacs
          git
          iterm2
          macos
@@ -108,14 +107,6 @@ export VISUAL=nvim
 
 alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python -m SimpleHTTPServer 8081'
-
-vdiff () {
-    emacsclient -c --eval "(vdiff-files \"$1\" \"$2\")"
-}
-
-ediff () {
-    emacsclient -c --eval "(progn ((ediff-files \"$1\" \"$2\")))"
-}
 
 mvln () {
     fname=`basename "$1"`
