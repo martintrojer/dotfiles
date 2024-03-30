@@ -73,6 +73,7 @@ vim.keymap.set("v", "<leader>p", '"_dP', { desc = "Paste from register p without
 -- Set highlight on search, but clear on pressing <Esc> in normal mode
 vim.opt.hlsearch = true
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>")
+vim.keymap.set("i", "<M-3>", "#", { noremap = true })
 
 -- Diagnostic keymaps
 vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, { desc = "Go to previous [D]iagnostic message" })
@@ -80,7 +81,7 @@ vim.keymap.set("n", "]d", vim.diagnostic.goto_next, { desc = "Go to next [D]iagn
 vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Show diagnostic [E]rror messages" })
 vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagnostic [Q]uickfix list" })
 
-vim.keymap.set("n", "<leader>o", "<cmd>e %:h<CR>", { desc = "Open NeoTree" })
+vim.keymap.set("n", "<leader>nt", "<cmd>e %:h<CR>", { desc = "Open NeoTree" })
 
 -- TIP: Disable arrow keys in normal mode
 vim.keymap.set("n", "<left>", "<Nop>")
