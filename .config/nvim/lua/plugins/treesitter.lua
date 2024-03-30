@@ -1,5 +1,7 @@
 return { -- Highlight, edit, and navigate code
 	"nvim-treesitter/nvim-treesitter",
+	dependencies = { { "nvim-treesitter/nvim-treesitter-context" }, { "nvim-treesitter/nvim-treesitter-textobjects" } },
+
 	build = ":TSUpdate",
 	config = function()
 		--  :help nvim-treesitter
@@ -11,10 +13,29 @@ return { -- Highlight, edit, and navigate code
 			auto_install = true,
 			highlight = { enable = true },
 			indent = { enable = true },
-		})
 
-		--    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-		--    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-		--    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
+			textobjects = {
+				select = {
+					enable = true,
+					lookahead = true,
+					keymaps = {
+						["af"] = "@function.outer",
+						["if"] = "@function.inner",
+						["ac"] = "@class.outer",
+						["ic"] = "@class.inner",
+						["as"] = "@scope",
+					},
+				},
+				swap = {
+					enable = true,
+					swap_next = {
+						["<leader>a"] = "@parameter.inner",
+					},
+					swap_previous = {
+						["<leader>A"] = "@parameter.inner",
+					},
+				},
+			},
+		})
 	end,
 }
