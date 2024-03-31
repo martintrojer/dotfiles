@@ -15,5 +15,7 @@ return {
 				width = 30,
 			},
 		})
+
+		vim.keymap.set("n", "<leader>o", "<cmd>e %:h<CR>", { desc = "Open NeoTree" })
 	end,
 }

@@ -20,6 +20,7 @@ return { -- Fuzzy Finder (files, lsp, etc)
 		{ "nvim-telescope/telescope-ui-select.nvim" },
 		{ "nvim-tree/nvim-web-devicons" },
 		{ "nvim-telescope/telescope-file-browser.nvim" },
+		{ "nvim-telescope/telescope-symbols.nvim" },
 		{ "davvid/telescope-git-grep.nvim" },
 	},
 	config = function()
