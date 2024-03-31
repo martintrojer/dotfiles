@@ -105,6 +105,9 @@ export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 export TERM=xterm-256color
 export VISUAL=nvim
 
+alias nvim='nvim --listen /tmp/nvim.pipe'
+alias nvimo='nvim --server /tmp/nvim.pipe --remote'
+
 alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python -m SimpleHTTPServer 8081'
 
