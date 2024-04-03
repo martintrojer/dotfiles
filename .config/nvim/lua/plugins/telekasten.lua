@@ -17,7 +17,7 @@ return {
 			template_new_daily = vim.fn.expand("~/notes/templates/daily.md"),
 			template_new_weekly = vim.fn.expand("~/notes/templates/weekly.md"),
 
-			tag_notation = "@tag",
+			tag_notation = "yaml-bare",
 			auto_set_filetype = false,
 
 			calendar_opts = {
@@ -26,7 +26,7 @@ return {
 		})
 
 		-- Launch panel if nothing is typed after <leader>z
-		vim.keymap.set("n", "<leader>z", "<cmd>Telekasten panel<CR>")
+		vim.keymap.set("n", "<leader>zp", "<cmd>Telekasten panel<CR>")
 
 		-- Most used functions
 		vim.keymap.set("n", "<leader>zf", "<cmd>Telekasten find_notes<CR>")
