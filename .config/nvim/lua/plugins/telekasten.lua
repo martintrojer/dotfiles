@@ -3,7 +3,7 @@ return {
 	dependencies = {
 		"telescope-symbols.nvim",
 		"nvim-telescope/telescope.nvim",
-		"renerocksai/calendar-vim",
+		-- "renerocksai/calendar-vim",
 		"dhruvasagar/vim-table-mode",
 	},
 	config = function()
@@ -38,8 +38,5 @@ return {
 		vim.keymap.set("n", "<leader>zb", "<cmd>Telekasten show_backlinks<CR>")
 		vim.keymap.set("n", "<leader>zt", "<cmd>Telekasten toggle_todo <CR>")
 		vim.keymap.set("n", "<leader>zz", "<cmd>Telekasten show_tags <CR>")
-
-		-- Call insert link automatically when we start typing a link
-		vim.keymap.set("i", "[[", "<cmd>Telekasten insert_link<CR>")
 	end,
 }
