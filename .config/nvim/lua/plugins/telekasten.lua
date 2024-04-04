@@ -36,7 +36,14 @@ return {
 		vim.keymap.set("n", "<leader>zn", "<cmd>Telekasten new_note<CR>")
 		vim.keymap.set("n", "<leader>zc", "<cmd>Telekasten show_calendar<CR>")
 		vim.keymap.set("n", "<leader>zb", "<cmd>Telekasten show_backlinks<CR>")
-		vim.keymap.set("n", "<leader>zt", "<cmd>Telekasten toggle_todo <CR>")
-		vim.keymap.set("n", "<leader>zz", "<cmd>Telekasten show_tags <CR>")
+		vim.keymap.set("n", "<leader>zt", "<cmd>Telekasten toggle_todo<CR>")
+		vim.keymap.set("n", "<leader>zz", "<cmd>Telekasten show_tags<CR>")
+
+		vim.keymap.set("n", "<leader>zi", function()
+			local pos = vim.api.nvim_win_get_cursor(0)[2]
+			local line = vim.api.nvim_get_current_line()
+			local nline = line:sub(0, pos) .. os.date("%Y-%m-%d") .. line:sub(pos + 1)
+			vim.api.nvim_set_current_line(nline)
+		end, { desc = "Insert current date" })
 	end,
 }
