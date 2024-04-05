@@ -1,5 +1,5 @@
 return {
-	"renerocksai/telekasten.nvim",
+	"martintrojer/telekasten.nvim",
 	dependencies = {
 		"telescope-symbols.nvim",
 		"nvim-telescope/telescope.nvim",
@@ -9,6 +9,7 @@ return {
 	config = function()
 		require("telekasten").setup({
 			home = vim.fn.expand("~/notes"),
+			smart_inbox_folder = vim.fn.expand("~/notes/inbox"),
 			dailies = vim.fn.expand("~/notes/journal"),
 			weeklies = vim.fn.expand("~/notes/journal"),
 			templates = vim.fn.expand("~/notes/templates"),
@@ -19,6 +20,7 @@ return {
 
 			tag_notation = "yaml-bare",
 			auto_set_filetype = false,
+			filename_space_subst = "_",
 
 			calendar_opts = {
 				weeknm = 1,
