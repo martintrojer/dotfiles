@@ -32,6 +32,9 @@ else
 					-- Jump to the definition of the word under your cursor.
 					--  To jump back, press <C-T>.
 					map("gd", require("telescope.builtin").lsp_definitions, "[G]oto [D]efinition")
+					map("gv", function()
+						require("telescope.builtin").lsp_definitions({ jump_type = "vsplit" })
+					end, "[G]oto Definition [V]split")
 
 					-- Find references for the word under your cursor.
 					map("gr", require("telescope.builtin").lsp_references, "[G]oto [R]eferences")
