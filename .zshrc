@@ -105,8 +105,16 @@ export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 export TERM=xterm-256color
 export VISUAL=nvim
 
-alias nvim='nvim --listen /tmp/nvim.pipe'
-alias nvimo='f() { nvim --server /tmp/nvim.pipe --remote "$(realpath $1)" }; f'
+nv () {
+    if [ -n "$FLOATERM" ]; then
+        eval "$FLOATERM" "$@"
+    elif [ -e /tmp/nvim.pipe ]; then
+        nvim --server /tmp/nvim.pipe --remote "$(realpath $1)"
+    else
+        nvim --listen /tmp/nvim.pipe "$@"
+    fi
+}
+
 
 alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python -m SimpleHTTPServer 8081'
