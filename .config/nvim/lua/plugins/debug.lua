@@ -82,6 +82,33 @@ return {
 		dap.listeners.before.event_terminated["dapui_config"] = dapui.close
 		dap.listeners.before.event_exited["dapui_config"] = dapui.close
 
+		-- :DapInstall codelldb
+		dap.adapters.codelldb = {
+			type = "server",
+			port = "${port}",
+			executable = {
+				command = "codelldb",
+				args = { "--port", "${port}" },
+			},
+		}
+
+		-- To debug tests do;
+		-- cargo test --no-run
+		--  copy the name to the executable
+
+		dap.configurations.rust = {
+			{
+				name = "Launch file",
+				type = "codelldb",
+				request = "launch",
+				program = function()
+					return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
+				end,
+				stopOnEntry = false,
+				cwd = "${workspaceFolder}",
+			},
+		}
+
 		-- Install golang specific config
 		require("dap-go").setup()
 	end,
