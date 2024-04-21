@@ -22,6 +22,12 @@ return {
 		vim.keymap.set("t", "<F12>", "<C-\\><C-n><cmd>FloatermToggle<CR>")
 
 		vim.keymap.set("n", "<leader>o", "<cmd>FloatermNew ranger '%:h'<CR>", { desc = "Open Ranger" })
+		vim.keymap.set(
+			"n",
+			"<leader>cr",
+			"<cmd>FloatermNew carddown scan ~/notes --full; carddown revise<CR>",
+			{ desc = "Carddown revise" }
+		)
 
 		vim.cmd("autocmd! TermOpen term://* lua ft_set_terminal_keymaps()")
 	end,
