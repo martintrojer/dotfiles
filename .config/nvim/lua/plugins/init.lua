@@ -11,4 +11,6 @@ return {
 		opts = { signs = false },
 	},
 	{ "aserowy/tmux.nvim", opts = {} },
+	-- Git
+	{ "tpope/vim-fugitive" },
 }
