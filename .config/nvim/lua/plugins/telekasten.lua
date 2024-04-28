@@ -6,6 +6,7 @@ return {
 		-- "renerocksai/calendar-vim",
 		"dhruvasagar/vim-table-mode",
 	},
+	event = "VeryLazy",
 	config = function()
 		require("telekasten").setup({
 			home = vim.fn.expand("~/notes"),

@@ -4,6 +4,7 @@
 
 return {
 	"mangelozzi/rgflow.nvim",
+	event = "VeryLazy",
 	opts = {
 		-- Mappings to trigger RgFlow functions
 		default_trigger_mappings = true,
