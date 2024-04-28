@@ -3,7 +3,7 @@
 -- end, { desc = "Reload RgFlow" })
 
 return {
-	"martintrojer/rgflow.nvim",
+	"mangelozzi/rgflow.nvim",
 	opts = {
 		-- Mappings to trigger RgFlow functions
 		default_trigger_mappings = true,
@@ -13,6 +13,6 @@ return {
 		default_quickfix_mappings = true,
 		quickfix = {
 			max_height_lines = 15,
-		}
+		},
 	},
 }

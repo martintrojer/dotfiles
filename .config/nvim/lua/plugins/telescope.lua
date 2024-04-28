@@ -22,6 +22,7 @@ return { -- Fuzzy Finder (files, lsp, etc)
 		{ "nvim-telescope/telescope-file-browser.nvim" },
 		{ "nvim-telescope/telescope-symbols.nvim" },
 		{ "davvid/telescope-git-grep.nvim" },
+		{ "debugloop/telescope-undo.nvim" },
 	},
 	config = function()
 		-- Two important keymaps to use while in telescope are:
@@ -50,6 +51,7 @@ return { -- Fuzzy Finder (files, lsp, etc)
 		pcall(telescope.load_extension, "ui-select")
 		pcall(telescope.load_extension, "file_browser")
 		pcall(telescope.load_extension, "git_grep")
+		pcall(telescope.load_extension, "undo")
 
 		-- See `:help telescope.builtin`
 		local builtin = require("telescope.builtin")
@@ -63,6 +65,7 @@ return { -- Fuzzy Finder (files, lsp, etc)
 		vim.keymap.set("n", "<leader>sd", builtin.diagnostics, { desc = "[S]earch [D]iagnostics" })
 		vim.keymap.set("n", "<leader>sr", builtin.resume, { desc = "[S]earch [R]esume" })
 		vim.keymap.set("n", "<leader>s.", builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
+		vim.keymap.set("n", "<leader>u", "<cmd>Telescope undo<cr>", { desc = "[U]ndo" })
 		vim.keymap.set("n", "<leader><leader>", builtin.buffers, { desc = "[ ] Find existing buffers" })
 
 		vim.keymap.set("n", "<leader>/", function()
