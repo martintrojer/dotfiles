@@ -74,6 +74,7 @@ plugins=(
          brew
          colorize
          common-aliases
+         fzf
          git
          iterm2
          macos
@@ -82,16 +83,11 @@ plugins=(
          ripgrep
          rust
          tmux
-         zsh-navigation-tools
          zoxide
         )
 
 # ======================================================
 # User configuration
-
-autoload znt-history-widget
-zle -N znt-history-widget
-bindkey "^R" znt-history-widget
 
 export PATH="/usr/local/sbin:$HOME/.local/bin:$HOME/.cargo/bin/:$PATH"
 
