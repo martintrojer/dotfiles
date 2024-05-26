@@ -71,7 +71,6 @@ ZSH_THEME="minimal"
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(
-         branch
          brew
          colorize
          common-aliases
@@ -84,6 +83,7 @@ plugins=(
          rust
          tmux
          zsh-navigation-tools
+         zoxide
         )
 
 # ======================================================
@@ -94,7 +94,6 @@ zle -N znt-history-widget
 bindkey "^R" znt-history-widget
 
 export PATH="/usr/local/sbin:$HOME/.local/bin:$HOME/.cargo/bin/:$PATH"
-export PATH="/opt/homebrew/opt/ruby@3.1/bin:$HOME/.local/share/gem/ruby/3.1.0/bin:$PATH"
 
 export CLICOLOR=1
 export GPG_TTY=$(tty)
@@ -134,7 +133,8 @@ fi
 
 test -e "/opt/homebrew/bin/brew" && eval "$(/opt/homebrew/bin/brew shellenv)"
 test -e "homebrew/bin/brew" && eval "$(homebrew/bin/brew shellenv)"
-test -e "${HOME}/.iterm2_shell_integration.bash" && source "${HOME}/.iterm2_shell_integration.bash"
+test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh" || true
+command -v starship >/dev/null && eval "$(starship init zsh)"
 
 ## FB
 export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$HOME/devenv/bin:$PATH"
