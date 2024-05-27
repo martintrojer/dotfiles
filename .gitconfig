@@ -1,0 +1,22 @@
+[user]
+	name = Martin Trojer
+	email = martin.trojer@gmail.com
+	signingkey = 236E74BF
+[push]
+	default = simple
+[color]
+	ui = true
+[http]
+	sslVerify = false
+ 	postBuffer = 524288000
+[github]
+	user = martintrojer
+[commit]
+	gpgsign = false
+[filter "lfs"]
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+[pull]
+	rebase = true
