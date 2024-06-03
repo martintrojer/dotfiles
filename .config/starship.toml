@@ -4,3 +4,14 @@ format = """$directory$character"""
 # move the rest of the prompt to the right
 right_format = """$all"""
 command_timeout = 1000
+
+[username]
+disabled = true
+
+[hg_branch]
+disabled = false
+
+[hostname]
+ssh_only = false
+detect_env_vars = ['!TMUX', 'SSH_CONNECTION']
+disabled = false
