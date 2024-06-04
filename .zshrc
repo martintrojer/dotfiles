@@ -51,6 +51,9 @@ nv () {
     fi
 }
 
+alias llt='eza -l --icons --tree -L 3'
+alias ltt='eza -l --icons --tree -L 3'
+
 alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python -m SimpleHTTPServer 8081'
 
