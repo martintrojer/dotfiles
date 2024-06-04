@@ -35,6 +35,7 @@ return {
 		vim.keymap.set("n", "<leader>zf", "<cmd>Telekasten find_notes<CR>")
 		vim.keymap.set("n", "<leader>zg", "<cmd>Telekasten search_notes<CR>")
 		vim.keymap.set("n", "<leader>zd", "<cmd>Telekasten goto_today<CR>")
+		vim.keymap.set("n", "<leader>zw", "<cmd>Telekasten goto_thisweek<CR>")
 		vim.keymap.set("n", "<leader>zo", "<cmd>Telekasten follow_link<CR>")
 		vim.keymap.set("n", "<leader>zn", "<cmd>Telekasten new_note<CR>")
 		vim.keymap.set("n", "<leader>zb", "<cmd>Telekasten show_backlinks<CR>")
