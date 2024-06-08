@@ -76,6 +76,8 @@ vim.keymap.set("v", "<leader>p", '"_dP', { desc = "Paste from register p without
 vim.opt.hlsearch = true
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>")
 
+vim.keymap.set("n", "<leader>ch", "<cmd>cd %:h<CR>", { desc = "cd to this buffer" })
+
 -- Diagnostic keymaps
 vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, { desc = "Go to previous [D]iagnostic message" })
 vim.keymap.set("n", "]d", vim.diagnostic.goto_next, { desc = "Go to next [D]iagnostic message" })
