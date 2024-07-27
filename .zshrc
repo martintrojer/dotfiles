@@ -21,7 +21,6 @@ plugins=(
          macos
          mercurial
          mosh
-         ripgrep
          rust
          tmux
          zoxide
