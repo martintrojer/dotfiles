@@ -1,9 +1,9 @@
-local function is_rpi()
-	local res = vim.fn.system("uname -r")
-	return string.find(res, "rpi") ~= nil
+local function is_rpi_zero()
+	local res = vim.fn.system("cat /proc/cpuinfo")
+	return string.find(res, "Raspberry Pi Zero") ~= nil
 end
 
-if is_rpi() then
+if is_rpi_zero() then
 	return {}
 else
 	return {
