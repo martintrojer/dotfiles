@@ -72,6 +72,8 @@ command -v starship >/dev/null && eval "$(starship init zsh)"
 
 alias -g F='| fzf'
 
+source $HOME/.api_keys.sh
+
 ## FB
 export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$HOME/devenv/bin:$PATH"
 
