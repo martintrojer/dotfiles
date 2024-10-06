@@ -80,9 +80,9 @@ export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/d
 command -v opam >/dev/null && eval "$(opam config env)"
 
 export BUILD_MODE=default
-export LD_LIBRARY_PATH=/home/mtrojer/devenv/lib
+export LD_LIBRARY_PATH="$HOME/devenv/lib"
 export MANPATH="$HOME/infer/infer/man":$MANPATH
-export PKG_CONFIG_PATH=/home/mtrojer/devenv/lib/pkgconfig
+export PKG_CONFIG_PATH="$HOME/devenv/lib/pkgconfig"
 
 proxy () {
     export https_proxy=fwdproxy:8080
