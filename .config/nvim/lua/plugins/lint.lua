@@ -4,8 +4,9 @@ return {
 	config = function()
 		local lint = require("lint")
 		lint.linters_by_ft = {
-			-- lua = { "luacheck" },
-			-- python = { "mypy", "flake8" },
+			lua = { "luacheck" },
+			python = { "mypy", "flake8" },
+			javascript = { "eslint" },
 		}
 
 		local lint_ag = vim.api.nvim_create_augroup("lint", { clear = true })
