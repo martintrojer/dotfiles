@@ -12,7 +12,6 @@ else
 			-- Automatically install LSPs and related tools to stdpath for neovim
 			"williamboman/mason.nvim",
 			"williamboman/mason-lspconfig.nvim",
-			"WhoIsSethDaniel/mason-tool-installer.nvim",
 
 			-- Useful status updates for LSP.
 			-- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
@@ -20,8 +19,6 @@ else
 		},
 		event = "VeryLazy",
 		config = function()
-			--  :help lsp-vs-treesitter
-
 			--  This function gets run when an LSP attaches to a particular buffer.
 			vim.api.nvim_create_autocmd("LspAttach", {
 				group = vim.api.nvim_create_augroup("kickstart-lsp-attach", { clear = true }),
@@ -97,14 +94,6 @@ else
 			--  - settings (table): Override the default settings passed when initializing the server.
 			--        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
 			local servers = {
-				-- clangd = {},
-				gopls = {},
-				pyright = {},
-				rust_analyzer = {},
-				typos_lsp = {},
-				marksman = {},
-				-- `:help lspconfig-all` for a list of all the pre-configured LSPs
-
 				lua_ls = {
 					settings = {
 						Lua = {
@@ -128,19 +117,6 @@ else
 					},
 				},
 			}
-
-			--  To check the current status of installed tools and/or manually install
-			--  other tools, you can run
-			--    :Mason
-			--
-			--  You can press `g?` for help in this menu
-			require("mason").setup()
-
-			local ensure_installed = vim.tbl_keys(servers or {})
-			vim.list_extend(ensure_installed, {
-				"stylua", -- Used to format lua code
-			})
-			require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 
 			require("mason-lspconfig").setup({
 				handlers = {
