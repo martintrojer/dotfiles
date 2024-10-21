@@ -8,10 +8,11 @@ return {
 			lsp_fallback = true,
 		},
 		formatters_by_ft = {
-			lua = { "stylua" },
-			python = { "isort", "ruff" },
-			javascript = { "prettier" },
 			html = { "prettier" },
+			javascript = { "prettier" },
+			lua = { "stylua" },
+			python = { "isort", "ruff_format", "ruff_fix" },
+			rust = { "rustfmt" },
 		},
 	},
 }
