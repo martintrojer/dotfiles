@@ -16,19 +16,26 @@ return {
 			"gopls",
 			"graphql-language-service-cli", -- graphql
 			"haskell-language-server", -- hls
+			"hlint",
 			"isort",
+			"jsonlint",
 			"lua-language-server", -- lua_ls
 			"luacheck",
+			"markdownlint",
 			"marksman",
 			"mypy",
 			"prettier",
+			"proselint",
 			"pyright",
 			"ruff-lsp", -- ruff_lsp
 			"rust-analyzer", -- rust_analyzer
-			"stylua",
+			"shellcheck",
+			"sqlfluff",
 			"stylua",
 			"typescript-language-server", -- ts_ls
 			"typos-lsp", -- typos_lsp
+			"vale",
+			"write-good",
 		}
 		require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 	end,
