@@ -28,7 +28,6 @@ return {
 			"proselint",
 			"pyright",
 			"ruff",
-			"ruff-lsp", -- ruff_lsp
 			"rust-analyzer", -- rust_analyzer
 			"rustfmt",
 			"shellcheck",
