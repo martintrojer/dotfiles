@@ -52,6 +52,10 @@ vim.keymap.set("n", "<leader>ti", function()
 	else
 		fullstr = timestr
 	end
+	local title = vim.fn.input({ prompt = "Title: ", default = nil })
+	if title then
+		fullstr = fullstr .. " " .. title
+	end
 
 	local pos = vim.api.nvim_win_get_cursor(0)[2]
 	local line = vim.api.nvim_get_current_line()
