@@ -11,7 +11,7 @@ return {
 			lua = { "luacheck" },
 			markdown = { "proselint", "write_good" }, -- markdownlint
 			python = { "mypy", "flake8" },
-			rust = { "clippy" },
+			-- rust = { "clippy" },
 			sql = { "sqlfluff" },
 			typescript = { "eslint" },
 			zsh = { "shellcheck" },
