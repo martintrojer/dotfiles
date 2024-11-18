@@ -10,7 +10,7 @@ return {
 			json = { "jsonlint" },
 			lua = { "luacheck" },
 			markdown = { "proselint", "write_good" }, -- markdownlint
-			python = { "mypy", "flake8" },
+			python = { "flake8" },
 			-- rust = { "clippy" },
 			sql = { "sqlfluff" },
 			typescript = { "eslint" },

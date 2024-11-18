@@ -23,7 +23,6 @@ return {
 			"luacheck",
 			"markdownlint",
 			"marksman",
-			"mypy",
 			"prettier",
 			"proselint",
 			"pyright",
