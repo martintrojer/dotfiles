@@ -1,5 +1,5 @@
 theme = tokyonight
 background-opacity = 0.9
-font-family = "UbuntuMono Nerd Font"
+font-family = "GeistMono Nerd Font"
 font-size = 15
-font-feature = -calt
+font-feature = -liga
