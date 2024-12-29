@@ -15,7 +15,11 @@ return {
 			},
 		},
 		dim = { enabled = true },
-		indent = { enabled = true },
+		indent = { enabled = true, animate = {
+			duration = {
+				step = 10,
+			},
+		} },
 		input = { enabled = true },
 		notifier = {
 			enabled = true,

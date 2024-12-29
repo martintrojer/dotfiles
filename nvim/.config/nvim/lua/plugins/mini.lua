@@ -23,6 +23,8 @@ return { -- Collection of various small independent plugins/modules
 			return "%2l:%-2v"
 		end
 
+		require("mini.sessions").setup()
+
 		local trailspace = require("mini.trailspace")
 		trailspace.setup()
 
