@@ -1,5 +1,6 @@
 return { -- Collection of various small independent plugins/modules
 	"echasnovski/mini.nvim",
+	event = "VeryLazy",
 	config = function()
 		--  - va)  - [V]isually select [A]round [)]paren
 		--  - yinq - [Y]ank [I]nside [N]ext [']quote
@@ -24,6 +25,7 @@ return { -- Collection of various small independent plugins/modules
 
 		local trailspace = require("mini.trailspace")
 		trailspace.setup()
+
 		vim.api.nvim_create_autocmd("BufWritePre", {
 			group = vim.api.nvim_create_augroup("trim-whitespace", { clear = true }),
 			callback = function()
