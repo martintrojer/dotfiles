@@ -65,6 +65,8 @@ mvln () {
     set +x
 }
 
+test -e "/opt/homebrew/bin/gdu-go" && alias ncdu='gdu-go'
+
 test -e "/opt/homebrew/bin/brew" && eval "$(/opt/homebrew/bin/brew shellenv)"
 test -e "homebrew/bin/brew" && eval "$(homebrew/bin/brew shellenv)"
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh" || true
