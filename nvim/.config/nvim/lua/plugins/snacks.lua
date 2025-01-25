@@ -26,7 +26,12 @@ return {
 			timeout = 3000,
 		},
 		quickfile = { enabled = true },
-		scroll = { enabled = true },
+		scroll = { enabled = true, animate = {
+			duration = {
+				step = 10,
+				total = 100,
+			},
+		} },
 		statuscolumn = { enabled = true },
 		words = { enabled = true },
 		styles = {
