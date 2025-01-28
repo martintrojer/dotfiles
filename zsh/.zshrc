@@ -76,6 +76,8 @@ alias -g F='| fzf'
 
 source $HOME/.api_keys.sh
 
+[ -f "/Users/martintrojer/.ghcup/env" ] && . "/Users/martintrojer/.ghcup/env" # ghcup-env
+
 ## FB
 export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$HOME/devenv/bin:$PATH"
 
