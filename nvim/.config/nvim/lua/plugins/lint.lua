@@ -9,7 +9,7 @@ return {
 			javascript = { "eslint" },
 			json = { "jsonlint" },
 			lua = { "luacheck" },
-			markdown = { "proselint", "write_good" }, -- markdownlint
+			-- markdown = { "proselint", "write_good", "markdownlint" },
 			python = { "flake8" },
 			-- rust = { "clippy" },
 			sql = { "sqlfluff" },
