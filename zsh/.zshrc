@@ -17,10 +17,8 @@ plugins=(
          common-aliases
          fzf
          git
-         iterm2
          macos
          mercurial
-         mosh
          rust
          tmux
          zoxide
@@ -73,8 +71,6 @@ test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell
 command -v starship >/dev/null && eval "$(starship init zsh)"
 
 alias -g F='| fzf'
-
-source $HOME/.api_keys.sh
 
 [ -f "/Users/martintrojer/.ghcup/env" ] && . "/Users/martintrojer/.ghcup/env" # ghcup-env
 
