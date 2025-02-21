@@ -71,6 +71,8 @@ test -e "/opt/homebrew/bin/brew" && eval "$(/opt/homebrew/bin/brew shellenv)"
 test -e "homebrew/bin/brew" && eval "$(homebrew/bin/brew shellenv)"
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh" || true
 command -v starship >/dev/null && eval "$(starship init zsh)"
+[ -f "/home/martintrojer/.local/bin/mise" ] && eval "$(/home/martintrojer/.local/bin/mise activate zsh)"
+[ -f "/home/martintrojer/.ghcup/env" ] && . "/home/martintrojer/.ghcup/env"
 
 alias -g F='| fzf'
 
