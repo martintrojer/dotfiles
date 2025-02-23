@@ -54,7 +54,6 @@ alias ltt='eza -l --icons --tree -L 3'
 
 alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python -m SimpleHTTPServer 8081'
-alias tts="$HOME/hacking/tts/tts.py"
 
 mvln () {
     fname=`basename "$1"`
