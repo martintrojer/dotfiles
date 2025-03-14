@@ -51,9 +51,10 @@ nv () {
 
 alias llt='eza -l --icons --tree -L 3'
 alias ltt='eza -l --icons --tree -L 3'
-
+alias -g F='| fzf'
 alias port_forward='ssh -L 8081:localhost:8081 dev'
-alias serve='python -m SimpleHTTPServer 8081'
+alias serve='python3 -m http.server 8081'
+test -e "/opt/homebrew/bin/gdu-go" && alias ncdu='gdu-go'
 
 mvln () {
     fname=`basename "$1"`
@@ -64,25 +65,15 @@ mvln () {
     set +x
 }
 
-test -e "/opt/homebrew/bin/gdu-go" && alias ncdu='gdu-go'
-
+test -e "${HOME}/.local/bin/mise" && eval "$(~/.local/bin/mise activate zsh)"
 test -e "/opt/homebrew/bin/brew" && eval "$(/opt/homebrew/bin/brew shellenv)"
 test -e "homebrew/bin/brew" && eval "$(homebrew/bin/brew shellenv)"
-test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh" || true
+test -e "${HOME}/.ghcup/env" && eval "${HOME}/.ghcup/env"
 command -v starship >/dev/null && eval "$(starship init zsh)"
-[ -f "/home/martintrojer/.local/bin/mise" ] && eval "$(/home/martintrojer/.local/bin/mise activate zsh)"
-[ -f "/home/martintrojer/.ghcup/env" ] && . "/home/martintrojer/.ghcup/env"
-
-alias -g F='| fzf'
-
-[ -f "/Users/martintrojer/.ghcup/env" ] && . "/Users/martintrojer/.ghcup/env" # ghcup-env
-test -e "${HOME}/.local/bin/mise" && eval "$(~/.local/bin/mise activate zsh)"
+command -v opam >/dev/null && eval "$(opam config env)"
 
 ## FB
 export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$HOME/devenv/bin:$PATH"
-
-command -v opam >/dev/null && eval "$(opam config env)"
-
 export BUILD_MODE=default
 export LD_LIBRARY_PATH="$HOME/devenv/lib"
 export MANPATH="$HOME/infer/infer/man":$MANPATH
