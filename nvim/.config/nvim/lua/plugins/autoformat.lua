@@ -11,7 +11,7 @@ return {
 			html = { "prettier" },
 			javascript = { "prettier" },
 			lua = { "stylua" },
-			python = { "isort", "ruff_format", "ruff_fix" },
+			python = { "ruff_format", "ruff_fix" },
 			rust = { "rustfmt" },
 		},
 	},
