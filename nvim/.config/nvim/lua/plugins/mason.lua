@@ -9,15 +9,12 @@ return {
 
 		local ensure_installed = {
 			"bash-language-server", -- bashls
-			"black",
 			"codelldb",
 			"eslint-lsp", -- eslint
-			"flake8",
 			"gopls",
 			"graphql-language-service-cli", -- graphql
 			"haskell-language-server", -- hls
 			"hlint",
-			"isort",
 			"jsonlint",
 			"lua-language-server", -- lua_ls
 			"luacheck",
@@ -28,7 +25,6 @@ return {
 			"pyright",
 			"ruff",
 			"rust-analyzer", -- rust_analyzer
-			"rustfmt",
 			"shellcheck",
 			"sqlfluff",
 			"stylua",
