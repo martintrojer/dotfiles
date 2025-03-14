@@ -68,7 +68,7 @@ mvln () {
 test -e "${HOME}/.local/bin/mise" && eval "$(~/.local/bin/mise activate zsh)"
 test -e "/opt/homebrew/bin/brew" && eval "$(/opt/homebrew/bin/brew shellenv)"
 test -e "homebrew/bin/brew" && eval "$(homebrew/bin/brew shellenv)"
-test -e "${HOME}/.ghcup/env" && eval "${HOME}/.ghcup/env"
+test -e "${HOME}/.ghcup/env" && . "${HOME}/.ghcup/env"
 command -v starship >/dev/null && eval "$(starship init zsh)"
 command -v opam >/dev/null && eval "$(opam config env)"
 
