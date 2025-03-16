@@ -10,6 +10,7 @@ return {
 		formatters_by_ft = {
 			html = { "prettier" },
 			javascript = { "prettier" },
+			json = { "prettier" },
 			lua = { "stylua" },
 			python = { "ruff_format", "ruff_fix" },
 			rust = { "rustfmt" },
