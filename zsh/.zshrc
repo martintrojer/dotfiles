@@ -73,11 +73,9 @@ command -v starship >/dev/null && eval "$(starship init zsh)"
 command -v opam >/dev/null && eval "$(opam config env)"
 
 ## FB
-export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$HOME/devenv/bin:$PATH"
+export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$PATH"
 export BUILD_MODE=default
-export LD_LIBRARY_PATH="$HOME/devenv/lib"
 export MANPATH="$HOME/infer/infer/man":$MANPATH
-export PKG_CONFIG_PATH="$HOME/devenv/lib/pkgconfig"
 
 proxy () {
     export https_proxy=fwdproxy:8080
@@ -91,3 +89,5 @@ unproxy () {
 # ======================================================
 
 source $ZSH/oh-my-zsh.sh
+
+export PATH="$PATH:/home/martintrojer/.modular/bin"
