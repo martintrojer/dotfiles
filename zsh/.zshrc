@@ -28,6 +28,7 @@ plugins=(
 # User configuration
 
 export PATH="/usr/local/sbin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/go/bin:$PATH"
+export PATH="$HOME/.modular/bin:$PATH"
 
 export CLICOLOR=1
 export GPG_TTY=$(tty)
