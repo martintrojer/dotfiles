@@ -47,5 +47,5 @@ local function ToggleTodo(opts)
 end
 
 vim.keymap.set("n", "<leader>zt", function()
-	ToggleTodo({ i = true })
+	ToggleTodo({ v = true })
 end, { desc = "Toggle todo" })
