@@ -16,7 +16,7 @@ return {
 		-- Search for the notes matching a given query.
 		vim.keymap.set(
 			"n",
-			"<leader>zf",
+			"<leader>zs",
 			"<Cmd>ZkNotes { sort = { 'modified' }, match = { vim.fn.input('Search: ') } }<CR>",
 			opts
 		)
