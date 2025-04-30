@@ -40,6 +40,27 @@ export TERM=xterm-256color
 export VISUAL=nvim
 export PYTORCH_ENABLE_MPS_FALLBACK=1
 
+alias llt='eza -l --icons --tree -L 3'
+alias ltt='eza -l --icons --tree -L 3'
+alias -g F='| fzf'
+alias port_forward='ssh -L 8081:localhost:8081 dev'
+alias serve='python3 -m http.server 8081'
+test -e "/opt/homebrew/bin/gdu-go" && alias ncdu='gdu-go'
+
+test -e "${HOME}/.local/bin/mise" && eval "$(~/.local/bin/mise activate zsh)"
+test -e "/opt/homebrew/bin/brew" && eval "$(/opt/homebrew/bin/brew shellenv)"
+test -e "homebrew/bin/brew" && eval "$(homebrew/bin/brew shellenv)"
+test -e "${HOME}/.ghcup/env" && . "${HOME}/.ghcup/env"
+command -v starship >/dev/null && eval "$(starship init zsh)"
+command -v opam >/dev/null && eval "$(opam config env)"
+
+zknew() {
+  read "title?Enter note title: "
+  pushd $HOME/notes
+  zk new --group inbox --title "$title"
+  popd
+}
+
 nv () {
     if [ -n "$FLOATERM" ]; then
         eval "$FLOATERM" "$@"
@@ -50,13 +71,6 @@ nv () {
     fi
 }
 
-alias llt='eza -l --icons --tree -L 3'
-alias ltt='eza -l --icons --tree -L 3'
-alias -g F='| fzf'
-alias port_forward='ssh -L 8081:localhost:8081 dev'
-alias serve='python3 -m http.server 8081'
-test -e "/opt/homebrew/bin/gdu-go" && alias ncdu='gdu-go'
-
 mvln () {
     fname=`basename "$1"`
     dest=$(echo "$2" | sed 's:/*$::')
@@ -65,13 +79,6 @@ mvln () {
     ln -s "$dest/$fname" "$1"
     set +x
 }
-
-test -e "${HOME}/.local/bin/mise" && eval "$(~/.local/bin/mise activate zsh)"
-test -e "/opt/homebrew/bin/brew" && eval "$(/opt/homebrew/bin/brew shellenv)"
-test -e "homebrew/bin/brew" && eval "$(homebrew/bin/brew shellenv)"
-test -e "${HOME}/.ghcup/env" && . "${HOME}/.ghcup/env"
-command -v starship >/dev/null && eval "$(starship init zsh)"
-command -v opam >/dev/null && eval "$(opam config env)"
 
 ## FB
 export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$PATH"
