@@ -19,7 +19,6 @@ return {
 			"lua-language-server", -- lua_ls
 			"luacheck",
 			"markdownlint",
-			"marksman",
 			"prettier",
 			"proselint",
 			"pyright",
