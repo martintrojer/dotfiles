@@ -114,6 +114,7 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 vim.api.nvim_create_autocmd({ "FocusGained", "TermClose", "TermLeave" }, { command = "checktime" })
 
 require("timestamps")
+require("toggletodo")
 
 ---------------------------------------------------------------------
 -- [[ Install `lazy.nvim` plugin manager ]]
