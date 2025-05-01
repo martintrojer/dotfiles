@@ -3,11 +3,12 @@
 
 local function ToggleTodo(opts)
 	-- replace
-	--       by -
-	-- -     by - [ ] TODO:
-	-- - [ ] by - [x]
+	--             by -
+	-- -           by - [ ] TODO:
+	-- - TODO:     by - [ ] TODO:
+	-- - [ ]       by - [x]
 	-- - [ ] TODO: by - [x]
-	-- - [x] by -
+	-- - [x]       by -
 	-- enter insert mode if opts.i == true
 	-- if opts.v = true, then look for marks to toggle
 	opts = opts or {}
@@ -27,7 +28,11 @@ local function ToggleTodo(opts)
 		local stripped = vim.trim(curline)
 		local repline
 		if vim.startswith(stripped, "- ") and not vim.startswith(stripped, "- [") then
-			repline = curline:gsub("%- ", "- [ ] TODO: ", 1)
+			if stripped:find("TODO:") then
+				repline = curline:gsub("%- ", "- [ ] ", 1)
+			else
+				repline = curline:gsub("%- ", "- [ ] TODO: ", 1)
+			end
 		else
 			if vim.startswith(stripped, "- [ ] TODO:") then
 				repline = curline:gsub("%- %[ %] TODO:", "- [x]", 1)
@@ -41,7 +46,7 @@ local function ToggleTodo(opts)
 						repline = curline:gsub("%- %[x%]", "-", 1)
 					end
 				else
-					repline = curline:gsub("(%S)", "- [ ] %1", 1)
+					repline = curline:gsub("(%S)", "- [ ] TODO: %1", 1)
 				end
 			end
 		end
