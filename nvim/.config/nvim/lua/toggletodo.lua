@@ -1,8 +1,12 @@
+-- Copied from https://github.com/nvim-telekasten/telekasten.nvim/blob/6a10a7929421d6e696e46bbc5aa5627a8cbcf61d/lua/telekasten.lua
+-- With some tweaks
+
 local function ToggleTodo(opts)
 	-- replace
 	--       by -
-	-- -     by - [ ]
+	-- -     by - [ ] TODO:
 	-- - [ ] by - [x]
+	-- - [ ] TODO: by - [x]
 	-- - [x] by -
 	-- enter insert mode if opts.i == true
 	-- if opts.v = true, then look for marks to toggle
@@ -23,9 +27,11 @@ local function ToggleTodo(opts)
 		local stripped = vim.trim(curline)
 		local repline
 		if vim.startswith(stripped, "- ") and not vim.startswith(stripped, "- [") then
-			repline = curline:gsub("%- ", "- [ ] ", 1)
+			repline = curline:gsub("%- ", "- [ ] TODO: ", 1)
 		else
-			if vim.startswith(stripped, "- [ ]") then
+			if vim.startswith(stripped, "- [ ] TODO:") then
+				repline = curline:gsub("%- %[ %] TODO:", "- [x]", 1)
+			elseif vim.startswith(stripped, "- [ ]") then
 				repline = curline:gsub("%- %[ %]", "- [x]", 1)
 			else
 				if vim.startswith(stripped, "- [x]") then
