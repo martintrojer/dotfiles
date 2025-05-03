@@ -39,6 +39,7 @@ export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 export TERM=xterm-256color
 export VISUAL=nvim
 export PYTORCH_ENABLE_MPS_FALLBACK=1
+export ELECTRON_OZONE_PLATFORM_HINT=auto
 
 alias llt='eza -l --icons --tree -L 3'
 alias ltt='eza -l --icons --tree -L 3'
