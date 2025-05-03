@@ -48,6 +48,7 @@ alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python3 -m http.server 8081'
 test -e "/opt/homebrew/bin/gdu-go" && alias ncdu='gdu-go'
 
+command -v "mise" >/dev/null && eval "$(mise activate zsh)"
 test -e "${HOME}/.local/bin/mise" && eval "$(~/.local/bin/mise activate zsh)"
 test -e "/opt/homebrew/bin/brew" && eval "$(/opt/homebrew/bin/brew shellenv)"
 test -e "homebrew/bin/brew" && eval "$(homebrew/bin/brew shellenv)"
