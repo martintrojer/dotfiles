@@ -1,48 +1,47 @@
 @define-color darkgrey #606060;
-@define-color white	   #FFFFFF;
+@define-color white    #FFFFFF;
 @define-color warning  #FF7070;
 @define-color indigo1  #4c539f;
 @define-color indigo2  rgba(9, 7, 31, 0.5);
-@define-color	indigo3  rgba(9, 7, 31, 1.0);
+@define-color indigo3  rgba(9, 7, 31, 1.0);
 @define-color resize   #10aa70;
-
 
 /* Reset all styles */
 * {
-	border: none;
-	border-radius: 0;
-	min-height: 0;
-	margin: 0;
-	padding: 0;
-	box-shadow: none;
-	text-shadow: none;
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  box-shadow: none;
+  text-shadow: none;
 }
 
-   /*----------*/
-  /* MAIN BAR */
- /*----------*/
+/*----------*/
+/* MAIN BAR */
+/*----------*/
 
 /* Keyframes for 1st bar criticals */
 @keyframes blink-critical-text {
-	to {
-		color: @warning;
-	}
+  to {
+    color: @warning;
+  }
 }
 
 /* Keyframes for 1st bar modifiers */
 @keyframes blink-modifier-text {
-	to {
-		color: @resize;
-	}
+  to {
+    color: @resize;
+  }
 }
 
 /* The Main bar */
 #waybar.first {
   background: @indigo2;
-	color: @white;
-	font-family: JetBrains Mono Nerd Font;
-	font-size: 12pt;
-	font-weight: bold;
+  color: @white;
+  font-family: JetBrains Mono Nerd Font;
+  font-size: 12pt;
+  font-weight: bold;
 }
 
 #waybar.first button {
@@ -66,11 +65,11 @@
 #waybar.first #tray,
 #waybar.first #disk,
 #waybar.first #window {
-	padding-left: 8pt;
-	padding-right: 8pt;
+  padding-left: 8pt;
+  padding-right: 8pt;
   margin-bottom: 3px;
   background: transparent;
-	color: @white;
+  color: @white;
 }
 
 #waybar.first #network.info {
@@ -92,26 +91,26 @@
 
 /* Each Main bar critical module */
 #waybar.first #workspaces button.urgent,
-#waybar.first #workspaces button.special, 
+#waybar.first #workspaces button.special,
 #waybar.first #memory.swap.critical,
 #waybar.first #memory.ram.critical,
 #waybar.first #cpu.critical,
 #waybar.first #temperature.critical,
 #waybar.first #battery.critical.discharging {
-	color: @white;
-	animation-iteration-count: infinite;
-	animation-direction: alternate;
-	animation-name: blink-critical-text;
-	animation-duration: 1s;
+  color: @white;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  animation-name: blink-critical-text;
+  animation-duration: 1s;
   animation-timing-function: steps(15);
 }
 
 #waybar.first #submap.RESIZE {
-	color: @white;
-	animation-iteration-count: infinite;
-	animation-direction: alternate;
-	animation-name: blink-modifier-text;
-	animation-duration: 1s;
+  color: @white;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  animation-name: blink-modifier-text;
+  animation-duration: 1s;
   animation-timing-function: steps(15);
 }
 
@@ -119,7 +118,7 @@
 #waybar.first #pulseaudio.output.muted,
 #waybar.first #pulseaudio.input.source-muted,
 #waybar.first #battery.warning.discharging {
-	color: @warning;
+  color: @warning;
 }
 
 /* And now modules themselves in their respective order */
@@ -129,8 +128,8 @@
   color: @darkgrey;
   background: transparent;
   font-size: 18px;
-	padding-left: 3pt;
-	padding-right: 2pt;
+  padding-left: 3pt;
+  padding-right: 2pt;
   border-radius: 20px;
   margin-bottom: 3px;
   margin-top: 3px;
@@ -141,22 +140,22 @@
 
 /* Inactive (on unfocused output) & Active (on focused output) */
 #waybar.first #workspaces button.visible {
-	color: @white;
-	background: @indigo1;
+  color: @white;
+  background: @indigo1;
 }
 
 /* Style when cursor is on the button */
 #waybar.first #workspaces button:hover {
-	color: @white;
+  color: @white;
 }
 
 /* Custom slashes as spacers */
 #waybar.first #custom-spacer1,
 #waybar.first #custom-spacer2,
 #waybar.first #custom-spacer3 {
-	font-size: 12pt;
-	color: @darkgrey;
-	background: transparent;
+  font-size: 12pt;
+  color: @darkgrey;
+  background: transparent;
 }
 
 /* Tooltip recolor */
@@ -166,13 +165,13 @@ tooltip {
   border-radius: 10px;
 }
 
-   /*------------- -*/
-  /* INDICATOR BAR */
- /*---------------*/
+/*------------- -*/
+/* INDICATOR BAR */
+/*---------------*/
 
 #waybar.second {
-  font-size: 2px;         /* This makes indicator thicker */
-  color: rgba(0,0,0,0);
+  font-size: 2px; /* This makes indicator thicker */
+  color: rgba(0, 0, 0, 0);
   background: @indigo1;
 }
 
@@ -180,11 +179,11 @@ tooltip {
 /* Or fraction resolution, eg. if scaling is 1.25 */
 /* 2880px / 1.25 = 2304px */
 #waybar.second #battery.critical.discharging {
-  margin-right: -2305px;  /* Try h.resolution +-1 */
+  margin-right: -2305px; /* Try h.resolution +-1 */
   background: @warning;
 }
 
 #waybar.second #submap.RESIZE {
-  margin-left: -2305px;   /* Try h.resolution +-1 */
+  margin-left: -2305px; /* Try h.resolution +-1 */
   background: @resize;
 }
