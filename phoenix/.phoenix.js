@@ -24,15 +24,13 @@ function callApp(appName) {
 
 Window.prototype.toGrid = function (x, y, width, height) {
   var frame = this.screen().visibleFrameInRectangle();
-  var extrax = 0;
-  if ((height == 1.0 || height == 0.5) && x == 0.0 && frame.x == 4) {
-    extrax = 4;
-  }
+  var gap_x = 3;
+  var gap_y = 3;
   this.setFrame({
-    x: Math.round(x * frame.width) + frame.x - extrax,
-    y: Math.round(y * frame.height) + frame.y,
-    width: Math.round(width * frame.width) + extrax,
-    height: Math.round(height * frame.height),
+    x: Math.round(x * frame.width) + frame.x + gap_x,
+    y: Math.round(y * frame.height) + frame.y + gap_y,
+    width: Math.round(width * frame.width) - gap_x * 2,
+    height: Math.round(height * frame.height) - gap_y * 2,
   });
 };
 
