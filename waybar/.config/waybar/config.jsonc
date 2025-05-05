@@ -175,7 +175,6 @@
 
     "hyprland/window": {
       "format": "{title}",
-      "max-length": 48,
       "tooltip": false,
       "icon": true,
       "icon-size": 18,
