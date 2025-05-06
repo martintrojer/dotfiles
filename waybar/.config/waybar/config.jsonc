@@ -33,10 +33,10 @@
       "custom/spacer1",
       "pulseaudio#output",
       "custom/spacer1",
+      "clock",
+      "custom/spacer1",
       "custom/lock",
       "custom/power",
-      "custom/spacer1",
-      "clock",
     ],
 
     // Modules
