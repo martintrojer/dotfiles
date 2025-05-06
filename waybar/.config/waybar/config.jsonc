@@ -33,6 +33,9 @@
       "custom/spacer1",
       "pulseaudio#output",
       "custom/spacer1",
+      "custom/lock",
+      "custom/power",
+      "custom/spacer1",
       "clock",
     ],
 
@@ -249,34 +252,40 @@
       "format": "/",
       "tooltip": false,
     },
+    "custom/lock": {
+      "format": "  ",
+      "tooltip": false,
+      "on-click": "hyprlock",
+    },
+    "custom/power": {
+      "format": " ⏻ ",
+      "tooltip": "Power Options",
+      "on-click": "~/.config/waybar/scripts/powermenu.sh",
+    },
   },
 
   {
     // INDICATOR //
-
     "layer": "top",
     "position": "top",
     "name": "second",
     "width": 2304,
-
-    "modules-left": ["battery"],
-
-    "modules-right": ["hyprland/submap"],
-
-    // Modules
-    "hyprland/submap": {
-      "always-on": true,
-      "format": "",
-      "tooltip": false,
-    },
-
-    "battery": {
-      "interval": 10,
-      "format": "{} ",
-      "format-critical": " ",
-      "states": {
-        "critical": 10,
-      },
-    },
+    // "modules-left": ["battery"],
+    // "modules-right": ["hyprland/submap"],
+    // // Modules
+    // "hyprland/submap": {
+    //   "always-on": true,
+    //   "format": "",
+    //   "tooltip": false,
+    // },
+    //
+    // "battery": {
+    //   "interval": 10,
+    //   "format": "{} ",
+    //   "format-critical": " ",
+    //   "states": {
+    //     "critical": 10,
+    //   },
+    // },
   },
 ]
