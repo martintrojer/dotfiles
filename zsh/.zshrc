@@ -28,7 +28,7 @@ plugins=(
 # User configuration
 
 export PATH="/usr/local/sbin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/go/bin:$PATH"
-export PATH="$HOME/.modular/bin:$PATH"
+export PATH="$PATH:$HOME/.modular/bin"
 
 export CLICOLOR=1
 export GPG_TTY=$(tty)
@@ -40,6 +40,7 @@ export TERM=xterm-256color
 export VISUAL=nvim
 export PYTORCH_ENABLE_MPS_FALLBACK=1
 export ELECTRON_OZONE_PLATFORM_HINT=auto
+export EDITOR=nvim
 
 alias llt='eza -l --icons --tree -L 3'
 alias ltt='eza -l --icons --tree -L 3'
@@ -82,6 +83,15 @@ mvln () {
     set +x
 }
 
+function y() {
+	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+	yazi "$@" --cwd-file="$tmp"
+	if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+		builtin cd -- "$cwd"
+	fi
+	rm -f -- "$tmp"
+}
+
 ## FB
 export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$PATH"
 export BUILD_MODE=default
@@ -99,5 +109,3 @@ unproxy () {
 # ======================================================
 
 source $ZSH/oh-my-zsh.sh
-
-export PATH="$PATH:/home/martintrojer/.modular/bin"
