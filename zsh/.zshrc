@@ -15,6 +15,8 @@ plugins=(
          brew
          colorize
          common-aliases
+         docker
+         docker-compose
          fzf
          git
          macos
@@ -90,6 +92,18 @@ function y() {
 		builtin cd -- "$cwd"
 	fi
 	rm -f -- "$tmp"
+}
+
+function get_hash() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: get_hash_from_tmux <pattern>" >&2
+    return 1
+  fi
+
+  local pattern="$1"
+  HASH=$(tmux capture-pane -p -S -100 | grep -- "$pattern" | grep -oE '[a-f0-9]{7,40}' | head -1)
+
+  echo "$HASH"
 }
 
 ## FB
