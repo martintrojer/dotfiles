@@ -94,7 +94,7 @@ function y() {
 	rm -f -- "$tmp"
 }
 
-function get_hash() {
+function gethash() {
   if [[ -z "$1" ]]; then
     echo "Usage: get_hash_from_tmux <pattern>" >&2
     return 1
