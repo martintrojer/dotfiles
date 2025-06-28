@@ -17,8 +17,10 @@ plugins=(
          common-aliases
          docker
          docker-compose
+         eza
          fzf
          git
+         jj
          macos
          mercurial
          rust
@@ -28,6 +30,10 @@ plugins=(
 
 # ======================================================
 # User configuration
+
+zstyle ':omz:plugins:eza' 'icons' yes
+zstyle ':omz:plugins:eza' 'color-scale' all
+zstyle ':omz:plugins:eza' 'size-prefix' si
 
 export PATH="/usr/local/sbin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/go/bin:$PATH"
 export PATH="$PATH:$HOME/.modular/bin"
