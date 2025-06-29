@@ -117,6 +117,18 @@ require("timestamps")
 require("toggletodo")
 
 ---------------------------------------------------------------------
+-- use oil instead of netrw
+if vim.fn.argc() == 1 then
+	local stat = vim.loop.fs_stat(vim.fn.argv(0))
+	if stat and stat.type == "directory" then
+		vim.cmd.cd(vim.fn.argv(0))
+		vim.schedule(function()
+			require("oil").open()
+		end)
+	end
+end
+
+---------------------------------------------------------------------
 -- [[ Install `lazy.nvim` plugin manager ]]
 --   :help lazy.nvim.txt or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
