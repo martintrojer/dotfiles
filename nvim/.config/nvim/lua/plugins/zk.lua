@@ -7,7 +7,14 @@ return {
       -- See Setup section below
     })
 
-    vim.keymap.set("n", "<leader>zc", "<Cmd>ZkCd { notebook_path = '$HOME/notes' }<CR>", { desc = "CD to $HOME/notes" })
+    if vim.fn.mapcheck("<leader>ff", "zc") == "" then
+      vim.keymap.set(
+        "n",
+        "<leader>zc",
+        "<Cmd>ZkCd { notebook_path = '$HOME/notes' }<CR>",
+        { desc = "CD to $HOME/notes" }
+      )
+    end
 
     vim.keymap.set("n", "<leader>zn", "<Cmd>ZkNew { title = vim.fn.input('Title: ') }<CR>", { desc = "New Note" })
     vim.keymap.set("n", "<leader>zw", "<Cmd>ZkNew { group = 'journal' }<CR>", { desc = "Create/Edit Weekly Journal" })
