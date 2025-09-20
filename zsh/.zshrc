@@ -112,6 +112,28 @@ function gethash() {
   echo "$HASH"
 }
 
+# remove from history all lines matching a pattern
+function hist-rm() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: hist-rm <pattern>"
+    return 1
+  fi
+
+  local tmpfile
+  tmpfile=$(mktemp)
+
+  # Ensure HISTFILE is set
+  local histfile="${HISTFILE:-$HOME/.zsh_history}"
+
+  # Filter out lines matching the pattern
+  grep -v -- "$1" "$histfile" > "$tmpfile" && mv "$tmpfile" "$histfile"
+
+  # Reload history into current shell
+  fc -R "$histfile"
+
+  echo "Removed history lines matching: $1"
+}
+
 ## FB
 export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$PATH"
 export BUILD_MODE=default
