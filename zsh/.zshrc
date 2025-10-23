@@ -40,7 +40,7 @@ zstyle ':omz:plugins:eza' 'color-scale' all
 zstyle ':omz:plugins:eza' 'size-prefix' si
 
 export PATH="/usr/local/sbin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/go/bin:$PATH"
-export PATH="$PATH:$HOME/.modular/bin"
+export PATH="$PATH:$HOME/.modular/bin:$HOME/.npm-global/bin"
 
 export CLICOLOR=1
 export GPG_TTY=$(tty)
