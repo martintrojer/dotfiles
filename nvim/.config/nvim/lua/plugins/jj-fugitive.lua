@@ -1,1 +1,3 @@
-return { dir = "~/hacking/jj-fugitive" }
+return {
+  -- dir = "~/hacking/jj-fugitive"
+}
