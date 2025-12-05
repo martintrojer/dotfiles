@@ -16,14 +16,14 @@ return {
       "lua-language-server", -- lua_ls
       "luacheck",
       "prettier",
-      "proselint",
       "rust-analyzer", -- rust_analyzer
       "shellcheck",
       "sqlfluff",
       "typescript-language-server", -- ts_ls
       "typos-lsp", -- typos_lsp
-      "write-good",
-      "zk",
+      "vale-ls",
+      -- handled by zk.lua
+      -- "zk",
     }
     require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
   end,
