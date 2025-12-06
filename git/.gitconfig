@@ -9,8 +9,9 @@
 [color]
 	ui = true
 [http]
-	sslVerify = false
- 	postBuffer = 524288000
+	# sslVerify = false  # SECURITY: Disabled by default. Only enable for specific repos if needed.
+	# Use per-repo config: git config http.sslVerify false (in repo .git/config)
+	postBuffer = 52428800  # Reduced from 500MB to 50MB
 [github]
 	user = martintrojer
 [commit]
