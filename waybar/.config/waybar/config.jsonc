@@ -14,7 +14,7 @@
       "custom/spacer2",
       "custom/spacer3",
       "hyprland/submap",
-      "hyprland/window",
+      "hyprland/window"
     ],
 
     "modules-right": [
@@ -36,7 +36,7 @@
       "clock",
       "custom/spacer1",
       "custom/lock",
-      "custom/power",
+      "custom/power"
     ],
 
     // Modules
@@ -44,21 +44,21 @@
       "interval": 10,
       "format": " {percentage_used}%",
       "tooltip": "{}",
-      "tooltip-format": "Free {free}",
+      "tooltip-format": "Free {free}"
     },
 
     "backlight": {
       "device": "intel_backlight",
       "format": "{icon} {percent}%",
       "format-icons": ["󱩎", "󱩑", "󱩓", "󱩕", "󰛨"],
-      "scroll-step": 5,
+      "scroll-step": 5
     },
 
     "battery": {
       "interval": 10,
       "states": {
         "warning": 20,
-        "critical": 10,
+        "critical": 10
       },
       /*"format-time": "{H}:{M:02}",*/
       "format": "{icon} {capacity}%",
@@ -67,7 +67,7 @@
       "format-full": "{icon} {capacity}%",
       "format-icons": ["", "", "", "", ""],
       "tooltip": "{}",
-      "tooltip-format": " {power}W",
+      "tooltip-format": " {power}W"
     },
 
     "clock": {
@@ -85,16 +85,16 @@
           "days": "<span color='#cdd6f4'><b>{}</b></span>",
           "weeks": "<span color='#94e2d5'> W{}</span>",
           "weekdays": "<span color='#f9e2af'><b>{}</b></span>",
-          "today": "<span color='#f5e0dc'><b><u>{}</u></b></span>",
-        },
+          "today": "<span color='#f5e0dc'><b><u>{}</u></b></span>"
+        }
       },
       "actions": {
         "on-click-right": "mode",
         "on-click-forward": "tz_up",
         "on-click-backward": "tz_down",
         "on-scroll-up": "shift_up",
-        "on-scroll-down": "shift_down",
-      },
+        "on-scroll-down": "shift_down"
+      }
     },
 
     "cpu": {
@@ -103,8 +103,8 @@
       "format": " {usage}%",
       "states": {
         "warning": 80,
-        "critical": 95,
-      },
+        "critical": 95
+      }
     },
 
     "hyprland/language": {
@@ -114,7 +114,7 @@
       "min-length": 7,
       "on-click": "hyprctl switchxkblayout current next",
       "tooltip": false,
-      "class": "language",
+      "class": "language"
     },
 
     "memory#ram": {
@@ -122,17 +122,17 @@
       "format": " {percentage}%",
       "states": {
         "warning": 80,
-        "critical": 95,
+        "critical": 95
       },
       "tooltip": "{}",
-      "tooltip-format": "{used}/{total} GiB",
+      "tooltip-format": "{used}/{total} GiB"
     },
 
     "memory#swap": {
       "interval": 5,
       "format": "󰾵 {swapPercentage}%",
       "tooltip": "{}",
-      "tooltip-format": "{swapUsed}/{swapTotal}GiB",
+      "tooltip-format": "{swapUsed}/{swapTotal}GiB"
     },
 
     "network#info": {
@@ -147,8 +147,8 @@
       "on-click": "iwgtk",
       "format-icons": ["󰤫", "󰤟", "󰤢", "󰤥", "󰤨"],
       "states": {
-        "normal": 25,
-      },
+        "normal": 25
+      }
     },
 
     "network#up": {
@@ -157,7 +157,7 @@
       "format-wifi": "󰕒 {bandwidthUpBits}",
       "format-ethernet": "󰕒 {bandwidthUpBits}",
       "format-disconnected": " ",
-      "min-length": 11,
+      "min-length": 11
     },
 
     "network#down": {
@@ -165,7 +165,7 @@
       "format": "󰇚 {bandwidthDownBits}",
       "format-wifi": "󰇚 {bandwidthDownBits}",
       "format-ethernet": "󰇚 {bandwidthDownBits}",
-      "min-length": 11,
+      "min-length": 11
     },
 
     "hyprland/submap": {
@@ -173,14 +173,14 @@
       "default-submap": "",
       "format": "[{}]",
       "format-resize": "{}",
-      "tooltip": false,
+      "tooltip": false
     },
 
     "hyprland/window": {
       "format": "{title}",
       "tooltip": false,
       "icon": true,
-      "icon-size": 18,
+      "icon-size": 18
     },
 
     "hyprland/workspaces": {
@@ -192,8 +192,8 @@
       "special-visible-only": true,
       "format-icons": {
         "magic": " SCRATCH",
-        "10": "󰊴 ",
-      },
+        "10": "󰊴 "
+      }
     },
 
     "pulseaudio#output": {
@@ -207,11 +207,11 @@
         "phone": "",
         "portable": "",
         "car": "",
-        "default": ["", ""],
+        "default": ["", ""]
       },
       "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
       "tooltip": true,
-      "scroll-step": 5,
+      "scroll-step": 5
     },
 
     "pulseaudio#input": {
@@ -222,7 +222,7 @@
       "on-scroll-down": "pactl set-source-volume @DEFAULT_SOURCE@ -5%",
       "max-volume": "100",
       "on-click": "pactl set-source-mute @DEFAULT_SOURCE@ toggle",
-      "tooltip-format": "{source_desc}",
+      "tooltip-format": "{source_desc}"
     },
 
     "temperature": {
@@ -230,38 +230,38 @@
       "interval": 5,
       "format": "{icon} {temperatureC}°",
       "format-icons": ["", "", "", "", ""],
-      "tooltip": false,
+      "tooltip": false
     },
 
     "tray": {
       "icon-size": 18,
-      "spacing": 6,
+      "spacing": 6
     },
 
     "custom/spacer1": {
       "format": "\\",
-      "tooltip": false,
+      "tooltip": false
     },
 
     "custom/spacer2": {
       "format": " ",
-      "tooltip": false,
+      "tooltip": false
     },
 
     "custom/spacer3": {
       "format": "/",
-      "tooltip": false,
+      "tooltip": false
     },
     "custom/lock": {
       "format": "  ",
       "tooltip": false,
-      "on-click": "hyprlock",
+      "on-click": "hyprlock"
     },
     "custom/power": {
       "format": " ⏻ ",
       "tooltip": "Power Options",
-      "on-click": "~/.config/waybar/scripts/powermenu.sh",
-    },
+      "on-click": "~/.config/waybar/scripts/powermenu.sh"
+    }
   },
 
   {
@@ -269,7 +269,7 @@
     "layer": "top",
     "position": "top",
     "name": "second",
-    "width": 2304,
+    "width": 2304
     // "modules-left": ["battery"],
     // "modules-right": ["hyprland/submap"],
     // // Modules
@@ -286,6 +286,6 @@
     //   "states": {
     //     "critical": 10,
     //   },
-    // },
-  },
+    // }
+  }
 ]
