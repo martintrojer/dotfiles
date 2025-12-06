@@ -2,9 +2,12 @@
 # a command-line option that you want to pass to `bat` by default. You can
 # run `bat --help` to get a list of all possible configuration options.
 
-# Specify desired highlighting theme (e.g. "TwoDark"). Run `bat --list-themes`
-# for a list of all available themes
---theme="Dracula"
+# Specify desired highlighting theme (Catppuccin Mocha)
+# Theme file is included in this dotfiles repo at .config/bat/themes/
+--theme="Catppuccin Mocha"
+
+# Style: show line numbers, git changes, and header
+--style="numbers,changes,header"
 
 # Enable this to use italic text on the terminal. This is not supported on all
 # terminal emulators (like tmux, by default):
@@ -13,9 +16,7 @@
 # Uncomment the following line to disable automatic paging:
 #--paging=never
 
-# Uncomment the following line if you are using less version >= 551 and want to
-# enable mouse scrolling support in `bat` when running inside tmux. This might
-# disable text selection, unless you press shift.
+# Modern pager with mouse support (for tmux) and better UX
 --pager="less --RAW-CONTROL-CHARS --quit-if-one-screen --mouse"
 
 # Syntax mappings: map a certain filename pattern to a language.
