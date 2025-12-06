@@ -11,22 +11,25 @@ zstyle ':omz:update' frequency 13
 
 DISABLE_UNTRACKED_FILES_DIRTY="true"
 
+# Base plugins (OS-agnostic)
 plugins=(
-         brew
          colorize
          common-aliases
          docker
-         docker-compose
          eza
          fzf
          git
          jj
-         macos
          mercurial
          rust
          tmux
          zoxide
         )
+
+# macOS-specific plugins
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  plugins+=(brew macos)
+fi
 
 # ======================================================
 # User configuration
@@ -43,10 +46,12 @@ export GPG_TTY=$(tty)
 export HISTCONTROL=ignoredups:erasedups
 export HISTFILESIZE=1048576
 export HISTSIZE=1048576
-export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
+# LSCOLORS is macOS-specific, removed for Linux compatibility
+[[ "$OSTYPE" == "darwin"* ]] && export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 export TERM=xterm-256color
 export VISUAL=nvim
-export PYTORCH_ENABLE_MPS_FALLBACK=1
+# PYTORCH_ENABLE_MPS_FALLBACK is macOS-only (Metal Performance Shaders)
+[[ "$OSTYPE" == "darwin"* ]] && export PYTORCH_ENABLE_MPS_FALLBACK=1
 export ELECTRON_OZONE_PLATFORM_HINT=auto
 export EDITOR=nvim
 
@@ -57,10 +62,23 @@ alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python3 -m http.server 8081'
 test -e "/opt/homebrew/bin/gdu-go" && alias ncdu='gdu-go'
 
-command -v "mise" >/dev/null && eval "$(mise activate zsh)"
-test -e "${HOME}/.local/bin/mise" && eval "$(~/.local/bin/mise activate zsh)"
-test -e "/opt/homebrew/bin/brew" && eval "$(/opt/homebrew/bin/brew shellenv)"
-test -e "homebrew/bin/brew" && eval "$(homebrew/bin/brew shellenv)"
+# Initialize mise (version manager)
+if command -v mise >/dev/null; then
+  eval "$(mise activate zsh)"
+elif test -e "${HOME}/.local/bin/mise"; then
+  eval "$(~/.local/bin/mise activate zsh)"
+fi
+
+# Initialize Homebrew (macOS only)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  if test -e "/opt/homebrew/bin/brew"; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif test -e "/usr/local/bin/brew"; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+fi
+
+# Initialize other tools
 test -e "${HOME}/.ghcup/env" && . "${HOME}/.ghcup/env"
 command -v starship >/dev/null && eval "$(starship init zsh)"
 command -v opam >/dev/null && eval "$(opam config env)"
@@ -134,19 +152,21 @@ function hist-rm() {
   echo "Removed history lines matching: $1"
 }
 
-## FB
-export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$PATH"
-export BUILD_MODE=default
-export MANPATH="$HOME/infer/infer/man":$MANPATH
+## FB-specific configuration (only load if directories exist)
+if [[ -d "$HOME/infer" ]] || [[ -d "$HOME/devserver" ]]; then
+  export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$PATH"
+  export BUILD_MODE=default
+  export MANPATH="$HOME/infer/infer/man":$MANPATH
 
-proxy () {
-    export https_proxy=fwdproxy:8080
-    export http_proxy=fwdproxy:8080
-}
-unproxy () {
-    unset https_proxy
-    unset http_proxy
-}
+  proxy () {
+      export https_proxy=fwdproxy:8080
+      export http_proxy=fwdproxy:8080
+  }
+  unproxy () {
+      unset https_proxy
+      unset http_proxy
+  }
+fi
 
 # ======================================================
 
