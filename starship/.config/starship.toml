@@ -9,7 +9,7 @@ command_timeout = 1000
 disabled = true
 
 [hg_branch]
-disabled = false
+disabled = true  # Disabled - using Git exclusively
 
 [hostname]
 ssh_only = false
