@@ -1,11 +1,9 @@
 [
   {
     // MAIN BAR //
-
     "layer": "top",
     "position": "top",
     "name": "first",
-
     "modules-left": [
       "tray",
       "custom/spacer1",
@@ -16,7 +14,6 @@
       "hyprland/submap",
       "hyprland/window"
     ],
-
     "modules-right": [
       "custom/spacer1",
       "cpu",
@@ -36,9 +33,9 @@
       "clock",
       "custom/spacer1",
       "custom/lock",
+      "custom/spacer1",
       "custom/power"
     ],
-
     // Modules
     "disk": {
       "interval": 10,
@@ -46,14 +43,18 @@
       "tooltip": "{}",
       "tooltip-format": "Free {free}"
     },
-
     "backlight": {
       "device": "intel_backlight",
       "format": "{icon} {percent}%",
-      "format-icons": ["󱩎", "󱩑", "󱩓", "󱩕", "󰛨"],
+      "format-icons": [
+        "󱩎",
+        "󱩑",
+        "󱩓",
+        "󱩕",
+        "󰛨"
+      ],
       "scroll-step": 5
     },
-
     "battery": {
       "interval": 10,
       "states": {
@@ -65,11 +66,16 @@
       "format-charging": " {capacity}%",
       "format-charging-full": " {capacity}%",
       "format-full": "{icon} {capacity}%",
-      "format-icons": ["", "", "", "", ""],
+      "format-icons": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
       "tooltip": "{}",
       "tooltip-format": " {power}W"
     },
-
     "clock": {
       "interval": 10,
       "format": " {:%H:%M}",
@@ -96,7 +102,6 @@
         "on-scroll-down": "shift_down"
       }
     },
-
     "cpu": {
       "interval": 5,
       "tooltip": " {load}",
@@ -106,7 +111,6 @@
         "critical": 95
       }
     },
-
     "hyprland/language": {
       "format": " {}",
       "format-fi": "Vittu",
@@ -116,7 +120,6 @@
       "tooltip": false,
       "class": "language"
     },
-
     "memory#ram": {
       "interval": 5,
       "format": " {percentage}%",
@@ -127,14 +130,12 @@
       "tooltip": "{}",
       "tooltip-format": "{used}/{total} GiB"
     },
-
     "memory#swap": {
       "interval": 5,
       "format": "󰾵 {swapPercentage}%",
       "tooltip": "{}",
       "tooltip-format": "{swapUsed}/{swapTotal}GiB"
     },
-
     "network#info": {
       "interval": 1,
       "format": "󱘖  Offline",
@@ -145,12 +146,17 @@
       "tooltip-format-wifi": "{ifname}\n{essid}\n{signalStrength}% \n{frequency} GHz\n󰇚 {bandwidthDownBits}\n󰕒 {bandwidthUpBits}",
       "tooltip-format-ethernet": "{ifname}\n󰇚 {bandwidthDownBits} \n󰕒 {bandwidthUpBits}",
       "on-click": "iwgtk",
-      "format-icons": ["󰤫", "󰤟", "󰤢", "󰤥", "󰤨"],
+      "format-icons": [
+        "󰤫",
+        "󰤟",
+        "󰤢",
+        "󰤥",
+        "󰤨"
+      ],
       "states": {
         "normal": 25
       }
     },
-
     "network#up": {
       "interval": 5,
       "format": " ",
@@ -159,7 +165,6 @@
       "format-disconnected": " ",
       "min-length": 11
     },
-
     "network#down": {
       "interval": 5,
       "format": "󰇚 {bandwidthDownBits}",
@@ -167,7 +172,6 @@
       "format-ethernet": "󰇚 {bandwidthDownBits}",
       "min-length": 11
     },
-
     "hyprland/submap": {
       "always-on": true,
       "default-submap": "",
@@ -175,14 +179,12 @@
       "format-resize": "{}",
       "tooltip": false
     },
-
     "hyprland/window": {
       "format": "{title}",
       "tooltip": false,
       "icon": true,
       "icon-size": 18
     },
-
     "hyprland/workspaces": {
       "disable-scroll-wraparound": true,
       "smooth-scrolling-threshold": 4,
@@ -195,7 +197,6 @@
         "10": "󰊴 "
       }
     },
-
     "pulseaudio#output": {
       "format": "{icon} {volume}%",
       "format-bluetooth": "{icon} {volume}%",
@@ -207,13 +208,15 @@
         "phone": "",
         "portable": "",
         "car": "",
-        "default": ["", ""]
+        "default": [
+          "",
+          ""
+        ]
       },
       "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
       "tooltip": true,
       "scroll-step": 5
     },
-
     "pulseaudio#input": {
       "format": " {format_source}%",
       "format-source": "{volume}",
@@ -224,30 +227,31 @@
       "on-click": "pactl set-source-mute @DEFAULT_SOURCE@ toggle",
       "tooltip-format": "{source_desc}"
     },
-
     "temperature": {
       "critical-threshold": 90,
       "interval": 5,
       "format": "{icon} {temperatureC}°",
-      "format-icons": ["", "", "", "", ""],
+      "format-icons": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
       "tooltip": false
     },
-
     "tray": {
       "icon-size": 18,
       "spacing": 6
     },
-
     "custom/spacer1": {
       "format": "\\",
       "tooltip": false
     },
-
     "custom/spacer2": {
       "format": " ",
       "tooltip": false
     },
-
     "custom/spacer3": {
       "format": "/",
       "tooltip": false
@@ -263,7 +267,6 @@
       "on-click": "~/.config/waybar/scripts/powermenu.sh"
     }
   },
-
   {
     // INDICATOR //
     "layer": "top",
