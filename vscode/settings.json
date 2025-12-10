@@ -30,8 +30,8 @@
         "<leader>",
         "U"
       ],
-      "after": [
-        "<C-r>"
+      "commands": [
+        "redo"
       ]
     }
   ]
