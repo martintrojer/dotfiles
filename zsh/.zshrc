@@ -16,6 +16,7 @@ plugins=(
          colorize
          common-aliases
          docker
+         docker-compose
          eza
          fzf
          git
