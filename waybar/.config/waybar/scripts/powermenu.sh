@@ -14,7 +14,7 @@ case "$chosen" in
         ;;
     *Logout*)
         hyprctl dispatch exit
-        niri msg action quit
+        niri msg action quit 
         ;;
     *)
         ;;
