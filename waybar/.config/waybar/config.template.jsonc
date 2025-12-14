@@ -1,18 +1,25 @@
 [
   {
     // MAIN BAR //
+    // This config supports both Hyprland and Niri compositors.
+    // Run ~/.config/waybar/gen-config.py to generate
+    // the final config based on the detected compositor.
+    // The script will replace placeholders with compositor-specific modules.
     "layer": "top",
     "position": "top",
     "name": "first",
+    // Modules-left: compositor-specific modules will be added by gen-config.py
+    // For Hyprland: hyprland/workspaces, hyprland/submap, hyprland/window
+    // For Niri: niri/workspaces, niri/window (no submap support)
     "modules-left": [
       "tray",
       "custom/spacer1",
       "custom/spacer2",
-      "hyprland/workspaces",
+      "HYPRLAND_WORKSPACES_PLACEHOLDER",
       "custom/spacer2",
       "custom/spacer3",
-      "hyprland/submap",
-      "hyprland/window"
+      "HYPRLAND_SUBMAP_PLACEHOLDER",
+      "HYPRLAND_WINDOW_PLACEHOLDER"
     ],
     "modules-right": [
       "custom/spacer1",
@@ -259,7 +266,23 @@
     "custom/lock": {
       "format": "  ",
       "tooltip": false,
-      "on-click": "hyprlock"
+      // Lock command will be set by gen-config.sh based on compositor
+      "on-click": "LOCK_CMD_PLACEHOLDER"
+    },
+    // Niri-specific modules
+    "niri/workspaces": {
+      "format": "{icon} {index}",
+      "format-icons": {
+        "focused": "●",
+        "active": "○",
+        "default": "○"
+      }
+    },
+    "niri/window": {
+      "format": "{title}",
+      "tooltip": false,
+      "icon": true,
+      "icon-size": 18
     },
     "custom/power": {
       "format": " ⏻ ",
