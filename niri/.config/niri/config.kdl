@@ -118,7 +118,7 @@ binds {
     Mod+T hotkey-overlay-title="Open a Terminal" { spawn "ghostty"; }
     Mod+Space hotkey-overlay-title="Run an Application" { spawn-sh "wofi --show drun -i --allow-images --no-actions"; }
     Mod+B hotkey-overlay-title="Run a Browser" { spawn-sh "google-chrome-stable --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform-hint=wayland"; }
-    Mod+C hotkey-overlay-title="Run VS.Code" { spawn-sh "code --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform-hint=wayland"; }
+    Mod+I hotkey-overlay-title="Run VS.Code" { spawn-sh "code --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform-hint=wayland"; }
     Mod+U hotkey-overlay-title="Run Cursor" { spawn-sh "cursor --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform-hint=wayland"; }
     Mod+Y hotkey-overlay-title="Open File Manager" { spawn-sh "ghostty -e yazi $HOME"; }
 
@@ -237,8 +237,8 @@ binds {
 
     Mod+Ctrl+F { expand-column-to-available-width; }
 
+    Mod+C { center-column; }
     Mod+Ctrl+C { center-visible-columns; }
-    Mod+Shift+C { center-column; }
 
     Mod+Minus { set-column-width "-10%"; }
     Mod+Equal { set-column-width "+10%"; }
