@@ -200,7 +200,8 @@ layout {
 // See the binds section below for more spawn examples.
 
 // This line starts waybar, a commonly used bar for Wayland compositors.
-spawn-at-startup "waybar"
+// Generate waybar config based on compositor, then launch waybar
+spawn-sh-at-startup "~/.config/waybar/gen-config.py && waybar"
 spawn-at-startup "hyprpaper"
 spawn-at-startup "hypridle"
 
@@ -274,10 +275,10 @@ binds {
 
     // Suggested binds for running programs: terminal, app launcher, screen locker.
     Mod+T hotkey-overlay-title="Open a Terminal" { spawn "ghostty"; }
-    Mod+Space hotkey-overlay-title="Run an Application" { spawn-sh "wofi --show drun -i"; }
+    Mod+Space hotkey-overlay-title="Run an Application" { spawn-sh "wofi --show drun -i --allow-images --no-actions"; }
     Mod+B hotkey-overlay-title="Run a Browser" { spawn "google-chrome-stable"; }
     //Mod+U hotkey-overlay-title="Run Cursor" { spawn "cursor"; }
-    Mod+C hotkey-overlay-title="Run VS.Code" { spawn "code"; }
+    //Mod+C hotkey-overlay-title="Run VS.Code" { spawn "code"; }
 
     // Example volume keys mappings for PipeWire & WirePlumber.
     // The allow-when-locked=true property makes them work even when the session is locked.
