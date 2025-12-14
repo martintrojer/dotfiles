@@ -271,12 +271,7 @@
     },
     // Niri-specific modules
     "niri/workspaces": {
-      "format": "{icon} {index}",
-      "format-icons": {
-        "focused": "●",
-        "active": "○",
-        "default": "○"
-      }
+      "format": "{index}"
     },
     "niri/window": {
       "format": "{title}",
