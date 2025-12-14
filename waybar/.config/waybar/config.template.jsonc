@@ -12,9 +12,7 @@
     // For Hyprland: hyprland/workspaces, hyprland/submap, hyprland/window
     // For Niri: niri/workspaces, niri/window (no submap support)
     "modules-left": [
-      "tray",
-      "custom/spacer1",
-      "custom/spacer2",
+      "custom/spacer3",
       "HYPRLAND_WORKSPACES_PLACEHOLDER",
       "custom/spacer2",
       "custom/spacer3",
@@ -38,6 +36,8 @@
       "pulseaudio#output",
       "custom/spacer1",
       "clock",
+      "custom/spacer1",
+      "custom/tray",
       "custom/spacer1",
       "custom/lock",
       "custom/spacer1",
