@@ -17,6 +17,7 @@
       "custom/spacer2",
       "custom/spacer3",
       "HYPRLAND_SUBMAP_PLACEHOLDER",
+      "custom/spacer3",
       "HYPRLAND_WINDOW_PLACEHOLDER"
     ],
     "modules-right": [
