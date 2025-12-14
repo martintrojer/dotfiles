@@ -1,18 +1,18 @@
 #!/bin/bash
 
-chosen=$(echo -e "Suspend\nShutdown\nReboot\nLogout" | wofi --dmenu --width 200 --height 250 --prompt "Power Menu")
+chosen=$(echo -e "󰤄 Suspend\n󰐥 Shutdown\n󰜺 Reboot\n󰗽 Logout" | wofi --dmenu --width 200 --height 250 --prompt "Power Menu")
 
 case "$chosen" in
-    Suspend)
+    *Suspend*)
         systemctl suspend
         ;;
-    Shutdown)
+    *Shutdown*)
         systemctl poweroff
         ;;
-    Reboot)
+    *Reboot*)
         systemctl reboot
         ;;
-    Logout)
+    *Logout*)
         hyprctl dispatch exit
         niri msg action quit
         ;;
