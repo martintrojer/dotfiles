@@ -45,14 +45,13 @@ layout {
 
     // preset-window-heights { }
     default-column-width { proportion 0.5; }
-    // default-column-width {}
 
     focus-ring {
         // off
         width 2
         active-color "#b4befe"
         inactive-color "#181825"
-        active-gradient from="#b4befe" to="#313244" angle=45
+        // active-gradient from="#b4befe" to="#313244" angle=45
         // inactive-gradient from="#505050" to="#808080" angle=45 relative-to="workspace-view"
     }
 
@@ -84,7 +83,6 @@ layout {
 spawn-sh-at-startup "~/.config/waybar/gen-config.py && waybar"
 spawn-at-startup "hyprpaper"
 spawn-at-startup "hypridle"
-// spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
 
 hotkey-overlay {
     skip-at-startup
@@ -103,7 +101,7 @@ animations {
 
 // https://yalter.github.io/niri/Configuration:-Window-Rules
 window-rule {
-    match app-id=r#"firefox$"# title="^Picture-in-Picture$"
+    match title="^Picture in picture$"
     open-floating true
 }
 
@@ -256,13 +254,13 @@ binds {
     // Mod+Space       { switch-layout "next"; }
     // Mod+Shift+Space { switch-layout "prev"; }
 
-    Print { screenshot; }
-    Ctrl+Print { screenshot-screen; }
-    Alt+Print { screenshot-window; }
+    Mod+F5 { screenshot; }
+    Mod+Ctrl+F5 { screenshot-screen; }
+    Mod+Alt+F5 { screenshot-window; }
 
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 
-    Mod+Shift+E { quit; }
+    // Mod+Shift+E { quit; }
     Ctrl+Alt+Delete { quit; }
 
     Mod+Shift+P { power-off-monitors; }
