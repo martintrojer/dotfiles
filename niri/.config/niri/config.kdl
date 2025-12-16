@@ -83,6 +83,7 @@ layout {
 spawn-sh-at-startup "~/.config/waybar/gen-config.py && waybar"
 spawn-at-startup "hyprpaper"
 spawn-at-startup "hypridle"
+spawn-at-startup "mako"
 
 hotkey-overlay {
     skip-at-startup
