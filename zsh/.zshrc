@@ -41,7 +41,7 @@ fi
 # ======================================================
 # User configuration
 
-bindkey '^ ' autosuggest-accept
+bindkey '^E' autosuggest-accept
 
 zstyle ':omz:plugins:eza' 'icons' yes
 zstyle ':omz:plugins:eza' 'color-scale' all
