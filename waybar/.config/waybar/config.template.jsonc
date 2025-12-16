@@ -39,8 +39,6 @@
       "custom/spacer1",
       "custom/tray",
       "custom/spacer1",
-      "custom/lock",
-      "custom/spacer1",
       "custom/power"
     ],
     // Modules
@@ -262,12 +260,6 @@
     "custom/spacer3": {
       "format": "/",
       "tooltip": false
-    },
-    "custom/lock": {
-      "format": "  ",
-      "tooltip": false,
-      // Lock command will be set by gen-config.sh based on compositor
-      "on-click": "LOCK_CMD_PLACEHOLDER"
     },
     // Niri-specific modules
     "niri/workspaces": {
