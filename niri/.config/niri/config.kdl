@@ -80,10 +80,10 @@ layout {
     }
 }
 
-spawn-sh-at-startup "~/.config/waybar/gen-config.py && waybar"
-spawn-at-startup "hyprpaper"
-spawn-at-startup "hypridle"
-spawn-at-startup "mako"
+spawn-sh-at-startup "pkill -x waybar; ~/.config/waybar/gen-config.py && waybar"
+spawn-sh-at-startup "pkill -x hyprpaper; hyprpaper"
+spawn-sh-at-startup "pkill -x hypridle; hypridle -c ~/.config/niri/hypridle.conf"
+spawn-sh-at-startup "pkill -x mako; mako"
 
 hotkey-overlay {
     skip-at-startup
