@@ -72,12 +72,10 @@ def process_config(template_path, compositor):
         content = content.replace('"HYPRLAND_WORKSPACES_PLACEHOLDER"', '"hyprland/workspaces"')
         content = content.replace('"HYPRLAND_SUBMAP_PLACEHOLDER"', '"hyprland/submap"')
         content = content.replace('"HYPRLAND_WINDOW_PLACEHOLDER"', '"hyprland/window"')
-        content = content.replace('"LOCK_CMD_PLACEHOLDER"', '"hyprlock"')
     elif compositor == "niri":
         # Replace placeholders for Niri
         content = content.replace('"HYPRLAND_WORKSPACES_PLACEHOLDER"', '"niri/workspaces"')
         content = content.replace('"HYPRLAND_WINDOW_PLACEHOLDER"', '"niri/window"')
-        content = content.replace('"LOCK_CMD_PLACEHOLDER"', '"niri msg action lock"')
 
         # Remove the submap placeholder line and clean up
         # Remove the line with HYPRLAND_SUBMAP_PLACEHOLDER
