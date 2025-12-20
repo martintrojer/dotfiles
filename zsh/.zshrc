@@ -64,8 +64,6 @@ export VISUAL=nvim
 export ELECTRON_OZONE_PLATFORM_HINT=auto
 export EDITOR=nvim
 
-alias llt='eza -l --icons --tree -L 3'
-alias ltt='eza -l --icons --tree -L 3'
 alias -g F='| fzf'
 alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python3 -m http.server 8081'
@@ -180,3 +178,12 @@ fi
 # ======================================================
 
 source $ZSH/oh-my-zsh.sh
+
+# eza-compliant versions of stansard ls alises (plus some extras)
+alias ls='eza --icons=auto'
+alias ll='eza -l --icons=auto --group-directories-first'
+alias la='eza -a --icons=auto'
+alias lt='eza --tree' # Replaces standard time-sort alias with eza's tree view
+alias llt='eza -l --icons --tree -L 3'
+alias ltt='eza -l --icons --tree -L 3'
+alias l='eza -lahG --icons=auto'
