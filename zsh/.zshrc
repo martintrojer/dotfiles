@@ -17,6 +17,7 @@ DISABLE_UNTRACKED_FILES_DIRTY="true"
 
 # Base plugins (OS-agnostic)
 plugins=(
+         alias-finder
          colorize
          common-aliases
          docker
@@ -46,6 +47,9 @@ bindkey '^E' autosuggest-accept
 zstyle ':omz:plugins:eza' 'icons' yes
 zstyle ':omz:plugins:eza' 'color-scale' all
 zstyle ':omz:plugins:eza' 'size-prefix' si
+
+zstyle ':omz:plugins:alias-finder' autoload yes
+zstyle ':omz:plugins:alias-finder' cheaper yes
 
 # ======================================================
 # Exports
