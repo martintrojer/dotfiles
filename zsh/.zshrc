@@ -64,7 +64,6 @@ fi
 # Terminal and display
 export TERM=xterm-256color
 export CLICOLOR=1
-export PAGER=bat
 [[ "$OSTYPE" == "darwin"* ]] && export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 
 # Editor configuration
@@ -84,14 +83,8 @@ export ELECTRON_OZONE_PLATFORM_HINT=auto
 [[ "$OSTYPE" == "darwin"* ]] && export PYTORCH_ENABLE_MPS_FALLBACK=1
 
 # ======================================================
-# Aliases
+# Tool initialization
 # ======================================================
-
-# General aliases
-alias -g F='| fzf'
-alias port_forward='ssh -L 8081:localhost:8081 dev'
-alias serve='python3 -m http.server 8081'
-test -e "/opt/homebrew/bin/gdu-go" && alias gdu='gdu-go'
 
 # Initialize mise (version manager)
 if command -v mise >/dev/null; then
@@ -113,6 +106,55 @@ fi
 test -e "${HOME}/.ghcup/env" && . "${HOME}/.ghcup/env"
 command -v starship >/dev/null && eval "$(starship init zsh)"
 command -v opam >/dev/null && eval "$(opam config env)"
+
+# ======================================================
+# Exports (PATH-dependent)
+# ======================================================
+
+# PAGER and LESS configuration (requires PATH to be fully configured)
+bat_cmd=""
+if command -v bat >/dev/null 2>&1; then
+  bat_cmd="bat"
+elif command -v batcat >/dev/null 2>&1; then
+  bat_cmd="batcat"
+fi
+
+if [ -n "$bat_cmd" ]; then
+  export PAGER="$bat_cmd"
+fi
+
+# LESS configuration with lesspipe and bat/batcat
+lesspipe_path=""
+if command -v lesspipe.sh >/dev/null 2>&1; then
+  lesspipe_path=$(command -v lesspipe.sh)
+elif [ -f "/usr/bin/lesspipe.sh" ]; then
+  lesspipe_path="/usr/bin/lesspipe.sh"
+elif [[ "$OSTYPE" == "darwin"* ]] && [ -f "/opt/homebrew/bin/lesspipe.sh" ]; then
+  lesspipe_path="/opt/homebrew/bin/lesspipe.sh"
+fi
+
+if [ -n "$lesspipe_path" ] && [ -n "$bat_cmd" ]; then
+  export LESSOPEN="| $lesspipe_path %s"
+  export LESS="-R"
+  export LESSCOLORIZER="$bat_cmd"
+fi
+
+# ======================================================
+# Aliases
+# ======================================================
+
+# General aliases
+alias -g F='| fzf'
+alias port_forward='ssh -L 8081:localhost:8081 dev'
+alias serve='python3 -m http.server 8081'
+test -e "/opt/homebrew/bin/gdu-go" && alias gdu='gdu-go'
+
+# Note: eza aliases (ls, ll, la, etc.) are defined after OMZ source
+# to override OMZ defaults - see "Aliases (override OMZ defaults)" section below
+
+# ======================================================
+# Functions
+# ======================================================
 
 # zknew: Prompt for a note title and create a new note in the inbox group using zk in $HOME/notes.
 zknew() {
@@ -189,7 +231,10 @@ hist-rm() {
   echo "Removed history lines matching: $1"
 }
 
-## FB-specific configuration (only load if directories exist)
+# ======================================================
+## FB-specific configuration
+# ======================================================
+
 if [[ -d "$HOME/infer" ]] || [[ -d "$HOME/devserver" ]]; then
   # FB-specific PATH and environment
   export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$PATH"
