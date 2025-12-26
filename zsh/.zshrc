@@ -47,23 +47,43 @@ zstyle ':omz:plugins:eza' 'icons' yes
 zstyle ':omz:plugins:eza' 'color-scale' all
 zstyle ':omz:plugins:eza' 'size-prefix' si
 
-export PATH="/usr/local/sbin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/go/bin:$PATH"
-export PATH="$PATH:$HOME/.modular/bin"
+# ======================================================
+# Exports
+# ======================================================
 
+# PATH configuration
+export PATH="/usr/local/sbin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/go/bin:$PATH"
+if [ -d "$HOME/.modular/bin" ]; then
+  export PATH="$PATH:$HOME/.modular/bin"
+fi
+
+# Terminal and display
+export TERM=xterm-256color
 export CLICOLOR=1
-export GPG_TTY=$(tty)
+export PAGER=bat
+[[ "$OSTYPE" == "darwin"* ]] && export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
+
+# Editor configuration
+export EDITOR=nvim
+export VISUAL=nvim
+
+# History configuration
 export HISTCONTROL=ignoredups:erasedups
 export HISTFILESIZE=1048576
 export HISTSIZE=1048576
-# LSCOLORS is macOS-specific, removed for Linux compatibility
-[[ "$OSTYPE" == "darwin"* ]] && export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
-export TERM=xterm-256color
-export VISUAL=nvim
-# PYTORCH_ENABLE_MPS_FALLBACK is macOS-only (Metal Performance Shaders)
-[[ "$OSTYPE" == "darwin"* ]] && export PYTORCH_ENABLE_MPS_FALLBACK=1
-export ELECTRON_OZONE_PLATFORM_HINT=auto
-export EDITOR=nvim
 
+# GPG configuration
+export GPG_TTY=$(tty)
+
+# Application-specific exports
+export ELECTRON_OZONE_PLATFORM_HINT=auto
+[[ "$OSTYPE" == "darwin"* ]] && export PYTORCH_ENABLE_MPS_FALLBACK=1
+
+# ======================================================
+# Aliases
+# ======================================================
+
+# General aliases
 alias -g F='| fzf'
 alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python3 -m http.server 8081'
@@ -90,32 +110,38 @@ test -e "${HOME}/.ghcup/env" && . "${HOME}/.ghcup/env"
 command -v starship >/dev/null && eval "$(starship init zsh)"
 command -v opam >/dev/null && eval "$(opam config env)"
 
+# zknew: Prompt for a note title and create a new note in the inbox group using zk in $HOME/notes.
 zknew() {
+  local title
   read "title?Enter note title: "
-  pushd $HOME/notes
-  zk new --group inbox --title "$title"
-  popd
+  (
+    cd "$HOME/notes" || return 1
+    zk new --group inbox --title "$title"
+  )
 }
 
-nv () {
-    if [ -n "$FLOATERM" ]; then
-        eval "$FLOATERM" "$@"
-    elif [ -e /tmp/nvim.pipe ]; then
-        nvim --server /tmp/nvim.pipe --remote "$(realpath $1)"
-    else
-        nvim --listen /tmp/nvim.pipe "$@"
-    fi
+# nv: Open or connect to Neovim in a shared session.
+# - If /tmp/nvim.pipe exists, open file via --remote; otherwise, start Neovim with server.
+nv() {
+  if [[ -e /tmp/nvim.pipe ]]; then
+    nvim --server /tmp/nvim.pipe --remote "$(realpath "$1")"
+  else
+    nvim --listen /tmp/nvim.pipe "$@"
+  fi
 }
 
-mvln () {
-    fname=`basename "$1"`
-    dest=$(echo "$2" | sed 's:/*$::')
-    set -x
-    mv "$1" "$2"
-    ln -s "$dest/$fname" "$1"
-    set +x
+# mvln: move a file and create a symlink at its old path pointing to the new location
+mvln() {
+  if [[ $# -ne 2 ]]; then
+    echo "Usage: mvln <source> <destination>"
+    return 1
+  fi
+  set -x
+  mv -iv "$1" "$2" && ln -s "$(realpath "$2")" "$1"
+  set +x
 }
 
+# y: Open Yazi file manager in the current directory, exit with the selected directory.
 function y() {
 	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
 	yazi "$@" --cwd-file="$tmp"
@@ -125,35 +151,35 @@ function y() {
 	rm -f -- "$tmp"
 }
 
-function gethash() {
-  if [[ -z "$1" ]]; then
-    echo "Usage: get_hash_from_tmux <pattern>" >&2
+# gethash: Extract the first git hash matching a pattern from the last 100 lines of the current tmux pane.
+# Usage: gethash <pattern>
+gethash() {
+  if [[ $# -ne 1 ]]; then
+    echo "Usage: gethash <pattern>" >&2
     return 1
   fi
 
   local pattern="$1"
-  HASH=$(tmux capture-pane -p -S -100 | grep -- "$pattern" | grep -oE '[a-f0-9]{7,40}' | head -1)
+  local hash
 
-  echo "$HASH"
+  hash=$(tmux capture-pane -p -S -100 | grep -- "$pattern" | grep -oE '[a-f0-9]{7,40}' | head -n1)
+
+  echo "$hash"
 }
 
-# remove from history all lines matching a pattern
-function hist-rm() {
-  if [[ -z "$1" ]]; then
+# Remove all history lines matching a pattern
+hist-rm() {
+  if (( $# != 1 )); then
     echo "Usage: hist-rm <pattern>"
     return 1
   fi
 
+  local histfile=${HISTFILE:-$HOME/.zsh_history}
   local tmpfile
-  tmpfile=$(mktemp)
+  tmpfile=$(mktemp) || return
 
-  # Ensure HISTFILE is set
-  local histfile="${HISTFILE:-$HOME/.zsh_history}"
+  grep -v -- "$1" -- "$histfile" > "$tmpfile" && mv -- "$tmpfile" "$histfile"
 
-  # Filter out lines matching the pattern
-  grep -v -- "$1" "$histfile" > "$tmpfile" && mv "$tmpfile" "$histfile"
-
-  # Reload history into current shell
   fc -R "$histfile"
 
   echo "Removed history lines matching: $1"
@@ -161,6 +187,7 @@ function hist-rm() {
 
 ## FB-specific configuration (only load if directories exist)
 if [[ -d "$HOME/infer" ]] || [[ -d "$HOME/devserver" ]]; then
+  # FB-specific PATH and environment
   export PATH="$HOME/infer/infer/bin:$HOME/infer/facebook/dependencies/bin:$HOME/devserver/scripts:$PATH"
   export BUILD_MODE=default
   export MANPATH="$HOME/infer/infer/man":$MANPATH
@@ -179,7 +206,11 @@ fi
 
 source $ZSH/oh-my-zsh.sh
 
-# eza-compliant versions of stansard ls alises (plus some extras)
+# ======================================================
+# Aliases (override OMZ defaults)
+# ======================================================
+
+# eza-compliant versions of standard ls aliases (plus some extras)
 alias ls='eza --icons=auto'
 alias ll='eza -l --icons=auto --group-directories-first'
 alias la='eza -a --icons=auto'
