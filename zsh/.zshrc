@@ -197,37 +197,39 @@ function y() {
 	rm -f -- "$tmp"
 }
 
-# gethash: Extract the first git hash matching a pattern from the last 100 lines of the current tmux pane.
-# Usage: gethash <pattern>
-gethash() {
+# gh: Extract the first git hash matching a pattern from the last 100 lines of the current tmux pane.
+# Usage: gh <pattern>
+ghash() {
   if [[ $# -ne 1 ]]; then
-    echo "Usage: gethash <pattern>" >&2
+    echo "Usage: ghash <pattern>" >&2
     return 1
   fi
-
   local pattern="$1"
   local hash
-
   hash=$(tmux capture-pane -p -S -100 | grep -- "$pattern" | grep -oE '[a-f0-9]{7,40}' | head -n1)
-
-  echo "$hash"
+  if [[ -n "$hash" ]]; then
+    echo "$hash"
+    # Use tmux clipboard integration (works locally and over SSH via OSC 52)
+    # This requires 'set-clipboard on' in tmux.conf
+    # The -w flag writes to the system clipboard
+    tmux set-buffer -w "$hash"
+  else
+    echo "No hash found matching pattern: $pattern"
+    return 1
+  fi
 }
 
 # Remove all history lines matching a pattern
-hist-rm() {
+rmhist() {
   if (( $# != 1 )); then
-    echo "Usage: hist-rm <pattern>"
+    echo "Usage: rmhist <pattern>"
     return 1
   fi
-
   local histfile=${HISTFILE:-$HOME/.zsh_history}
   local tmpfile
   tmpfile=$(mktemp) || return
-
   grep -v -- "$1" -- "$histfile" > "$tmpfile" && mv -- "$tmpfile" "$histfile"
-
   fc -R "$histfile"
-
   echo "Removed history lines matching: $1"
 }
 
@@ -241,13 +243,8 @@ if [[ -d "$HOME/infer" ]] || [[ -d "$HOME/devserver" ]]; then
   export BUILD_MODE=default
   export MANPATH="$HOME/infer/infer/man":$MANPATH
 
-  proxy () {
-      export https_proxy=fwdproxy:8080
-      export http_proxy=fwdproxy:8080
-  }
-  unproxy () {
-      unset https_proxy
-      unset http_proxy
+  proxy() {
+    HTTPS_PROXY=fwdproxy:8080 HTTP_PROXY=fwdproxy:8080 "$@"
   }
 fi
 
