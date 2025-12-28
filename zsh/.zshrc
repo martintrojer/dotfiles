@@ -200,6 +200,10 @@ function y() {
 # gh: Extract the first git hash matching a pattern from the last 100 lines of the current tmux pane.
 # Usage: gh <pattern>
 ghash() {
+  if [[ -z "$TMUX" ]]; then
+    echo "Error: Not in a tmux session" >&2
+    return 1
+  fi
   if [[ $# -ne 1 ]]; then
     echo "Usage: ghash <pattern>" >&2
     return 1
