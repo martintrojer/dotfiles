@@ -164,7 +164,7 @@ binds {
     Mod+B hotkey-overlay-title="Run a Browser" { spawn-sh "google-chrome-stable --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform-hint=wayland"; }
     Mod+I hotkey-overlay-title="Run VS.Code" { spawn-sh "code --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform-hint=wayland"; }
     Mod+U hotkey-overlay-title="Run Cursor" { spawn-sh "cursor --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform-hint=wayland"; }
-    Mod+Y hotkey-overlay-title="Open File Manager" { spawn-sh "ghostty -e yazi $HOME"; }
+    Mod+Y hotkey-overlay-title="Open File Manager" { spawn-sh "ghostty -e zsh -il -c yazi"; }
 
     XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"; }
