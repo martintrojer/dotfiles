@@ -20,3 +20,8 @@ run  = '''
 	'
 '''
 desc = "Copy content to clipboard"
+
+[[mgr.prepend_keymap]]
+on   = [ "g", "s" ]
+run  = "cd sftp://bubba/"
+desc = "Go to bubba"
