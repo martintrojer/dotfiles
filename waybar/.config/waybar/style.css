@@ -17,6 +17,14 @@
   text-shadow: none;
 }
 
+/* Ensure waybar has no borders or shadows */
+#waybar {
+  border: none;
+  border-bottom: none;
+  border-top: none;
+  box-shadow: none;
+}
+
 /*----------*/
 /* MAIN BAR */
 /*----------*/
@@ -42,6 +50,8 @@
   font-family: JetBrains Mono Nerd Font;
   font-size: 12pt;
   font-weight: bold;
+  border-bottom: none;
+  box-shadow: none;
 }
 
 #waybar.first button {
@@ -183,7 +193,7 @@ tooltip {
 #waybar.second {
   font-size: 2px; /* This makes indicator thicker */
   color: rgba(0, 0, 0, 0);
-  background: @indigo1;
+  background: transparent;
 }
 
 /* For margins, use your monitor's h.resolution, */
