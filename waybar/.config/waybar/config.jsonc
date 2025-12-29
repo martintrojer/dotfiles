@@ -13,10 +13,9 @@
     // For Niri: niri/workspaces, niri/window (no submap support)
     "modules-left": [
       "custom/spacer3",
-      "HYPRLAND_WORKSPACES_PLACEHOLDER",
-      "HYPRLAND_SUBMAP_PLACEHOLDER",
+      "niri/workspaces",
       "custom/spacer3",
-      "HYPRLAND_WINDOW_PLACEHOLDER"
+      "niri/window"
     ],
     "modules-right": [
       "custom/spacer1",
