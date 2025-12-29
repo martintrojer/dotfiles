@@ -4,11 +4,7 @@ chosen=$(echo -e "󰌾 Lock\n󰜺 Reboot\n󰗽 Logout\n󰐥 Shutdown\n󰤄 Suspe
 
 case "$chosen" in
     *Lock*)
-        if command -v hyprlock &> /dev/null; then
-            hyprlock
-        elif command -v niri &> /dev/null; then
-            niri msg action lock
-        fi
+        hyprlock
         ;;
     *Suspend*)
         systemctl suspend
@@ -20,7 +16,6 @@ case "$chosen" in
         systemctl reboot
         ;;
     *Logout*)
-        hyprctl dispatch exit
         niri msg action quit -s
         ;;
     *)
