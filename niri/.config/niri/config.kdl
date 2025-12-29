@@ -80,6 +80,14 @@ layout {
     }
 }
 
+recent-windows {
+    highlight {
+        active-color "#222436"
+        urgent-color "#65BCFF"
+        corner-radius 14
+    }
+}
+
 spawn-sh-at-startup "pkill -x waybar; waybar"
 spawn-sh-at-startup "pkill -x hyprpaper; hyprpaper"
 spawn-sh-at-startup "pkill -x hypridle; hypridle"
