@@ -137,6 +137,17 @@ window-rule {
     clip-to-geometry true
 }
 
+gestures {
+    // Disable the hot corners.
+    hot-corners {
+        off
+    }
+}
+
+overview {
+    backdrop-color "#222436"
+}
+
 binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
 
