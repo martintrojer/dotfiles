@@ -1,0 +1,22 @@
+[[mgr.prepend_keymap]]
+on   = [ "c", "i" ]
+run  = '''
+	shell '
+		mime=$(file -bL --mime-type "$0")
+		if [[ "$OSTYPE" == "darwin"* ]]; then
+			# macOS: Use AppleScript for complex types (images/PDFs) and pbcopy for text
+			if [[ "$mime" == image/* || "$mime" == "application/pdf" ]]; then
+				osascript -e "set the clipboard to (read (POSIX file \"$0\") as «class furl»)"
+			else
+				pbcopy < "$0"
+			fi
+		elif [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
+			# Wayland: wl-copy automatically handles mime-types from file stream
+			wl-copy -t "$mime" < "$0"
+		else
+			# X11: xclip requires explicit mime-type targeting
+			xclip -selection clipboard -t "$mime" -i "$0"
+		fi
+	'
+'''
+desc = "Copy content to clipboard"
