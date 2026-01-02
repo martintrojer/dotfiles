@@ -33,6 +33,7 @@ output "DP-1" {
 
 // https://yalter.github.io/niri/Configuration:-Layout
 layout {
+    background-color "#222436"
     gaps 8
     center-focused-column "never"
 
