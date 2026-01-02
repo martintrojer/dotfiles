@@ -10,7 +10,7 @@
 rpm-ostree install \
   vim neovim \
   zsh \
-  htop btop \
+  htop btop grubby \
   stow rclone gdu fd-find ripgrep 7zip yazi \
   fzf zoxide tmux bat eza starship \
   distrobox
