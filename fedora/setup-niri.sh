@@ -1,13 +1,22 @@
 # https://copr.fedorainfracloud.org/coprs/acidburnmonkey/hyprland/
 # https://copr.fedorainfracloud.org/coprs/scottames/ghostty/
 
+# Download the .repo file. there is a download link for YOUR release
+# Copy to /etc/yum.repos.d:
+
+# rpm-ostree refresh-md
+
 rpm-ostree install \
-  niri \
-  waybar \
-  hyprpaper hyprlock hypridle \
-  ghostty xdg-terminal-exec \
-  wofi \
-  playerctl wiremix \
-  mako \
+  fastfetch \
   fontawesome-fonts-all \
-  fastfetch
+  ghostty \
+  hypridle \
+  hyprlock \
+  hyprpaper \
+  mako \
+  niri \
+  playerctl \
+  waybar \
+  wiremix \
+  wofi \
+  xdg-terminal-exec
