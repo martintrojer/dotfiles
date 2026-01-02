@@ -42,6 +42,7 @@
     ],
     // Modules
     "disk": {
+      "path": "/var",
       "interval": 10,
       "format": " {percentage_used}%",
       "tooltip": "{}",
