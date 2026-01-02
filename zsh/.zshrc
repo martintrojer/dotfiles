@@ -268,3 +268,8 @@ alias lt='eza --tree' # Replaces standard time-sort alias with eza's tree view
 alias llt='eza -l --icons --tree -L 3'
 alias ltt='eza -l --icons --tree -L 3'
 alias l='eza -lahG --icons=auto'
+
+if [[ -f /run/.toolboxenv ]]; then
+    echo "You are inside a Toolbox container."
+    PROMPT="%F{magenta}[⬢] %f$PROMPT"
+fi
