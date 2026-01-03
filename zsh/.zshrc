@@ -121,6 +121,8 @@ fi
 
 if [ -n "$bat_cmd" ]; then
   export PAGER="$bat_cmd"
+  export MANPAGER="sh -c 'col -bx | $bat_cmd -l man -p'"
+  export MANROFFOPT="-c"
 fi
 
 # LESS configuration with lesspipe and bat/batcat
