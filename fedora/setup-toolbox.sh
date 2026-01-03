@@ -8,6 +8,7 @@ dnf install -y \
   gcc \
   gcc-c++ \
   gdu \
+  git-lfs \
   htop \
   make \
   rclone \
@@ -15,4 +16,4 @@ dnf install -y \
   stow \
   tmux \
   vim \
-  zsh 
+  zsh
