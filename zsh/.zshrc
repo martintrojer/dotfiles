@@ -271,5 +271,6 @@ alias l='eza -lahG --icons=auto'
 
 if [[ -f /run/.toolboxenv ]]; then
     echo "You are inside a Toolbox container."
+    export TERM=xterm-256color
     PROMPT="%F{magenta}[⬢] %f$PROMPT"
 fi
