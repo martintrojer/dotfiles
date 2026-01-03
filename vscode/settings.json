@@ -1,38 +1,44 @@
 {
-  "vim.normalModeKeyBindings": [
-    {
-      "before": [
-        "u"
-      ],
-      "commands": [
-        "undo"
-      ]
-    },
-    {
-      "before": [
-        "U"
-      ],
-      "commands": [
-        "redo"
-      ]
-    },
-    {
-      "before": [
-        "<leader>",
-        "u"
-      ],
-      "after": [
-        "u"
-      ]
-    },
-    {
-      "before": [
-        "<leader>",
-        "U"
-      ],
-      "commands": [
-        "redo"
-      ]
-    }
-  ]
+    "window.commandCenter": true,
+    "window.zoomLevel": 0.75,
+    "editor.fontFamily": "'JetBrainsMono NF'",
+    "git.autofetch": true,
+    "editor.cursorBlinking": "solid",
+    "dev.containers.dockerPath": "podman",
+    "vim.normalModeKeyBindings": [
+        {
+            "before": [
+                "u"
+            ],
+            "commands": [
+                "undo"
+            ]
+        },
+        {
+            "before": [
+                "U"
+            ],
+            "commands": [
+                "redo"
+            ]
+        },
+        {
+            "before": [
+                "<leader>",
+                "u"
+            ],
+            "after": [
+                "u"
+            ]
+        },
+        {
+            "before": [
+                "<leader>",
+                "U"
+            ],
+            "commands": [
+                "redo"
+            ]
+        }
+    ]
 }
