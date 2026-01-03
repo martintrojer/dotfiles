@@ -7,6 +7,7 @@ pacman -S --noconfirm \
   fd \
   gdu \
   git \
+  git-lfs \
   glibc \
   htop \
   rclone \
@@ -30,7 +31,7 @@ if ! command -v yay &> /dev/null; then
     echo "ERROR: No non-root user found. yay installation requires a non-root user." >&2
     exit 1
   fi
-  
+
   cd /tmp
   git clone https://aur.archlinux.org/yay.git
   chown -R "$USER:$USER" /tmp/yay
@@ -39,4 +40,3 @@ if ! command -v yay &> /dev/null; then
   cd /
   rm -rf /tmp/yay
 fi
-
