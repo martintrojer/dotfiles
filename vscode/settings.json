@@ -1,10 +1,11 @@
 {
-    "window.commandCenter": true,
-    "window.zoomLevel": 0.75,
-    "editor.fontFamily": "'JetBrainsMono NF'",
-    "git.autofetch": true,
-    "editor.cursorBlinking": "solid",
     "dev.containers.dockerPath": "podman",
+    "editor.cursorBlinking": "solid",
+    "editor.fontFamily": "'JetBrainsMono NF'",
+    "editor.minimap.enabled": false,
+    "git.autofetch": true,
+    "github.copilot.nextEditSuggestions.enabled": true,
+    "terminal.integrated.sendKeybindingsToShell": true,
     "vim.normalModeKeyBindings": [
         {
             "before": [
@@ -40,5 +41,7 @@
                 "redo"
             ]
         }
-    ]
+    ],
+    "window.commandCenter": true,
+    "window.zoomLevel": 0.75
 }
