@@ -3,6 +3,7 @@ dnf install -y \
   automake \
   binutils \
   btop \
+  fastfetch \
   fd-find \
   gcc \
   gcc-c++ \
