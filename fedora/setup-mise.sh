@@ -24,6 +24,7 @@ mise use \
   tree-sitter \
   uv \
   yazi \
+  github:danielmiessler/Fabric@latest \
   github:zk-org/zk@latest \
   zoxide
 
