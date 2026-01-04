@@ -1,6 +1,6 @@
 #!/bin/bash
 
-chosen=$(echo -e "󰌾 Lock\n󰜺 Reboot\n󰗽 Logout\n󰐥 Shutdown\n󰤄 Suspend" | wofi --dmenu -i -O default --width 250 --height 300 --prompt "Power Menu")
+chosen=$(echo -e "󰌾 Lock\n󰜺 Reboot\n󰗽 Logout\n󰐥 Shutdown\n󰤄 Suspend" | wofi --dmenu -i -O default --width 250 --height 340 --prompt "Power Menu")
 
 case "$chosen" in
     *Lock*)
