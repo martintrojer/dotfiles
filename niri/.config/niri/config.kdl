@@ -165,6 +165,7 @@ binds {
     Mod+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome"; }
     Mod+Y hotkey-overlay-title="Yazi" { spawn-sh "ghostty -e zsh -il -c yazi"; }
     Mod+N hotkey-overlay-title="Nautilus" { spawn "nautilus"; }
+    Mod+Shift+P hotkey-overlay-title="Power Menu" { spawn-sh "~/.config/waybar/scripts/powermenu.sh"; }
 
     XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"; }
@@ -303,7 +304,6 @@ binds {
     Mod+F5 { screenshot; }
     Mod+Ctrl+F5 { screenshot-screen; }
     Mod+Alt+F5 { screenshot-window; }
-    Mod+Shift+C hotkey-overlay-title="Color Picker" { spawn-sh "hyprpicker"; }
 
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 
