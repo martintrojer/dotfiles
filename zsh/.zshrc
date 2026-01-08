@@ -62,7 +62,7 @@ if [ -d "$HOME/.modular/bin" ]; then
 fi
 
 # Terminal and display
-export TERM=xterm-256color
+[[ -z "$TMUX" ]] && export TERM=xterm-256color
 export CLICOLOR=1
 [[ "$OSTYPE" == "darwin"* ]] && export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 
