@@ -162,7 +162,7 @@ binds {
 
     Mod+T hotkey-overlay-title="Open a Terminal" { spawn "ghostty"; }
     Mod+Space hotkey-overlay-title="Run an Application" { spawn-sh "wofi --show drun -i --allow-images --no-actions"; }
-    Mod+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome"; }
+    Mod+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome --enable-features=UseOzonePlatform --ozone-platform=wayland"; }
     Mod+Y hotkey-overlay-title="Yazi" { spawn-sh "ghostty -e zsh -il -c yazi"; }
     Mod+N hotkey-overlay-title="Nautilus" { spawn "nautilus"; }
     Mod+Shift+P hotkey-overlay-title="Power Menu" { spawn-sh "~/.config/waybar/scripts/powermenu.sh"; }
