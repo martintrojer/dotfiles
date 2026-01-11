@@ -286,3 +286,5 @@ if [[ -f /run/.toolboxenv ]]; then
     export TERM=xterm-256color
     PROMPT="%F{magenta}[⬢] %f$PROMPT"
 fi
+
+export PATH="/var/home/martintrojer/.pixi/bin:$PATH"
