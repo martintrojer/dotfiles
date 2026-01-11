@@ -55,6 +55,31 @@ if git -C "$current_dir" rev-parse --git-dir >/dev/null 2>&1; then
     fi
   fi
 
+# Try Jujutsu
+elif jj root --ignore-working-copy -R "$current_dir" >/dev/null 2>&1; then
+  # Get bookmark or change-id
+  branch=$(jj log --ignore-working-copy -R "$current_dir" -r @ --no-graph -T 'if(bookmarks, bookmarks.join(" "), change_id.shortest(8))' 2>/dev/null)
+
+  if [ -n "$branch" ]; then
+    status=""
+    jj_status=$(jj status --ignore-working-copy -R "$current_dir" 2>/dev/null)
+    modified=$(echo "$jj_status" | grep -c '^M')
+    added=$(echo "$jj_status" | grep -c '^A')
+    deleted=$(echo "$jj_status" | grep -c '^D')
+
+    [ "$modified" -gt 0 ] && status="${status}~${modified} "
+    [ "$added" -gt 0 ] && status="${status}+${added} "
+    [ "$deleted" -gt 0 ] && status="${status}-${deleted} "
+
+    if [ -n "$status" ]; then
+      vcs_seg="$(bg $PEACH)$(fg $prev_color)${SEP}$(bg $PEACH)$(fg $CRUST)\e[1m 󰘬 $branch ${status}$(reset)"
+      prev_color="$PEACH"
+    else
+      vcs_seg="$(bg $GREEN)$(fg $prev_color)${SEP}$(bg $GREEN)$(fg $CRUST)\e[1m 󰘬 $branch $(reset)"
+      prev_color="$GREEN"
+    fi
+  fi
+
 # Try Mercurial
 elif hg -R "$current_dir" root >/dev/null 2>&1; then
   # Get bookmark or branch
