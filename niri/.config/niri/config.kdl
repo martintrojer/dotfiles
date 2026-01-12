@@ -23,13 +23,12 @@ input {
     focus-follows-mouse max-scroll-amount="0%"
 }
 
-output "DP-1" {
-    // off
-    // mode "1920x1080@120.030"
-    scale 1.5
-    transform "normal"
-    // position x=1280 y=0
-}
+// Outputs managed by kanshi - these are placeholders/defaults
+// output "DP-1" {
+//     scale 1.5
+//     transform "normal"
+//     position x=1280 y=0
+// }
 
 // https://yalter.github.io/niri/Configuration:-Layout
 layout {
@@ -93,6 +92,16 @@ spawn-sh-at-startup "pkill -x waybar; waybar"
 spawn-sh-at-startup "pkill -x hyprpaper; hyprpaper"
 spawn-sh-at-startup "pkill -x hypridle; hypridle"
 spawn-sh-at-startup "pkill -x mako; mako"
+spawn-sh-at-startup "pkill -x kanshi; kanshi"
+
+switch-events {
+    lid-close {
+        spawn "kanshictl" "reload"
+    }
+    lid-open {
+        spawn "kanshictl" "reload"
+    }
+}
 
 hotkey-overlay {
     skip-at-startup

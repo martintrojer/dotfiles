@@ -1,12 +1,12 @@
+#!/bin/bash
+
 # https://copr.fedorainfracloud.org/coprs/acidburnmonkey/hyprland/
 # https://copr.fedorainfracloud.org/coprs/scottames/ghostty/
 
-# Download the .repo file. there is a download link for YOUR release
-# Copy to /etc/yum.repos.d:
+dnf copr enable -y acidburnmonkey/hyprland
+dnf copr enable -y scottames/ghostty
 
-# rpm-ostree refresh-md
-
-rpm-ostree install \
+dnf install -y \
   fastfetch \
   fontawesome-fonts-all \
   ghostty \
