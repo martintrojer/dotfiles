@@ -1,0 +1,21 @@
+# Kanshi output profiles
+# Run: kanshi &
+# Reload: kanshictl reload
+
+# Profile 1: Laptop only
+profile laptop {
+    output eDP-1 enable mode 1920x1080@60 position 0,0 scale 1.25
+}
+
+# Profile 2: External only (laptop lid closed - eDP-1 disconnected)
+profile external {
+    output "LG Electronics LG HDR 4K 207NTFA3X771" enable mode 3840x2160@60 position 0,0 scale 1.5
+}
+
+# Profile 3: Both displays (laptop below, external above)
+# External: 2560x1440 logical (3840x2160 @ 1.5), Laptop: 1536x864 logical (1920x1080 @ 1.25)
+# Laptop centered: x = (2560-1536)/2 = 512, y = 1440 (below external)
+profile dual {
+    output "LG Electronics LG HDR 4K 207NTFA3X771" enable mode 3840x2160@60 position 0,0 scale 1.5
+    output eDP-1 enable mode 1920x1080@60 position 512,1440 scale 1.25
+}
