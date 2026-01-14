@@ -1,10 +1,11 @@
-@define-color darkgrey #606060;
-@define-color white    #FFFFFF;
-@define-color warning  #FF7070;
-@define-color indigo1  #4c539f;
-@define-color indigo2  rgba(9, 7, 31, 0.5);
-@define-color indigo3  rgba(9, 7, 31, 1.0);
-@define-color resize   #10aa70;
+/* Catppuccin Mocha */
+@define-color darkgrey #6c7086;
+@define-color white    #cdd6f4;
+@define-color warning  #f38ba8;
+@define-color indigo1  #585b70;
+@define-color indigo2  rgba(30, 30, 46, 0.5);
+@define-color indigo3  rgba(30, 30, 46, 1.0);
+@define-color resize   #94e2d5;
 
 /* Reset all styles */
 * {

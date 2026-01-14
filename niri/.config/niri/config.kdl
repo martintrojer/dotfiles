@@ -32,7 +32,7 @@ input {
 
 // https://yalter.github.io/niri/Configuration:-Layout
 layout {
-    background-color "#222436"
+    background-color "#1e1e2e"
     gaps 8
     center-focused-column "never"
 
@@ -49,10 +49,8 @@ layout {
     focus-ring {
         // off
         width 2
-        active-color "#b4befe"
+        active-gradient from="#89b4fa" to="#b4befe" angle=45
         inactive-color "#181825"
-        // active-gradient from="#b4befe" to="#313244" angle=45
-        // inactive-gradient from="#505050" to="#808080" angle=45 relative-to="workspace-view"
     }
 
     border {
@@ -82,8 +80,8 @@ layout {
 
 recent-windows {
     highlight {
-        active-color "#222436"
-        urgent-color "#65BCFF"
+        active-color "#1e1e2e"
+        urgent-color "#89b4fa"
         corner-radius 14
     }
 }
@@ -163,7 +161,7 @@ gestures {
 }
 
 overview {
-    backdrop-color "#222436"
+    backdrop-color "#1e1e2e"
 }
 
 binds {
