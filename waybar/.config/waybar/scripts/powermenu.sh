@@ -4,7 +4,7 @@ chosen=$(echo -e "󰌾 Lock\n󰜺 Reboot\n󰗽 Logout\n󰐥 Shutdown\n󰤄 Suspe
 
 case "$chosen" in
     *Lock*)
-        hyprlock
+        loginctl lock-session
         ;;
     *Suspend*)
         systemctl suspend
