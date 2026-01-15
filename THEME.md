@@ -53,3 +53,18 @@ All configs are now unified around **Catppuccin Mocha**.
 | Yazi | `yazi/.config/yazi/theme.toml` | catppuccin-mocha flavor |
 | Bat | `bat/.config/bat/themes/` | Catppuccin Mocha tmTheme |
 | Btop | `btop/.config/btop/themes/current.theme` | Catppuccin Mocha colors |
+
+---
+
+## Chrome/Chromium Custom Color
+
+Run the script to set the theme color (Chrome must be closed):
+
+```bash
+chrome/set-chrome-theme "#1e1e2e"          # Dry-run (preview changes)
+chrome/set-chrome-theme --apply "#1e1e2e"  # Apply changes
+```
+
+Or set manually: Settings → Appearance → Theme → Custom color
+
+RGB: `30, 30, 46` (from base #1e1e2e)
