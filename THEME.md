@@ -41,18 +41,20 @@ All configs are now unified around **Catppuccin Mocha**.
 
 | Component | File | Theme Source |
 |-----------|------|--------------|
+| Bat | `bat/.config/bat/themes/` | Catppuccin Mocha tmTheme (run `bat cache --build`) |
+| Btop | `btop/.config/btop/themes/current.theme` | Catppuccin Mocha colors |
+| Ghostty | `ghostty/.config/ghostty/config` | `theme = Catppuccin Mocha` |
+| Hypr Palette | `hypr/.config/hypr/mocha.conf` | Full Catppuccin palette |
+| Hyprlock | `hypr/.config/hypr/hyprlock.conf` | Sources `mocha.conf` |
+| Hyprpaper | `hypr/.config/hypr/hyprpaper.conf` | Wallpaper config |
+| Mako | `mako/.config/mako/config` | Catppuccin hex values |
+| Neovim | `nvim/.config/nvim/lua/plugins/colorscheme.lua` | catppuccin/nvim plugin |
+| Niri | `niri/.config/niri/config.kdl` | Catppuccin hex values |
+| Tmux | `tmux/.tmux.conf` | `catppuccin/tmux` plugin, mocha flavor |
 | Waybar | `waybar/.config/waybar/style.css` | Catppuccin colors defined |
 | Waybar Calendar | `waybar/.config/waybar/config.jsonc` | Inline Catppuccin hex |
-| Niri | `niri/.config/niri/config.kdl` | Catppuccin hex values |
 | Wofi | `wofi/.config/wofi/style.css` | Full Catppuccin palette |
-| Mako | `mako/.config/mako/config` | Catppuccin hex values |
-| Hyprlock | `hypr/.config/hypr/hyprlock.conf` | Sources `mocha.conf` |
-| Hypr Palette | `hypr/.config/hypr/mocha.conf` | Full Catppuccin palette |
-| Ghostty | `ghostty/.config/ghostty/config` | `theme = Catppuccin Mocha` |
-| Neovim | `nvim/.config/nvim/lua/plugins/colorscheme.lua` | catppuccin/nvim plugin |
 | Yazi | `yazi/.config/yazi/theme.toml` | catppuccin-mocha flavor |
-| Bat | `bat/.config/bat/themes/` | Catppuccin Mocha tmTheme |
-| Btop | `btop/.config/btop/themes/current.theme` | Catppuccin Mocha colors |
 
 ---
 
