@@ -6,3 +6,6 @@ email = "martin.trojer@gmail.com"
 
 [ui]
 default-command = "log"
+
+[revsets]
+log = "bookmarks() | @ | ancestors(bookmarks() | @, 2)"
