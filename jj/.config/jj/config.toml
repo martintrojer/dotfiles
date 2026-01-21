@@ -9,3 +9,6 @@ default-command = "log"
 
 [revsets]
 log = "bookmarks() | @ | ancestors(bookmarks() | @, 2)"
+
+[revset-aliases]
+"orphans" = "heads(visible_heads() ~ ::bookmarks())"
