@@ -7,6 +7,23 @@ email = "martin.trojer@gmail.com"
 [ui]
 default-command = "log"
 
+[aliases]
+# Moves the bookmark from its current head to the latest non-empty ancestor of @
+tug = ["bookmark", "move", "--from", "heads(::@- & bookmarks())", "--to", "latest(::@ & ~empty())"]
+
+# Rebases current changes onto the main branch while skipping any that became empty
+evolve = ["rebase", "--skip-emptied", "-d", "main"]
+
+# Fetches all changes from all remotes
+sync = ["git", "fetch", "--all-remotes"]
+
+# Lists all bookmarks you are currently working on
+mine = ["bookmark", "list", "-r", "mine()"]
+
+# Abandons all empty revisions in your local history that are not merge commits
+clean = ["abandon", "empty() ~ merges() & mutable()"]
+toclean = ["log", "-r", "empty() ~ merges() & mutable()"]
+
 [revsets]
 log = "bookmarks() | @ | ancestors(bookmarks() | @, 2)"
 
