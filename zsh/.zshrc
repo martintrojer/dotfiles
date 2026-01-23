@@ -146,6 +146,7 @@ alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python3 -m http.server 8081'
 test -e "/opt/homebrew/bin/gdu-go" && alias gdu='gdu-go'
 
+alias nvim=vim
 # Note: eza aliases (ls, ll, la, etc.) are defined after OMZ source
 # to override OMZ defaults - see "Aliases (override OMZ defaults)" section below
 
