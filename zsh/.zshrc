@@ -227,7 +227,9 @@ ghash() {
 
 # hgup: Look up a git hash by pattern and update hg to it
 hgup() {
-  ghash "$1" | xargs hg up
+  local hash
+  hash=$(ghash "$1") || return 1
+  hg up "$hash"
 }
 
 # Remove all history lines matching a pattern
@@ -239,7 +241,7 @@ rmhist() {
   local histfile=${HISTFILE:-$HOME/.zsh_history}
   local tmpfile
   tmpfile=$(mktemp) || return
-  grep -v -- "$1" -- "$histfile" > "$tmpfile" && mv -- "$tmpfile" "$histfile"
+  grep -v -- "$1" "$histfile" > "$tmpfile" && mv -- "$tmpfile" "$histfile"
   fc -R "$histfile"
   echo "Removed history lines matching: $1"
 }
