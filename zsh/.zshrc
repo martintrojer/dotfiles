@@ -225,6 +225,11 @@ ghash() {
   fi
 }
 
+# hgup: Look up a git hash by pattern and update hg to it
+hgup() {
+  ghash "$1" | xargs hg up
+}
+
 # Remove all history lines matching a pattern
 rmhist() {
   if (( $# != 1 )); then
