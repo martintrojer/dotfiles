@@ -24,6 +24,9 @@ mine = ["bookmark", "list", "-r", "mine()"]
 clean = ["abandon", "empty() ~ merges() & mutable()"]
 toclean = ["log", "-r", "empty() ~ merges() & mutable()"]
 
+# Rebase everything on main
+rebase-all = ["rebase", "-b", "bookmarks() & mine()", "-d", "main"]
+
 [revsets]
 log = "bookmarks() | @ | ancestors(bookmarks() | @, 2)"
 
