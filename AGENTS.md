@@ -19,6 +19,7 @@ There are many nested folders starting with `.`. Most default searches skip thes
 
 ## Editing notes
 - Keep config-specific documentation in the relevant package folder (e.g. `tmux/README.md`), not in the root `README.md`.
+- Add or update `.stow-local-ignore` in each package to keep `README.md` from being stowed into `$HOME`.
 - Preserve path shapes that mirror `$HOME` (e.g. `.config/...`, `.ssh/...`); these are intended for stow.
 - Avoid adding secrets or private keys. `ssh/.ssh/config` should stay non-sensitive.
 - Keep changes minimal and consistent with existing formats (Lua, shell, TOML, JSON, INI).
