@@ -14,17 +14,20 @@ mise use \
   bat \
   eza \
   fzf \
+  github:danielmiessler/Fabric@latest \
+  github:pythops/bluetui@latest \
+  github:zk-org/zk@latest \
   glow \
+  jj \
   lazydocker \
   lazygit \
   neovim \
   node \
+  prettier \
   starship \
   tokei \
   tree-sitter \
   uv \
+  vale \
   yazi \
-  github:danielmiessler/Fabric@latest \
-  github:zk-org/zk@latest \
   zoxide
-

@@ -8,13 +8,14 @@ apt-get update && apt-get install -y \
   btop \
   fd-find \
   gdu \
+  git \
   git-lfs \
-  htop \
   rclone \
   ripgrep \
   stow \
   tmux \
   vim \
+  wtype \
   zsh
 
 # Add fastfetch PPA and install

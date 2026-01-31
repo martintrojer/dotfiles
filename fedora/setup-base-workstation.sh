@@ -10,11 +10,11 @@ dnf install -y \
   gcc \
   gcc-c++ \
   gdu \
-  htop \
   make \
   rclone \
   ripgrep \
   stow \
   tmux \
   vim \
+  wtype \
   zsh
