@@ -25,3 +25,16 @@ desc = "Copy content to clipboard"
 on   = [ "g", "s" ]
 run  = "cd sftp://bubba/"
 desc = "Go to bubba"
+
+[[mgr.prepend_keymap]]
+on   = [ "g", "t" ]
+run  = '''
+	shell '
+		if [[ "$OSTYPE" == "darwin"* ]]; then
+			ya emit cd "$HOME/.Trash"
+		else
+			ya emit cd "$HOME/.local/share/Trash"
+		fi
+	'
+'''
+desc = "Go to Trash"
