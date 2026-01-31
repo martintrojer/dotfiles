@@ -9,11 +9,11 @@ rpm-ostree install \
   gcc \
   gcc-c++ \
   gdu \
-  htop \
   make \
   rclone \
   ripgrep \
   stow \
   tmux \
   vim \
+  wtype \
   zsh
