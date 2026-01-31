@@ -5,16 +5,18 @@ pacman -S --noconfirm \
   btop \
   fastfetch \
   fd \
+  gcc \
   gdu \
   git \
   git-lfs \
   glibc \
-  htop \
+  make \
   rclone \
   ripgrep \
   stow \
   tmux \
   vim \
+  wtype \
   zsh
 
 # Generate and set locale

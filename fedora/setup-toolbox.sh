@@ -8,12 +8,13 @@ dnf install -y \
   gcc \
   gcc-c++ \
   gdu \
+  git \
   git-lfs \
-  htop \
   make \
   rclone \
   ripgrep \
   stow \
   tmux \
   vim \
+  wtype \
   zsh
