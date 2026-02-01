@@ -1,3 +1,5 @@
+#!/bin/bash
+set -euo pipefail
 
 rpm-ostree install \
   7zip \

@@ -1,3 +1,6 @@
+#!/bin/bash
+set -euo pipefail
+
 pacman -S --noconfirm \
   p7zip \
   automake \

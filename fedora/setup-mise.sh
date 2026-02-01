@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Install mise if not already installed
 if ! command -v mise &> /dev/null; then
