@@ -53,6 +53,13 @@ zstyle ':omz:plugins:alias-finder' cheaper yes
 
 # PATH configuration
 export PATH="/usr/local/sbin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/go/bin:$PATH"
+
+if [ -d "$HOME/.pixi/bin" ]; then
+  export PATH="$PATH:$HOME/.pixi/bin"
+fi
+if [ -d "$HOME/.opencode/bin" ]; then
+  export PATH="$PATH:$HOME/.opencode/bin"
+fi
 if [ -d "$HOME/.modular/bin" ]; then
   export PATH="$PATH:$HOME/.modular/bin"
 fi
