@@ -10,6 +10,7 @@ dnf install -y \
   gcc \
   gcc-c++ \
   gdu \
+  jq \
   make \
   rclone \
   ripgrep \

@@ -91,6 +91,7 @@ spawn-sh-at-startup "pkill -x hyprpaper; hyprpaper"
 spawn-sh-at-startup "pkill -x hypridle; hypridle"
 spawn-sh-at-startup "pkill -x mako; mako"
 spawn-sh-at-startup "pkill -x kanshi; kanshi"
+spawn-sh-at-startup "pkill -x wl-paste; wl-paste --watch clipman store"
 
 switch-events {
     lid-close {
@@ -168,12 +169,17 @@ binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
 
     Mod+T hotkey-overlay-title="Open a Terminal" { spawn "ghostty"; }
-    Mod+Space hotkey-overlay-title="Run an Application" { spawn-sh "wofi --show drun -i --allow-images --no-actions"; }
+    Mod+Space hotkey-overlay-title="Run an Application" { spawn "fuzzel"; }
     Mod+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome --enable-features=UseOzonePlatform --ozone-platform=wayland"; }
     Mod+Shift+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome --user-data-dir=\"$HOME/.config/chrome\" --enable-features=UseOzonePlatform --ozone-platform=wayland"; }
     Mod+Y hotkey-overlay-title="Yazi" { spawn-sh "ghostty -e zsh -il -c yazi"; }
     Mod+N hotkey-overlay-title="Nautilus" { spawn "nautilus"; }
     Mod+Shift+P hotkey-overlay-title="Power Menu" { spawn-sh "~/.config/waybar/scripts/powermenu.sh"; }
+    Mod+Shift+C hotkey-overlay-title="Clipboard History" { spawn-sh "~/.config/fuzzel/scripts/clipboard.sh"; }
+    Mod+E hotkey-overlay-title="Emoji Picker" { spawn-sh "~/.config/fuzzel/scripts/emoji.sh"; }
+    Mod+Grave hotkey-overlay-title="Window Switcher" { spawn-sh "~/.config/fuzzel/scripts/windows.sh"; }
+    Mod+S hotkey-overlay-title="SSH Hosts" { spawn-sh "~/.config/fuzzel/scripts/ssh.sh"; }
+    Mod+Backslash hotkey-overlay-title="Calculator" { spawn-sh "~/.config/fuzzel/scripts/calc.sh"; }
 
     XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"; }
