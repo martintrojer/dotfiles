@@ -7,6 +7,7 @@ dnf copr enable -y acidburnmonkey/hyprland
 dnf copr enable -y scottames/ghostty
 
 dnf install -y \
+  clipman \
   fastfetch \
   fontawesome-fonts-all \
   ghostty \
@@ -17,7 +18,9 @@ dnf install -y \
   mako \
   niri \
   playerctl \
+  qalculate \
   waybar \
   wiremix \
-  wofi \
+  wl-clipboard \
+  fuzzel \
   xdg-terminal-exec
