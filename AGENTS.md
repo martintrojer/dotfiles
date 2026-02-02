@@ -7,7 +7,7 @@ This repo is a GNU Stow-based dotfiles collection. Each top-level directory is a
 - `nvim/.config/nvim`: Neovim config (Lua + `lazy-lock.json`).
 - `zsh/.zshrc`, `tmux/.tmux.conf`, `starship/.config/starship.toml`: shell/prompt/tmux setup.
 - `git/.gitconfig*`, `ssh/.ssh/config`: Git and SSH config.
-- `hypr/.config/hypr`, `niri/.config/niri`, `waybar/.config/waybar`, `wofi/.config/wofi`, `kanshi/.config/kanshi`, `mako/.config/mako`: Wayland/WM and related tooling.
+- `hypr/.config/hypr`, `niri/.config/niri`, `waybar/.config/waybar`, `fuzzel/.config/fuzzel`, `kanshi/.config/kanshi`, `mako/.config/mako`: Wayland/WM and related tooling.
 - `vscode/settings.json`, `vale/.vale.ini`, `bat/.config/bat`, `btop/.config/btop`, `yazi/.config/yazi`, `ghostty/.config/ghostty`: app configs.
 - `fedora/`: setup scripts plus `containers/` and `systemd/` configs.
 - `claude/`: Claude-related configs and a local plugin (`claude/mtrojer-plugin`).

@@ -7,6 +7,7 @@
 # rpm-ostree refresh-md
 
 rpm-ostree install \
+  clipman \
   fastfetch \
   fontawesome-fonts-all \
   ghostty \
@@ -17,7 +18,9 @@ rpm-ostree install \
   mako \
   niri \
   playerctl \
+  qalculate \
   waybar \
   wiremix \
-  wofi \
+  wl-clipboard \
+  fuzzel \
   xdg-terminal-exec

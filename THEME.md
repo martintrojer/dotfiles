@@ -43,6 +43,7 @@ All configs are now unified around **Catppuccin Mocha**.
 |-----------|------|--------------|
 | Bat | `bat/.config/bat/themes/` | Catppuccin Mocha tmTheme (run `bat cache --build`) |
 | Btop | `btop/.config/btop/themes/current.theme` | Catppuccin Mocha colors |
+| Fuzzel | `fuzzel/.config/fuzzel/fuzzel.ini` | Catppuccin Mocha palette |
 | Ghostty | `ghostty/.config/ghostty/config` | `theme = Catppuccin Mocha` |
 | Hypr Palette | `hypr/.config/hypr/mocha.conf` | Full Catppuccin palette |
 | Hyprlock | `hypr/.config/hypr/hyprlock.conf` | Sources `mocha.conf` |
@@ -53,7 +54,6 @@ All configs are now unified around **Catppuccin Mocha**.
 | Tmux | `tmux/.tmux.conf` | `catppuccin/tmux` plugin, mocha flavor |
 | Waybar | `waybar/.config/waybar/style.css` | Catppuccin colors defined |
 | Waybar Calendar | `waybar/.config/waybar/config.jsonc` | Inline Catppuccin hex |
-| Wofi | `wofi/.config/wofi/style.css` | Full Catppuccin palette |
 | Yazi | `yazi/.config/yazi/theme.toml` | catppuccin-mocha flavor |
 
 ---
