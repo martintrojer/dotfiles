@@ -169,7 +169,7 @@ binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
 
     Mod+T hotkey-overlay-title="Open a Terminal" { spawn "ghostty"; }
-    Mod+Space hotkey-overlay-title="Run an Application" { spawn "fuzzel"; }
+    Mod+Space hotkey-overlay-title="Run an Application" { spawn-sh "fuzzel --prompt 'Run '"; }
     Mod+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome --enable-features=UseOzonePlatform --ozone-platform=wayland"; }
     Mod+Shift+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome --user-data-dir=\"$HOME/.config/chrome\" --enable-features=UseOzonePlatform --ozone-platform=wayland"; }
     Mod+Y hotkey-overlay-title="Yazi" { spawn-sh "ghostty -e zsh -il -c yazi"; }
