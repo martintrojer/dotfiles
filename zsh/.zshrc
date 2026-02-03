@@ -249,6 +249,33 @@ rmhist() {
   echo "Removed history lines matching: $1"
 }
 
+# summarize: Pipe clipboard content to an AI CLI for bullet-point summary
+summarize() {
+  local paste_cmd
+
+  # Detect clipboard tool
+  if command -v wl-paste >/dev/null 2>&1; then
+    paste_cmd="wl-paste"
+  elif command -v pbpaste >/dev/null 2>&1; then
+    paste_cmd="pbpaste"
+  else
+    echo "Error: No clipboard tool found (wl-paste or pbpaste)" >&2
+    return 1
+  fi
+
+  # Detect AI CLI tool and run with appropriate syntax
+  if command -v claude >/dev/null 2>&1; then
+    $paste_cmd | claude -p "Summarize this in bullet points"
+  elif command -v codex >/dev/null 2>&1; then
+    $paste_cmd | codex exec "Summarize this in bullet points" -
+  elif command -v opencode >/dev/null 2>&1; then
+    $paste_cmd | opencode -p "Summarize this in bullet points"
+  else
+    echo "Error: No AI CLI found (claude, codex, or opencode)" >&2
+    return 1
+  fi
+}
+
 # ======================================================
 ## FB-specific configuration
 # ======================================================
