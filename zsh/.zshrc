@@ -52,17 +52,9 @@ zstyle ':omz:plugins:alias-finder' cheaper yes
 # ======================================================
 
 # PATH configuration
-export PATH="/usr/local/sbin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/go/bin:$PATH"
-
-if [ -d "$HOME/.pixi/bin" ]; then
-  export PATH="$PATH:$HOME/.pixi/bin"
-fi
-if [ -d "$HOME/.opencode/bin" ]; then
-  export PATH="$PATH:$HOME/.opencode/bin"
-fi
-if [ -d "$HOME/.modular/bin" ]; then
-  export PATH="$PATH:$HOME/.modular/bin"
-fi
+export PATH="/usr/local/sbin:$HOME/.local/bin:$PATH"
+export PATH="$HOME/.cargo/bin:$HOME/go/bin:$PATH"
+export PATH="$PATH:$HOME/.opencode/bin:$HOME/.pixi/bin:$HOME/.modular/bin"
 
 # Terminal and display
 [[ -z "$TMUX" ]] && export TERM=xterm-256color
