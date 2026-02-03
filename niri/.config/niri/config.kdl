@@ -170,14 +170,15 @@ binds {
 
     Mod+T hotkey-overlay-title="Open a Terminal" { spawn "ghostty"; }
     Mod+Space hotkey-overlay-title="Run an Application" { spawn-sh "fuzzel --prompt 'Run '"; }
-    Mod+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome --enable-features=UseOzonePlatform --ozone-platform=wayland"; }
-    Mod+Shift+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome --user-data-dir=\"$HOME/.config/chrome\" --enable-features=UseOzonePlatform --ozone-platform=wayland"; }
+    Mod+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome --remote-debugging-port=9222 --enable-features=UseOzonePlatform --ozone-platform=wayland"; }
+    Mod+Shift+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome --user-data-dir=\"$HOME/.config/chrome\" --remote-debugging-port=9222 --enable-features=UseOzonePlatform --ozone-platform=wayland"; }
     Mod+Y hotkey-overlay-title="Yazi" { spawn-sh "ghostty -e zsh -il -c yazi"; }
     Mod+N hotkey-overlay-title="Nautilus" { spawn "nautilus"; }
     Mod+Shift+P hotkey-overlay-title="Power Menu" { spawn-sh "~/.config/waybar/scripts/powermenu.sh"; }
     Mod+Shift+C hotkey-overlay-title="Clipboard History" { spawn-sh "~/.config/fuzzel/scripts/clipboard.sh"; }
     Mod+E hotkey-overlay-title="Emoji Picker" { spawn-sh "~/.config/fuzzel/scripts/emoji.sh"; }
     Mod+Grave hotkey-overlay-title="Window Switcher" { spawn-sh "~/.config/fuzzel/scripts/windows.sh"; }
+    Mod+Shift+Grave hotkey-overlay-title="Chrome Tabs" { spawn-sh "~/.config/fuzzel/scripts/chrome-tabs.sh"; }
     Mod+S hotkey-overlay-title="SSH Hosts" { spawn-sh "~/.config/fuzzel/scripts/ssh.sh"; }
     Mod+Backslash hotkey-overlay-title="Calculator" { spawn-sh "~/.config/fuzzel/scripts/calc.sh"; }
 
