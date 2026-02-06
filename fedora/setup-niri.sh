@@ -21,6 +21,5 @@ rpm-ostree install \
   qalculate \
   waybar \
   wiremix \
-  wl-clipboard \
   fuzzel \
   xdg-terminal-exec
