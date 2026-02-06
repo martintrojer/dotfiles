@@ -11,7 +11,6 @@ rpm-ostree install \
   gcc \
   gcc-c++ \
   gdu \
-  jq \
   make \
   rclone \
   ripgrep \
