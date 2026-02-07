@@ -27,7 +27,6 @@ bm_limit_recent="$BEMOJI_LIMIT_RECENT"
 
 declare -A default_pickers=(
     ["bemenu"]="bemenu -p 🔍 -i -l 20"
-    ["wofi"]="wofi -p 🔍 -i --show dmenu"
     ["rofi"]="rofi -p 🔍 -i -dmenu --kb-custom-1 "Alt+1" --kb-custom-2 "Alt+2""
     ["dmenu"]="dmenu -p 🔍 -i -l 20"
     ["wmenu"]="wmenu -p 🔍 -i -l 20"
@@ -39,7 +38,7 @@ declare -A default_pickers=(
 usage() {
     echo "Usage: $(basename "$0") [-t | -c | -e] [-f <filepath> ] [-p] [-P] [-D <choices>]" 1>&2
     echo
-    echo "A simple emoji picker. Runs on bemenu/wofi/rofi/dmenu by default."
+    echo "A simple emoji picker. Runs on bemenu/rofi/dmenu by default."
     echo "Invoked without arguments sends the picked emoji to the clipboard."
     echo
     echo " Command options (can be combined):"
