@@ -286,7 +286,7 @@
     "custom/power": {
       "format": " ⏻ ",
       "tooltip": "Power Options",
-      "on-click": "~/.config/waybar/scripts/powermenu.sh"
+      "on-click": "~/.config/fuzzel/scripts/powermenu"
     }
   },
   {

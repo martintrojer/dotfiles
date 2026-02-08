@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""Clipboard history picker using clipman + fuzzel."""
+
+from __future__ import annotations
+
+import argparse
+import shlex
+
+from _common import ScriptError, require_commands, run
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--prompt", default="Clipboard  ")
+    parser.add_argument("--width", type=int, default=80)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    require_commands(["clipman", "fuzzel"])
+
+    picker_parts = ["fuzzel", "--dmenu", "--prompt", args.prompt, "--width", str(args.width)]
+    picker = " ".join(shlex.quote(part) for part in picker_parts)
+
+    run(["clipman", "pick", "-t", "CUSTOM", "-T", picker], check=False)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except ScriptError as exc:
+        print(f"clipboard: {exc}")
+        raise SystemExit(1)

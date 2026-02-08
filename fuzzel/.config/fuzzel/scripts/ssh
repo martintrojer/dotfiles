@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""SSH host selector from ~/.ssh/config."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from _common import ScriptError, fuzzel_dmenu, notify, picker_cache_path, require_commands, run
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", default=str(Path.home() / ".ssh" / "config"))
+    parser.add_argument("--prompt", default="SSH  ")
+    parser.add_argument("--width", type=int, default=40)
+    parser.add_argument("--terminal", default="ghostty")
+    return parser.parse_args()
+
+
+def parse_hosts(config_path: Path) -> list[str]:
+    hosts: set[str] = set()
+    if not config_path.exists():
+        return []
+
+    for raw in config_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if not line.lower().startswith("host "):
+            continue
+
+        patterns = line.split()[1:]
+        for host in patterns:
+            if "*" in host or "?" in host:
+                continue
+            hosts.add(host)
+
+    return sorted(hosts)
+
+
+def main() -> int:
+    args = parse_args()
+    require_commands(["fuzzel", args.terminal, "ssh"])
+    cache = picker_cache_path("ssh")
+
+    hosts = parse_hosts(Path(args.config).expanduser())
+    if not hosts:
+        notify("SSH", f"No hosts found in {args.config}")
+        raise ScriptError("No hosts found")
+
+    selected = fuzzel_dmenu(prompt=args.prompt, width=args.width, cache=cache, options=hosts)
+    if not selected:
+        return 0
+
+    run([args.terminal, "-e", "ssh", selected], check=False)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except ScriptError as exc:
+        print(f"ssh: {exc}")
+        raise SystemExit(1)

@@ -2,31 +2,35 @@
 
 ## Scripts
 
-- `fuzzel/.config/fuzzel/scripts/ssh.sh` - SSH host selector
-- `fuzzel/.config/fuzzel/scripts/calc.sh` - Calculator with qalc/bc
-- `fuzzel/.config/fuzzel/scripts/windows.sh` - Window switcher (niri)
-- `fuzzel/.config/fuzzel/scripts/hotkeys.sh` - Niri keybindings picker
-- `fuzzel/.config/fuzzel/scripts/clipboard.sh` - Clipboard history via clipman
-- `fuzzel/.config/fuzzel/scripts/emoji.sh` - Emoji picker with bemoji
+- `fuzzel/.config/fuzzel/scripts/ssh` - SSH host selector
+- `fuzzel/.config/fuzzel/scripts/calc` - Calculator with qalc/bc
+- `fuzzel/.config/fuzzel/scripts/windows` - Window switcher (niri)
+- `fuzzel/.config/fuzzel/scripts/hotkeys` - Niri keybindings picker
+- `fuzzel/.config/fuzzel/scripts/clipboard` - Clipboard history via clipman
+- `fuzzel/.config/fuzzel/scripts/emoji` - Emoji picker with bemoji
+- `fuzzel/.config/fuzzel/scripts/powermenu` - Power menu (lock/suspend/logout/reboot/shutdown)
 
 ## Script Pattern
 
-All fuzzel scripts follow this convention:
+All fuzzel scripts are Python 3 (`#!/usr/bin/env python3`) and follow this convention:
 
-```bash
-#!/bin/bash
-# Description comment
+```python
+#!/usr/bin/env python3
+import argparse
 
-# 1. Gather options (from command output, config files, or APIs)
-options=$(source_command)
+from _common import fuzzel_dmenu
 
-# 2. Display selection dialog
-selected=$(echo "$options" | fuzzel --dmenu --prompt "Label  " --width 40)
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--prompt", default="Label  ")
+    parser.add_argument("--width", type=int, default=40)
+    return parser.parse_args()
 
-# 3. Execute action based on selection
-if [ -n "$selected" ]; then
-    action_command "$selected"
-fi
+def main():
+    args = parse_args()
+    selected = fuzzel_dmenu(prompt=args.prompt, width=args.width, options=[...])
+    if selected:
+        ...
 ```
 
 ### Common Parameters
@@ -40,8 +44,9 @@ fi
 
 - Use `notify-send` for user-facing error messages
 - Use `wl-copy` for Wayland clipboard operations
-- Use `jq` for JSON parsing (see windows.sh)
-- Support fallback commands where possible (see calc.sh)
+- Use stdlib modules like `argparse`, `json`, `urllib`, `subprocess`
+- Share common helpers from `fuzzel/.config/fuzzel/scripts/_common.py`
+- Most-used sorting uses fuzzel `--cache` per picker in `~/.cache/fuzzel/pickers/*.cache` (or `$XDG_CACHE_HOME/fuzzel/pickers/*.cache`)
 
 ## Configuration
 

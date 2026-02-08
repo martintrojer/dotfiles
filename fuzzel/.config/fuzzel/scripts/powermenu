@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""Power menu using fuzzel."""
+
+from __future__ import annotations
+
+import argparse
+
+from _common import ScriptError, fuzzel_dmenu, picker_cache_path, require_commands, run
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--prompt", default="Power Menu  ")
+    parser.add_argument("--width", type=int, default=25)
+    parser.add_argument("--lines", type=int, default=5)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    require_commands(["fuzzel"])
+
+    cache = picker_cache_path("powermenu")
+    options = [
+        ("󰌾 Lock", "lock"),
+        ("󰜺 Reboot", "reboot"),
+        ("󰗽 Logout", "logout"),
+        ("󰐥 Shutdown", "shutdown"),
+        ("󰤄 Suspend", "suspend"),
+    ]
+    display_options = [label for label, _ in options]
+
+    selected = fuzzel_dmenu(
+        prompt=args.prompt,
+        width=args.width,
+        lines=args.lines,
+        cache=cache,
+        options=display_options,
+    )
+    if not selected:
+        return 0
+
+    action = next((action for label, action in options if label == selected), "")
+
+    if action == "lock":
+        run(["loginctl", "lock-session"], check=False)
+    elif action == "suspend":
+        run(["systemctl", "suspend"], check=False)
+    elif action == "shutdown":
+        run(["systemctl", "poweroff"], check=False)
+    elif action == "reboot":
+        run(["systemctl", "reboot"], check=False)
+    elif action == "logout":
+        run(["niri", "msg", "action", "quit", "-s"], check=False)
+
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except ScriptError as exc:
+        print(f"powermenu: {exc}")
+        raise SystemExit(1)
