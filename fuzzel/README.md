@@ -5,6 +5,7 @@
 - `fuzzel/.config/fuzzel/scripts/ssh.sh` - SSH host selector
 - `fuzzel/.config/fuzzel/scripts/calc.sh` - Calculator with qalc/bc
 - `fuzzel/.config/fuzzel/scripts/windows.sh` - Window switcher (niri)
+- `fuzzel/.config/fuzzel/scripts/hotkeys.sh` - Niri keybindings picker
 - `fuzzel/.config/fuzzel/scripts/clipboard.sh` - Clipboard history via clipman
 - `fuzzel/.config/fuzzel/scripts/emoji.sh` - Emoji picker with bemoji
 
