@@ -9,6 +9,12 @@
 - `fuzzel/.config/fuzzel/scripts/clipboard` - Clipboard history via clipman
 - `fuzzel/.config/fuzzel/scripts/emoji` - Emoji picker with bemoji
 - `fuzzel/.config/fuzzel/scripts/powermenu` - Power menu (lock/suspend/logout/reboot/shutdown)
+- `fuzzel/.config/fuzzel/scripts/raise-window` - Focus a niri window by id
+
+`raise-window` supports:
+- `--id <window_id>` for direct focus
+- `--app-id-regex` and/or `--title-regex` to find and focus a matching window
+- `--spawn-sh '<cmd>'` to launch fallback command when no match is found
 
 ## Script Pattern
 

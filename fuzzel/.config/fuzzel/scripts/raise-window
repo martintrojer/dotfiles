@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Focus (raise) a Niri window by id or matching name, with optional fallback spawn."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+
+from _common import ScriptError, notify, require_commands, run
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--id", help="Niri window id to focus")
+    parser.add_argument(
+        "--app-id-regex",
+        help="Regex (case-insensitive) matched against niri window app_id",
+    )
+    parser.add_argument(
+        "--title-regex",
+        help="Regex (case-insensitive) matched against niri window title",
+    )
+    parser.add_argument(
+        "--spawn-sh",
+        help="Shell command to run if no matching window is found",
+    )
+    parser.add_argument(
+        "--notify-missing",
+        action="store_true",
+        help="Show notification if focusing fails",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    require_commands(["niri"])
+
+    if not args.id and not args.app_id_regex and not args.title_regex:
+        raise ScriptError(
+            "Provide --id or at least one matcher: --app-id-regex / --title-regex"
+        )
+
+    window_id: str | None = args.id
+    app_id_pattern = (
+        re.compile(args.app_id_regex, re.IGNORECASE) if args.app_id_regex else None
+    )
+    title_pattern = (
+        re.compile(args.title_regex, re.IGNORECASE) if args.title_regex else None
+    )
+
+    if window_id is None:
+        windows_result = run(["niri", "msg", "-j", "windows"], check=False)
+        if windows_result.returncode != 0:
+            raise ScriptError("Could not read niri windows")
+
+        try:
+            windows = json.loads(windows_result.stdout)
+        except json.JSONDecodeError as exc:
+            raise ScriptError("Invalid JSON from niri msg -j windows") from exc
+
+        if isinstance(windows, list):
+            for window in windows:
+                if not isinstance(window, dict):
+                    continue
+                app_id = str(window.get("app_id", ""))
+                title = str(window.get("title", ""))
+                app_match = (
+                    app_id_pattern.search(app_id) is not None
+                    if app_id_pattern is not None
+                    else False
+                )
+                title_match = (
+                    title_pattern.search(title) is not None
+                    if title_pattern is not None
+                    else False
+                )
+                if app_match or title_match:
+                    window_id = str(window.get("id", ""))
+                    break
+
+    if not window_id:
+        if args.spawn_sh:
+            run(["sh", "-lc", args.spawn_sh], check=False)
+            return 0
+        if args.notify_missing:
+            notify("Raise Window", "No matching window found")
+        raise ScriptError("No matching window found")
+
+    result = run(
+        ["niri", "msg", "action", "focus-window", "--id", window_id], check=False
+    )
+    if result.returncode != 0:
+        if args.notify_missing:
+            notify("Raise Window", f"Could not focus window id {window_id}")
+        raise ScriptError(f"Could not focus window id {window_id}")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except ScriptError as exc:
+        print(f"raise-window: {exc}")
+        raise SystemExit(1)
