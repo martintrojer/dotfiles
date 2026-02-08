@@ -15,16 +15,13 @@ class ScriptError(RuntimeError):
     """Raised for expected user-facing script errors."""
 
 
-
 def command_exists(name: str) -> bool:
     return shutil.which(name) is not None
-
 
 
 def notify(title: str, message: str) -> None:
     if command_exists("notify-send"):
         subprocess.run(["notify-send", title, message], check=False)
-
 
 
 def run(
@@ -43,7 +40,6 @@ def run(
         check=check,
         env=dict(env) if env is not None else None,
     )
-
 
 
 def fuzzel_dmenu(
@@ -72,11 +68,11 @@ def fuzzel_dmenu(
     return result.stdout.strip()
 
 
-
 def require_commands(commands: Sequence[str]) -> None:
     missing = [name for name in commands if not command_exists(name)]
     if missing:
         raise ScriptError(f"Missing required command(s): {', '.join(missing)}")
+
 
 def picker_cache_path(name: str) -> str:
     cache_home = Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache")))

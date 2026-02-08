@@ -48,6 +48,14 @@ def main():
 - Share common helpers from `fuzzel/.config/fuzzel/scripts/_common.py`
 - Most-used sorting uses fuzzel `--cache` per picker in `~/.cache/fuzzel/pickers/*.cache` (or `$XDG_CACHE_HOME/fuzzel/pickers/*.cache`)
 
+## Quality Checks
+
+Python scripts in this package should pass:
+
+- `ruff check`
+- `ty check`
+- `ruff format`
+
 ## Configuration
 
 Located at `fuzzel/.config/fuzzel/fuzzel.ini`:
