@@ -174,6 +174,10 @@ binds {
     Mod+Shift+B hotkey-overlay-title="Run a Browser" { spawn-sh "flatpak run com.google.Chrome --user-data-dir=\"$HOME/.config/chrome\" --remote-debugging-port=9222 --enable-features=UseOzonePlatform --ozone-platform=wayland"; }
     Mod+Y hotkey-overlay-title="Yazi" { spawn-sh "ghostty -e zsh -il -c yazi"; }
     Mod+N hotkey-overlay-title="Nautilus" { spawn "nautilus"; }
+    Mod+W hotkey-overlay-title="WhatsApp" { spawn-sh "~/.config/fuzzel/scripts/raise-window --app-id-regex 'whatsapp|zapzap' --title-regex 'WhatsApp' --spawn-sh 'flatpak run com.rtosta.zapzap'"; }
+    Mod+Shift+M hotkey-overlay-title="Cider" { spawn-sh "~/.config/fuzzel/scripts/raise-window --app-id-regex '^cider$' --title-regex 'Cider' --spawn-sh 'flatpak run sh.cider.Cider'"; }
+    Mod+V hotkey-overlay-title="VS Code" { spawn-sh "~/.config/fuzzel/scripts/raise-window --app-id-regex '^(code|vscode)$' --title-regex 'Visual Studio Code|VS Code' --spawn-sh 'code'"; }
+
     Mod+Shift+P hotkey-overlay-title="Power Menu" { spawn-sh "~/.config/fuzzel/scripts/powermenu"; }
     Mod+Shift+C hotkey-overlay-title="Clipboard History" { spawn-sh "~/.config/fuzzel/scripts/clipboard"; }
     Mod+E hotkey-overlay-title="Emoji Picker" { spawn-sh "~/.config/fuzzel/scripts/emoji"; }

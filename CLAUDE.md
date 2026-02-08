@@ -24,14 +24,18 @@ Many nested folders start with `.`. Most default searches skip these, so use hid
 - Add or update `.stow-local-ignore` in each package to keep `README.md` from being stowed into `$HOME`
 - Preserve path shapes that mirror `$HOME` (e.g. `.config/...`, `.ssh/...`); these are intended for stow
 - Avoid adding secrets or private keys. `ssh/.ssh/config` should stay non-sensitive
-- Keep changes minimal and consistent with existing formats (Lua, shell, TOML, JSON, INI)
+- Keep changes minimal and consistent with existing formats (Lua, Python, shell, TOML, JSON, INI)
 
 ## Script Locations
 
 Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 
+### Fuzzel Scripts
+- `fuzzel/.config/fuzzel/scripts/*` - Python 3 picker scripts (extensionless executable names)
+- Shared helpers: `fuzzel/.config/fuzzel/scripts/_common.py`
+
 ### Other Scripts
-- `waybar/.config/waybar/scripts/powermenu.sh` - Power menu
+- `waybar/.config/waybar/scripts/` - Waybar-specific shell helpers (if any)
 
 ## Package Docs
 
