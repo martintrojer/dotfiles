@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""Emoji picker using inlined bemoji-style implementation."""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import urllib.request
+from pathlib import Path
+
+from _common import ScriptError, command_exists, fuzzel_dmenu, notify, picker_cache_path, require_commands, run
+
+EMOJI_TEST_URL = "https://unicode.org/Public/emoji/16.0/emoji-test.txt"
+EMOJI_LINE_RE = re.compile(r"^[0-9A-F ]+;\s*fully-qualified\s*#\s*(\S+)\s+E[0-9.]+\s+(.+)$")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--prompt", default="Emoji ")
+    parser.add_argument("--width", type=int, default=60)
+    parser.add_argument("--lines", type=int, default=20)
+    parser.add_argument("--db", default=None, help="Emoji list file path")
+    parser.add_argument("--print", action="store_true", help="Print chosen emoji")
+    parser.add_argument("--no-copy", action="store_true", help="Do not copy chosen emoji")
+    return parser.parse_args()
+
+
+def default_db_path() -> Path:
+    data_home = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share")))
+    return data_home / "bemoji" / "emojis.txt"
+
+
+def ensure_db(db_path: Path) -> None:
+    if db_path.exists():
+        return
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with urllib.request.urlopen(EMOJI_TEST_URL, timeout=10) as response:
+        raw = response.read().decode("utf-8", errors="replace")
+
+    entries: list[str] = []
+    for line in raw.splitlines():
+        match = EMOJI_LINE_RE.match(line.strip())
+        if not match:
+            continue
+        emoji, name = match.groups()
+        entries.append(f"{emoji} {name}")
+
+    if not entries:
+        raise ScriptError("Failed to build emoji database")
+
+    db_path.write_text("\n".join(entries) + "\n", encoding="utf-8")
+
+
+def read_entries(db_path: Path) -> list[str]:
+    lines = [line.strip() for line in db_path.read_text(encoding="utf-8").splitlines()]
+    return [line for line in lines if line and not line.startswith("#")]
+
+
+def copy_text(text: str) -> None:
+    if command_exists("wl-copy"):
+        run(["wl-copy"], input_text=text, check=False)
+        return
+    if command_exists("xclip"):
+        run(["xclip", "-selection", "clipboard"], input_text=text, check=False)
+        return
+    if command_exists("xsel"):
+        run(["xsel", "-b"], input_text=text, check=False)
+        return
+    notify("Emoji", "No clipboard command found")
+
+
+def main() -> int:
+    args = parse_args()
+    require_commands(["fuzzel"])
+    cache = picker_cache_path("emoji")
+
+    db_path = Path(args.db).expanduser() if args.db else default_db_path()
+    try:
+        ensure_db(db_path)
+    except Exception as exc:  # noqa: BLE001
+        raise ScriptError(f"Could not prepare emoji database: {exc}") from exc
+
+    entries = read_entries(db_path)
+    if not entries:
+        raise ScriptError(f"No emojis found in {db_path}")
+
+    selected = fuzzel_dmenu(
+        prompt=args.prompt,
+        width=args.width,
+        lines=args.lines,
+        cache=cache,
+        options=entries,
+    )
+    if not selected:
+        return 0
+
+    emoji = selected.split(maxsplit=1)[0]
+    if not emoji:
+        return 0
+
+    if not args.no_copy:
+        copy_text(emoji)
+
+    if args.print:
+        print(emoji)
+
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except ScriptError as exc:
+        print(f"emoji: {exc}")
+        raise SystemExit(1)
