@@ -5,6 +5,9 @@ if vim.fn.exists(":Copilot") == 2 then
   vim.cmd("Copilot disable")
 end
 
+-- Insert zk link
+vim.keymap.set("i", "[[", "<Cmd>ZkInsertLink<CR>", { buffer = 0, desc = "Insert zk link" })
+
 -- Carddown card
 vim.keymap.set("n", "<leader>zc", function()
   local pos = vim.api.nvim_win_get_cursor(0)[2]
