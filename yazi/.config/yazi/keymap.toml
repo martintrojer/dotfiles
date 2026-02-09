@@ -38,3 +38,8 @@ run  = '''
 	'
 '''
 desc = "Go to Trash"
+
+[[mgr.prepend_keymap]]
+on   = [ "g", "l" ]
+run  = "shell 'glow \"$0\" -p' --block"
+desc = "Preview with glow"
