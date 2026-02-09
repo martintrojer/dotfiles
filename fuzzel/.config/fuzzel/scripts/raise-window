@@ -95,6 +95,7 @@ def main() -> int:
         if args.notify_missing:
             notify("Raise Window", f"Could not focus window id {window_id}")
         raise ScriptError(f"Could not focus window id {window_id}")
+    run(["niri", "msg", "action", "center-column"], check=False)
     return 0
 
 
