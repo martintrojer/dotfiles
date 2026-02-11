@@ -5,7 +5,7 @@ local MEH = { "shift", "alt", "ctrl" }
 -- Layout units
 local UNITS = {
 	full = hs.geometry.rect(0.0, 0.0, 1.0, 1.0),
-	center80 = hs.geometry.rect(0.1, 0.1, 0.8, 0.8),
+	center90 = hs.geometry.rect(0.05, 0.05, 0.9, 0.9),
 	topLeftQuarter = hs.geometry.rect(0.0, 0.0, 0.5, 0.5),
 	topRightQuarter = hs.geometry.rect(0.5, 0.0, 0.5, 0.5),
 	bottomLeftQuarter = hs.geometry.rect(0.0, 0.5, 0.5, 0.5),
@@ -51,7 +51,7 @@ local HELP_TEXT = table.concat({
 	"E: Top cycle (1/3, 1/2, 2/3)",
 	"R: Top-right toggle (1/2 <-> 2/3)",
 	"S: Left cycle (1/3, 1/2, 2/3)",
-	"D: Toggle Full <-> Center 80%",
+	"D: Toggle Full <-> Center 90%",
 	"F: Right cycle (1/3, 1/2, 2/3)",
 	"X: Bottom-left toggle (1/2 <-> 2/3)",
 	"C: Bottom cycle (1/3, 1/2, 2/3)",
@@ -66,13 +66,18 @@ local HELP_TEXT = table.concat({
 	"Apps",
 	"Press app key again to cycle windows (if app has multiple)",
 	"A: Safari",
-	"H: Chrome",
+	"B: Chrome",
+	"O: Codex",
 	"I: VS Code",
-	"G: Ghostty",
+	"G: Google Chat",
 	"M: Music",
+	"N: Finder (new window if frontmost)",
 	"Q: WhatsApp",
-	"T: Google Chat",
+	"T: Ghostty",
+	"Y: Activity Monitor",
+	"Z: Zoom",
 	",: System Settings",
+	"Return: New Ghostty window",
 	"/: Show this help",
 }, "\n")
 
@@ -202,6 +207,34 @@ local function bindDesktop(key, desktopNumber)
 	end)
 end
 
+local function openNewGhosttyWindow()
+	local app = hs.application.get("Ghostty")
+	if app then
+		app:activate(true)
+	else
+		hs.application.launchOrFocus("Ghostty")
+	end
+
+	hs.timer.doAfter(0.12, function()
+		local ghostty = hs.application.get("Ghostty")
+		if ghostty then
+			hs.eventtap.keyStroke({ "cmd" }, "n", 0, ghostty)
+		else
+			hs.eventtap.keyStroke({ "cmd" }, "n", 0)
+		end
+	end)
+end
+
+local function openOrNewFinderWindow()
+	local app = hs.application.get("Finder")
+	if app and app:isFrontmost() then
+		hs.eventtap.keyStroke({ "cmd" }, "n", 0, app)
+		return
+	end
+
+	launchOrFocusApp({ "Finder" })
+end
+
 -- Key bindings
 bindToggle("W", UNITS.topLeftQuarter, UNITS.topLeftTwoThirds)
 bindToggle("R", UNITS.topRightQuarter, UNITS.topRightTwoThirds)
@@ -213,34 +246,40 @@ bindCycle("S")
 bindCycle("F")
 bindCycle("C")
 
--- Toggle full <-> centered 80%
+-- Toggle full <-> centered 90%
 hs.hotkey.bind(MEH, "D", function()
 	withFocusedWindow(function(win)
 		if isAtUnit(win, UNITS.full) then
-			moveToUnit(win, UNITS.center80)
+			moveToUnit(win, UNITS.center90)
 		else
 			moveToUnit(win, UNITS.full)
 		end
 	end)
 end)
 
--- Desktop bindings (requires Mission Control shortcuts for Ctrl+1..4)
+-- Desktop bindings (requires Mission Control shortcuts for Ctrl+1..5)
 bindDesktop("1", 1)
 bindDesktop("2", 2)
 bindDesktop("3", 3)
 bindDesktop("4", 4)
+bindDesktop("5", 5)
 
 -- App bindings (MEH + mnemonic letter)
 bindApp("A", { "Safari" }) -- A = Apple Safari
-bindApp("H", { "Google Chrome", "Chrome" }) -- H = cHrome
-bindApp("I", { "Visual Studio Code", "Code" }) -- I = IDE
-bindApp("G", { "Ghostty" }) -- G = Ghostty
-bindApp("M", { "Music" }) -- M = Music
-bindApp("Q", { "WhatsApp" }) -- Q = chat/quick message
-bindApp("T", { "Google Chat" }, function() -- T = chaT
+bindApp("B", { "Google Chrome", "Chrome" }) -- B = Browser
+bindApp("O", { "Codex" }) -- O = Open Codex
+bindApp("I", { "Visual Studio Code", "Visual Studio Code" }) -- I = IDE
+bindApp("G", { "Google Chat" }, function() -- G = Google Chat
 	hs.urlevent.openURLWithBundle("https://chat.google.com", "com.google.Chrome")
 end)
+bindApp("M", { "Music" }) -- M = Music
+hs.hotkey.bind(MEH, "N", openOrNewFinderWindow) -- N = fiNder/new window
+bindApp("Q", { "WhatsApp" }) -- Q = chat/quick message
+bindApp("T", { "Ghostty" }) -- T = Terminal
+bindApp("Y", { "Activity Monitor" }) -- Y = activitY monitor
+bindApp("Z", { "zoom.us", "Zoom Workplace", "Zoom" }) -- Z = Zoom
 bindApp(",", { "System Settings", "System Preferences" }) -- , = settings
+hs.hotkey.bind(MEH, "return", openNewGhosttyWindow) -- Return = new terminal window
 
 -- Help
 hs.hotkey.bind(MEH, "/", toggleHelp)
