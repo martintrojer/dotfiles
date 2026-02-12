@@ -1,6 +1,8 @@
 -- Settings
 hs.window.animationDuration = 0
 local MEH = { "shift", "alt", "ctrl" }
+local HYPER = { "shift", "cmd", "alt", "ctrl" }
+local SMASH = MEH -- HYPER
 
 -- Layout units
 local UNITS = {
@@ -43,43 +45,11 @@ local CYCLE_UNITS = {
 -- Runtime cycle state, per key and per focused window id
 local cycleStateByKey = {}
 local helpAlertId = nil
-local HELP_TEXT = table.concat({
-	"MEH = Shift + Alt + Ctrl",
-	"",
-	"Window",
-	"W: Top-left toggle (1/2 <-> 2/3)",
-	"E: Top cycle (1/3, 1/2, 2/3)",
-	"R: Top-right toggle (1/2 <-> 2/3)",
-	"S: Left cycle (1/3, 1/2, 2/3)",
-	"D: Toggle Full <-> Center 90%",
-	"F: Right cycle (1/3, 1/2, 2/3)",
-	"X: Bottom-left toggle (1/2 <-> 2/3)",
-	"C: Bottom cycle (1/3, 1/2, 2/3)",
-	"V: Bottom-right toggle (1/2 <-> 2/3)",
-	"",
-	"Desktops",
-	"1: Go to Desktop 1 (Ctrl+1)",
-	"2: Go to Desktop 2 (Ctrl+2)",
-	"3: Go to Desktop 3 (Ctrl+3)",
-	"4: Go to Desktop 4 (Ctrl+4)",
-	"",
-	"Apps",
-	"Press app key again to cycle windows (if app has multiple)",
-	"A: Safari",
-	"B: Chrome",
-	"O: Codex",
-	"I: VS Code",
-	"G: Google Chat",
-	"M: Music",
-	"N: Finder (new window if frontmost)",
-	"Q: WhatsApp",
-	"T: Ghostty",
-	"Y: Activity Monitor",
-	"Z: Zoom",
-	",: System Settings",
-	"Return: New Ghostty window",
-	"/: Show this help",
-}, "\n")
+local HELP_SECTIONS = {
+	Window = {},
+	Desktops = {},
+	Apps = {},
+}
 
 -- Helpers
 local function withFocusedWindow(action)
@@ -155,6 +125,48 @@ local function launchOrFocusApp(appNames, fallback)
 	end
 end
 
+local function addHelp(section, line)
+	table.insert(HELP_SECTIONS[section], line)
+end
+
+local function formatModifiers(modifiers)
+	local names = {
+		shift = "Shift",
+		ctrl = "Ctrl",
+		alt = "Alt",
+		cmd = "Cmd",
+	}
+	local formatted = {}
+
+	for _, modifier in ipairs(modifiers) do
+		table.insert(formatted, names[modifier] or modifier)
+	end
+
+	return table.concat(formatted, " + ")
+end
+
+local function buildHelpText()
+	local lines = { "SMASH = " .. formatModifiers(SMASH), "", "Window" }
+	for _, line in ipairs(HELP_SECTIONS.Window) do
+		table.insert(lines, line)
+	end
+
+	table.insert(lines, "")
+	table.insert(lines, "Desktops")
+	for _, line in ipairs(HELP_SECTIONS.Desktops) do
+		table.insert(lines, line)
+	end
+
+	table.insert(lines, "")
+	table.insert(lines, "Apps")
+	table.insert(lines, "Press app key again to cycle windows (if app has multiple)")
+	for _, line in ipairs(HELP_SECTIONS.Apps) do
+		table.insert(lines, line)
+	end
+
+	return table.concat(lines, "\n")
+end
+
 local function toggleHelp()
 	if helpAlertId then
 		hs.alert.closeSpecific(helpAlertId)
@@ -162,27 +174,28 @@ local function toggleHelp()
 		return
 	end
 
-	helpAlertId = hs.alert.show(HELP_TEXT, {
+	helpAlertId = hs.alert.show(buildHelpText(), {
 		atScreenEdge = 2,
 		fadeInDuration = 0.1,
 		fadeOutDuration = 0.1,
 		radius = 8,
 		strokeWidth = 2,
 		textSize = 20,
-	}, nil, 0)
+	}, nil, 12)
 end
 
 -- Binding helpers
-local function bindCycle(key)
-	hs.hotkey.bind(MEH, key, function()
+local function bindCycle(key, helpText)
+	hs.hotkey.bind(SMASH, key, function()
 		withFocusedWindow(function(win)
 			cycleUnitsForKey(win, key, CYCLE_UNITS[key])
 		end)
 	end)
+	addHelp("Window", string.format("%s: %s", key, helpText))
 end
 
-local function bindToggle(key, unitA, unitB)
-	hs.hotkey.bind(MEH, key, function()
+local function bindToggle(key, unitA, unitB, helpText)
+	hs.hotkey.bind(SMASH, key, function()
 		withFocusedWindow(function(win)
 			if isAtUnit(win, unitA) then
 				moveToUnit(win, unitB)
@@ -193,18 +206,21 @@ local function bindToggle(key, unitA, unitB)
 			end
 		end)
 	end)
+	addHelp("Window", string.format("%s: %s", key, helpText))
 end
 
-local function bindApp(key, appNames, fallback)
-	hs.hotkey.bind(MEH, key, function()
+local function bindApp(key, appNames, helpText, fallback)
+	hs.hotkey.bind(SMASH, key, function()
 		launchOrFocusApp(appNames, fallback)
 	end)
+	addHelp("Apps", string.format("%s: %s", key, helpText))
 end
 
 local function bindDesktop(key, desktopNumber)
-	hs.hotkey.bind(MEH, key, function()
+	hs.hotkey.bind(SMASH, key, function()
 		hs.eventtap.keyStroke({ "ctrl" }, tostring(desktopNumber), 0)
 	end)
+	addHelp("Desktops", string.format("%s: Go to Desktop %d (Ctrl+%d)", key, desktopNumber, desktopNumber))
 end
 
 local function openNewGhosttyWindow()
@@ -236,18 +252,18 @@ local function openOrNewFinderWindow()
 end
 
 -- Key bindings
-bindToggle("W", UNITS.topLeftQuarter, UNITS.topLeftTwoThirds)
-bindToggle("R", UNITS.topRightQuarter, UNITS.topRightTwoThirds)
-bindToggle("X", UNITS.bottomLeftQuarter, UNITS.bottomLeftTwoThirds)
-bindToggle("V", UNITS.bottomRightQuarter, UNITS.bottomRightTwoThirds)
+bindToggle("W", UNITS.topLeftQuarter, UNITS.topLeftTwoThirds, "Top-left toggle (1/2 <-> 2/3)")
+bindToggle("R", UNITS.topRightQuarter, UNITS.topRightTwoThirds, "Top-right toggle (1/2 <-> 2/3)")
+bindToggle("X", UNITS.bottomLeftQuarter, UNITS.bottomLeftTwoThirds, "Bottom-left toggle (1/2 <-> 2/3)")
+bindToggle("V", UNITS.bottomRightQuarter, UNITS.bottomRightTwoThirds, "Bottom-right toggle (1/2 <-> 2/3)")
 
-bindCycle("E")
-bindCycle("S")
-bindCycle("F")
-bindCycle("C")
+bindCycle("E", "Top cycle (1/3, 1/2, 2/3)")
+bindCycle("S", "Left cycle (1/3, 1/2, 2/3)")
+bindCycle("F", "Right cycle (1/3, 1/2, 2/3)")
+bindCycle("C", "Bottom cycle (1/3, 1/2, 2/3)")
 
 -- Toggle full <-> centered 90%
-hs.hotkey.bind(MEH, "D", function()
+hs.hotkey.bind(SMASH, "D", function()
 	withFocusedWindow(function(win)
 		if isAtUnit(win, UNITS.full) then
 			moveToUnit(win, UNITS.center90)
@@ -256,6 +272,7 @@ hs.hotkey.bind(MEH, "D", function()
 		end
 	end)
 end)
+addHelp("Window", "D: Toggle Full <-> Center 90%")
 
 -- Desktop bindings (requires Mission Control shortcuts for Ctrl+1..5)
 bindDesktop("1", 1)
@@ -264,22 +281,25 @@ bindDesktop("3", 3)
 bindDesktop("4", 4)
 bindDesktop("5", 5)
 
--- App bindings (MEH + mnemonic letter)
-bindApp("A", { "Safari" }) -- A = Apple Safari
-bindApp("B", { "Google Chrome", "Chrome" }) -- B = Browser
-bindApp("O", { "Codex" }) -- O = Open Codex
-bindApp("I", { "Visual Studio Code", "Visual Studio Code" }) -- I = IDE
-bindApp("G", { "Google Chat" }, function() -- G = Google Chat
+-- App bindings (SMASH + mnemonic letter)
+bindApp("A", { "Safari" }, "Safari") -- A = Apple Safari
+bindApp("B", { "Google Chrome", "Chrome" }, "Chrome") -- B = Browser
+bindApp("O", { "Codex" }, "Codex") -- O = Open Codex
+bindApp("I", { "Visual Studio Code", "Visual Studio Code" }, "VS Code") -- I = IDE
+bindApp("G", { "Google Chat" }, "Google Chat", function() -- G = Google Chat
 	hs.urlevent.openURLWithBundle("https://chat.google.com", "com.google.Chrome")
 end)
-bindApp("M", { "Music" }) -- M = Music
-hs.hotkey.bind(MEH, "N", openOrNewFinderWindow) -- N = fiNder/new window
-bindApp("Q", { "WhatsApp" }) -- Q = chat/quick message
-bindApp("T", { "Ghostty" }) -- T = Terminal
-bindApp("Y", { "Activity Monitor" }) -- Y = activitY monitor
-bindApp("Z", { "zoom.us", "Zoom Workplace", "Zoom" }) -- Z = Zoom
-bindApp(",", { "System Settings", "System Preferences" }) -- , = settings
-hs.hotkey.bind(MEH, "return", openNewGhosttyWindow) -- Return = new terminal window
+bindApp("M", { "Music" }, "Music") -- M = Music
+hs.hotkey.bind(SMASH, "N", openOrNewFinderWindow) -- N = fiNder/new window
+addHelp("Apps", "N: Finder (new window if frontmost)")
+bindApp("Q", { "WhatsApp" }, "WhatsApp") -- Q = chat/quick message
+bindApp("T", { "Ghostty" }, "Ghostty") -- T = Terminal
+bindApp("Y", { "Activity Monitor" }, "Activity Monitor") -- Y = activitY monitor
+bindApp("Z", { "zoom.us", "Zoom Workplace", "Zoom" }, "Zoom") -- Z = Zoom
+bindApp(",", { "System Settings", "System Preferences" }, "System Settings") -- , = settings
+hs.hotkey.bind(SMASH, "return", openNewGhosttyWindow) -- Return = new terminal window
+addHelp("Apps", "Return: New Ghostty window")
 
 -- Help
-hs.hotkey.bind(MEH, "/", toggleHelp)
+hs.hotkey.bind(SMASH, "/", toggleHelp)
+addHelp("Apps", "/: Show this help")
