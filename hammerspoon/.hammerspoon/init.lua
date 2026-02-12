@@ -3,6 +3,8 @@ hs.window.animationDuration = 0
 local MEH = { "shift", "alt", "ctrl" }
 local HYPER = { "shift", "cmd", "alt", "ctrl" }
 local SMASH = MEH -- HYPER
+local BROWSER = { "Safari" } -- or { "Google Chrome", "Chrome" }
+local IDE = { "Visual Studio Code" }
 
 -- Layout units
 local UNITS = {
@@ -56,7 +58,6 @@ local HELP_SECTIONS = {
 -- Electron apps where app:allWindows() is prohibitively slow
 local SKIP_FULL_ENUM = {
 	["Code"] = true,
-	["Visual Studio Code"] = true,
 	["Codex"] = true,
 	["Cider"] = true,
 	["Slack"] = true,
@@ -71,6 +72,9 @@ local SKIP_FULL_ENUM = {
 	["Spotify"] = true,
 	["WhatsApp"] = true,
 }
+for _, name in ipairs(IDE) do
+	SKIP_FULL_ENUM[name] = true
+end
 
 local function getAppWindowsOnCurrentSpace(app)
 	local currentSpace = hs.spaces.focusedSpace()
@@ -347,10 +351,9 @@ bindDesktop("4", 4)
 bindDesktop("5", 5)
 
 -- App bindings (SMASH + mnemonic letter)
-bindApp("A", { "Safari" }, "Safari") -- A = Apple Safari
-bindApp("B", { "Google Chrome", "Chrome" }, "Chrome") -- B = Browser
+bindApp("B", BROWSER, "Browser") -- B = Browser
+bindApp("I", IDE, "IDE") -- I = IDE
 bindApp("O", { "Codex" }, "Codex") -- O = Open Codex
-bindApp("I", { "Visual Studio Code", "Visual Studio Code" }, "VS Code") -- I = IDE
 bindApp("G", { "Google Chat" }, "Google Chat", function() -- G = Google Chat
 	hs.urlevent.openURLWithBundle("https://chat.google.com", "com.google.Chrome")
 end)
