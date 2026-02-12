@@ -57,7 +57,6 @@ local HELP_SECTIONS = {
 local SKIP_FULL_ENUM = {
 	["Code"] = true,
 	["Visual Studio Code"] = true,
-	["VS Code @ FB"] = true,
 	["Codex"] = true,
 	["Cider"] = true,
 	["Slack"] = true,
@@ -160,6 +159,18 @@ end
 local function launchOrFocusApp(appNames, fallback)
 	local app = getRunningApp(appNames)
 	if app then
+		-- Fast path for Electron apps: skip all AX queries
+		for _, name in ipairs(appNames) do
+			if SKIP_FULL_ENUM[name] then
+				if hs.application.frontmostApplication():pid() == app:pid() then
+					hs.eventtap.keyStroke({ "cmd" }, "`", 0)
+				else
+					app:activate()
+				end
+				return
+			end
+		end
+
 		local winsOnSpace = getAppWindowsOnCurrentSpace(app)
 
 		if app:isFrontmost() and #winsOnSpace > 0 then
@@ -285,28 +296,6 @@ local function bindDesktop(key, desktopNumber)
 	addHelp("Desktops", string.format("%s: Go to Desktop %d (Ctrl+%d)", key, desktopNumber, desktopNumber))
 end
 
-local function openNewGhosttyWindow()
-	local app = hs.application.get("Ghostty")
-	if app then
-		local winsOnSpace = getAppWindowsOnCurrentSpace(app)
-		if #winsOnSpace > 0 then
-			winsOnSpace[1]:focus()
-			hs.timer.doAfter(0.12, function()
-				local ghostty = hs.application.get("Ghostty")
-				if ghostty then
-					hs.eventtap.keyStroke({ "cmd" }, "n", 0, ghostty)
-				end
-			end)
-		else
-			-- No Ghostty window on current space; open new instance here
-			hs.execute("/usr/bin/open -na Ghostty", true)
-		end
-		return
-	end
-
-	hs.application.launchOrFocus("Ghostty")
-end
-
 local function openOrNewFinderWindow()
 	local app = hs.application.get("Finder")
 	if app then
@@ -373,7 +362,14 @@ bindApp("T", { "Ghostty" }, "Ghostty") -- T = Terminal
 bindApp("Y", { "Activity Monitor" }, "Activity Monitor") -- Y = activitY monitor
 bindApp("Z", { "zoom.us", "Zoom Workplace", "Zoom" }, "Zoom") -- Z = Zoom
 bindApp(",", { "System Settings", "System Preferences" }, "System Settings") -- , = settings
-hs.hotkey.bind(SMASH, "return", openNewGhosttyWindow) -- Return = new terminal window
+hs.hotkey.bind(SMASH, "return", function() -- Return = new terminal window
+	local app = hs.application.get("Ghostty")
+	if app then
+		hs.eventtap.keyStroke({ "cmd" }, "n", 0, app)
+	else
+		hs.application.launchOrFocus("Ghostty")
+	end
+end)
 addHelp("Apps", "Return: New Ghostty window")
 
 -- Help
