@@ -52,6 +52,61 @@ local HELP_SECTIONS = {
 }
 
 -- Helpers
+
+-- Electron apps where app:allWindows() is prohibitively slow
+local SKIP_FULL_ENUM = {
+	["Code"] = true,
+	["Visual Studio Code"] = true,
+	["VS Code @ FB"] = true,
+	["Codex"] = true,
+	["Cider"] = true,
+	["Slack"] = true,
+	["Discord"] = true,
+	["Microsoft Teams"] = true,
+	["Figma"] = true,
+	["Notion"] = true,
+	["Obsidian"] = true,
+	["1Password"] = true,
+	["Bitwarden"] = true,
+	["Signal"] = true,
+	["Spotify"] = true,
+	["WhatsApp"] = true,
+}
+
+local function getAppWindowsOnCurrentSpace(app)
+	local currentSpace = hs.spaces.focusedSpace()
+	local ok, spaceWinIDs = pcall(hs.spaces.windowsForSpace, currentSpace)
+	if not ok or not spaceWinIDs then
+		return {}
+	end
+
+	local onSpace = {}
+	for _, wid in ipairs(spaceWinIDs) do
+		onSpace[wid] = true
+	end
+
+	-- Fast path: check mainWindow/focusedWindow (single AX query each)
+	local seen = {}
+	local results = {}
+	for _, win in ipairs({ app:focusedWindow(), app:mainWindow() }) do
+		if win and not seen[win:id()] and onSpace[win:id()] then
+			seen[win:id()] = true
+			table.insert(results, win)
+		end
+	end
+	if #results > 0 or SKIP_FULL_ENUM[app:name()] then
+		return results
+	end
+
+	-- Slow path: full enumeration (skipped for Electron apps)
+	for _, win in ipairs(app:allWindows()) do
+		if win:isStandard() and onSpace[win:id()] then
+			table.insert(results, win)
+		end
+	end
+	return results
+end
+
 local function withFocusedWindow(action)
 	local win = hs.window.focusedWindow()
 	if win then
@@ -105,12 +160,19 @@ end
 local function launchOrFocusApp(appNames, fallback)
 	local app = getRunningApp(appNames)
 	if app then
-		if app:isFrontmost() then
+		local winsOnSpace = getAppWindowsOnCurrentSpace(app)
+
+		if app:isFrontmost() and #winsOnSpace > 0 then
 			hs.eventtap.keyStroke({ "cmd" }, "`", 0)
 			return
 		end
 
-		app:activate(true)
+		if #winsOnSpace > 0 then
+			winsOnSpace[1]:focus()
+			return
+		end
+
+		-- App running but no windows on current space; don't switch desktops
 		return
 	end
 
@@ -226,25 +288,39 @@ end
 local function openNewGhosttyWindow()
 	local app = hs.application.get("Ghostty")
 	if app then
-		app:activate(true)
-	else
-		hs.application.launchOrFocus("Ghostty")
+		local winsOnSpace = getAppWindowsOnCurrentSpace(app)
+		if #winsOnSpace > 0 then
+			winsOnSpace[1]:focus()
+			hs.timer.doAfter(0.12, function()
+				local ghostty = hs.application.get("Ghostty")
+				if ghostty then
+					hs.eventtap.keyStroke({ "cmd" }, "n", 0, ghostty)
+				end
+			end)
+		else
+			-- No Ghostty window on current space; open new instance here
+			hs.execute("/usr/bin/open -na Ghostty", true)
+		end
+		return
 	end
 
-	hs.timer.doAfter(0.12, function()
-		local ghostty = hs.application.get("Ghostty")
-		if ghostty then
-			hs.eventtap.keyStroke({ "cmd" }, "n", 0, ghostty)
-		else
-			hs.eventtap.keyStroke({ "cmd" }, "n", 0)
-		end
-	end)
+	hs.application.launchOrFocus("Ghostty")
 end
 
 local function openOrNewFinderWindow()
 	local app = hs.application.get("Finder")
-	if app and app:isFrontmost() then
-		hs.eventtap.keyStroke({ "cmd" }, "n", 0, app)
+	if app then
+		local winsOnSpace = getAppWindowsOnCurrentSpace(app)
+		if app:isFrontmost() and #winsOnSpace > 0 then
+			hs.eventtap.keyStroke({ "cmd" }, "n", 0, app)
+			return
+		end
+		if #winsOnSpace > 0 then
+			winsOnSpace[1]:focus()
+			return
+		end
+		-- No Finder window on current space; open one here
+		hs.execute("/usr/bin/open " .. os.getenv("HOME"), true)
 		return
 	end
 
