@@ -220,12 +220,20 @@ ghash() {
   fi
 }
 
-# hgup: Look up a git hash by pattern and update hg to it
-hgup() {
+# hgh: Run an hg command with a git hash looked up by pattern from tmux
+# Usage: hgh <hg-subcommand> <pattern>
+hgh() {
+  if [[ $# -ne 2 ]]; then
+    echo "Usage: hgh <hg-subcommand> <pattern>" >&2
+    return 1
+  fi
   local hash
-  hash=$(ghash "$1") || return 1
-  hg up "$hash"
+  hash=$(ghash "$2") || return 1
+  hg "$1" "$hash"
 }
+
+hgup() { hgh up "$1"; }
+hgshow() { hgh show "$1"; }
 
 # Remove all history lines matching a pattern
 rmhist() {
