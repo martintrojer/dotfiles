@@ -276,6 +276,47 @@ summarize() {
   fi
 }
 
+# openrouter: Run a command with OPENROUTER_API from OpenClaw auth profiles.
+# Usage: openrouter <command> [args...]
+openrouter() {
+  if (( $# == 0 )); then
+    echo "Usage: openrouter <command> [args...]" >&2
+    return 1
+  fi
+
+  local auth_file="$HOME/.openclaw/agents/main/agent/auth-profiles.json"
+  if [[ ! -r "$auth_file" ]]; then
+    echo "Error: Cannot read auth file: $auth_file" >&2
+    return 1
+  fi
+
+  local key
+  if command -v jq >/dev/null 2>&1; then
+    key=$(jq -r '
+      .lastGood.openrouter as $profile
+      | if ($profile != null and (.profiles[$profile].key // "") != "")
+        then .profiles[$profile].key
+        else (
+          .profiles
+          | to_entries
+          | map(select(.value.provider == "openrouter" and (.value.key // "") != ""))
+          | .[0].value.key // ""
+        )
+        end
+    ' "$auth_file")
+  else
+    # Fallback: first OpenRouter-style key in the auth JSON.
+    key=$(sed -nE 's/.*"key"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$auth_file" | head -n1)
+  fi
+
+  if [[ -z "$key" ]]; then
+    echo "Error: Could not find OpenRouter key in $auth_file" >&2
+    return 1
+  fi
+
+  OPENROUTER_API="$key" OPENROUTER_API_KEY="$key" "$@"
+}
+
 # ======================================================
 ## FB-specific configuration
 # ======================================================
