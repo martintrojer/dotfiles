@@ -10,6 +10,7 @@ local IDE = { "Visual Studio Code" }
 local UNITS = {
 	full = hs.geometry.rect(0.0, 0.0, 1.0, 1.0),
 	center90 = hs.geometry.rect(0.05, 0.05, 0.9, 0.9),
+	tallCenter = hs.geometry.rect(0.15, 0.0, 0.7, 1.0),
 	topLeftQuarter = hs.geometry.rect(0.0, 0.0, 0.5, 0.5),
 	topRightQuarter = hs.geometry.rect(0.5, 0.0, 0.5, 0.5),
 	bottomLeftQuarter = hs.geometry.rect(0.0, 0.5, 0.5, 0.5),
@@ -331,17 +332,14 @@ bindCycle("S", "Left cycle (1/3, 1/2, 2/3)")
 bindCycle("F", "Right cycle (1/3, 1/2, 2/3)")
 bindCycle("C", "Bottom cycle (1/3, 1/2, 2/3)")
 
--- Toggle full <-> centered 90%
+-- Cycle full -> centered 90% -> tall centered
+local D_CYCLE = { UNITS.full, UNITS.center90, UNITS.tallCenter }
 hs.hotkey.bind(SMASH, "D", function()
 	withFocusedWindow(function(win)
-		if isAtUnit(win, UNITS.full) then
-			moveToUnit(win, UNITS.center90)
-		else
-			moveToUnit(win, UNITS.full)
-		end
+		cycleUnitsForKey(win, "D", D_CYCLE)
 	end)
 end)
-addHelp("Window", "D: Toggle Full <-> Center 90%")
+addHelp("Window", "D: Cycle Full -> Center 90% -> Tall Center")
 
 -- Desktop bindings (requires Mission Control shortcuts for Ctrl+1..5)
 bindDesktop("1", 1)
