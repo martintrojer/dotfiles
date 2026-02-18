@@ -179,7 +179,33 @@ local function launchOrFocusApp(appNames, fallback)
 		local winsOnSpace = getAppWindowsOnCurrentSpace(app)
 
 		if app:isFrontmost() and #winsOnSpace > 0 then
-			hs.eventtap.keyStroke({ "cmd" }, "`", 0)
+			-- Get all windows for cycling (not just focused/main)
+			local currentSpace = hs.spaces.focusedSpace()
+			local ok, spaceWinIDs = pcall(hs.spaces.windowsForSpace, currentSpace)
+			if ok and spaceWinIDs then
+				local onSpace = {}
+				for _, wid in ipairs(spaceWinIDs) do
+					onSpace[wid] = true
+				end
+				local allWins = {}
+				for _, win in ipairs(app:allWindows()) do
+					if win:isStandard() and onSpace[win:id()] then
+						table.insert(allWins, win)
+					end
+				end
+				if #allWins > 1 then
+					local focused = hs.window.focusedWindow()
+					local nextIdx = 1
+					for i, w in ipairs(allWins) do
+						if w:id() == focused:id() then
+							nextIdx = (i % #allWins) + 1
+							break
+						end
+					end
+					allWins[nextIdx]:focus()
+					return
+				end
+			end
 			return
 		end
 
@@ -373,6 +399,27 @@ hs.hotkey.bind(SMASH, "return", function() -- Return = new terminal window
 	end
 end)
 addHelp("Apps", "Return: New Ghostty window")
+
+-- Focus window by direction
+hs.hotkey.bind(SMASH, "right", function()
+	local win = hs.window.focusedWindow()
+	if win then win:focusWindowEast(hs.window.orderedWindows(), false, false) end
+end)
+
+hs.hotkey.bind(SMASH, "left", function()
+	local win = hs.window.focusedWindow()
+	if win then win:focusWindowWest(hs.window.orderedWindows(), false, false) end
+end)
+
+hs.hotkey.bind(SMASH, "up", function()
+	local win = hs.window.focusedWindow()
+	if win then win:focusWindowNorth(hs.window.orderedWindows(), false, false) end
+end)
+
+hs.hotkey.bind(SMASH, "down", function()
+	local win = hs.window.focusedWindow()
+	if win then win:focusWindowSouth(hs.window.orderedWindows(), false, false) end
+end)
 
 -- Help
 hs.hotkey.bind(SMASH, "/", toggleHelp)
