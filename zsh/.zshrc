@@ -16,13 +16,13 @@ plugins=(
          alias-finder
          colorize
          common-aliases
-         docker
          docker-compose
          eza
          fzf
          git
          jj
          mercurial
+         podman
          rust
          tmux
          zsh-autosuggestions
