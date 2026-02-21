@@ -376,7 +376,7 @@ bindDesktop("5", 5)
 
 -- App bindings (SMASH + mnemonic letter)
 bindApp("B", BROWSER, "Browser") -- B = Browser
-bindApp("L", { "Telegram" }, "Telegram") -- L = TeLegram
+bindApp("U", { "Telegram" }, "Telegram") -- U = telegraUm
 bindApp("I", IDE, "IDE") -- I = IDE
 bindApp("O", { "Codex" }, "Codex") -- O = Open Codex
 bindApp("G", { "Google Chat" }, "Google Chat", function() -- G = Google Chat
