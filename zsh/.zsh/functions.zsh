@@ -88,6 +88,11 @@ rmhist() {
   echo "Removed history lines matching: $1"
 }
 
+# mdv: Render a markdown file with glow, sized to the current terminal width
+mdv() {
+  glow -p -w "$(($(tput cols) - 6))" "$@"
+}
+
 # summarize: Pipe clipboard content to an AI CLI for bullet-point summary
 summarize() {
   local paste_cmd
