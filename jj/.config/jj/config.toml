@@ -27,6 +27,12 @@ toclean = ["log", "-r", "empty() ~ merges() & mutable()"]
 # Rebase everything on main
 rebase-all = ["rebase", "-b", "bookmarks() & mine()", "-d", "main"]
 
+# Land workflow (run in order):
+#   1. jj rebase -r <rev> -d main
+#   2. jj tug
+#   3. jj rebase-main
+rebase-main = ["rebase", "-s", "children(main@origin) ~ ::main", "-d", "main"]
+
 [revsets]
 log = "bookmarks() | @ | ancestors(bookmarks() | @, 2)"
 
