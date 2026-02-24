@@ -1,5 +1,6 @@
 -- Settings
 hs.window.animationDuration = 0
+local GAP = 4 -- pixels: uniform gap between windows and screen edges
 local MEH = { "shift", "alt", "ctrl" }
 local HYPER = { "shift", "cmd", "alt", "ctrl" }
 local SMASH = MEH -- HYPER
@@ -118,18 +119,34 @@ local function withFocusedWindow(action)
 	end
 end
 
+local function gappedFrame(sf, unit)
+	-- Screen-edge sides get full GAP; interior sides get half GAP
+	-- so two adjacent windows produce a full GAP between them
+	local padL = (unit.x < 0.01) and GAP or (GAP / 2)
+	local padT = (unit.y < 0.01) and GAP or (GAP / 2)
+	local padR = (unit.x + unit.w > 0.99) and GAP or (GAP / 2)
+	local padB = (unit.y + unit.h > 0.99) and GAP or (GAP / 2)
+
+	return hs.geometry.rect(
+		sf.x + unit.x * sf.w + padL,
+		sf.y + unit.y * sf.h + padT,
+		unit.w * sf.w - padL - padR,
+		unit.h * sf.h - padT - padB
+	)
+end
+
 local function moveToUnit(win, unit)
-	win:moveToUnit(unit)
+	win:setFrame(gappedFrame(win:screen():frame(), unit))
 end
 
 local function isAtUnit(win, unit)
-	local current = win:screen():toUnitRect(win:frame())
-	local tolerance = 0.03
-
-	return math.abs(current.x - unit.x) <= tolerance
-		and math.abs(current.y - unit.y) <= tolerance
-		and math.abs(current.w - unit.w) <= tolerance
-		and math.abs(current.h - unit.h) <= tolerance
+	local f = win:frame()
+	local gf = gappedFrame(win:screen():frame(), unit)
+	local tolerance = 5
+	return math.abs(f.x - gf.x) <= tolerance
+		and math.abs(f.y - gf.y) <= tolerance
+		and math.abs(f.w - gf.w) <= tolerance
+		and math.abs(f.h - gf.h) <= tolerance
 end
 
 local function cycleUnitsForKey(win, key, units)
