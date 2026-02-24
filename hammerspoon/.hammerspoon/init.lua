@@ -392,7 +392,16 @@ bindDesktop("4", 4)
 bindDesktop("5", 5)
 
 -- App bindings (SMASH + mnemonic letter)
-bindApp("B", BROWSER, "Browser") -- B = Browser
+bindApp("A", BROWSER, "Browser") -- A = browser
+hs.hotkey.bind(SMASH, "B", function() -- B = tmux prefix (Ctrl+B)
+	-- Delay so the synthetic event isn't merged with physical SMASH modifiers
+	hs.timer.doAfter(0.05, function()
+		local app = hs.application.frontmostApplication()
+		hs.eventtap.event.newKeyEvent({ "ctrl" }, "b", true):post(app)
+		hs.eventtap.event.newKeyEvent({ "ctrl" }, "b", false):post(app)
+	end)
+end)
+addHelp("Apps", "B: Tmux prefix (Ctrl+B)")
 bindApp("U", { "Telegram" }, "Telegram") -- U = telegraUm
 bindApp("I", IDE, "IDE") -- I = IDE
 bindApp("O", { "Codex" }, "Codex") -- O = Open Codex
