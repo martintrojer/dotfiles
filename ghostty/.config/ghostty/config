@@ -4,3 +4,4 @@ background-opacity = 0.9
 font-family = "GeistMono Nerd Font"
 font-size = 16
 font-feature = -liga
+unfocused-split-opacity = 0.55
