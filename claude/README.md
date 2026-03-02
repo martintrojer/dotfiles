@@ -47,4 +47,15 @@ Codex reads skills from `~/.codex/skills`. This repo includes a dedicated `codex
 
 ## Statusline
 
-`statusline-command.sh` - Custom statusline showing git branch, jj bookmark, and model info (configured via `.claude/settings.json`).
+`statusline-command.sh` - Custom statusline showing git branch, jj bookmark, and model info.
+
+This requires a manual entry in `~/.claude/settings.json` (not managed by stow):
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "/bin/bash $HOME/dotfiles/claude/statusline-command.sh"
+  }
+}
+```
