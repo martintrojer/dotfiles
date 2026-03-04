@@ -377,12 +377,13 @@ def format_relative(ts: int) -> str:
 def cmd_status(_: argparse.Namespace) -> int:
     if not tmux_exists():
         return 0
-    count = len(prune_stale_events())
-    if count <= 0:
+    events = prune_stale_events()
+    if not events:
         print("", end="")
         return 0
 
-    print(f"{count}", end="")
+    windows = {(str(e.get("session_id", "")), str(e.get("window_id", ""))) for e in events}
+    print(f"{len(windows)}", end="")
     return 0
 
 
