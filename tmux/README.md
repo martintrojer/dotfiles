@@ -15,6 +15,7 @@ What it does:
 - shows total flagged windows in `status-right` as `AI:<count>`
 - opens a picker (`prefix + A`) listing flagged windows, then jumps to the selected one
 - clears attention automatically when you visit that window
+- sends desktop notifications on macOS/Linux by default (set `TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY=1` to disable)
 
 Runtime state is stored in:
 

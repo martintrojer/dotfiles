@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -19,6 +20,7 @@ CACHE_DIR = (
 )
 PENDING_FILE = CACHE_DIR / "pending.jsonl"
 MAX_EVENTS = 4000
+DISABLE_SYSTEM_NOTIFY_ENV = "TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY"
 
 
 def tmux(args: list[str], check: bool = True) -> str:
@@ -188,6 +190,52 @@ def parse_notify_fields(args: argparse.Namespace) -> dict[str, str]:
     }
 
 
+def bool_env(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def send_system_notification(fields: dict[str, str]) -> None:
+    if bool_env(os.environ.get(DISABLE_SYSTEM_NOTIFY_ENV)):
+        return
+
+    title = fields.get("title", "").strip() or "Agent notification"
+    message = fields.get("message", "").strip()
+    source = fields.get("source", "").strip()
+    event_type = fields.get("type", "").strip()
+    if source or event_type:
+        prefix = f"[{source}/{event_type}]".strip("/")
+        message = f"{prefix} {message}".strip()
+
+    system = platform.system().lower()
+    try:
+        if system == "darwin":
+            quoted_title = json.dumps(title)
+            quoted_message = json.dumps(message)
+            subprocess.run(
+                [
+                    "osascript",
+                    "-e",
+                    f"display notification {quoted_message} with title {quoted_title}",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            return
+
+        if system == "linux" and shutil.which("notify-send") is not None:
+            subprocess.run(
+                ["notify-send", title, message],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+    except OSError:
+        return
+
+
 def set_attention(window_id: str) -> None:
     tmux(
         ["set-window-option", "-q", "-t", window_id, "@agent_attention", "1"],
@@ -246,6 +294,7 @@ def cmd_notify(args: argparse.Namespace) -> int:
     save_events(events)
 
     set_attention(ctx["window_id"])
+    send_system_notification(fields)
     tmux(["refresh-client", "-S"], check=False)
     return 0
 
