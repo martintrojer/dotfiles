@@ -18,9 +18,23 @@ CACHE_DIR = (
     Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache")))
     / "tmux-agent-attention"
 )
+MISE_SHIMS_DIR = (
+    Path(os.environ.get("MISE_DATA_DIR", str(Path.home() / ".local" / "share" / "mise")))
+    / "shims"
+)
 PENDING_FILE = CACHE_DIR / "pending.jsonl"
 MAX_EVENTS = 4000
 DISABLE_SYSTEM_NOTIFY_ENV = "TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY"
+
+
+def find_fzf() -> str | None:
+    path = shutil.which("fzf")
+    if path:
+        return path
+    shim = MISE_SHIMS_DIR / "fzf"
+    if shim.is_file() and os.access(shim, os.X_OK):
+        return str(shim)
+    return None
 
 
 def tmux(args: list[str], check: bool = True) -> str:
@@ -462,15 +476,19 @@ def cmd_menu(args: argparse.Namespace) -> int:
         print("No windows need attention.")
         return 0
 
-    if args.no_fzf or shutil.which("fzf") is None:
+    fzf_bin = None if args.no_fzf else find_fzf()
+    if fzf_bin is None:
         for _, label in rows:
             print(label)
         return 0
 
     chooser_input = "\n".join(f"{target}\t{label}" for target, label in rows)
+    env = os.environ.copy()
+    env.pop("FZF_DEFAULT_OPTS", None)
+    env.pop("FZF_DEFAULT_OPTS_FILE", None)
     selection = subprocess.run(
         [
-            "fzf",
+            fzf_bin,
             "--delimiter",
             "\t",
             "--with-nth",
@@ -479,16 +497,17 @@ def cmd_menu(args: argparse.Namespace) -> int:
             "Agent attention > ",
             "--border",
             "--no-sort",
-            "--height",
-            "100%",
             "--layout",
             "reverse",
             "--bind",
             "enter:accept",
+            "--no-select-1",
+            "--no-exit-0",
         ],
         input=chooser_input,
         text=True,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        env=env,
     )
 
     if selection.returncode != 0:
