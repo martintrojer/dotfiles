@@ -16,12 +16,20 @@ return {
       )
     end
 
-    vim.keymap.set("n", "<leader>zn", "<Cmd>ZkNew { title = vim.fn.input('Title: '), group = 'inbox' }<CR>", { desc = "New Note" })
-    vim.keymap.set("n", "<leader>zN", "<Cmd>ZkNew { title = vim.fn.input('Title: ') }<CR>", { desc = "New Permanent Note" })
+    vim.keymap.set(
+      "n",
+      "<leader>zn",
+      "<Cmd>ZkNew { title = vim.fn.input('Title: '), group = 'inbox' }<CR>",
+      { desc = "New Note" }
+    )
+    vim.keymap.set(
+      "n",
+      "<leader>zN",
+      "<Cmd>ZkNew { title = vim.fn.input('Title: ') }<CR>",
+      { desc = "New Permanent Note" }
+    )
     vim.keymap.set("n", "<leader>zw", "<Cmd>ZkNew { group = 'journal' }<CR>", { desc = "Create/Edit Weekly Journal" })
     vim.keymap.set("n", "<leader>zf", "<Cmd>ZkNotes { sort = { 'modified' } }<CR>", { desc = "Find Notes" })
-    vim.keymap.set("n", "<leader>zF", "<Cmd>ZkNotes { sort = { 'modified' }, matchStrategy = 'nl', match = { vim.fn.input('Find notes: ') } }<CR>", { desc = "Find Notes (NL)" })
-    vim.keymap.set("v", "<leader>zf", ":'<,'>ZkMatch { matchStrategy = 'nl'}<CR>", { desc = "Find Notes Matching Selection" })
     vim.keymap.set("n", "<leader>zz", "<Cmd>ZkTags<CR>", { desc = "Find Notes by Tag" })
 
     -- Search for the notes matching a given query.
