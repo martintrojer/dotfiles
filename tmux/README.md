@@ -16,6 +16,7 @@ What it does:
 - opens a picker (`prefix + A`) listing flagged windows, then jumps to the selected one
 - clears attention automatically when you visit that window
 - sends desktop notifications on macOS/Linux by default (set `TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY=1` to disable)
+- emits OSC 777 terminal notifications to the controlling TTY (for terminals that support it)
 
 Runtime state is stored in:
 
@@ -34,13 +35,13 @@ Point each harness to:
   "hooks": {
     "Notification": [
       {
+        "matcher": "",
         "hooks": [
           {
             "type": "command",
             "command": "python3 $HOME/.config/tmux/scripts/agent-attention notify --source claude --event-type notification --title Claude"
           }
-        ],
-        "matcher": ""
+        ]
       }
     ]
   }

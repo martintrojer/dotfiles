@@ -210,6 +210,49 @@ def bool_env(value: str | None) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def find_tty() -> str | None:
+    """Walk up the process tree to find a controlling TTY."""
+    pid = str(os.getpid())
+    for _ in range(5):
+        try:
+            result = subprocess.run(
+                ["ps", "-p", pid, "-o", "ppid="],
+                capture_output=True, text=True,
+            )
+            pid = result.stdout.strip()
+            if not pid:
+                return None
+            result = subprocess.run(
+                ["ps", "-p", pid, "-o", "tty="],
+                capture_output=True, text=True,
+            )
+            tty = result.stdout.strip()
+            if tty and tty != "?":
+                return f"/dev/{tty}"
+        except OSError:
+            return None
+    return None
+
+
+def send_osc777_notification(title: str, message: str) -> None:
+    """Emit OSC 777 notification to the controlling TTY.
+
+    When running inside tmux, wraps the sequence in DCS passthrough so it
+    reaches the outer terminal.
+    """
+    tty = find_tty()
+    if not tty:
+        return
+    osc = f"\x1b]777;notify;{title};{message}\x07"
+    if os.environ.get("TMUX"):
+        osc = f"\x1bPtmux;\x1b{osc}\x1b\\"
+    try:
+        with open(tty, "w") as f:
+            f.write(osc)
+    except OSError:
+        return
+
+
 def send_system_notification(fields: dict[str, str]) -> None:
     if bool_env(os.environ.get(DISABLE_SYSTEM_NOTIFY_ENV)):
         return
@@ -309,6 +352,10 @@ def cmd_notify(args: argparse.Namespace) -> int:
 
     set_attention(ctx["window_id"])
     send_system_notification(fields)
+    send_osc777_notification(
+        fields.get("title", "Agent"),
+        fields.get("message", "Waiting for input"),
+    )
     tmux(["refresh-client", "-S"], check=False)
     return 0
 
