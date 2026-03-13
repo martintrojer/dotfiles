@@ -178,6 +178,53 @@ local function getRunningApp(appNames)
 	return nil
 end
 
+-- Get all standard windows on the current space for the given app names, sorted by ID
+local function getWindowsOnCurrentSpace(appNames)
+	local currentSpace = hs.spaces.focusedSpace()
+	local ok, spaceWinIDs = pcall(hs.spaces.windowsForSpace, currentSpace)
+	if not ok or not spaceWinIDs then
+		return {}
+	end
+	local onSpace = {}
+	for _, wid in ipairs(spaceWinIDs) do
+		onSpace[wid] = true
+	end
+	local wins = {}
+	for _, name in ipairs(appNames) do
+		local app = hs.application.get(name)
+		if app then
+			for _, win in ipairs(app:allWindows()) do
+				if win:isStandard() and onSpace[win:id()] then
+					table.insert(wins, win)
+				end
+			end
+		end
+	end
+	table.sort(wins, function(a, b) return a:id() < b:id() end)
+	return wins
+end
+
+-- Cycle focus to the next window in the list; returns true if any window was focused
+local function cycleWindows(wins)
+	if #wins == 0 then
+		return false
+	end
+	if #wins == 1 then
+		wins[1]:focus()
+		return true
+	end
+	local focused = hs.window.focusedWindow()
+	local nextIdx = 1
+	for i, w in ipairs(wins) do
+		if focused and w:id() == focused:id() then
+			nextIdx = (i % #wins) + 1
+			break
+		end
+	end
+	wins[nextIdx]:focus()
+	return true
+end
+
 local function launchOrFocusApp(appNames, fallback)
 	local app = getRunningApp(appNames)
 	if app then
@@ -196,33 +243,7 @@ local function launchOrFocusApp(appNames, fallback)
 		local winsOnSpace = getAppWindowsOnCurrentSpace(app)
 
 		if app:isFrontmost() and #winsOnSpace > 0 then
-			-- Get all windows for cycling (not just focused/main)
-			local currentSpace = hs.spaces.focusedSpace()
-			local ok, spaceWinIDs = pcall(hs.spaces.windowsForSpace, currentSpace)
-			if ok and spaceWinIDs then
-				local onSpace = {}
-				for _, wid in ipairs(spaceWinIDs) do
-					onSpace[wid] = true
-				end
-				local allWins = {}
-				for _, win in ipairs(app:allWindows()) do
-					if win:isStandard() and onSpace[win:id()] then
-						table.insert(allWins, win)
-					end
-				end
-				if #allWins > 1 then
-					local focused = hs.window.focusedWindow()
-					local nextIdx = 1
-					for i, w in ipairs(allWins) do
-						if w:id() == focused:id() then
-							nextIdx = (i % #allWins) + 1
-							break
-						end
-					end
-					allWins[nextIdx]:focus()
-					return
-				end
-			end
+			cycleWindows(getWindowsOnCurrentSpace(appNames))
 			return
 		end
 
@@ -412,7 +433,24 @@ bindApp("M", { "Music" }, "Music") -- M = Music
 hs.hotkey.bind(SMASH, "N", openOrNewFinderWindow) -- N = fiNder/new window
 addHelp("Apps", "N: Finder (new window if frontmost)")
 bindApp("Q", { "WhatsApp" }, "WhatsApp") -- Q = chat/quick message
-bindApp("T", { "Ghostty" }, "Ghostty") -- T = Terminal
+do -- T = Terminal (cycle Ghostty <-> cmux)
+	local TERMINALS = { "Ghostty", "cmux" }
+	hs.hotkey.bind(SMASH, "T", function()
+		if cycleWindows(getWindowsOnCurrentSpace(TERMINALS)) then
+			return
+		end
+		-- No terminal windows on this space; activate or launch
+		for _, name in ipairs(TERMINALS) do
+			local app = hs.application.get(name)
+			if app then
+				app:activate()
+				return
+			end
+		end
+		hs.application.launchOrFocus(TERMINALS[1])
+	end)
+	addHelp("Apps", "T: Terminal (cycle Ghostty <-> cmux)")
+end
 bindApp("Y", { "Activity Monitor" }, "Activity Monitor") -- Y = activitY monitor
 bindApp("Z", { "zoom.us", "Zoom Workplace", "Zoom" }, "Zoom") -- Z = Zoom
 bindApp(",", { "System Settings", "System Preferences" }, "System Settings") -- , = settings
