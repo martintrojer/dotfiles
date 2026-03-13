@@ -4,4 +4,4 @@ background-opacity = 0.9
 font-family = "GeistMono NF"
 font-size = 16
 font-feature = -liga
-unfocused-split-opacity = 0.55
+unfocused-split-opacity = 0.75
