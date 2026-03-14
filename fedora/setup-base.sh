@@ -3,6 +3,7 @@ set -euo pipefail
 
 rpm-ostree install \
   7zip \
+  alacritty \
   automake \
   binutils \
   btop \

@@ -2,6 +2,7 @@
 
 dnf install -y \
   7zip \
+  alacritty \
   automake \
   binutils \
   btop \

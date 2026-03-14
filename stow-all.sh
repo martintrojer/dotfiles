@@ -79,10 +79,10 @@ fi
 
 # Package groups.
 ROOT_PACKAGES=(
+  alacritty
   bat
   btop
   gdu
-  ghostty
   git
   jj
   nvim
