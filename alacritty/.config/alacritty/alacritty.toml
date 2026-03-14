@@ -1,16 +1,42 @@
+[general]
+live_config_reload = true
+
 [window]
 opacity = 0.9
+
+[window.padding]
+x = 8
+y = 8
+
+[scrolling]
+history = 50000
+multiplier = 3
 
 [font]
 size = 12
 
+[font.offset]
+y = 1
+
 [font.normal]
-family = "Hack Nerd Font"
+family = "Hack Nerd Font Mono"
 style = "Regular"
 
 [font.bold]
-family = "Hack Nerd Font"
+family = "Hack Nerd Font Mono"
 style = "Bold"
+
+[mouse]
+hide_when_typing = true
+
+[selection]
+save_to_clipboard = true
+semantic_escape_chars = ",│`|:\"' ()[]{}<>"
+
+[hints]
+enabled = [
+  { regex = "(https://|http://)[^\\u0000-\\u001F\\u007F-\\u009F<>\"\\s{-}\\\\^⟨⟩`]+", command = "xdg-open", post_processing = true, mouse = { enabled = true, mods = "Control" } }
+]
 
 [colors.primary]
 background = "#1e1e2e"
