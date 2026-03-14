@@ -38,42 +38,6 @@ function y() {
 	rm -f -- "$tmp"
 }
 
-# gh: Extract the first git hash matching a pattern from the last 100 lines of the current tmux pane.
-ghash() {
-  if [[ -z "$TMUX" ]]; then
-    echo "Error: Not in a tmux session" >&2
-    return 1
-  fi
-  if [[ $# -ne 1 ]]; then
-    echo "Usage: ghash <pattern>" >&2
-    return 1
-  fi
-  local pattern="$1"
-  local hash
-  hash=$(tmux capture-pane -p -S -100 | grep -- "$pattern" | grep -oE '[a-f0-9]{7,40}' | head -n1)
-  if [[ -n "$hash" ]]; then
-    echo "$hash"
-    tmux set-buffer -w "$hash"
-  else
-    echo "No hash found matching pattern: $pattern"
-    return 1
-  fi
-}
-
-# hgh: Run an hg command with a git hash looked up by pattern from tmux
-hgh() {
-  if [[ $# -ne 2 ]]; then
-    echo "Usage: hgh <hg-subcommand> <pattern>" >&2
-    return 1
-  fi
-  local hash
-  hash=$(ghash "$2") || return 1
-  hg "$1" "$hash"
-}
-
-hgup() { hgh up "$1"; }
-hgshow() { hgh show "$1"; }
-
 # Remove all history lines matching a pattern
 rmhist() {
   if (( $# != 1 )); then
