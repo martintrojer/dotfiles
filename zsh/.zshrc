@@ -39,7 +39,8 @@ fi
 # User configuration
 # ======================================================
 
-bindkey '^E' autosuggest-accept
+bindkey '^E' end-of-line
+bindkey '^[[C' autosuggest-accept
 
 zstyle ':omz:plugins:eza' 'icons' yes
 zstyle ':omz:plugins:eza' 'color-scale' all
