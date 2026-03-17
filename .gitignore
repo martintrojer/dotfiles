@@ -4,3 +4,4 @@ lazy-lock.json
 __pycache__
 jj/.config/jj/repos/
 .vecgrep
+.vecgrep/
