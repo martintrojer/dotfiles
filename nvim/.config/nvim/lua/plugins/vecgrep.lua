@@ -2,7 +2,9 @@ return {
   "martintrojer/vecgrep.nvim",
   dependencies = { "folke/snacks.nvim" },
   event = "VeryLazy",
-  opts = {},
+  opts = {
+    search_from_root = true,
+  },
   keys = {
     {
       "<leader>zF",
