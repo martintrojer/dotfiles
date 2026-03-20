@@ -4,7 +4,7 @@ export PATH="$HOME/.cargo/bin:$HOME/go/bin:$PATH"
 export PATH="$PATH:$HOME/.opencode/bin:$HOME/.pixi/bin:$HOME/.modular/bin"
 
 # Terminal and display
-[[ -z "$TMUX" ]] && export TERM=xterm-256color
+# Let the terminal emulator set TERM so tmux can detect real capabilities.
 export CLICOLOR=1
 [[ "$OSTYPE" == "darwin"* ]] && export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 

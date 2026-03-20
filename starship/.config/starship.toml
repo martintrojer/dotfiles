@@ -14,3 +14,7 @@ disabled = true  # Disabled - using Git exclusively
 [hostname]
 ssh_only = true
 disabled = false
+
+[gcloud]
+disabled = false
+symbol = "󰠅 "
