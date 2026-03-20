@@ -433,24 +433,8 @@ bindApp("M", { "Music" }, "Music") -- M = Music
 hs.hotkey.bind(SMASH, "N", openOrNewFinderWindow) -- N = fiNder/new window
 addHelp("Apps", "N: Finder (new window if frontmost)")
 bindApp("Q", { "WhatsApp" }, "WhatsApp") -- Q = chat/quick message
-do -- T = Terminal (cycle Ghostty <-> cmux)
-	local TERMINALS = { "Ghostty", "cmux" }
-	hs.hotkey.bind(SMASH, "T", function()
-		if cycleWindows(getWindowsOnCurrentSpace(TERMINALS)) then
-			return
-		end
-		-- No terminal windows on this space; activate or launch
-		for _, name in ipairs(TERMINALS) do
-			local app = hs.application.get(name)
-			if app then
-				app:activate()
-				return
-			end
-		end
-		hs.application.launchOrFocus(TERMINALS[1])
-	end)
-	addHelp("Apps", "T: Terminal (cycle Ghostty <-> cmux)")
-end
+bindApp("T", { "Ghostty" }, "Ghostty") -- T = Terminal
+bindApp("L", { "Outlook (PWA)" }, "Outlook") -- L = maiL
 bindApp("Y", { "Activity Monitor" }, "Activity Monitor") -- Y = activitY monitor
 bindApp("Z", { "zoom.us", "Zoom Workplace", "Zoom" }, "Zoom") -- Z = Zoom
 bindApp(",", { "System Settings", "System Preferences" }, "System Settings") -- , = settings

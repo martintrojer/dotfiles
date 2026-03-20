@@ -265,10 +265,12 @@ def send_system_notification(fields: dict[str, str]) -> None:
         prefix = f"[{source}/{event_type}]".strip("/")
         message = f"{prefix} {message}".strip()
 
+    icon_title = f"🤖 {title}"
+
     system = platform.system().lower()
     try:
         if system == "darwin":
-            quoted_title = json.dumps(title)
+            quoted_title = json.dumps(icon_title)
             quoted_message = json.dumps(message)
             subprocess.run(
                 [
@@ -284,7 +286,7 @@ def send_system_notification(fields: dict[str, str]) -> None:
 
         if system == "linux" and shutil.which("notify-send") is not None:
             subprocess.run(
-                ["notify-send", title, message],
+                ["notify-send", icon_title, message],
                 check=False,
                 capture_output=True,
                 text=True,
