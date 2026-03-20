@@ -170,3 +170,7 @@ const plugin: Plugin = async ({ client, $ }) => {
 
 export default plugin;
 ```
+
+## Cheatsheet
+
+`prefix + g` opens an fzf cheatsheet popup inside tmux. The entries are embedded in `.config/tmux/scripts/cheatsheet` — update that script when adding or changing keybindings.
