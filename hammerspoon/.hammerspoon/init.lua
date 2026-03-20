@@ -1,9 +1,7 @@
 -- Settings
 hs.window.animationDuration = 0
 local GAP = 4 -- pixels: uniform gap between windows and screen edges
-local MEH = { "shift", "alt", "ctrl" }
 local HYPER = { "shift", "cmd", "alt", "ctrl" }
-local SMASH = MEH -- HYPER
 local BROWSER = { "Safari" } -- or { "Google Chrome", "Chrome" }
 local IDE = { "Visual Studio Code" }
 
@@ -200,7 +198,9 @@ local function getWindowsOnCurrentSpace(appNames)
 			end
 		end
 	end
-	table.sort(wins, function(a, b) return a:id() < b:id() end)
+	table.sort(wins, function(a, b)
+		return a:id() < b:id()
+	end)
 	return wins
 end
 
@@ -288,7 +288,7 @@ local function formatModifiers(modifiers)
 end
 
 local function buildHelpText()
-	local lines = { "SMASH = " .. formatModifiers(SMASH), "", "Window" }
+	local lines = { "HYPER = " .. formatModifiers(HYPER), "", "Window" }
 	for _, line in ipairs(HELP_SECTIONS.Window) do
 		table.insert(lines, line)
 	end
@@ -328,7 +328,7 @@ end
 
 -- Binding helpers
 local function bindCycle(key, helpText)
-	hs.hotkey.bind(SMASH, key, function()
+	hs.hotkey.bind(HYPER, key, function()
 		withFocusedWindow(function(win)
 			cycleUnitsForKey(win, key, CYCLE_UNITS[key])
 		end)
@@ -337,7 +337,7 @@ local function bindCycle(key, helpText)
 end
 
 local function bindToggle(key, unitA, unitB, helpText)
-	hs.hotkey.bind(SMASH, key, function()
+	hs.hotkey.bind(HYPER, key, function()
 		withFocusedWindow(function(win)
 			if isAtUnit(win, unitA) then
 				moveToUnit(win, unitB)
@@ -352,14 +352,14 @@ local function bindToggle(key, unitA, unitB, helpText)
 end
 
 local function bindApp(key, appNames, helpText, fallback)
-	hs.hotkey.bind(SMASH, key, function()
+	hs.hotkey.bind(HYPER, key, function()
 		launchOrFocusApp(appNames, fallback)
 	end)
 	addHelp("Apps", string.format("%s: %s", key, helpText))
 end
 
 local function bindDesktop(key, desktopNumber)
-	hs.hotkey.bind(SMASH, key, function()
+	hs.hotkey.bind(HYPER, key, function()
 		hs.eventtap.keyStroke({ "ctrl" }, tostring(desktopNumber), 0)
 	end)
 	addHelp("Desktops", string.format("%s: Go to Desktop %d (Ctrl+%d)", key, desktopNumber, desktopNumber))
@@ -398,7 +398,7 @@ bindCycle("C", "Bottom cycle (1/3, 1/2, 2/3)")
 
 -- Cycle full -> centered 90% -> tall centered
 local D_CYCLE = { UNITS.full, UNITS.center90, UNITS.tallCenter }
-hs.hotkey.bind(SMASH, "D", function()
+hs.hotkey.bind(HYPER, "D", function()
 	withFocusedWindow(function(win)
 		cycleUnitsForKey(win, "D", D_CYCLE)
 	end)
@@ -412,10 +412,10 @@ bindDesktop("3", 3)
 bindDesktop("4", 4)
 bindDesktop("5", 5)
 
--- App bindings (SMASH + mnemonic letter)
+-- App bindings (HYPER + mnemonic letter)
 bindApp("A", BROWSER, "Browser") -- A = browser
-hs.hotkey.bind(SMASH, "B", function() -- B = tmux prefix (Ctrl+B)
-	-- Delay so the synthetic event isn't merged with physical SMASH modifiers
+hs.hotkey.bind(HYPER, "B", function() -- B = tmux prefix (Ctrl+B)
+	-- Delay so the synthetic event isn't merged with physical HYPER modifiers
 	hs.timer.doAfter(0.05, function()
 		local app = hs.application.frontmostApplication()
 		hs.eventtap.event.newKeyEvent({ "ctrl" }, "b", true):post(app)
@@ -430,7 +430,7 @@ bindApp("G", { "Google Chat" }, "Google Chat", function() -- G = Google Chat
 	hs.urlevent.openURLWithBundle("https://chat.google.com", "com.google.Chrome")
 end)
 bindApp("M", { "Music" }, "Music") -- M = Music
-hs.hotkey.bind(SMASH, "N", openOrNewFinderWindow) -- N = fiNder/new window
+hs.hotkey.bind(HYPER, "N", openOrNewFinderWindow) -- N = fiNder/new window
 addHelp("Apps", "N: Finder (new window if frontmost)")
 bindApp("Q", { "WhatsApp" }, "WhatsApp") -- Q = chat/quick message
 bindApp("T", { "Ghostty" }, "Ghostty") -- T = Terminal
@@ -438,7 +438,7 @@ bindApp("L", { "Outlook (PWA)" }, "Outlook") -- L = maiL
 bindApp("Y", { "Activity Monitor" }, "Activity Monitor") -- Y = activitY monitor
 bindApp("Z", { "zoom.us", "Zoom Workplace", "Zoom" }, "Zoom") -- Z = Zoom
 bindApp(",", { "System Settings", "System Preferences" }, "System Settings") -- , = settings
-hs.hotkey.bind(SMASH, "return", function() -- Return = new terminal window
+hs.hotkey.bind(HYPER, "return", function() -- Return = new terminal window
 	local app = hs.application.get("Ghostty")
 	if app then
 		hs.eventtap.keyStroke({ "cmd" }, "n", 0, app)
@@ -449,26 +449,34 @@ end)
 addHelp("Apps", "Return: New Ghostty window")
 
 -- Focus window by direction
-hs.hotkey.bind(SMASH, "right", function()
+hs.hotkey.bind(HYPER, "right", function()
 	local win = hs.window.focusedWindow()
-	if win then win:focusWindowEast(hs.window.orderedWindows(), false, false) end
+	if win then
+		win:focusWindowEast(hs.window.orderedWindows(), false, false)
+	end
 end)
 
-hs.hotkey.bind(SMASH, "left", function()
+hs.hotkey.bind(HYPER, "left", function()
 	local win = hs.window.focusedWindow()
-	if win then win:focusWindowWest(hs.window.orderedWindows(), false, false) end
+	if win then
+		win:focusWindowWest(hs.window.orderedWindows(), false, false)
+	end
 end)
 
-hs.hotkey.bind(SMASH, "up", function()
+hs.hotkey.bind(HYPER, "up", function()
 	local win = hs.window.focusedWindow()
-	if win then win:focusWindowNorth(hs.window.orderedWindows(), false, false) end
+	if win then
+		win:focusWindowNorth(hs.window.orderedWindows(), false, false)
+	end
 end)
 
-hs.hotkey.bind(SMASH, "down", function()
+hs.hotkey.bind(HYPER, "down", function()
 	local win = hs.window.focusedWindow()
-	if win then win:focusWindowSouth(hs.window.orderedWindows(), false, false) end
+	if win then
+		win:focusWindowSouth(hs.window.orderedWindows(), false, false)
+	end
 end)
 
 -- Help
-hs.hotkey.bind(SMASH, "/", toggleHelp)
+hs.hotkey.bind(HYPER, "/", toggleHelp)
 addHelp("Apps", "/: Show this help")
