@@ -1,0 +1,8 @@
+# Kanshi output profiles
+# Run: kanshi &
+# Reload: kanshictl reload
+
+# Generic desktop profile
+profile desktop {
+    output * enable mode preferred scale 1.5
+}

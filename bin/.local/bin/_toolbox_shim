@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+  echo "Usage: $(basename "$0") <toolbox> <command> [args...]" >&2
+  exit 2
+fi
+
+toolbox_name="$1"
+tool_name="$2"
+shift 2
+
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+search_path=""
+
+IFS=':' read -r -a path_parts <<< "${PATH:-}"
+for path_dir in "${path_parts[@]}"; do
+  if [[ -z "$path_dir" || "$path_dir" == "$script_dir" ]]; then
+    continue
+  fi
+  if [[ -z "$search_path" ]]; then
+    search_path="$path_dir"
+  else
+    search_path="$search_path:$path_dir"
+  fi
+done
+
+real_cmd="$(PATH="$search_path" command -v "$tool_name" || true)"
+if [[ -n "$real_cmd" ]]; then
+  exec "$real_cmd" "$@"
+fi
+
+if ! command -v toolbox >/dev/null 2>&1; then
+  echo "Command not found: $tool_name, and toolbox is unavailable" >&2
+  exit 127
+fi
+
+if [[ "$(uname -s)" == "Linux" && -r /etc/os-release ]]; then
+  # shellcheck disable=SC1091
+  . /etc/os-release
+
+  distro_id_lc="${ID:-}"
+  distro_like_lc="${ID_LIKE:-}"
+  distro_id_lc="${distro_id_lc,,}"
+  distro_like_lc="${distro_like_lc,,}"
+  if [[ "$distro_id_lc" == *fedora* || "$distro_like_lc" == *fedora* || "$distro_like_lc" == *rhel* ]]; then
+    exec toolbox run -c "$toolbox_name" "$tool_name" "$@"
+  fi
+fi
+
+echo "Command not found: $tool_name" >&2
+exit 127

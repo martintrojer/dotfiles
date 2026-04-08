@@ -1,0 +1,139 @@
+----------------------------------------------------------------------
+-- Buffer Options
+----------------------------------------------------------------------
+vim.g.markdown_recommended_style = 0
+
+----------------------------------------------------------------------
+-- Helpers
+----------------------------------------------------------------------
+local vale_root_markers = { ".git", ".jj", ".hg" }
+local vale_regex_hint =
+	"# One regex per line. Use (?i) for case-insensitive matches and patterns like s? or (?:s|ies) for plurals, e.g. "
+
+local map = function(mode, lhs, rhs, opts)
+	vim.keymap.set(mode, lhs, rhs, vim.tbl_extend("force", { buffer = 0 }, opts or {}))
+end
+
+local function ensure_file(path, lines)
+	if vim.fn.filereadable(path) == 1 then
+		return
+	end
+	vim.fn.mkdir(vim.fs.dirname(path), "p")
+	vim.fn.writefile(lines or {}, path)
+end
+
+local function ensure_vale_vocab(root)
+	local vocab_name = "Local"
+	local styles_dir = root .. "/.vale/styles"
+	local vocab_dir = styles_dir .. "/config/vocabularies/" .. vocab_name
+	local accept_path = vocab_dir .. "/accept.txt"
+	local reject_path = vocab_dir .. "/reject.txt"
+	local config_path = root .. "/.vale.ini"
+
+	ensure_file(accept_path, {
+		vale_regex_hint .. "(?i)mongodb",
+	})
+	ensure_file(reject_path, {
+		vale_regex_hint .. "(?i)teh",
+	})
+	ensure_file(config_path, {
+		"StylesPath = .vale/styles",
+		"MinAlertLevel = suggestion",
+		"Vocab = " .. vocab_name,
+		"",
+		"[*.md]",
+		"BasedOnStyles = Vale",
+	})
+
+	return {
+		accept = accept_path,
+		reject = reject_path,
+	}
+end
+
+local function edit_vale_vocab(kind)
+	local root = vim.fs.root(0, vale_root_markers)
+	if not root then
+		vim.notify("No project root found for Vale vocabulary", vim.log.levels.WARN)
+		return
+	end
+
+	local vocab = ensure_vale_vocab(root)
+	vim.cmd("edit " .. vim.fn.fnameescape(vocab[kind]))
+end
+
+-- Keep these labels in sync with the markdown-only `<leader>` mappings below.
+vim.b.miniclue_config = vim.tbl_deep_extend("force", vim.b.miniclue_config or {}, {
+	clues = {
+		{ mode = "n", keys = "<leader>p", desc = "+preview" },
+		{ mode = "n", keys = "<leader>t", desc = "+tools" },
+	},
+})
+
+----------------------------------------------------------------------
+-- Buffer-Local Keymaps
+----------------------------------------------------------------------
+
+-- LaTeX formula preview
+map("n", "<leader>pp", function()
+	require("nabla").popup()
+end, { desc = "LaTeX popup" })
+
+-- Insert zk link
+map("i", "[[", "<Cmd>ZkInsertLink<CR>", { desc = "Insert zk link" })
+
+-- Carddown card
+map("n", "<leader>tf", function()
+	local pos = vim.api.nvim_win_get_cursor(0)[2]
+	local line = vim.api.nvim_get_current_line()
+	local nline = line:sub(0, pos) .. "PROMPT : RESPONSE 🧠 #tag" .. line:sub(pos + 1)
+	vim.api.nvim_set_current_line(nline)
+end, { desc = "Insert flash card" })
+
+-- Date
+map("n", "<leader>td", function()
+	local pos = vim.api.nvim_win_get_cursor(0)[2]
+	local line = vim.api.nvim_get_current_line()
+	local nline = line:sub(0, pos) .. "## " .. os.date("%Y-%m-%d") .. line:sub(pos + 1)
+	vim.api.nvim_set_current_line(nline)
+end, { desc = "Insert current date" })
+
+----------------------------------------------------------------------
+-- Note Helpers
+----------------------------------------------------------------------
+local todo = require("toggletodo")
+
+map("n", "<leader>tt", function()
+	todo.ToggleTodo({ v = true })
+end, { desc = "Toggle todo" })
+
+----------------------------------------------------------------------
+-- Writing Tools
+----------------------------------------------------------------------
+local ts = require("timestamps")
+
+map("n", "<leader>tr", function()
+	ts.reset()
+end, { desc = "Reset timestamp timer and counter" })
+
+map("n", "<leader>tv", function()
+	edit_vale_vocab("accept")
+end, { desc = "Edit Vale accepted words" })
+
+map("n", "<leader>tV", function()
+	edit_vale_vocab("reject")
+end, { desc = "Edit Vale rejected words" })
+
+map("n", "<leader>tc", function()
+	ts.disable_counter()
+	print("counter disabled")
+end, { desc = "Disable timestamp counter" })
+
+map("n", "<leader>ti", function()
+	ts.get_ts_string(function(fullstr)
+		local pos = vim.api.nvim_win_get_cursor(0)[2]
+		local line = vim.api.nvim_get_current_line()
+		local nline = line:sub(0, pos) .. "## " .. fullstr .. line:sub(pos + 1)
+		vim.api.nvim_set_current_line(nline)
+	end)
+end, { desc = "Insert elapsed time (and counter) since timestamp start" })

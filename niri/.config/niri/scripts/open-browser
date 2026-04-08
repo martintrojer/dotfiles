@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec google-chrome-stable \
+  --remote-debugging-port=9222 \
+  --enable-features=UseOzonePlatform \
+  --ozone-platform=wayland

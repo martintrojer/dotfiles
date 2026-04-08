@@ -1,0 +1,250 @@
+[
+  {
+    // MAIN BAR //
+    "layer": "top",
+    "position": "top",
+    "name": "first",
+    "modules-left": [
+      "custom/spacer3",
+      "niri/workspaces",
+      "custom/spacer3",
+      "niri/window"
+    ],
+    "modules-right": [
+      "cava",
+      "custom/spacer1",
+      "cpu",
+      "custom/spacer1",
+      "memory#ram",
+      "custom/spacer1",
+      "memory#swap",
+      "custom/spacer1",
+      "disk",
+      "custom/spacer1",
+      "network#info",
+      "custom/spacer1",
+      "pulseaudio#input",
+      "custom/spacer1",
+      "pulseaudio#output",
+      "custom/spacer1",
+      "clock",
+      "custom/spacer1",
+      "tray",
+      "custom/spacer1",
+      "custom/power"
+    ],
+    // Modules
+    "disk": {
+      "path": "/var",
+      "interval": 10,
+      "format": " {percentage_used}%",
+      "tooltip": "{}",
+      "tooltip-format": "Free {free}"
+    },
+    "backlight": {
+      "device": "intel_backlight",
+      "format": "{icon} {percent}%",
+      "format-icons": [
+        "󱩎",
+        "󱩑",
+        "󱩓",
+        "󱩕",
+        "󰛨"
+      ],
+      "scroll-step": 5
+    },
+    "battery": {
+      "interval": 10,
+      "states": {
+        "warning": 20,
+        "critical": 10
+      },
+      /*"format-time": "{H}:{M:02}",*/
+      "format": "{icon} {capacity}%",
+      "format-charging": " {capacity}%",
+      "format-charging-full": " {capacity}%",
+      "format-full": "{icon} {capacity}%",
+      "format-icons": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "tooltip": "{}",
+      "tooltip-format": " {power}W"
+    },
+    "clock": {
+      "interval": 10,
+      "format": "{:%a %d %B %H:%M}",
+      "tooltip-format": "Current date: {:%d.%m.%Y} \n\n<tt><small>{calendar}</small></tt>",
+      "calendar": {
+        "mode": "year",
+        "mode-mon-col": 3,
+        "weeks-pos": "right", // Nicked from Archttila
+        "on-scroll": 1,
+        "on-click-right": "mode",
+        "format": {
+          "months": "<span color='#cba6f7'><b>{}</b></span>",
+          "days": "<span color='#cdd6f4'><b>{}</b></span>",
+          "weeks": "<span color='#94e2d5'> W{}</span>",
+          "weekdays": "<span color='#f9e2af'><b>{}</b></span>",
+          "today": "<span color='#f5e0dc'><b><u>{}</u></b></span>"
+        }
+      },
+      "actions": {
+        "on-click-right": "mode",
+        "on-click-forward": "tz_up",
+        "on-click-backward": "tz_down",
+        "on-scroll-up": "shift_up",
+        "on-scroll-down": "shift_down"
+      }
+    },
+    "cava": {
+      "framerate": 30,
+      "autosens": 1,
+      "bars": 12,
+      "method": "pipewire",
+      "source": "auto",
+      "stereo": false,
+      "bar_delimiter": 0,
+      "format-icons": ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+    },
+    "cpu": {
+      "interval": 5,
+      "tooltip": " {load}",
+      "format": " {usage}%",
+      "states": {
+        "warning": 80,
+        "critical": 95
+      }
+    },
+    "memory#ram": {
+      "interval": 5,
+      "format": " {percentage}%",
+      "states": {
+        "warning": 80,
+        "critical": 95
+      },
+      "tooltip": "{}",
+      "tooltip-format": "{used}/{total} GiB"
+    },
+    "memory#swap": {
+      "interval": 5,
+      "format": "󰾵 {swapPercentage}%",
+      "tooltip": "{}",
+      "tooltip-format": "{swapUsed}/{swapTotal}GiB"
+    },
+    "network#info": {
+      "interval": 1,
+      "format": "󱘖  Offline",
+      "format-wifi": "{icon}",
+      "format-ethernet": "󰈀",
+      "tooltip": "{}",
+      "tooltip-format-wifi": "{ifname}\n{essid}\n{signalStrength}% \n{frequency} GHz\n󰇚 {bandwidthDownBits}\n󰕒 {bandwidthUpBits}",
+      "tooltip-format-ethernet": "{ifname}\n󰇚 {bandwidthDownBits} \n󰕒 {bandwidthUpBits}",
+      "on-click": "alacritty -e nmtui",
+      "format-icons": [
+        "󰤫",
+        "󰤟",
+        "󰤢",
+        "󰤥",
+        "󰤨"
+      ],
+      "states": {
+        "normal": 25
+      }
+    },
+    "network#up": {
+      "interval": 5,
+      "format": " ",
+      "format-wifi": "󰕒 {bandwidthUpBits}",
+      "format-ethernet": "󰕒 {bandwidthUpBits}",
+      "format-disconnected": " ",
+      "min-length": 11
+    },
+    "network#down": {
+      "interval": 5,
+      "format": "󰇚 {bandwidthDownBits}",
+      "format-wifi": "󰇚 {bandwidthDownBits}",
+      "format-ethernet": "󰇚 {bandwidthDownBits}",
+      "min-length": 11
+    },
+    "pulseaudio#output": {
+      "format": "{icon} {volume}%",
+      "format-bluetooth": "{icon} {volume}%",
+      "format-source-muted": "{volume}",
+      "format-icons": {
+        "headphone": "",
+        "hands-free": "",
+        "headset": "",
+        "phone": "",
+        "portable": "",
+        "car": "",
+        "default": [
+          "",
+          ""
+        ]
+      },
+      "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+      "on-click-right": "alacritty -e wiremix",
+      "tooltip": true,
+      "scroll-step": 5
+    },
+    "pulseaudio#input": {
+      "format": " {format_source}%",
+      "format-source": "{volume}",
+      "format-source-muted": "{volume}",
+      "on-scroll-up": "sh -c 'vol=$(pactl get-source-volume @DEFAULT_SOURCE@ | grep -oP \"\\d+(?=%)\" | head -1); if [ \"$vol\" -lt 100 ]; then pactl set-source-volume @DEFAULT_SOURCE@ +5%; fi'",
+      "on-scroll-down": "pactl set-source-volume @DEFAULT_SOURCE@ -5%",
+      "max-volume": "100",
+      "on-click": "pactl set-source-mute @DEFAULT_SOURCE@ toggle",
+      "on-click-right": "alacritty -e wiremix",
+      "tooltip-format": "{source_desc}"
+    },
+    "temperature": {
+      "critical-threshold": 90,
+      "interval": 5,
+      "format": "{icon} {temperatureC}°",
+      "format-icons": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "tooltip": false
+    },
+    "tray": {
+      "icon-size": 18,
+      "spacing": 6
+    },
+    "custom/spacer1": {
+      "format": "\\",
+      "tooltip": false
+    },
+    "custom/spacer2": {
+      "format": " ",
+      "tooltip": false
+    },
+    "custom/spacer3": {
+      "format": "/",
+      "tooltip": false
+    },
+    // Niri-specific modules
+    "niri/workspaces": {
+      "format": "{index}"
+    },
+    "niri/window": {
+      "format": "{title}",
+      "tooltip": false,
+      "icon": true,
+      "icon-size": 18
+    },
+    "custom/power": {
+      "format": " ⏻ ",
+      "tooltip": "Power Options",
+      "on-click": "~/.config/fuzzel/scripts/powermenu"
+    }
+  }
+]

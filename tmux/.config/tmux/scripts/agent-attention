@@ -1,0 +1,632 @@
+#!/usr/bin/env python3
+"""Track AI agent notifications per tmux window and surface attention in tmux UI."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import platform
+import shutil
+import subprocess
+import sys
+import time
+from collections import defaultdict
+from pathlib import Path
+
+CACHE_DIR = (
+    Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache")))
+    / "tmux-agent-attention"
+)
+MISE_SHIMS_DIR = (
+    Path(os.environ.get("MISE_DATA_DIR", str(Path.home() / ".local" / "share" / "mise")))
+    / "shims"
+)
+PENDING_FILE = CACHE_DIR / "pending.jsonl"
+MAX_EVENTS = 4000
+DISABLE_SYSTEM_NOTIFY_ENV = "TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY"
+
+
+def find_fzf() -> str | None:
+    path = shutil.which("fzf")
+    if path:
+        return path
+    shim = MISE_SHIMS_DIR / "fzf"
+    if shim.is_file() and os.access(shim, os.X_OK):
+        return str(shim)
+    return None
+
+
+def tmux(args: list[str], check: bool = True) -> str:
+    result = subprocess.run(["tmux", *args], capture_output=True, text=True)
+    if check and result.returncode != 0:
+        msg = result.stderr.strip() or result.stdout.strip() or "tmux command failed"
+        raise RuntimeError(msg)
+    return result.stdout.strip()
+
+
+def tmux_exists() -> bool:
+    return shutil.which("tmux") is not None
+
+
+def sanitize(value: str) -> str:
+    return value.replace("\t", " ").replace("\n", " ").replace("\r", " ").strip()
+
+
+def to_int(value: object, default: int = 0) -> int:
+    try:
+        return int(str(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def current_context(pane: str | None) -> dict[str, str] | None:
+    target = pane or os.environ.get("TMUX_PANE")
+    if not target:
+        return None
+
+    out = tmux(
+        [
+            "display-message",
+            "-p",
+            "-t",
+            target,
+            "#{session_id}\t#{session_name}\t#{window_id}\t#{window_index}\t#{window_name}",
+        ],
+        check=False,
+    )
+    if not out:
+        return None
+
+    parts = out.split("\t")
+    if len(parts) != 5:
+        return None
+
+    return {
+        "session_id": parts[0],
+        "session_name": parts[1],
+        "window_id": parts[2],
+        "window_index": parts[3],
+        "window_name": parts[4],
+    }
+
+
+def ensure_cache_dir() -> None:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def load_events() -> list[dict[str, object]]:
+    if not PENDING_FILE.exists():
+        return []
+
+    events: list[dict[str, object]] = []
+    with PENDING_FILE.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                events.append(parsed)
+    return events
+
+
+def save_events(events: list[dict[str, object]]) -> None:
+    ensure_cache_dir()
+    trimmed = events[-MAX_EVENTS:]
+    with PENDING_FILE.open("w", encoding="utf-8") as f:
+        for event in trimmed:
+            f.write(json.dumps(event, separators=(",", ":")))
+            f.write("\n")
+
+
+def list_existing_targets() -> set[tuple[str, str]]:
+    out = tmux(["list-windows", "-a", "-F", "#{session_id}\t#{window_id}"], check=False)
+    targets: set[tuple[str, str]] = set()
+    if not out:
+        return targets
+    for row in out.splitlines():
+        parts = row.split("\t")
+        if len(parts) != 2:
+            continue
+        if not parts[0] or not parts[1]:
+            continue
+        targets.add((parts[0], parts[1]))
+    return targets
+
+
+def prune_stale_events() -> list[dict[str, object]]:
+    events = load_events()
+    if not events:
+        return events
+
+    targets = list_existing_targets()
+    if not targets:
+        if events:
+            save_events([])
+        return []
+
+    filtered: list[dict[str, object]] = []
+    changed = False
+    for event in events:
+        session_id = str(event.get("session_id", ""))
+        window_id = str(event.get("window_id", ""))
+        if (session_id, window_id) in targets:
+            filtered.append(event)
+        else:
+            changed = True
+
+    if changed:
+        save_events(filtered)
+    return filtered
+
+
+def read_payload_from_stdin() -> dict[str, str]:
+    if sys.stdin.isatty():
+        return {}
+
+    raw = sys.stdin.read().strip()
+    if not raw:
+        return {}
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return {"message": sanitize(raw)}
+
+    if not isinstance(parsed, dict):
+        return {}
+
+    payload: dict[str, str] = {}
+    for key in ("source", "type", "title", "message"):
+        value = parsed.get(key)
+        if value is not None:
+            payload[key] = sanitize(str(value))
+    return payload
+
+
+def parse_notify_fields(args: argparse.Namespace) -> dict[str, str]:
+    stdin_payload = read_payload_from_stdin()
+
+    source = args.source or stdin_payload.get("source") or "agent"
+    event_type = args.event_type or stdin_payload.get("type") or "attention"
+    title = args.title or stdin_payload.get("title") or source
+    message = args.message or stdin_payload.get("message") or event_type
+
+    return {
+        "source": sanitize(source),
+        "type": sanitize(event_type),
+        "title": sanitize(title),
+        "message": sanitize(message),
+    }
+
+
+def bool_env(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def find_tty() -> str | None:
+    """Walk up the process tree to find a controlling TTY."""
+    pid = str(os.getpid())
+    for _ in range(5):
+        try:
+            result = subprocess.run(
+                ["ps", "-p", pid, "-o", "ppid="],
+                capture_output=True, text=True,
+            )
+            pid = result.stdout.strip()
+            if not pid:
+                return None
+            result = subprocess.run(
+                ["ps", "-p", pid, "-o", "tty="],
+                capture_output=True, text=True,
+            )
+            tty = result.stdout.strip()
+            if tty and tty != "?":
+                return f"/dev/{tty}"
+        except OSError:
+            return None
+    return None
+
+
+def send_osc777_notification(title: str, message: str) -> None:
+    """Emit OSC 777 notification to the controlling TTY.
+
+    When running inside tmux, wraps the sequence in DCS passthrough so it
+    reaches the outer terminal.
+    """
+    tty = find_tty()
+    if not tty:
+        return
+    osc = f"\x1b]777;notify;{title};{message}\x07"
+    if os.environ.get("TMUX"):
+        osc = f"\x1bPtmux;\x1b{osc}\x1b\\"
+    try:
+        with open(tty, "w") as f:
+            f.write(osc)
+    except OSError:
+        return
+
+
+def send_system_notification(fields: dict[str, str]) -> None:
+    if bool_env(os.environ.get(DISABLE_SYSTEM_NOTIFY_ENV)):
+        return
+
+    title = fields.get("title", "").strip() or "Agent notification"
+    message = fields.get("message", "").strip()
+    source = fields.get("source", "").strip()
+    event_type = fields.get("type", "").strip()
+    if source or event_type:
+        prefix = f"[{source}/{event_type}]".strip("/")
+        message = f"{prefix} {message}".strip()
+
+    icon_title = f"🤖 {title}"
+
+    system = platform.system().lower()
+    try:
+        if system == "darwin":
+            quoted_title = json.dumps(icon_title)
+            quoted_message = json.dumps(message)
+            subprocess.run(
+                [
+                    "osascript",
+                    "-e",
+                    f"display notification {quoted_message} with title {quoted_title}",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            return
+
+        if system == "linux" and shutil.which("notify-send") is not None:
+            subprocess.run(
+                ["notify-send", icon_title, message],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+    except OSError:
+        return
+
+
+def set_attention(window_id: str) -> None:
+    tmux(
+        ["set-window-option", "-q", "-t", window_id, "@agent_attention", "1"],
+        check=False,
+    )
+
+
+def unset_attention(window_id: str) -> None:
+    tmux(["set-window-option", "-qu", "-t", window_id, "@agent_attention"], check=False)
+
+
+def clear_events_for_target(session_id: str | None, window_id: str) -> None:
+    events = load_events()
+    filtered: list[dict[str, object]] = []
+    for event in events:
+        if str(event.get("window_id")) != window_id:
+            filtered.append(event)
+            continue
+
+        if session_id is not None and str(event.get("session_id")) != session_id:
+            filtered.append(event)
+    save_events(filtered)
+
+
+def resolve_target(target: str) -> tuple[str | None, str] | None:
+    target = target.strip()
+    if not target:
+        return None
+    if ":" in target:
+        session_id, window_id = target.split(":", 1)
+        if session_id and window_id:
+            return session_id, window_id
+        return None
+    if target.startswith("@"):
+        return None, target
+    return None
+
+
+def cmd_notify(args: argparse.Namespace) -> int:
+    if not tmux_exists():
+        return 0
+
+    ctx = current_context(args.pane)
+    if ctx is None:
+        return 0
+
+    fields = parse_notify_fields(args)
+    event = {
+        "ts": int(time.time()),
+        **ctx,
+        **fields,
+    }
+
+    events = load_events()
+    events.append(event)
+    save_events(events)
+
+    set_attention(ctx["window_id"])
+    send_system_notification(fields)
+    send_osc777_notification(
+        fields.get("title", "Agent"),
+        fields.get("message", "Waiting for input"),
+    )
+    tmux(["refresh-client", "-S"], check=False)
+    return 0
+
+
+def list_attention_windows() -> list[dict[str, str]]:
+    out = tmux(
+        [
+            "list-windows",
+            "-a",
+            "-F",
+            "#{session_id}\t#{session_name}\t#{window_id}\t#{window_index}\t#{window_name}\t#{?@agent_attention,1,0}",
+        ],
+        check=False,
+    )
+    windows: list[dict[str, str]] = []
+    if not out:
+        return windows
+
+    for row in out.splitlines():
+        parts = row.split("\t")
+        if len(parts) != 6:
+            continue
+        if parts[5] != "1":
+            continue
+        windows.append(
+            {
+                "session_id": parts[0],
+                "session_name": parts[1],
+                "window_id": parts[2],
+                "window_index": parts[3],
+                "window_name": parts[4],
+            }
+        )
+    return windows
+
+
+def summarize_events() -> dict[tuple[str, str], dict[str, object]]:
+    summary: dict[tuple[str, str], dict[str, object]] = defaultdict(
+        lambda: {
+            "count": 0,
+            "last_ts": 0,
+            "last_message": "",
+            "last_source": "",
+            "last_type": "",
+        }
+    )
+
+    for event in load_events():
+        session_id = str(event.get("session_id", ""))
+        window_id = str(event.get("window_id", ""))
+        if not session_id or not window_id:
+            continue
+        key = (session_id, window_id)
+        item = summary[key]
+        item["count"] = to_int(item["count"]) + 1
+
+        ts = to_int(event.get("ts", 0))
+        if ts >= to_int(item["last_ts"]):
+            item["last_ts"] = ts
+            item["last_message"] = str(event.get("message", "")).strip()
+            item["last_source"] = str(event.get("source", "")).strip()
+            item["last_type"] = str(event.get("type", "")).strip()
+
+    return summary
+
+
+def format_relative(ts: int) -> str:
+    if ts <= 0:
+        return ""
+    age = max(0, int(time.time()) - ts)
+    if age < 60:
+        return f"{age}s"
+    if age < 3600:
+        return f"{age // 60}m"
+    if age < 86400:
+        return f"{age // 3600}h"
+    return f"{age // 86400}d"
+
+
+def cmd_status(_: argparse.Namespace) -> int:
+    if not tmux_exists():
+        return 0
+    events = prune_stale_events()
+    if not events:
+        print("", end="")
+        return 0
+
+    windows = {(str(e.get("session_id", "")), str(e.get("window_id", ""))) for e in events}
+    print(f"{len(windows)}", end="")
+    return 0
+
+
+def clear_current_target() -> tuple[str | None, str] | None:
+    ctx = current_context(None)
+    if ctx is None:
+        return None
+    return ctx["session_id"], ctx["window_id"]
+
+
+def clear_target(session_id: str | None, window_id: str) -> None:
+    unset_attention(window_id)
+    clear_events_for_target(session_id, window_id)
+    tmux(["refresh-client", "-S"], check=False)
+
+
+def cmd_clear_current(_: argparse.Namespace) -> int:
+    if not tmux_exists():
+        return 0
+    target = clear_current_target()
+    if target is None:
+        return 0
+    clear_target(target[0], target[1])
+    return 0
+
+
+def cmd_clear_target(args: argparse.Namespace) -> int:
+    if not tmux_exists():
+        return 0
+    resolved = resolve_target(args.target)
+    if resolved is None:
+        return 1
+    clear_target(resolved[0], resolved[1])
+    return 0
+
+
+def build_menu_rows() -> list[tuple[str, str]]:
+    prune_stale_events()
+    summary = summarize_events()
+    rows: list[tuple[str, str, int, int]] = []
+
+    for window in list_attention_windows():
+        session_id = window["session_id"]
+        window_id = window["window_id"]
+        key = (session_id, window_id)
+        details = summary.get(key, {})
+
+        count = to_int(details.get("count", 0))
+        last_ts = to_int(details.get("last_ts", 0))
+        source = str(details.get("last_source", ""))
+        event_type = str(details.get("last_type", ""))
+        message = sanitize(str(details.get("last_message", "")))
+
+        if len(message) > 80:
+            message = f"{message[:77]}..."
+
+        hint = f"{source}/{event_type}" if source or event_type else "event"
+        age = format_relative(last_ts)
+        label = (
+            f"[{count:>2}] {window['session_name']}:{window['window_index']} {window['window_name']}"
+            f" | {hint} | {age:>3} | {message}"
+        )
+        target = f"{session_id}:{window_id}"
+        rows.append((target, label, last_ts, count))
+
+    rows.sort(key=lambda item: (-item[2], -item[3], item[1]))
+    return [(target, label) for target, label, _, _ in rows]
+
+
+def cmd_menu(args: argparse.Namespace) -> int:
+    if not tmux_exists():
+        return 0
+
+    rows = build_menu_rows()
+    if not rows:
+        print("No windows need attention.")
+        return 0
+
+    fzf_bin = None if args.no_fzf else find_fzf()
+    if fzf_bin is None:
+        for _, label in rows:
+            print(label)
+        return 0
+
+    chooser_input = "\n".join(f"{target}\t{label}" for target, label in rows)
+    env = os.environ.copy()
+    env.pop("FZF_DEFAULT_OPTS", None)
+    env.pop("FZF_DEFAULT_OPTS_FILE", None)
+    selection = subprocess.run(
+        [
+            fzf_bin,
+            "--delimiter",
+            "\t",
+            "--with-nth",
+            "2..",
+            "--prompt",
+            "Agent attention > ",
+            "--border",
+            "--no-sort",
+            "--layout",
+            "reverse",
+            "--bind",
+            "enter:accept",
+            "--no-select-1",
+            "--no-exit-0",
+        ],
+        input=chooser_input,
+        text=True,
+        stdout=subprocess.PIPE,
+        env=env,
+    )
+
+    if selection.returncode != 0:
+        return 0
+
+    chosen = selection.stdout.strip()
+    if not chosen:
+        return 0
+
+    target = chosen.split("\t", 1)[0].strip()
+    resolved = resolve_target(target)
+    if resolved is None:
+        return 0
+
+    session_id, window_id = resolved
+    tmux(["switch-client", "-t", f"{session_id}:{window_id}"], check=False)
+    clear_target(session_id, window_id)
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    notify = subparsers.add_parser(
+        "notify", help="Record a new attention event for the current tmux window"
+    )
+    notify.add_argument(
+        "--pane", help="Explicit tmux pane target (defaults to TMUX_PANE)"
+    )
+    notify.add_argument("--source", help="Event source, e.g. claude/codex/opencode")
+    notify.add_argument("--event-type", help="Event type")
+    notify.add_argument("--title", help="Event title")
+    notify.add_argument("--message", help="Event message")
+    notify.set_defaults(func=cmd_notify)
+
+    status = subparsers.add_parser("status", help="Render status-right segment")
+    status.set_defaults(func=cmd_status)
+
+    menu = subparsers.add_parser(
+        "menu", help="Open chooser for attention windows and jump"
+    )
+    menu.add_argument(
+        "--no-fzf",
+        action="store_true",
+        help="Print list instead of interactive chooser",
+    )
+    menu.set_defaults(func=cmd_menu)
+
+    clear_current = subparsers.add_parser(
+        "clear-current", help="Clear attention for current window"
+    )
+    clear_current.set_defaults(func=cmd_clear_current)
+
+    clear_target_parser = subparsers.add_parser(
+        "clear-target", help="Clear attention for explicit target"
+    )
+    clear_target_parser.add_argument(
+        "target", help="Target in the form <session_id>:<window_id> or <window_id>"
+    )
+    clear_target_parser.set_defaults(func=cmd_clear_target)
+
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    return int(args.func(args))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

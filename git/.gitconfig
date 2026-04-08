@@ -1,0 +1,4 @@
+[include]
+  path = ~/.gitconfig.shared
+[credential]
+	helper = "!f() { /var/home/martintrojer/.vscode-server/bin/c9d77990917f3102ada88be140d28b038d1dd7c7/node /tmp/vscode-remote-containers-5a49d9e1-610e-4d6b-8f5c-e946a018dc48.js git-credential-helper $*; }; f"

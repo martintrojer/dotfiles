@@ -1,0 +1,5 @@
+# F1 for help
+
+[mgr]
+ratio = [2, 4, 3]
+show_hidden = true # '.' toggles

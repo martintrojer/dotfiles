@@ -1,0 +1,14 @@
+[Unit]
+Description=Ollama Service (Inside Toolbox)
+After=network-online.target
+
+[Service]
+Type=simple
+# We use 'env' to set the OLLAMA_VULKAN variable inside the toolbox environment
+# env OLLAMA_VULKAN=2
+ExecStart=/usr/bin/toolbox run -c ollama ollama serve
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

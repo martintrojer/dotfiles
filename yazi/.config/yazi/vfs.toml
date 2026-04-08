@@ -1,0 +1,14 @@
+[services.bubba]
+type = "sftp"
+host = "bubba"
+user = "martintrojer"
+port = 22
+key_file = "~/.ssh/id_ed25519"
+
+[services.pizero2]
+type = "sftp"
+host = "pzero2"
+user = "martintrojer"
+port = 22
+key_file = "~/.ssh/id_ed25519"
+

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec alacritty -e zsh -il -c yazi

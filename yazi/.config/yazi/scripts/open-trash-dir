@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  printf '%s\n' "$HOME/.Trash"
+else
+  printf '%s\n' "$HOME/.local/share/Trash"
+fi

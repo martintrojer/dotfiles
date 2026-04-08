@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""Set Chrome/Chromium custom theme color."""
+
+import argparse
+import json
+import shutil
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+# Chrome Preferences locations
+CHROME_PREFS = Path.home() / ".config/google-chrome/Default/Preferences"
+CHROMIUM_PREFS = Path.home() / ".config/chromium/Default/Preferences"
+
+
+def hex_to_chrome_color(hex_color: str) -> int:
+    """Convert hex color to Chrome's signed 32-bit ARGB integer format."""
+    # Strip # prefix if present
+    hex_color = hex_color.lstrip("#")
+
+    if len(hex_color) != 6:
+        raise ValueError(f"Invalid hex color: {hex_color}")
+
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    a = 255  # Fully opaque
+
+    # ARGB as unsigned 32-bit
+    argb = (a << 24) | (r << 16) | (g << 8) | b
+
+    # Convert to signed 32-bit (Chrome uses signed integers)
+    if argb >= 0x80000000:
+        argb -= 0x100000000
+
+    return argb
+
+
+def chrome_color_to_hex(color_int: int) -> str:
+    """Convert Chrome's signed 32-bit ARGB integer to hex color."""
+    # Convert from signed to unsigned
+    if color_int < 0:
+        color_int += 0x100000000
+
+    r = (color_int >> 16) & 0xFF
+    g = (color_int >> 8) & 0xFF
+    b = color_int & 0xFF
+
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def update_preferences(prefs_path: Path, color_int: int, dry_run: bool = False) -> tuple[bool, Path | None]:
+    """Update Chrome Preferences file with new theme color.
+
+    Returns (success, backup_path).
+    """
+    if not prefs_path.exists():
+        print(f"  Preferences file not found: {prefs_path}")
+        return False, None
+
+    # Read current preferences
+    try:
+        with open(prefs_path, "r", encoding="utf-8") as f:
+            prefs = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"  Error parsing preferences: {e}")
+        return False, None
+    except Exception as e:
+        print(f"  Error reading preferences: {e}")
+        return False, None
+
+    # Show current color
+    old_color = prefs.get("browser", {}).get("theme", {}).get("user_color")
+    if old_color is not None:
+        print(f"  Current color: {chrome_color_to_hex(old_color)}")
+
+    if dry_run:
+        print(f"  Would set color to: {chrome_color_to_hex(color_int)}")
+        return True, None
+
+    # Create backup
+    backup_path = prefs_path.with_suffix(f".backup-{datetime.now():%Y%m%d-%H%M%S}")
+    try:
+        shutil.copy2(prefs_path, backup_path)
+    except Exception as e:
+        print(f"  Error: Could not create backup: {e}")
+        return False, None
+
+    # Update theme settings
+    if "browser" not in prefs:
+        prefs["browser"] = {}
+    if "theme" not in prefs["browser"]:
+        prefs["browser"]["theme"] = {}
+
+    theme = prefs["browser"]["theme"]
+
+    # Set theme colors
+    theme["user_color"] = color_int
+    theme["user_color2"] = color_int
+    theme["color_scheme"] = 2      # Dark mode
+    theme["color_scheme2"] = 2
+    theme["color_variant"] = 1     # Custom color
+    theme["color_variant2"] = 1
+
+    # Set extensions theme to use custom color
+    if "extensions" not in prefs:
+        prefs["extensions"] = {}
+    if "theme" not in prefs["extensions"]:
+        prefs["extensions"]["theme"] = {}
+
+    prefs["extensions"]["theme"]["id"] = "user_color_theme_id"
+    prefs["extensions"]["theme"]["system_theme"] = 0
+
+    # Write updated preferences
+    try:
+        with open(prefs_path, "w", encoding="utf-8") as f:
+            json.dump(prefs, f, separators=(",", ":"))
+
+        print(f"  Theme color updated successfully")
+        return True, backup_path
+    except Exception as e:
+        print(f"  Error writing preferences: {e}")
+        # Try to restore backup
+        try:
+            shutil.copy2(backup_path, prefs_path)
+            print(f"  Restored from backup")
+        except Exception:
+            pass
+        return False, None
+
+
+def check_chrome_running() -> list:
+    """Check if Chrome/Chromium processes are running."""
+    running = []
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "chrome|chromium"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            ps_result = subprocess.run(
+                ["ps", "aux"],
+                capture_output=True,
+                text=True
+            )
+            if "google-chrome" in ps_result.stdout:
+                running.append("Google Chrome")
+            if "chromium" in ps_result.stdout.lower():
+                running.append("Chromium")
+    except Exception:
+        pass
+    return running
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Set Chrome/Chromium custom theme color.",
+        epilog="Example: %(prog)s --apply '#111c18'"
+    )
+    parser.add_argument(
+        "color",
+        metavar="HEX_COLOR",
+        help="Hex color code (e.g., '#111c18' or '1e1e2e')"
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually apply the changes (default is dry-run)"
+    )
+    args = parser.parse_args()
+
+    hex_color = args.color
+    dry_run = not args.apply
+
+    # Validate and convert color
+    try:
+        color_int = hex_to_chrome_color(hex_color)
+        hex_color = f"#{hex_color.lstrip('#')}"
+    except ValueError as e:
+        parser.error(str(e))
+
+    print(f"Setting Chrome theme color: {hex_color}")
+    print(f"  ARGB value: {color_int}")
+    if dry_run:
+        print(f"  Mode: DRY-RUN (use --apply to make changes)")
+    print()
+
+    # Check if browsers are running (only warn if applying)
+    if not dry_run:
+        running = check_chrome_running()
+        if running:
+            print(f"Warning: {', '.join(running)} appears to be running.")
+            print("Changes may be overwritten when the browser closes.")
+            print("Consider closing the browser first.")
+            print()
+
+    # Update preferences files
+    updated = False
+    backups = []
+
+    if CHROME_PREFS.exists():
+        print("Google Chrome preferences...")
+        success, backup = update_preferences(CHROME_PREFS, color_int, dry_run)
+        if success:
+            updated = True
+            if backup:
+                backups.append(backup)
+        print()
+
+    if CHROMIUM_PREFS.exists():
+        print("Chromium preferences...")
+        success, backup = update_preferences(CHROMIUM_PREFS, color_int, dry_run)
+        if success:
+            updated = True
+            if backup:
+                backups.append(backup)
+        print()
+
+    if not CHROME_PREFS.exists() and not CHROMIUM_PREFS.exists():
+        print("No Chrome or Chromium preferences found.")
+        print(f"Expected locations:")
+        print(f"  {CHROME_PREFS}")
+        print(f"  {CHROMIUM_PREFS}")
+        sys.exit(1)
+
+    if updated:
+        if dry_run:
+            print("Dry-run complete. Use --apply to make changes.")
+        else:
+            print("Done! Restart Chrome/Chromium to see the changes.")
+            if backups:
+                print()
+                print("Backup(s) saved:")
+                for backup in backups:
+                    print(f"  {backup}")
+    else:
+        print("No preferences were updated.")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

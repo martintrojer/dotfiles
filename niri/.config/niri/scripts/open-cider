@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec ~/.config/fuzzel/scripts/raise-window \
+  --app-id-regex '^cider$' \
+  --title-regex 'Cider' \
+  --spawn-sh 'flatpak run sh.cider.Cider'

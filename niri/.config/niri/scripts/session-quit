@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Desktop daemons are grouped under niri-session.target and should stop with the compositor.
+systemctl --user stop niri-session.target || true
+
+exec niri msg action quit -s
