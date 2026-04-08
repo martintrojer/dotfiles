@@ -1,0 +1,531 @@
+# Neovim Config
+
+Minimal Neovim 0.12 config. No framework, no plugin manager plugin — just `vim.pack`, 0.12 builtins, and mini.nvim.
+
+## Philosophy
+
+- **0.12 builtins first** — LSP, completion, commenting, formatting, snippets, node selection, URL open all use native nvim features
+- **fzf-lua as the centre piece** — all file finding, grepping, LSP actions (definitions, references, code actions), buffer switching, and `vim.ui.select` go through fzf-lua. One consistent fuzzy interface for everything
+- **mini.nvim as the plugin suite** — one repo, 17 modules, consistent API, zero external deps
+- **vim.pack for plugin management** — builtin, lockfile, no bootstrap
+- **Every line is understood** — no framework magic, no hidden keymaps, no surprise plugins
+
+## Structure
+
+```
+init.lua                        — options, colorscheme, diagnostics, commands, autocommands
+lua/
+  plugins.lua                   — vim.pack.add + build hooks
+  mini-setup.lua                — 17 mini modules + clue + statusline + notify
+  git-commands.lua              — custom `:G...` commands on top of mini.git
+  starter.lua                   — start screen + logo + greeting
+  keymaps.lua                   — all keymaps (fzf, tmux, zk, vecgrep, terminal, LSP)
+  lsp.lua                       — LSP server configs + enable
+  grep-todos.lua                — shared TODO grep config
+  timestamps.lua                — elapsed time utility (markdown notes)
+  toggletodo.lua                — markdown TODO toggler
+after/ftplugin/
+  markdown.lua                  — markdown-specific keymaps (nabla, zk link, cards, todos)
+```
+
+## Plugins (13 vim.pack entries)
+
+### mini.nvim (17 modules from one repo)
+
+| Module | Purpose |
+|--------|---------|
+| mini.bracketed | `[`/`]` navigation (buffers, diagnostics, quickfix) |
+| mini.clue | Key clue popup on prefix keys |
+| mini.cursorword | Highlight word under cursor |
+| mini.diff | Git hunk signs in gutter |
+| mini.git | Lightweight Git inspection + `:Git` command |
+| mini.hipatterns | Highlight TODO/FIX/HACK/NOTE and hex colors inline |
+| mini.icons | File/filetype icons |
+| mini.indentscope | Indent scope guide line |
+| mini.move | Move lines/selections with Alt-h/j/k/l |
+| mini.notify | Floating notifications |
+| mini.pairs | Auto-close brackets/quotes |
+| mini.splitjoin | Toggle single-line / multi-line args |
+| mini.starter | Start screen with recent files and actions |
+| mini.statusline | Statusline (mode, git, diagnostics, LSP, position) |
+| mini.surround | Add/delete/change surroundings |
+| mini.tabline | Buffer tab bar |
+| mini.trailspace | Highlight trailing whitespace |
+
+### Other plugins (each earns its place)
+
+| Plugin | Purpose | Why not builtin? |
+|--------|---------|-----------------|
+| catppuccin | Catppuccin Mocha theme | Unified theme across terminal, eza, bat, tmux, waybar |
+| nvim-web-devicons | Legacy icon interface | Oil dependency (some plugins still use this API) |
+| fzf-lua | Fuzzy finder + LSP actions | No builtin picker. Uses fzf binary. Also handles `vim.ui.select` |
+| oil.nvim | File explorer as editable buffer | Nothing like it builtin — rename/move/delete by editing text |
+| vim-tmux-navigator | Tmux pane navigation | Requires matching tmux config. No builtin tmux awareness |
+| nvim-treesitter | Parser management | 0.12 ships treesitter runtime but needs this for parser install/update |
+| jj-fugitive | Jujutsu VCS power tool | Own plugin. Primary workflow here; git support stays intentionally lightweight |
+| redline.nvim | Inline review comments | Own plugin. Integrates with mini.git, `:DiffTool`, and jj-fugitive reviews |
+| render-markdown.nvim | In-buffer markdown rendering | Headings, code blocks, tables, checkboxes via treesitter. Heavy markdown user |
+| nabla.nvim | LaTeX formula popup preview (Unicode, no deps) |
+| zk-nvim | Zettelkasten notes | Creates, finds, links, navigates notes via zk CLI. Core daily workflow |
+| vecgrep.nvim | Semantic search | Own plugin. Local embeddings for meaning-based search, not just string matching |
+
+## What 0.12 builtins handle
+
+| Concern | How |
+|---------|-----|
+| LSP config | `vim.lsp.config()` + `vim.lsp.enable()` |
+| Completion | Built-in autocomplete (`vim.opt.autocomplete = true`) |
+| Commenting | Built-in `gc`/`gcc` |
+| Format on save | `BufWritePre` autocmd + `vim.lsp.buf.format()` + `MiniTrailspace.trim()` |
+| Snippets | Built-in snippet engine |
+| Node selection | `v_an` / `v_in` |
+| URL open | `gx` |
+| Plugin management | `vim.pack.add()` + lockfile |
+
+## Setup
+
+First launch clones all plugins via `vim.pack`. Then install LSP servers:
+
+### macOS (brew + cargo)
+
+```bash
+brew install fzf ripgrep fd tree-sitter-cli zoxide tmux
+brew install lua-language-server bash-language-server uv
+brew install gopls
+brew install typescript-language-server vscode-langservers-extracted
+brew install typos-lsp vale rust-analyzer zk
+uv tool install ty ruff
+cargo install --git https://github.com/errata-ai/vale-ls
+```
+
+### Linux (mise)
+
+```bash
+# Toolchain (mise provides node/npm and rust/cargo)
+mise use node@latest rust@latest fzf@latest ripgrep@latest fd@latest tree-sitter@latest vale@latest zoxide@latest
+
+# LSP servers via mise
+mise use github:LuaLS/lua-language-server
+mise use github:tekumara/typos-lsp
+mise use aqua:zk-org/zk
+go install golang.org/x/tools/gopls@latest
+
+# LSP servers via npm (needs node above)
+npm i -g bash-language-server typescript-language-server typescript
+npm i -g vscode-langservers-extracted
+
+# Python LSP servers
+uv tool install ty ruff
+
+# LSP servers via cargo (needs rust above)
+cargo install --git https://github.com/errata-ai/vale-ls
+```
+
+For treesitter parser installs, `nvim-treesitter` also needs the `tree-sitter` CLI in
+`PATH` (installed by `fedora/setup-mise.sh` via `tree-sitter@latest` on Fedora/Linux,
+and by `brew install tree-sitter-cli` on macOS), plus `tar`, `curl`, and a working C
+compiler.
+
+`fzf-lua` also expects `tmux` for `<leader>fB` (tmux paste buffers) and `zoxide` for
+`<leader>fz` (recent directories). The `zoxide` picker opens `oil` in the selected
+directory instead of changing Neovim's cwd.
+
+Then run `:TSSync` in nvim to install treesitter parsers.
+
+## Commands
+
+| Command | What it does |
+|---------|-------------|
+| `:PackUpdate` | Update all plugins (review diff, `:w` to confirm) |
+| `:LspInfo` | Show LSP clients for current buffer |
+| `:TSSync` | Install missing treesitter parsers |
+| `:TSUpdate` | Update treesitter parsers |
+
+## Key mappings
+
+See `lua/keymaps.lua` for the full list. Highlights:
+
+| Key | Action |
+|-----|--------|
+| **Find (`<leader>f`)** | |
+| `<leader>ff` | Find files |
+| `<leader>fF` | VCS files |
+| `<leader>fg` | Live grep (rg) |
+| `<leader>f/` | Resume live grep |
+| `<leader>fG` | Git grep |
+| `<leader>fb` | Buffers |
+| `<leader>fB` | Tmux clipboard |
+| `<leader>fc` | Commands |
+| `<leader>fo` | Recent files |
+| `<leader>fh` | Help tags |
+| `<leader>fk` | Keymaps |
+| `<leader>fj` | Jumps |
+| `<leader>fm` | Marks |
+| `<leader>f,` | Registers |
+| `<leader>fq` | Quickfix |
+| `<leader>fQ` | Location list |
+| `<leader>fw` | Grep word under cursor |
+| `<leader>fz` | Zoxide recent directories (open in Oil) |
+| `<leader>fd` | Document diagnostics |
+| `<leader>fD` | Workspace diagnostics |
+| `<leader>fs` | Document symbols |
+| `<leader>fS` | Workspace symbols |
+| `<leader>fr` | Search & replace (grep → quickfix) |
+| `<leader>fR` | Replace in quickfix files |
+| `<leader>ft` | Grep TODO/FIX (cwd) |
+| `<leader>fT` | Grep TODO/FIX (project root or buffer dir) |
+| `<leader>fv` | Semantic search (vecgrep) |
+| `<leader>fV` | Live semantic search |
+| `<leader>fX` | Reindex vecgrep |
+| **Notes (`<leader>z`)** | |
+| `<leader>zf` | Find notes |
+| `<leader>zn` | New note |
+| `<leader>zN` | New permanent note |
+| `<leader>zw` | Weekly journal |
+| `<leader>zs` | Search notes |
+| `<leader>zz` | Find by tag |
+| `<leader>zl` | Linked notes |
+| `<leader>zb` | Backlinks |
+| **Diagnostics (`<leader>e`)** | |
+| `<leader>ee` | Diagnostic float |
+| `<leader>el` | Diagnostics to loclist |
+| `<leader>em` | Messages history |
+| `<leader>en` | Notification history |
+| **Code (`<leader>c`)** | |
+| `<leader>ca` | Code actions |
+| `<leader>cr` | Rename |
+| `<leader>cf` | Format |
+| **Markdown Preview (`<leader>p`)** | |
+| `<leader>pp` | LaTeX popup (markdown only) |
+| **Markdown Tools (`<leader>t`)** | |
+| `<leader>tf` | Flash card (markdown only) |
+| `<leader>tt` | Toggle todo (markdown only) |
+| `<leader>td` | Insert current date (markdown only) |
+| `<leader>tr` | Reset timestamp timer (markdown only) |
+| `<leader>tv` | Edit Vale accepted words (markdown only) |
+| `<leader>tV` | Edit Vale rejected words (markdown only) |
+| `<leader>tc` | Disable timestamp counter (markdown only) |
+| `<leader>ti` | Insert elapsed timestamp (markdown only) |
+| **LSP** | |
+| `gd` | Go to definition |
+| `gr` | References |
+| `gi` | Implementations |
+| `gy` | Type definitions |
+| `K` | Hover docs |
+| **Editor** | |
+| `<C-/>` | Toggle terminal |
+| `-` | Oil file explorer |
+| `ZX` | Save and close buffer |
+| `gc`/`gcc` | Comment (builtin) |
+| `sa`/`sd`/`sr` | Surround add/delete/replace |
+| `gS` | Split/join args |
+| `Alt-j`/`Alt-k` | Move lines |
+| `[d`/`]d` | Prev/next diagnostic |
+| `[b`/`]b` | Prev/next buffer |
+
+---
+
+## Learning Guide
+
+Everything below is stuff you have available but might not know about yet.
+
+### 0.12 Builtins
+
+**Commenting (no plugin needed)**
+- `gcc` — toggle comment on current line
+- `gc` in visual mode — toggle comment on selection
+- `gcap` — comment a paragraph
+- `gc}` — comment to end of block
+
+**Completion (`autocomplete = true`)**
+- Popup appears as you type (disabled in markdown)
+- `<C-n>` / `<C-p>` — next/previous item
+- `<C-y>` — accept selected item
+- `<C-e>` — dismiss popup
+- `<C-x><C-o>` — trigger omni completion manually
+- `<C-x><C-f>` — file path completion
+
+**Node selection (treesitter)**
+- `van` — select outward (expand to parent node)
+- `vin` — select inward (shrink to child node)
+- Press `an` repeatedly in visual mode to keep expanding
+
+**URL open**
+- `gx` — open URL under cursor in browser
+
+**Built-in LSP mappings (0.12 defaults)**
+- `grn` — rename (alternative to `<leader>cr`)
+- `gra` — code action (alternative to `<leader>ca`)
+- `grr` — references (alternative to `gr`)
+- `grt` — type definition
+- `grx` — run code lens
+- `gO` — document symbols
+
+**Diagnostics**
+- `]d` / `[d` — next/prev diagnostic (via mini.bracketed)
+- `<leader>ee` — diagnostic float at cursor
+- `<leader>el` — send diagnostics to location list
+
+**Vale vocabulary**
+- `<leader>tv` — open repo-local accepted words for Vale
+- `<leader>tV` — open repo-local rejected words for Vale
+- Creates `.vale.ini` if missing
+- Creates `.vale/styles/config/vocabularies/Local/accept.txt` if missing
+- Also creates empty `reject.txt` alongside it
+- Uses the nearest `.vale.ini`, `.git`, `.jj`, or `.hg` root
+
+**Quickfix / location list**
+- `:copen` / `:cclose` — open/close quickfix list
+- `:lopen` / `:lclose` — open/close location list
+- `:cnext` / `:cprev` — next/prev quickfix entry
+- `:lnext` / `:lprev` — next/prev location-list entry
+- `]q` / `[q` — next/prev quickfix entry (via mini.bracketed)
+- `]l` / `[l` — next/prev location-list entry (via mini.bracketed)
+
+**Other**
+- `ZX` — save current buffer if changed, then `:bdelete`
+- `ZZ` — write and quit
+- `ZQ` — quit without saving
+- `:help!` — guess help tag at cursor (DWIM)
+- `:iput` — paste with auto-indent
+- `:uniq` — deduplicate lines in buffer
+- `:wall ++p` — save all, auto-create parent directories
+- `:restart` — restart nvim, reattach UI
+- `:messages` — see past notifications
+
+### fzf-lua
+
+**Search**
+- `<leader>ff` — find files (respects .gitignore)
+- `<leader>fg` — live grep with ripgrep
+- `<leader>fG` — git grep
+- `<leader>fw` — grep word under cursor
+- `<leader>ft` — grep TODO/FIX in cwd
+- `<leader>fT` — grep TODO/FIX from project root (`.git`/`.jj`/`.hg`) or buffer dir
+- `<leader>fv` — semantic search (vecgrep)
+- `<leader>fV` — live semantic search
+
+**Navigation**
+- `<leader>fb` — switch buffers
+- `<leader>fo` — recent files
+- `<leader>fh` — help tags
+
+**LSP via fzf-lua**
+- `gd` — go to definition (single match jumps, multiple shows picker)
+- `gr` — references
+- `gi` — implementations
+- `gy` — type definitions
+- `<leader>ca` — code actions
+- `<leader>fd` — document diagnostics
+- `<leader>fs` — document symbols
+
+**Inside fzf picker**
+- `<C-j>` / `<C-k>` — move up/down in results
+- `<Enter>` — open file
+- `<C-v>` — open in vertical split
+- `<C-x>` — open in horizontal split
+- `<C-t>` — open in new tab
+- `<Tab>` — toggle multi-select
+- `<C-g>` — toggle fuzzy / regex mode (useful in grep pickers)
+- Type to fuzzy filter results
+
+**`<C-g>` regex toggle is most useful in:**
+- `<leader>fg` — live grep: switch from fuzzy to exact regex pattern
+- `<leader>fG` — git grep: same
+- `<leader>fw` — grep word: refine with regex
+- `<leader>ft`/`<leader>fT` — TODO grep: narrow results with regex
+- `gr` — references: filter by filename pattern
+- `<leader>fd` — diagnostics: filter by message pattern
+
+Less useful in file/buffer pickers (`<leader>ff`, `<leader>fb`) where fuzzy matching is already what you want.
+
+### Oil (file explorer)
+
+- `-` — open parent directory (from any buffer)
+- Edit filenames in the buffer to rename
+- Delete lines to delete files
+- Yank/paste lines to copy/move files
+- `:w` to apply changes (confirm prompt)
+- `<CR>` — open file/directory
+- `<M-h>` — open in horizontal split
+- `g.` — toggle hidden files
+
+### mini.git (git)
+
+- `:G` — diff current file (`:Git diff -- %`)
+- `:GG` — context-aware inspect at cursor (`MiniGit.show_at_cursor()`)
+- `:Gb` — blame current file
+- `:Gl` — file history with stats
+- `:Glg` — repo log with stats
+- `:G ...` — pass through any other `:Git ...` command
+- `:h mini-git` — full help
+
+`mini.git` is here for lightweight Git inspection and the occasional commit.
+There is no interactive status buffer for staging hunks or files; use terminal
+git when you need index manipulation. `mini.git` decides whether output should
+open in a split or go through notifications; there is no true "reuse current
+window with no split" mode for inspectable commands like `:Git diff`. The
+custom `:G...` layer stays intentionally small: it only wraps current-file and
+cursor-context workflows. For everything else, just use `:Git ...` directly.
+
+Useful `:GG` examples:
+
+- In a normal tracked file: `:GG` shows how the current line range evolved.
+- On a commit hash inside blame/log/diff output: `:GG` opens that commit.
+- Inside a diff hunk: `:GG` jumps to the file contents for that hunk's source state.
+- On a changed file after `:G` or `:Gl`: move to an interesting line and hit `:GG` to drill down without inventing the next command first.
+
+### jj-fugitive (jujutsu)
+
+- Primary VCS power tool in this setup
+- `:J` — open jj log (default)
+- `:J status` — jj status view
+- `:J diff` — diff current revision
+- `:J describe` — edit revision description
+- `:J bookmark` — manage bookmarks
+- `:J annotate` — blame-style annotation
+
+### mini.nvim Modules
+
+**mini.surround** — add/delete/replace surroundings
+- `sa` + motion + char — add surrounding (e.g. `saiw"` wraps word in quotes)
+- `sd` + char — delete surrounding (e.g. `sd"` removes quotes)
+- `sr` + old + new — replace surrounding (e.g. `sr"'` changes `"` to `'`)
+- Works with `()`, `[]`, `{}`, `""`, `''`, `` ` ``, `<>`, and custom patterns
+
+**mini.bracketed** — `[`/`]` navigation
+- `[b`/`]b` — prev/next buffer
+- `[d`/`]d` — prev/next diagnostic
+- `[q`/`]q` — prev/next quickfix entry
+- `[l`/`]l` — prev/next location list entry
+- `[x`/`]x` — prev/next conflict marker
+- `[t`/`]t` — prev/next treesitter node
+- `[f`/`]f` — prev/next file in directory
+- `[i`/`]i` — prev/next indent change
+- Capital letter versions jump to first/last (e.g. `[B` = first buffer)
+
+**mini.move** — move text
+- `Alt-j` / `Alt-k` — move line down/up (normal mode)
+- `Alt-h` / `Alt-l` — move line left/right (indent)
+- Same keys in visual mode move the selection
+
+**mini.splitjoin** — toggle single/multi-line
+- `gS` — split arguments to multiple lines, or join back to one line
+- Works on function args, tables, arrays, objects
+
+**mini.diff** — git diff in gutter
+- Signs appear automatically: `+` added, `~` changed, `-` deleted
+- `gh` — show hunk overlay (visual diff of the change)
+- Works with git — in jj repos, shows diffs via colocated git
+
+**mini.clue** — key clue popup
+- Press any trigger key (`<leader>`, `g`, `z`, `[`, `]`, `<C-w>`, etc.) and pause
+- Shows available continuations with descriptions
+- 300ms delay before showing
+
+**mini.notify** — notifications
+- `vim.notify()` messages appear as floating text in the corner
+- Auto-fade after a few seconds
+- `<leader>en` — open notification history
+- `:lua MiniNotify.show_history()` — see past notifications
+
+**mini.pairs** — auto-close
+- Type `(` → inserts `()`  with cursor between
+- Type `"` → inserts `""` with cursor between
+- `<BS>` on empty pair deletes both
+- Smart: won't double-close if closing char already exists
+
+**mini.cursorword** — word highlighting
+- Automatically highlights all visible instances of the word under cursor
+- No keymap needed — just move cursor
+
+**mini.trailspace** — trailing whitespace
+- Highlights trailing whitespace in red
+- `:lua MiniTrailspace.trim()` — manual trim (also trimmed on save via autocmd)
+
+**mini.tabline** — buffer tabs
+- Shows open buffers as tabs at the top
+- Click to switch (or use `<leader>fb` for fzf buffer picker)
+- `[b`/`]b` to cycle (via mini.bracketed)
+
+**mini.statusline** — bottom bar
+- Left: mode, git branch, diff stats, diagnostics
+- Center: filename
+- Right: LSP progress, LSP servers, filetype, line:col
+
+**mini.starter** — start screen
+- Shows on `nvim` with no file
+- Recent files (global + current dir)
+- Quick actions: find files, grep, notes, oil, help, update plugins
+- Type to filter items, `<Enter>` to select
+- `q` to quit
+
+### Search & replace (fzf-lua + quickfix)
+
+1. `<leader>fr` — live grep to find matches
+2. `<Tab>` to multi-select specific matches (or select all)
+3. `<Enter>` — sends selected to quickfix list
+4. `<leader>fR` — prompts for old/new text, runs `:cfdo %s/old/new/gc` across all quickfix files
+5. `c` confirms each replacement, `a` replaces all in file, `q` skips file
+
+### Terminal
+
+- `<C-/>` — toggle terminal (keeps session alive)
+- `<Esc><Esc>` — exit terminal insert mode to normal mode
+- `<C-h/j/k/l>` — navigate to tmux pane from terminal
+- In normal mode: yank, search, scroll the terminal buffer like any file
+
+### Format on save
+
+Runs automatically on every `:w`:
+1. LSP format (only if the attached LSP supports formatting)
+2. Trim trailing whitespace (via mini.trailspace)
+3. Trim trailing blank lines (via mini.trailspace)
+
+Manual format: `<leader>cf`
+
+### Repo-local Vale vocabulary
+
+In markdown buffers, `<leader>tv` opens repo-local Vale accepted words and
+`<leader>tV` opens repo-local rejected words.
+
+Root detection checks the nearest of:
+- `.git`
+- `.jj`
+- `.hg`
+
+If needed, the mapping creates:
+- `.vale.ini`
+- `.vale/styles/config/vocabularies/Local/accept.txt`
+- `.vale/styles/config/vocabularies/Local/reject.txt`
+
+Generated `.vale.ini`:
+```ini
+StylesPath = .vale/styles
+MinAlertLevel = suggestion
+Vocab = Local
+
+[*.md]
+BasedOnStyles = Vale
+```
+
+This keeps accepted words per repository instead of global, and `vale_ls` is configured
+to root on `.git`, `.jj`, or `.hg`, so it picks up the local vocabulary from the current
+repository instead of falling back to a global `~/.vale.ini`.
+
+### Per-project config (`exrc`)
+
+Drop a `.nvim.lua` file in any project root to override settings:
+```lua
+-- .nvim.lua example
+vim.opt_local.shiftwidth = 4
+vim.opt_local.tabstop = 4
+```
+Nvim prompts to trust the file on first load.
+
+### Plugin management
+
+- `:PackUpdate` — update all plugins, shows diff, `:w` to confirm, `:q` to discard
+- `:LspInfo` — show attached LSP clients and their state (ready/starting/busy)
+- `:TSUpdate` — update treesitter parsers
+- `:messages` — see past notifications (or `:lua MiniNotify.show_history()`)

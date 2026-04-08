@@ -1,0 +1,14 @@
+[Unit]
+Description=Mako Notification Daemon
+PartOf=niri-session.target
+BindsTo=niri-session.target
+After=niri-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/mako
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=niri-session.target

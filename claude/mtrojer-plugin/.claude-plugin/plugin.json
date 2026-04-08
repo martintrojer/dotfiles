@@ -1,0 +1,7 @@
+{
+  "name": "personal",
+  "description": "Personal Claude Code extensions including code review agents, commit workflow, brainstorming, and planning skills",
+  "author": {
+    "name": "mtrojer"
+  }
+}

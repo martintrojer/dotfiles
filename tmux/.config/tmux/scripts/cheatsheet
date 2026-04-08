@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Tmux cheatsheet picker — fzf over keybindings
+set -euo pipefail
+
+entries="
+── Sessions ──
+d         Detach from session
+s         Switch session (tree picker)
+(  /  )   Previous / next session
+\$         Rename session
+
+── Windows ──
+c         New window
+w         Switch window (tree picker)
+n  /  p   Next / previous window
+0-9       Go to window by number
+b         Last window
+,         Rename window
+&         Kill window
+
+── Panes ──
+\"         Horizontal split
+%         Vertical split
+C-hjkl    Move between panes/vim (no prefix)
+;         Last pane
+o         Next pane
+z         Zoom / unzoom pane
+x         Kill pane
+{ / }     Swap pane up / down
+
+── Resize ──
+HJKL      Resize pane by 5 (repeatable)
+V         Cycle split 1/3 → 1/2 → 2/3
+
+── Copy & Pick ──
+[         Enter copy mode
+Space     Thumbs hint picker
+v         Clipboard history (fzf)
+]         Paste buffer
+=         Buffer list
+y         Copy current line
+
+── Tools ──
+F         tmux-fzf menu
+A         AI attention picker
+?         List all keybindings
+I         Install plugins (TPM)
+
+── Session Persistence ──
+C-s       Save session (resurrect)
+C-r       Restore session (resurrect)
+
+── Other ──
+C-q       Clear pane history (no prefix)
+:         Command prompt
+t         Clock
+"
+
+echo "$entries" | grep -v '^$' | fzf --prompt="cheatsheet> " --reverse --no-multi --ansi || true
