@@ -1,0 +1,37 @@
+anchor=top-right
+default-timeout=5000
+width=420
+outer-margin=20
+padding=10,15
+border-size=2
+max-icon-size=32
+font=sans-serif 14px
+
+# Catppuccin Mocha colors
+background-color=#1e1e2e
+text-color=#cdd6f4
+border-color=#313244
+progress-color=#cba6f7
+
+[mode=do-not-disturb]
+invisible=true
+
+[mode=do-not-disturb app-name=notify-send]
+invisible=false
+
+[urgency=low]
+background-color=#1e1e2e
+text-color=#89b4fa
+border-color=#313244
+
+[urgency=normal]
+background-color=#1e1e2e
+text-color=#cdd6f4
+border-color=#313244
+
+[urgency=critical]
+background-color=#1e1e2e
+text-color=#f38ba8
+border-color=#f38ba8
+default-timeout=0
+layer=overlay

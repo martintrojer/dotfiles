@@ -1,0 +1,16 @@
+{
+  "name": "local",
+  "owner": {
+    "name": "mtrojer"
+  },
+  "plugins": [
+    {
+      "name": "mtrojer",
+      "description": "Personal Claude Code extensions including code review agents, commit workflow, brainstorming, and planning skills",
+      "author": {
+        "name": "mtrojer"
+      },
+      "source": "./"
+    }
+  ]
+}

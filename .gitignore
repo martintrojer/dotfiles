@@ -1,0 +1,9 @@
+.claude
+.codex
+.DS_Store
+jj/.config/jj/repos/
+lazy-lock.json
+nvim/.config/nvim/nvim-pack-lock.json
+nvim.log
+__pycache__
+.vecgrep/

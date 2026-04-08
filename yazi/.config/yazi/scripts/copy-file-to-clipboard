@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  echo "Usage: $(basename "$0") <path>" >&2
+  exit 2
+fi
+
+path="$1"
+mime="$(file -bL --mime-type "$path")"
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  if [[ "$mime" == image/* || "$mime" == "application/pdf" ]]; then
+    osascript -e "set the clipboard to (read (POSIX file \"$path\") as «class furl»)"
+  else
+    pbcopy < "$path"
+  fi
+elif [[ "${XDG_SESSION_TYPE:-}" == "wayland" ]]; then
+  wl-copy -t "$mime" < "$path"
+else
+  xclip -selection clipboard -t "$mime" -i "$path"
+fi

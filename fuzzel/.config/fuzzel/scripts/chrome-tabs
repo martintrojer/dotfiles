@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+"""Chrome tab switcher using Chrome DevTools Protocol and niri."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import time
+import urllib.error
+import urllib.request
+
+from _common import ScriptError, fuzzel_dmenu, notify, picker_cache_path, require_commands, run
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--ports",
+        default=os.environ.get("CDP_PORTS", "9222 9223"),
+        help="Space-separated CDP ports",
+    )
+    parser.add_argument("--prompt", default="Chrome  ")
+    parser.add_argument("--width", type=int, default=85)
+    parser.add_argument("--lines", type=int, default=15)
+    return parser.parse_args()
+
+
+def fetch_json(url: str) -> list[dict]:
+    try:
+        with urllib.request.urlopen(url, timeout=1.0) as response:
+            data = response.read().decode("utf-8", errors="replace")
+        parsed = json.loads(data)
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        return []
+
+    if isinstance(parsed, list):
+        return [item for item in parsed if isinstance(item, dict)]
+    return []
+
+
+def activate_tab(port: str, tab_id: str) -> bool:
+    url = f"http://localhost:{port}/json/activate/{tab_id}"
+    for _ in range(3):
+        try:
+            with urllib.request.urlopen(url, timeout=1.0) as response:
+                response.read()
+            return True
+        except urllib.error.URLError:
+            time.sleep(0.05)
+    return False
+
+
+def get_niri_windows() -> list[dict]:
+    result = run(["niri", "msg", "-j", "windows"], check=False)
+    if result.returncode != 0:
+        return []
+    try:
+        parsed = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return []
+
+    if isinstance(parsed, list):
+        return [item for item in parsed if isinstance(item, dict)]
+    return []
+
+
+def main() -> int:
+    args = parse_args()
+    require_commands(["fuzzel", "niri"])
+    cache = picker_cache_path("chrome-tabs")
+
+    ports = args.ports.split()
+    glyphs = ["○", "●", "◌", "◍"]
+
+    tabs: list[dict] = []
+    for idx, port in enumerate(ports):
+        json_tabs = fetch_json(f"http://localhost:{port}/json")
+        glyph = glyphs[idx] if idx < len(glyphs) else "•"
+        for tab in json_tabs:
+            tab_type = str(tab.get("type", ""))
+            url = str(tab.get("url", ""))
+            if tab_type != "page":
+                continue
+            if url.startswith("chrome://") or url.startswith("chrome-extension://") or url.startswith("devtools://"):
+                continue
+            tabs.append(
+                {
+                    "id": str(tab.get("id", "")),
+                    "title": str(tab.get("title", "")),
+                    "url": url,
+                    "port": port,
+                    "glyph": glyph,
+                }
+            )
+
+    if not tabs:
+        notify("Chrome Tabs", "No Chrome instances running with debug ports")
+        raise ScriptError("No tabs available")
+
+    display: list[str] = []
+    for tab in tabs:
+        url = tab["url"]
+        short_url = f"{url[:47]}..." if len(url) > 50 else url
+        display.append(f"{tab['glyph']} {tab['title']} | {short_url}")
+
+    selected = fuzzel_dmenu(
+        prompt=args.prompt,
+        width=args.width,
+        lines=args.lines,
+        cache=cache,
+        options=display,
+    )
+    if not selected:
+        return 0
+
+    try:
+        idx = display.index(selected)
+    except ValueError:
+        prefix = selected[:40]
+        idx = next((i for i, value in enumerate(display) if value.startswith(prefix)), -1)
+        if idx < 0:
+            return 0
+
+    tab = tabs[idx]
+    tab_id = tab.get("id")
+    if not tab_id:
+        return 0
+
+    if not activate_tab(tab["port"], tab_id):
+        return 0
+
+    chrome_window_id: str | None = None
+    title = tab.get("title", "")
+    pattern = re.compile(r"chrome|chromium", re.IGNORECASE)
+
+    for _ in range(5):
+        time.sleep(0.1)
+        for window in get_niri_windows():
+            app_id = str(window.get("app_id", ""))
+            win_title = str(window.get("title", ""))
+            if pattern.search(app_id) and title and win_title.startswith(title):
+                chrome_window_id = str(window.get("id"))
+                break
+        if chrome_window_id:
+            break
+
+    if not chrome_window_id:
+        for window in get_niri_windows():
+            app_id = str(window.get("app_id", ""))
+            if pattern.search(app_id):
+                chrome_window_id = str(window.get("id"))
+                break
+
+    if chrome_window_id:
+        run(["niri", "msg", "action", "focus-window", "--id", chrome_window_id], check=False)
+
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except ScriptError as exc:
+        print(f"chrome-tabs: {exc}")
+        raise SystemExit(1)

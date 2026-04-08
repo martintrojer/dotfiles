@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec ~/.config/fuzzel/scripts/raise-window \
+  --app-id-regex '^(code|vscode)$' \
+  --title-regex 'Visual Studio Code|VS Code' \
+  --spawn-sh 'code'

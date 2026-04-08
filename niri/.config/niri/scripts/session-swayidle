@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec swayidle -w \
+  before-sleep 'pidof swaylock || swaylock --daemonize' \
+  timeout 300 'brightnessctl -s set 10' \
+  resume 'brightnessctl -r' \
+  timeout 330 'pidof swaylock || swaylock --daemonize' \
+  timeout 350 'niri msg action power-off-monitors' \
+  resume 'niri msg action power-on-monitors' \
+  timeout 3600 'systemctl suspend'
