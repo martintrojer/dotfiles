@@ -1,7 +1,15 @@
+-- Git wrapper commands (:G, :Gb, :Gl, :Glg, :GG)
+
+----------------------------------------------------------------------
+-- Helpers
+----------------------------------------------------------------------
 local function git_cmd(args)
 	vim.cmd("Git " .. args)
 end
 
+----------------------------------------------------------------------
+-- Commands
+----------------------------------------------------------------------
 vim.api.nvim_create_user_command("G", function(opts)
 	local args = vim.trim(opts.args or "")
 	if args == "" then

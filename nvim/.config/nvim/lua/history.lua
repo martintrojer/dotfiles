@@ -1,5 +1,9 @@
+-- Message and notification history viewers
 local M = {}
 
+----------------------------------------------------------------------
+-- Helpers
+----------------------------------------------------------------------
 local function close_history_buffer(buf_id)
 	local prev_buf = vim.b[buf_id].history_prev_buf
 	if prev_buf and vim.api.nvim_buf_is_valid(prev_buf) then
@@ -31,6 +35,9 @@ local function get_or_create_messages_buffer()
 	return buf_id
 end
 
+----------------------------------------------------------------------
+-- Public API
+----------------------------------------------------------------------
 function M.show_messages()
 	-- `:messages` includes editor output that never went through `vim.notify()`.
 	local lines = vim.split(vim.api.nvim_exec2("messages", { output = true }).output, "\n", { plain = true })
