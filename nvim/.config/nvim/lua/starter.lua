@@ -111,3 +111,16 @@ vim.api.nvim_create_autocmd("User", {
 		vim.keymap.set("n", "q", "<cmd>qa<cr>", { buffer = ev.buf, desc = "Quit all" })
 	end,
 })
+
+-- Close the starter buffer when leaving it so it doesn't linger in tabs
+vim.api.nvim_create_autocmd("BufLeave", {
+	callback = function(ev)
+		if vim.bo[ev.buf].filetype == "ministarter" then
+			vim.schedule(function()
+				if vim.api.nvim_buf_is_valid(ev.buf) then
+					vim.api.nvim_buf_delete(ev.buf, { force = true })
+				end
+			end)
+		end
+	end,
+})
