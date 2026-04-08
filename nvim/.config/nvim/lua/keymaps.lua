@@ -1,3 +1,4 @@
+-- Key mappings
 local map = vim.keymap.set
 local history = require("history")
 

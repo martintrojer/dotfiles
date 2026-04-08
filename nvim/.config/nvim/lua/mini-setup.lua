@@ -151,7 +151,7 @@ require("mini.tabline").setup({
 })
 
 ----------------------------------------------------------------------
--- mini.clue
+-- Clue
 ----------------------------------------------------------------------
 -- Keep triggers and clues together so the whole setup can be audited in one
 -- place. Only add prefixes you actually want mini.clue to intercept.
