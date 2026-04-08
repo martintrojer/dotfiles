@@ -28,7 +28,7 @@ after/ftplugin/
   markdown.lua                  — markdown-specific keymaps (nabla, zk link, cards, todos)
 ```
 
-## Plugins (13 vim.pack entries)
+## Plugins (14 vim.pack entries)
 
 ### mini.nvim (17 modules from one repo)
 
@@ -62,6 +62,7 @@ after/ftplugin/
 | oil.nvim | File explorer as editable buffer | Nothing like it builtin — rename/move/delete by editing text |
 | vim-tmux-navigator | Tmux pane navigation | Requires matching tmux config. No builtin tmux awareness |
 | nvim-treesitter | Parser management | 0.12 ships treesitter runtime but needs this for parser install/update |
+| fugitive-core.nvim | Shared VCS fugitive core | Own plugin. Common functionality extracted from jj-fugitive and sl-fugitive |
 | jj-fugitive | Jujutsu VCS power tool | Own plugin. Primary workflow here; git support stays intentionally lightweight |
 | redline.nvim | Inline review comments | Own plugin. Integrates with mini.git, `:DiffTool`, and jj-fugitive reviews |
 | render-markdown.nvim | In-buffer markdown rendering | Headings, code blocks, tables, checkboxes via treesitter. Heavy markdown user |
