@@ -17,10 +17,11 @@ init.lua                        — options, colorscheme, diagnostics, commands,
 lua/
   plugins.lua                   — vim.pack.add + build hooks
   mini-setup.lua                — 17 mini modules + clue + statusline + notify
-  git-commands.lua              — custom `:G...` commands on top of mini.git
   starter.lua                   — start screen + logo + greeting
-  keymaps.lua                   — all keymaps (fzf, tmux, zk, vecgrep, terminal, LSP)
+  keymaps.lua                   — all keymaps (source control, fzf, tmux, zk, vecgrep, terminal, LSP)
   lsp.lua                       — LSP server configs + enable
+  tabterm.lua                   — tab-based terminal helper (used by lazygit, tuicr)
+  history.lua                   — message and notification history viewers
   grep-todos.lua                — shared TODO grep config
   timestamps.lua                — elapsed time utility (markdown notes)
   toggletodo.lua                — markdown TODO toggler
@@ -28,7 +29,7 @@ after/ftplugin/
   markdown.lua                  — markdown-specific keymaps (nabla, zk link, cards, todos)
 ```
 
-## Plugins (14 vim.pack entries)
+## Plugins (13 vim.pack entries)
 
 ### mini.nvim (17 modules from one repo)
 
@@ -37,7 +38,7 @@ after/ftplugin/
 | mini.bracketed | `[`/`]` navigation (buffers, diagnostics, quickfix) |
 | mini.clue | Key clue popup on prefix keys |
 | mini.cursorword | Highlight word under cursor |
-| mini.diff | Git hunk signs in gutter |
+| mini.diff | Git hunk signs in gutter + diff overlay |
 | mini.git | Lightweight Git inspection + `:Git` command |
 | mini.hipatterns | Highlight TODO/FIX/HACK/NOTE and hex colors inline |
 | mini.icons | File/filetype icons |
@@ -62,7 +63,7 @@ after/ftplugin/
 | oil.nvim | File explorer as editable buffer | Nothing like it builtin — rename/move/delete by editing text |
 | vim-tmux-navigator | Tmux pane navigation | Requires matching tmux config. No builtin tmux awareness |
 | nvim-treesitter | Parser management | 0.12 ships treesitter runtime but needs this for parser install/update |
-| fugitive-core.nvim | Shared VCS fugitive core | Own plugin. Common functionality extracted from jj-fugitive and sl-fugitive |
+| fugitive-core.nvim | Shared VCS fugitive core | Own plugin. Common functionality extracted from jj-fugitive |
 | jj-fugitive | Jujutsu VCS power tool | Own plugin. Primary workflow here; git support stays intentionally lightweight |
 | redline.nvim | Inline review comments | Own plugin. Integrates with mini.git, `:DiffTool`, and jj-fugitive reviews |
 | render-markdown.nvim | In-buffer markdown rendering | Headings, code blocks, tables, checkboxes via treesitter. Heavy markdown user |
@@ -90,13 +91,14 @@ First launch clones all plugins via `vim.pack`. Then install LSP servers:
 ### macOS (brew + cargo)
 
 ```bash
-brew install fzf ripgrep fd tree-sitter-cli zoxide tmux
+brew install fzf ripgrep fd tree-sitter-cli zoxide tmux lazygit
 brew install lua-language-server bash-language-server uv
 brew install gopls
 brew install typescript-language-server vscode-langservers-extracted
 brew install typos-lsp vale rust-analyzer zk
 uv tool install ty ruff
 cargo install --git https://github.com/errata-ai/vale-ls
+opam install ocaml-lsp-server  # optional, for OCaml
 ```
 
 ### Linux (mise)
@@ -148,6 +150,23 @@ See `lua/keymaps.lua` for the full list. Highlights:
 
 | Key | Action |
 |-----|--------|
+| **Source control (`<leader>g`)** | |
+| `<leader>gg` | Lazygit (tab terminal) |
+| `<leader>gf` | Git status (fzf) |
+| `<leader>gc` | Commits — repo (fzf) |
+| `<leader>gh` | History — buffer commits (fzf) |
+| `<leader>gb` | Blame (fzf) |
+| `<leader>gB` | Branches (fzf) |
+| `<leader>gS` | Stash (fzf) |
+| `<leader>gT` | Tags (fzf) |
+| `<leader>gd` | Diff (mini.git) |
+| `<leader>gD` | Diff current file (mini.git) |
+| `<leader>go` | Diff overlay toggle (mini.diff) |
+| `<leader>gl` | Log with stats (mini.git) |
+| `<leader>gL` | Log current file with stats (mini.git) |
+| `<leader>gi` | Inspect at cursor (mini.git) |
+| `<leader>gt` | Code review (tuicr) |
+| `<leader>gj` | Jujutsu (jj-fugitive) |
 | **Find (`<leader>f`)** | |
 | `<leader>f.` | Resume last picker |
 | `<leader>ff` | Find files |
@@ -162,13 +181,13 @@ See `lua/keymaps.lua` for the full list. Highlights:
 | `<leader>fh` | Help tags |
 | `<leader>fk` | Keymaps |
 | `<leader>fj` | Jumps |
+| `<leader>fl` | Buffer lines |
+| `<leader>fC` | Changes (edit positions) |
 | `<leader>fm` | Marks |
 | `<leader>f,` | Registers |
 | `<leader>fq` | Quickfix |
 | `<leader>fQ` | Location list |
 | `<leader>fw` | Grep word under cursor |
-| `<leader>fl` | Buffer lines |
-| `<leader>fC` | Changes (edit positions) |
 | `<leader>fz` | Zoxide recent directories (open in Oil) |
 | `<leader>fd` | Document diagnostics |
 | `<leader>fD` | Workspace diagnostics |
@@ -181,6 +200,14 @@ See `lua/keymaps.lua` for the full list. Highlights:
 | `<leader>fv` | Semantic search (vecgrep) |
 | `<leader>fV` | Live semantic search |
 | `<leader>fX` | Reindex vecgrep |
+| **Code (`<leader>c`)** | |
+| `<leader>ca` | Code actions |
+| `<leader>cr` | Rename |
+| `<leader>cf` | Format |
+| `<leader>ch` | Toggle inlay hints |
+| `<leader>ci` | Incoming calls |
+| `<leader>co` | Outgoing calls |
+| `<leader>cF` | Finder (defs+refs+impls) |
 | **Notes (`<leader>z`)** | |
 | `<leader>zf` | Find notes |
 | `<leader>zn` | New note |
@@ -195,13 +222,6 @@ See `lua/keymaps.lua` for the full list. Highlights:
 | `<leader>el` | Diagnostics to loclist |
 | `<leader>em` | Messages history |
 | `<leader>en` | Notification history |
-| **Code (`<leader>c`)** | |
-| `<leader>ca` | Code actions |
-| `<leader>cr` | Rename |
-| `<leader>cf` | Format |
-| `<leader>ci` | Incoming calls |
-| `<leader>co` | Outgoing calls |
-| `<leader>cF` | Finder (defs+refs+impls) |
 | **Markdown Preview (`<leader>p`)** | |
 | `<leader>pp` | LaTeX popup (markdown only) |
 | **Markdown Tools (`<leader>t`)** | |
@@ -215,6 +235,7 @@ See `lua/keymaps.lua` for the full list. Highlights:
 | `<leader>ti` | Insert elapsed timestamp (markdown only) |
 | **LSP** | |
 | `gd` | Go to definition |
+| `gD` | Declaration |
 | `gr` | References |
 | `gi` | Implementations |
 | `gy` | Type definitions |
@@ -306,6 +327,21 @@ Everything below is stuff you have available but might not know about yet.
 - `:restart` — restart nvim, reattach UI
 - `:messages` — see past notifications
 
+### Source control (`<leader>g`)
+
+Three layers working together:
+
+- **lazygit** (`<leader>gg`) — full-screen TUI for staging, committing, rebasing, branch management. Opens in a tab terminal so tmux navigation works normally.
+- **fzf-lua git pickers** (`<leader>gf/gc/gh/gb/gB/gS/gT`) — fuzzy searchable status, commits, blame, branches with preview panes.
+- **mini.git / mini.diff** (`<leader>gd/gD/go/gl/gL/gi`) — lightweight inline diffs, log with stats, and cursor-context inspection.
+
+**Drill-down workflow:**
+1. `<leader>gl` — repo log with stats (pick a commit)
+2. `<leader>gi` on a commit hash — opens full commit diff
+3. `<leader>gi` inside the diff on a hunk — jumps to source file at that line
+
+Note: `<leader>gd`/`<leader>gl`/`<leader>gi` auto-lcd to the VCS root so mini.git path resolution works correctly.
+
 ### fzf-lua
 
 **Search**
@@ -321,7 +357,9 @@ Everything below is stuff you have available but might not know about yet.
 **Navigation**
 - `<leader>fb` — switch buffers
 - `<leader>fo` — recent files
+- `<leader>fl` — search current buffer lines
 - `<leader>fh` — help tags
+- `<leader>f.` — resume last picker
 
 **LSP via fzf-lua**
 - `gd` — go to definition (single match jumps, multiple shows picker)
@@ -329,6 +367,9 @@ Everything below is stuff you have available but might not know about yet.
 - `gi` — implementations
 - `gy` — type definitions
 - `<leader>ca` — code actions
+- `<leader>ci` — incoming calls (who calls this?)
+- `<leader>co` — outgoing calls (what does this call?)
+- `<leader>cF` — combined finder (defs+refs+impls)
 - `<leader>fd` — document diagnostics
 - `<leader>fs` — document symbols
 
@@ -362,32 +403,6 @@ Less useful in file/buffer pickers (`<leader>ff`, `<leader>fb`) where fuzzy matc
 - `<CR>` — open file/directory
 - `<M-h>` — open in horizontal split
 - `g.` — toggle hidden files
-
-### mini.git (git)
-
-- `:G` — diff current file (`:Git diff -- %`)
-- `:Gs` — git status (fzf picker with diff preview)
-- `:GG` — context-aware inspect at cursor (`MiniGit.show_at_cursor()`)
-- `:Gb` — blame current file
-- `:Gl` — file history with stats
-- `:Glg` — repo log with stats
-- `:G ...` — pass through any other `:Git ...` command
-- `:h mini-git` — full help
-
-`mini.git` is here for lightweight Git inspection and the occasional commit.
-There is no interactive status buffer for staging hunks or files; use terminal
-git when you need index manipulation. `mini.git` decides whether output should
-open in a split or go through notifications; there is no true "reuse current
-window with no split" mode for inspectable commands like `:Git diff`. The
-custom `:G...` layer stays intentionally small: it only wraps current-file and
-cursor-context workflows. For everything else, just use `:Git ...` directly.
-
-Useful `:GG` examples:
-
-- In a normal tracked file: `:GG` shows how the current line range evolved.
-- On a commit hash inside blame/log/diff output: `:GG` opens that commit.
-- Inside a diff hunk: `:GG` jumps to the file contents for that hunk's source state.
-- On a changed file after `:G` or `:Gl`: move to an interesting line and hit `:GG` to drill down without inventing the next command first.
 
 ### jj-fugitive (jujutsu)
 
@@ -429,7 +444,7 @@ Useful `:GG` examples:
 
 **mini.diff** — git diff in gutter
 - Signs appear automatically: `+` added, `~` changed, `-` deleted
-- `gh` — show hunk overlay (visual diff of the change)
+- `<leader>go` — toggle full diff overlay (shows old text inline)
 - Works with git — in jj repos, shows diffs via colocated git
 
 **mini.clue** — key clue popup
