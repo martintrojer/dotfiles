@@ -34,6 +34,10 @@ vim.api.nvim_create_user_command("Glg", function()
 	git_cmd("log --stat -200")
 end, { desc = "Git log with stats (last 200)" })
 
+vim.api.nvim_create_user_command("Gs", function()
+	require("fzf-lua").git_status()
+end, { desc = "Git status (fzf)" })
+
 vim.api.nvim_create_user_command("GG", function()
 	MiniGit.show_at_cursor()
 end, { desc = "Git inspect at cursor" })
