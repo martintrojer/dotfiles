@@ -149,6 +149,7 @@ See `lua/keymaps.lua` for the full list. Highlights:
 | Key | Action |
 |-----|--------|
 | **Find (`<leader>f`)** | |
+| `<leader>f.` | Resume last picker |
 | `<leader>ff` | Find files |
 | `<leader>fF` | VCS files |
 | `<leader>fg` | Live grep (rg) |
@@ -166,6 +167,8 @@ See `lua/keymaps.lua` for the full list. Highlights:
 | `<leader>fq` | Quickfix |
 | `<leader>fQ` | Location list |
 | `<leader>fw` | Grep word under cursor |
+| `<leader>fl` | Buffer lines |
+| `<leader>fC` | Changes (edit positions) |
 | `<leader>fz` | Zoxide recent directories (open in Oil) |
 | `<leader>fd` | Document diagnostics |
 | `<leader>fD` | Workspace diagnostics |
@@ -196,6 +199,9 @@ See `lua/keymaps.lua` for the full list. Highlights:
 | `<leader>ca` | Code actions |
 | `<leader>cr` | Rename |
 | `<leader>cf` | Format |
+| `<leader>ci` | Incoming calls |
+| `<leader>co` | Outgoing calls |
+| `<leader>cF` | Finder (defs+refs+impls) |
 | **Markdown Preview (`<leader>p`)** | |
 | `<leader>pp` | LaTeX popup (markdown only) |
 | **Markdown Tools (`<leader>t`)** | |
@@ -283,6 +289,12 @@ Everything below is stuff you have available but might not know about yet.
 - `]q` / `[q` — next/prev quickfix entry (via mini.bracketed)
 - `]l` / `[l` — next/prev location-list entry (via mini.bracketed)
 
+**Change list (jump to places you edited)**
+- `g;` — jump to older change position
+- `g,` — jump to newer change position
+- `<leader>fC` — fzf picker for change list
+- `:changes` — show full change list
+
 **Other**
 - `ZX` — save current buffer if changed, then `:bdelete`
 - `ZZ` — write and quit
@@ -354,6 +366,7 @@ Less useful in file/buffer pickers (`<leader>ff`, `<leader>fb`) where fuzzy matc
 ### mini.git (git)
 
 - `:G` — diff current file (`:Git diff -- %`)
+- `:Gs` — git status (fzf picker with diff preview)
 - `:GG` — context-aware inspect at cursor (`MiniGit.show_at_cursor()`)
 - `:Gb` — blame current file
 - `:Gl` — file history with stats

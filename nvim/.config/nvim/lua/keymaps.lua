@@ -84,6 +84,9 @@ map("n", "<c-l>", "<cmd>TmuxNavigateRight<cr>", { desc = "Tmux right" })
 ----------------------------------------------------------------------
 -- fzf-lua
 ----------------------------------------------------------------------
+map("n", "<leader>f.", "<cmd>FzfLua resume<cr>", { desc = "Resume last picker" })
+map("n", "<leader>fl", "<cmd>FzfLua blines<cr>", { desc = "Buffer lines" })
+map("n", "<leader>fC", "<cmd>FzfLua changes<cr>", { desc = "Changes" })
 map("n", "<leader>ff", "<cmd>FzfLua files<cr>", { desc = "Find files" })
 map("n", "<leader>fF", "<cmd>FzfLua vcs_files<cr>", { desc = "VCS files" })
 map("n", "<leader>fg", "<cmd>FzfLua live_grep<cr>", { desc = "Live grep (rg)" })
@@ -246,5 +249,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		map("n", "<leader>ch", function()
 			toggle_inlay_hints(ev.buf)
 		end, vim.tbl_extend("force", o, { desc = "Toggle Hints" }))
+		map("n", "<leader>ci", "<cmd>FzfLua lsp_incoming_calls<cr>", vim.tbl_extend("force", o, { desc = "Incoming calls" }))
+		map("n", "<leader>co", "<cmd>FzfLua lsp_outgoing_calls<cr>", vim.tbl_extend("force", o, { desc = "Outgoing calls" }))
+		map("n", "<leader>cF", "<cmd>FzfLua lsp_finder<cr>", vim.tbl_extend("force", o, { desc = "Finder (defs+refs+impls)" }))
 	end,
 })
