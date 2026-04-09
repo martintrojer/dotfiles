@@ -1,15 +1,18 @@
 -- Key mappings
 local map = vim.keymap.set
 local history = require("history")
+local tabterm = require("tabterm")
+local grep_todos = require("grep-todos")
 
-local function toggle_inlay_hints(bufnr)
-	for _, client in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
-		if client:supports_method("textDocument/inlayHint") then
-			local enabled = vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr })
-			vim.lsp.inlay_hint.enable(not enabled, { bufnr = bufnr })
-			return
-		end
-	end
+----------------------------------------------------------------------
+-- Helpers
+----------------------------------------------------------------------
+
+-- Directory of the current buffer, falling back to cwd
+local function buf_dir()
+	local path = vim.api.nvim_buf_get_name(0)
+	local dir = path ~= "" and vim.fs.dirname(path) or nil
+	return (dir and dir ~= "" and vim.uv.fs_stat(dir)) and dir or vim.fn.getcwd()
 end
 
 ----------------------------------------------------------------------
@@ -28,12 +31,113 @@ map("n", "<leader>en", history.show_notifications, { desc = "Notification histor
 map("n", "<leader>u", "<cmd>Undotree<cr>", { desc = "Undotree" })
 
 ----------------------------------------------------------------------
+-- LSP (per-buffer, on attach)
+----------------------------------------------------------------------
+local function toggle_inlay_hints(bufnr)
+	for _, client in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
+		if client:supports_method("textDocument/inlayHint") then
+			local enabled = vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr })
+			vim.lsp.inlay_hint.enable(not enabled, { bufnr = bufnr })
+			return
+		end
+	end
+end
+
+--
+vim.api.nvim_create_autocmd("LspAttach", {
+	callback = function(ev)
+		local o = { buffer = ev.buf }
+		map("n", "gd", "<cmd>FzfLua lsp_definitions<cr>", vim.tbl_extend("force", o, { desc = "Definition" }))
+		map("n", "gD", vim.lsp.buf.declaration, vim.tbl_extend("force", o, { desc = "Declaration" }))
+		map("n", "gr", "<cmd>FzfLua lsp_references<cr>", vim.tbl_extend("force", o, { desc = "References" }))
+		map("n", "gi", "<cmd>FzfLua lsp_implementations<cr>", vim.tbl_extend("force", o, { desc = "Implementations" }))
+		map("n", "gy", "<cmd>FzfLua lsp_typedefs<cr>", vim.tbl_extend("force", o, { desc = "Type Definitions" }))
+		map("n", "K", vim.lsp.buf.hover, vim.tbl_extend("force", o, { desc = "Hover" }))
+		map("n", "<leader>cr", vim.lsp.buf.rename, vim.tbl_extend("force", o, { desc = "Rename" }))
+		map(
+			"n",
+			"<leader>ca",
+			"<cmd>FzfLua lsp_code_actions<cr>",
+			vim.tbl_extend("force", o, { desc = "Code Actions" })
+		)
+		map({ "n", "v" }, "<leader>cf", function()
+			vim.lsp.buf.format({ async = true })
+		end, vim.tbl_extend("force", o, { desc = "Format" }))
+		map("n", "<leader>ch", function()
+			toggle_inlay_hints(ev.buf)
+		end, vim.tbl_extend("force", o, { desc = "Toggle Hints" }))
+		map(
+			"n",
+			"<leader>ci",
+			"<cmd>FzfLua lsp_incoming_calls<cr>",
+			vim.tbl_extend("force", o, { desc = "Incoming calls" })
+		)
+		map(
+			"n",
+			"<leader>co",
+			"<cmd>FzfLua lsp_outgoing_calls<cr>",
+			vim.tbl_extend("force", o, { desc = "Outgoing calls" })
+		)
+		map(
+			"n",
+			"<leader>cF",
+			"<cmd>FzfLua lsp_finder<cr>",
+			vim.tbl_extend("force", o, { desc = "Finder (defs+refs+impls)" })
+		)
+	end,
+})
+
+----------------------------------------------------------------------
+-- Source control (<leader>g)
+----------------------------------------------------------------------
+-- lcd to vcs root before running a git command (needed for mini.git path resolution)
+local function vcs_root_cmd(cmd)
+	local root = vim.fs.root(0, { ".git", ".jj", ".hg" })
+	if root then
+		vim.cmd.lcd(root)
+	end
+	vim.cmd(cmd)
+end
+
+--
+map("n", "<leader>gg", function()
+	tabterm.open("lazygit", { title = "Lazygit", cwd = buf_dir() })
+end, { desc = "Lazygit" })
+map("n", "<leader>gf", "<cmd>FzfLua git_status<cr>", { desc = "Status" })
+map("n", "<leader>gc", "<cmd>FzfLua git_commits<cr>", { desc = "Commits (repo)" })
+map("n", "<leader>gh", "<cmd>FzfLua git_bcommits<cr>", { desc = "History (buffer)" })
+map("n", "<leader>gb", "<cmd>FzfLua git_blame<cr>", { desc = "Blame" })
+map("n", "<leader>gB", "<cmd>FzfLua git_branches<cr>", { desc = "Branches" })
+map("n", "<leader>gS", "<cmd>FzfLua git_stash<cr>", { desc = "Stash" })
+map("n", "<leader>gT", "<cmd>FzfLua git_tags<cr>", { desc = "Tags" })
+map("n", "<leader>gd", function()
+	vcs_root_cmd("Git diff")
+end, { desc = "Diff" })
+map("n", "<leader>gD", function()
+	vim.cmd("Git diff -- " .. vim.fn.expand("%:p"))
+end, { desc = "Diff current file" })
+map("n", "<leader>go", MiniDiff.toggle_overlay, { desc = "Diff overlay toggle" })
+map("n", "<leader>gl", function()
+	vcs_root_cmd("Git log --stat -200")
+end, { desc = "Log (stat)" })
+map("n", "<leader>gL", function()
+	vim.cmd("Git log --stat -200 -- " .. vim.fn.expand("%:p"))
+end, { desc = "Log current file (stat)" })
+map("n", "<leader>gi", function()
+	vcs_root_cmd("lua MiniGit.show_at_cursor()")
+end, { desc = "Inspect at cursor" })
+map("n", "<leader>gt", function()
+	tabterm.open("tuicr", { title = "Code Review" })
+end, { desc = "Code review (tuicr)" })
+map("n", "<leader>gj", "<cmd>J<cr>", { desc = "Jujutsu" })
+
+----------------------------------------------------------------------
 -- Oil
 ----------------------------------------------------------------------
 map("n", "-", "<CMD>Oil<CR>", { desc = "Open parent directory" })
 
 ----------------------------------------------------------------------
--- Terminal toggle: keeps session alive, show/hide with same key
+-- Terminal
 ----------------------------------------------------------------------
 local term_buf = nil
 local term_win = nil
@@ -55,6 +159,8 @@ local function toggle_terminal()
 	end
 	vim.api.nvim_win_set_height(term_win, 15)
 end
+
+--
 map({ "n", "t" }, "<c-/>", toggle_terminal, { desc = "Toggle terminal" })
 map({ "n", "t" }, "<c-_>", toggle_terminal, { desc = "Toggle terminal" })
 map("t", "<esc><esc>", "<c-\\><c-n>", { desc = "Exit terminal mode" })
@@ -71,6 +177,7 @@ local function tmux_terminal_map(lhs, command, desc)
 	end, { desc = desc })
 end
 
+--
 tmux_terminal_map("<c-h>", "TmuxNavigateLeft", "Tmux left")
 tmux_terminal_map("<c-j>", "TmuxNavigateDown", "Tmux down")
 tmux_terminal_map("<c-k>", "TmuxNavigateUp", "Tmux up")
@@ -82,33 +189,9 @@ map("n", "<c-k>", "<cmd>TmuxNavigateUp<cr>", { desc = "Tmux up" })
 map("n", "<c-l>", "<cmd>TmuxNavigateRight<cr>", { desc = "Tmux right" })
 
 ----------------------------------------------------------------------
--- fzf-lua
+-- Find (<leader>f)
 ----------------------------------------------------------------------
-map("n", "<leader>f.", "<cmd>FzfLua resume<cr>", { desc = "Resume last picker" })
-map("n", "<leader>fl", "<cmd>FzfLua blines<cr>", { desc = "Buffer lines" })
-map("n", "<leader>fC", "<cmd>FzfLua changes<cr>", { desc = "Changes" })
-map("n", "<leader>ff", "<cmd>FzfLua files<cr>", { desc = "Find files" })
-map("n", "<leader>fF", "<cmd>FzfLua vcs_files<cr>", { desc = "VCS files" })
-map("n", "<leader>fg", "<cmd>FzfLua live_grep<cr>", { desc = "Live grep (rg)" })
-map("n", "<leader>f/", function()
-	require("fzf-lua").live_grep({ resume = true })
-end, { desc = "Resume live grep" })
-map("n", "<leader>fG", function()
-	require("fzf-lua").grep({ cmd = "git grep --line-number --color=always", prompt = "Git Grep> " })
-end, { desc = "Git grep" })
-map("n", "<leader>fb", "<cmd>FzfLua buffers<cr>", { desc = "Buffers" })
-map("n", "<leader>fB", "<cmd>FzfLua tmux_buffers<cr>", { desc = "Tmux clipboard" })
-map("n", "<leader>fc", "<cmd>FzfLua commands<cr>", { desc = "Commands" })
-map("n", "<leader>fh", "<cmd>FzfLua help_tags<cr>", { desc = "Help tags" })
-map("n", "<leader>fk", "<cmd>FzfLua keymaps<cr>", { desc = "Keymaps" })
-map("n", "<leader>fj", "<cmd>FzfLua jumps<cr>", { desc = "Jumps" })
-map("n", "<leader>fm", "<cmd>FzfLua marks<cr>", { desc = "Marks" })
-map("n", "<leader>f,", "<cmd>FzfLua registers<cr>", { desc = "Registers" })
-map("n", "<leader>fo", "<cmd>FzfLua oldfiles<cr>", { desc = "Recent files" })
-map("n", "<leader>fq", "<cmd>FzfLua quickfix<cr>", { desc = "Quickfix" })
-map("n", "<leader>fQ", "<cmd>FzfLua loclist<cr>", { desc = "Location list" })
-map("n", "<leader>fw", "<cmd>FzfLua grep_cword<cr>", { desc = "Grep word under cursor" })
-map("n", "<leader>fz", function()
+local function fzf_zoxide()
 	require("fzf-lua").zoxide({
 		cmd = "zoxide query --list",
 		header = "folder",
@@ -127,28 +210,9 @@ map("n", "<leader>fz", function()
 			end,
 		},
 	})
-end, { desc = "Zoxide" })
-map("n", "<leader>fd", "<cmd>FzfLua diagnostics_document<cr>", { desc = "Document diagnostics" })
-map("n", "<leader>fD", "<cmd>FzfLua diagnostics_workspace<cr>", { desc = "Workspace diagnostics" })
-map("n", "<leader>fs", "<cmd>FzfLua lsp_document_symbols<cr>", { desc = "Document symbols" })
-map("n", "<leader>fS", "<cmd>FzfLua lsp_workspace_symbols<cr>", { desc = "Workspace symbols" })
+end
 
--- TODO/FIX grep (shared opts in lua/grep-todos.lua)
-local grep_todos = require("grep-todos")
-map("n", "<leader>ft", function()
-	grep_todos.grep()
-end, { desc = "TODOs/FIXes (cwd)" })
-map("n", "<leader>fT", function()
-	local path = vim.api.nvim_buf_get_name(0)
-	local buffer_dir = path ~= "" and vim.fs.dirname(path) or vim.fn.getcwd()
-	grep_todos.grep({ cwd = vim.fs.root(0, { ".git", ".jj", ".hg" }) or buffer_dir })
-end, { desc = "TODOs/FIXes (repo root)" })
-
--- Search & replace: grep → <Tab> multi-select → quickfix → cfdo
-map("n", "<leader>fr", function()
-	require("fzf-lua").live_grep({ prompt = "Search (Tab select → Enter → cfdo)> " })
-end, { desc = "Search & replace (grep → quickfix)" })
-map("n", "<leader>fR", function()
+local function quickfix_replace()
 	vim.ui.input({ prompt = "Replace: " }, function(old)
 		if not old or old == "" then
 			return
@@ -160,14 +224,74 @@ map("n", "<leader>fR", function()
 			vim.cmd("cfdo %s/" .. vim.fn.escape(old, "/") .. "/" .. vim.fn.escape(new, "/") .. "/gc")
 		end)
 	end)
-end, { desc = "Replace in quickfix files" })
+end
+
+--
+map("n", "<leader>f.", "<cmd>FzfLua resume<cr>", { desc = "Resume last picker" })
+map("n", "<leader>ff", "<cmd>FzfLua files<cr>", { desc = "Find files" })
+map("n", "<leader>fF", "<cmd>FzfLua vcs_files<cr>", { desc = "VCS files" })
+map("n", "<leader>fg", "<cmd>FzfLua live_grep<cr>", { desc = "Live grep (rg)" })
+map("n", "<leader>f/", function()
+	require("fzf-lua").live_grep({ resume = true })
+end, { desc = "Resume live grep" })
+map("n", "<leader>fG", function()
+	require("fzf-lua").grep({ cmd = "git grep --line-number --color=always", prompt = "Git Grep> " })
+end, { desc = "Git grep" })
+map("n", "<leader>fb", "<cmd>FzfLua buffers<cr>", { desc = "Buffers" })
+map("n", "<leader>fB", "<cmd>FzfLua tmux_buffers<cr>", { desc = "Tmux clipboard" })
+map("n", "<leader>fc", "<cmd>FzfLua commands<cr>", { desc = "Commands" })
+map("n", "<leader>fh", "<cmd>FzfLua help_tags<cr>", { desc = "Help tags" })
+map("n", "<leader>fk", "<cmd>FzfLua keymaps<cr>", { desc = "Keymaps" })
+map("n", "<leader>fj", "<cmd>FzfLua jumps<cr>", { desc = "Jumps" })
+map("n", "<leader>fl", "<cmd>FzfLua blines<cr>", { desc = "Buffer lines" })
+map("n", "<leader>fC", "<cmd>FzfLua changes<cr>", { desc = "Changes" })
+map("n", "<leader>fm", "<cmd>FzfLua marks<cr>", { desc = "Marks" })
+map("n", "<leader>f,", "<cmd>FzfLua registers<cr>", { desc = "Registers" })
+map("n", "<leader>fo", "<cmd>FzfLua oldfiles<cr>", { desc = "Recent files" })
+map("n", "<leader>fq", "<cmd>FzfLua quickfix<cr>", { desc = "Quickfix" })
+map("n", "<leader>fQ", "<cmd>FzfLua loclist<cr>", { desc = "Location list" })
+map("n", "<leader>fw", "<cmd>FzfLua grep_cword<cr>", { desc = "Grep word under cursor" })
+map("n", "<leader>fz", fzf_zoxide, { desc = "Zoxide" })
+map("n", "<leader>fd", "<cmd>FzfLua diagnostics_document<cr>", { desc = "Document diagnostics" })
+map("n", "<leader>fD", "<cmd>FzfLua diagnostics_workspace<cr>", { desc = "Workspace diagnostics" })
+map("n", "<leader>fs", "<cmd>FzfLua lsp_document_symbols<cr>", { desc = "Document symbols" })
+map("n", "<leader>fS", "<cmd>FzfLua lsp_workspace_symbols<cr>", { desc = "Workspace symbols" })
+map("n", "<leader>ft", function()
+	grep_todos.grep()
+end, { desc = "TODOs/FIXes (cwd)" })
+map("n", "<leader>fT", function()
+	grep_todos.grep({ cwd = vim.fs.root(0, { ".git", ".jj", ".hg" }) or buf_dir() })
+end, { desc = "TODOs/FIXes (repo root)" })
+map("n", "<leader>fr", function()
+	require("fzf-lua").live_grep({ prompt = "Search (Tab select → Enter → cfdo)> " })
+end, { desc = "Search & replace (grep → quickfix)" })
+map("n", "<leader>fR", quickfix_replace, { desc = "Replace in quickfix files" })
 
 ----------------------------------------------------------------------
--- Zk notes (all commands pass notebook_path from vim.g.notes_path)
+-- Vecgrep (semantic search)
+----------------------------------------------------------------------
+map("n", "<leader>fv", function()
+	vim.ui.input({ prompt = "Vecgrep: " }, function(query)
+		if query then
+			vim.cmd("Vecgrep " .. query)
+		end
+	end)
+end, { desc = "Semantic search" })
+map("v", "<leader>fv", function()
+	local text = table.concat(vim.fn.getregion(vim.fn.getpos("v"), vim.fn.getpos(".")), " ")
+	vim.cmd("Vecgrep " .. text)
+end, { desc = "Semantic search selection" })
+map("n", "<leader>fV", "<Cmd>VecgrepLive<CR>", { desc = "Live semantic search" })
+map("n", "<leader>fX", "<Cmd>VecgrepReindex<CR>", { desc = "Reindex vecgrep" })
+
+----------------------------------------------------------------------
+-- Notes (<leader>z)
 ----------------------------------------------------------------------
 local np = function()
 	return vim.g.notes_path
 end
+
+--
 map("n", "<leader>zn", function()
 	vim.ui.input({ prompt = "Title: " }, function(title)
 		if title then
@@ -206,51 +330,3 @@ end, { desc = "Linked Notes" })
 map("n", "<leader>zb", function()
 	vim.cmd("ZkBacklinks { notebook_path = '" .. np() .. "' }")
 end, { desc = "Backlinks" })
-
-----------------------------------------------------------------------
--- Vecgrep (semantic search alongside fzf-lua text search)
-----------------------------------------------------------------------
-map("n", "<leader>fv", function()
-	vim.ui.input({ prompt = "Vecgrep: " }, function(query)
-		if query then
-			vim.cmd("Vecgrep " .. query)
-		end
-	end)
-end, { desc = "Semantic search" })
-map("v", "<leader>fv", function()
-	local text = table.concat(vim.fn.getregion(vim.fn.getpos("v"), vim.fn.getpos(".")), " ")
-	vim.cmd("Vecgrep " .. text)
-end, { desc = "Semantic search selection" })
-map("n", "<leader>fV", "<Cmd>VecgrepLive<CR>", { desc = "Live semantic search" })
-map("n", "<leader>fX", "<Cmd>VecgrepReindex<CR>", { desc = "Reindex vecgrep" })
-
-----------------------------------------------------------------------
--- LSP (per-buffer, on attach)
-----------------------------------------------------------------------
-vim.api.nvim_create_autocmd("LspAttach", {
-	callback = function(ev)
-		local o = { buffer = ev.buf }
-		map("n", "gd", "<cmd>FzfLua lsp_definitions<cr>", vim.tbl_extend("force", o, { desc = "Definition" }))
-		map("n", "gD", vim.lsp.buf.declaration, vim.tbl_extend("force", o, { desc = "Declaration" }))
-		map("n", "gr", "<cmd>FzfLua lsp_references<cr>", vim.tbl_extend("force", o, { desc = "References" }))
-		map("n", "gi", "<cmd>FzfLua lsp_implementations<cr>", vim.tbl_extend("force", o, { desc = "Implementations" }))
-		map("n", "gy", "<cmd>FzfLua lsp_typedefs<cr>", vim.tbl_extend("force", o, { desc = "Type Definitions" }))
-		map("n", "K", vim.lsp.buf.hover, vim.tbl_extend("force", o, { desc = "Hover" }))
-		map("n", "<leader>cr", vim.lsp.buf.rename, vim.tbl_extend("force", o, { desc = "Rename" }))
-		map(
-			"n",
-			"<leader>ca",
-			"<cmd>FzfLua lsp_code_actions<cr>",
-			vim.tbl_extend("force", o, { desc = "Code Actions" })
-		)
-		map({ "n", "v" }, "<leader>cf", function()
-			vim.lsp.buf.format({ async = true })
-		end, vim.tbl_extend("force", o, { desc = "Format" }))
-		map("n", "<leader>ch", function()
-			toggle_inlay_hints(ev.buf)
-		end, vim.tbl_extend("force", o, { desc = "Toggle Hints" }))
-		map("n", "<leader>ci", "<cmd>FzfLua lsp_incoming_calls<cr>", vim.tbl_extend("force", o, { desc = "Incoming calls" }))
-		map("n", "<leader>co", "<cmd>FzfLua lsp_outgoing_calls<cr>", vim.tbl_extend("force", o, { desc = "Outgoing calls" }))
-		map("n", "<leader>cF", "<cmd>FzfLua lsp_finder<cr>", vim.tbl_extend("force", o, { desc = "Finder (defs+refs+impls)" }))
-	end,
-})
