@@ -196,6 +196,7 @@ local clue_clues = {
 	{ mode = "x", keys = "<leader>e", desc = "+diagnostics" },
 	{ mode = "n", keys = "<leader>u", desc = "+undo" },
 	{ mode = "x", keys = "<leader>u", desc = "+undo" },
+	{ mode = "n", keys = "<leader>g", desc = "+git/vcs" },
 }
 
 clue.setup({
