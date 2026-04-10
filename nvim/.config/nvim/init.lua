@@ -172,7 +172,17 @@ vim.api.nvim_create_autocmd("FileType", {
 	callback = function(ev)
 		vim.keymap.set("n", "q", function()
 			vim.api.nvim_win_close(0, true)
-		end, { buffer = ev.buf, desc = "Close Undotree" })
+		end, { buffer = ev.buf, desc = "Close" })
+	end,
+})
+
+-- q to close any mini.git split (log, diff, show, diff source)
+vim.api.nvim_create_autocmd("BufEnter", {
+	pattern = "minigit://*",
+	callback = function(ev)
+		vim.keymap.set("n", "q", function()
+			vim.api.nvim_win_close(0, true)
+		end, { buffer = ev.buf, desc = "Close" })
 	end,
 })
 
