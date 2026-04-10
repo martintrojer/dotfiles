@@ -9,7 +9,14 @@ import re
 import shlex
 from pathlib import Path
 
-from _common import ScriptError, fuzzel_dmenu, notify, picker_cache_path, require_commands, run
+from _common import (
+    ScriptError,
+    fuzzel_dmenu,
+    notify,
+    picker_cache_path,
+    require_commands,
+    run,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -101,7 +108,13 @@ def main() -> int:
 
     cache = picker_cache_path("hotkeys")
     display = [item[0] for item in entries]
-    selected = fuzzel_dmenu(prompt=args.prompt, width=args.width, lines=args.lines, cache=cache, options=display)
+    selected = fuzzel_dmenu(
+        prompt=args.prompt,
+        width=args.width,
+        lines=args.lines,
+        cache=cache,
+        options=display,
+    )
     if not selected:
         return 0
 
