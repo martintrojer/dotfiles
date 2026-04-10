@@ -105,6 +105,8 @@ starter.setup({
 ----------------------------------------------------------------------
 -- Autocommands
 ----------------------------------------------------------------------
+
+-- Map q to quit all from the starter screen
 vim.api.nvim_create_autocmd("User", {
 	pattern = "MiniStarterOpened",
 	callback = function(ev)
@@ -112,7 +114,9 @@ vim.api.nvim_create_autocmd("User", {
 	end,
 })
 
--- Close the starter buffer when leaving it so it doesn't linger in tabs
+-- Delete the starter buffer when navigating away (e.g. :J, :S, opening a file).
+-- Without this, the starter tab lingers and breaks gt cycling since most
+-- keymaps don't work in the ministarter filetype.
 vim.api.nvim_create_autocmd("BufLeave", {
 	callback = function(ev)
 		if vim.bo[ev.buf].filetype == "ministarter" then
@@ -122,5 +126,35 @@ vim.api.nvim_create_autocmd("BufLeave", {
 				end
 			end)
 		end
+	end,
+})
+
+-- Re-open starter when the last real buffer is closed (e.g. quitting lazygit,
+-- :J, tuicr, or closing the last file). Fires on BufEnter (landing on an empty
+-- buffer after a tab/window close) and TermClose (terminal exits). Uses
+-- vim.schedule to let cleanup settle before checking state.
+local function maybe_open_starter()
+	local cur = vim.api.nvim_get_current_buf()
+	if not vim.api.nvim_buf_is_valid(cur) then
+		return
+	end
+	-- Current buffer is something real — don't interfere
+	if vim.bo[cur].filetype ~= "" or vim.bo[cur].buftype ~= "" or vim.api.nvim_buf_get_name(cur) ~= "" then
+		return
+	end
+	-- Check if any named/typed listed buffers remain
+	local real_bufs = vim.tbl_filter(function(b)
+		return vim.api.nvim_buf_is_valid(b)
+			and vim.bo[b].buflisted
+			and (vim.api.nvim_buf_get_name(b) ~= "" or vim.bo[b].filetype ~= "")
+	end, vim.api.nvim_list_bufs())
+	if #real_bufs == 0 then
+		starter.open()
+	end
+end
+
+vim.api.nvim_create_autocmd({ "BufEnter", "TermClose" }, {
+	callback = function()
+		vim.schedule(maybe_open_starter)
 	end,
 })
