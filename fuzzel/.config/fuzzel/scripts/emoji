@@ -9,10 +9,20 @@ import re
 import urllib.request
 from pathlib import Path
 
-from _common import ScriptError, command_exists, fuzzel_dmenu, notify, picker_cache_path, require_commands, run
+from _common import (
+    ScriptError,
+    command_exists,
+    fuzzel_dmenu,
+    notify,
+    picker_cache_path,
+    require_commands,
+    run,
+)
 
 EMOJI_TEST_URL = "https://unicode.org/Public/emoji/16.0/emoji-test.txt"
-EMOJI_LINE_RE = re.compile(r"^[0-9A-F ]+;\s*fully-qualified\s*#\s*(\S+)\s+E[0-9.]+\s+(.+)$")
+EMOJI_LINE_RE = re.compile(
+    r"^[0-9A-F ]+;\s*fully-qualified\s*#\s*(\S+)\s+E[0-9.]+\s+(.+)$"
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,12 +32,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lines", type=int, default=20)
     parser.add_argument("--db", default=None, help="Emoji list file path")
     parser.add_argument("--print", action="store_true", help="Print chosen emoji")
-    parser.add_argument("--no-copy", action="store_true", help="Do not copy chosen emoji")
+    parser.add_argument(
+        "--no-copy", action="store_true", help="Do not copy chosen emoji"
+    )
     return parser.parse_args()
 
 
 def default_db_path() -> Path:
-    data_home = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share")))
+    data_home = Path(
+        os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))
+    )
     return data_home / "bemoji" / "emojis.txt"
 
 
