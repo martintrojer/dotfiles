@@ -13,13 +13,16 @@ import sys
 import time
 from collections import defaultdict
 from pathlib import Path
+from typing import Optional
 
 CACHE_DIR = (
     Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache")))
     / "tmux-agent-attention"
 )
 MISE_SHIMS_DIR = (
-    Path(os.environ.get("MISE_DATA_DIR", str(Path.home() / ".local" / "share" / "mise")))
+    Path(
+        os.environ.get("MISE_DATA_DIR", str(Path.home() / ".local" / "share" / "mise"))
+    )
     / "shims"
 )
 PENDING_FILE = CACHE_DIR / "pending.jsonl"
@@ -27,7 +30,7 @@ MAX_EVENTS = 4000
 DISABLE_SYSTEM_NOTIFY_ENV = "TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY"
 
 
-def find_fzf() -> str | None:
+def find_fzf() -> Optional[str]:
     path = shutil.which("fzf")
     if path:
         return path
@@ -60,7 +63,7 @@ def to_int(value: object, default: int = 0) -> int:
         return default
 
 
-def current_context(pane: str | None) -> dict[str, str] | None:
+def current_context(pane: Optional[str]) -> Optional[dict[str, str]]:
     target = pane or os.environ.get("TMUX_PANE")
     if not target:
         return None
@@ -204,27 +207,29 @@ def parse_notify_fields(args: argparse.Namespace) -> dict[str, str]:
     }
 
 
-def bool_env(value: str | None) -> bool:
+def bool_env(value: Optional[str]) -> bool:
     if value is None:
         return False
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def find_tty() -> str | None:
+def find_tty() -> Optional[str]:
     """Walk up the process tree to find a controlling TTY."""
     pid = str(os.getpid())
     for _ in range(5):
         try:
             result = subprocess.run(
                 ["ps", "-p", pid, "-o", "ppid="],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             pid = result.stdout.strip()
             if not pid:
                 return None
             result = subprocess.run(
                 ["ps", "-p", pid, "-o", "tty="],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             tty = result.stdout.strip()
             if tty and tty != "?":
@@ -306,7 +311,7 @@ def unset_attention(window_id: str) -> None:
     tmux(["set-window-option", "-qu", "-t", window_id, "@agent_attention"], check=False)
 
 
-def clear_events_for_target(session_id: str | None, window_id: str) -> None:
+def clear_events_for_target(session_id: Optional[str], window_id: str) -> None:
     events = load_events()
     filtered: list[dict[str, object]] = []
     for event in events:
@@ -319,7 +324,7 @@ def clear_events_for_target(session_id: str | None, window_id: str) -> None:
     save_events(filtered)
 
 
-def resolve_target(target: str) -> tuple[str | None, str] | None:
+def resolve_target(target: str) -> Optional[tuple[Optional[str], str]]:
     target = target.strip()
     if not target:
         return None
@@ -342,7 +347,7 @@ def cmd_notify(args: argparse.Namespace) -> int:
         return 0
 
     fields = parse_notify_fields(args)
-    event = {
+    event: dict[str, object] = {
         "ts": int(time.time()),
         **ctx,
         **fields,
@@ -445,19 +450,21 @@ def cmd_status(_: argparse.Namespace) -> int:
         print("", end="")
         return 0
 
-    windows = {(str(e.get("session_id", "")), str(e.get("window_id", ""))) for e in events}
+    windows = {
+        (str(e.get("session_id", "")), str(e.get("window_id", ""))) for e in events
+    }
     print(f"{len(windows)}", end="")
     return 0
 
 
-def clear_current_target() -> tuple[str | None, str] | None:
+def clear_current_target() -> Optional[tuple[Optional[str], str]]:
     ctx = current_context(None)
     if ctx is None:
         return None
     return ctx["session_id"], ctx["window_id"]
 
 
-def clear_target(session_id: str | None, window_id: str) -> None:
+def clear_target(session_id: Optional[str], window_id: str) -> None:
     unset_attention(window_id)
     clear_events_for_target(session_id, window_id)
     tmux(["refresh-client", "-S"], check=False)

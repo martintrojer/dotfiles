@@ -20,7 +20,14 @@ def main() -> int:
     args = parse_args()
     require_commands(["clipman", "fuzzel"])
 
-    picker_parts = ["fuzzel", "--dmenu", "--prompt", args.prompt, "--width", str(args.width)]
+    picker_parts = [
+        "fuzzel",
+        "--dmenu",
+        "--prompt",
+        args.prompt,
+        "--width",
+        str(args.width),
+    ]
     picker = " ".join(shlex.quote(part) for part in picker_parts)
 
     run(["clipman", "pick", "-t", "CUSTOM", "-T", picker], check=False)

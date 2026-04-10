@@ -5,7 +5,14 @@ from __future__ import annotations
 
 import argparse
 
-from _common import ScriptError, command_exists, fuzzel_dmenu, notify, require_commands, run
+from _common import (
+    ScriptError,
+    command_exists,
+    fuzzel_dmenu,
+    notify,
+    require_commands,
+    run,
+)
 
 
 def parse_args() -> argparse.Namespace:

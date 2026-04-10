@@ -6,7 +6,14 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from _common import ScriptError, fuzzel_dmenu, notify, picker_cache_path, require_commands, run
+from _common import (
+    ScriptError,
+    fuzzel_dmenu,
+    notify,
+    picker_cache_path,
+    require_commands,
+    run,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,7 +56,9 @@ def main() -> int:
         notify("SSH", f"No hosts found in {args.config}")
         raise ScriptError("No hosts found")
 
-    selected = fuzzel_dmenu(prompt=args.prompt, width=args.width, cache=cache, options=hosts)
+    selected = fuzzel_dmenu(
+        prompt=args.prompt, width=args.width, cache=cache, options=hosts
+    )
     if not selected:
         return 0
 

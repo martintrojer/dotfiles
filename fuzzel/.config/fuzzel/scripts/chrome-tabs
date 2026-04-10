@@ -11,7 +11,14 @@ import time
 import urllib.error
 import urllib.request
 
-from _common import ScriptError, fuzzel_dmenu, notify, picker_cache_path, require_commands, run
+from _common import (
+    ScriptError,
+    fuzzel_dmenu,
+    notify,
+    picker_cache_path,
+    require_commands,
+    run,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -83,7 +90,11 @@ def main() -> int:
             url = str(tab.get("url", ""))
             if tab_type != "page":
                 continue
-            if url.startswith("chrome://") or url.startswith("chrome-extension://") or url.startswith("devtools://"):
+            if (
+                url.startswith("chrome://")
+                or url.startswith("chrome-extension://")
+                or url.startswith("devtools://")
+            ):
                 continue
             tabs.append(
                 {
@@ -119,7 +130,9 @@ def main() -> int:
         idx = display.index(selected)
     except ValueError:
         prefix = selected[:40]
-        idx = next((i for i, value in enumerate(display) if value.startswith(prefix)), -1)
+        idx = next(
+            (i for i, value in enumerate(display) if value.startswith(prefix)), -1
+        )
         if idx < 0:
             return 0
 
@@ -154,7 +167,10 @@ def main() -> int:
                 break
 
     if chrome_window_id:
-        run(["niri", "msg", "action", "focus-window", "--id", chrome_window_id], check=False)
+        run(
+            ["niri", "msg", "action", "focus-window", "--id", chrome_window_id],
+            check=False,
+        )
 
     return 0
 

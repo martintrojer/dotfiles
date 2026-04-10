@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+"""Session loop: cycle between a small set of pinned tmux sessions."""
+
+import argparse
+import subprocess
+from pathlib import Path
+
+SCRIPT = Path(__file__).resolve()
+LOOP_FILE = Path.home() / ".tmux-session-loop"
+
+
+def tmux(*args: str) -> str:
+    result = subprocess.run(["tmux", *args], capture_output=True, text=True)
+    return result.stdout.strip()
+
+
+def tmux_msg(msg: str) -> None:
+    tmux("display-message", msg)
+
+
+def has_session(name: str) -> bool:
+    return (
+        subprocess.run(
+            ["tmux", "has-session", "-t", name], capture_output=True
+        ).returncode
+        == 0
+    )
+
+
+def current_session() -> str:
+    return tmux("display-message", "-p", "#S")
+
+
+def read_loop() -> list[str]:
+    """Read loop file, prune missing sessions, and persist the cleaned list."""
+    if not LOOP_FILE.exists():
+        return []
+    sessions = [s for s in LOOP_FILE.read_text().splitlines() if s]
+    filtered = [session for session in sessions if has_session(session)]
+    if filtered != sessions:
+        write_loop(filtered)
+    return filtered
+
+
+def write_loop(sessions: list[str]) -> None:
+    LOOP_FILE.write_text("\n".join(sessions) + "\n" if sessions else "")
+
+
+def cmd_add() -> None:
+    current = current_session()
+    sessions = read_loop()
+    if current in sessions:
+        tmux_msg(f"Loop: '{current}' already in loop")
+        return
+    sessions.append(current)
+    write_loop(sessions)
+    tmux_msg(f"Loop: added '{current}' ({len(sessions)} sessions)")
+
+
+def cmd_remove() -> None:
+    current = current_session()
+    sessions = read_loop()
+    if current not in sessions:
+        tmux_msg(f"Loop: '{current}' not in loop")
+        return
+    sessions.remove(current)
+    write_loop(sessions)
+    tmux_msg(f"Loop: removed '{current}' ({len(sessions)} sessions)")
+
+
+def cmd_toggle() -> None:
+    current = current_session()
+    sessions = read_loop()
+    if current in sessions:
+        sessions.remove(current)
+        write_loop(sessions)
+        tmux_msg(f"Loop: removed '{current}' ({len(sessions)} sessions)")
+    else:
+        sessions.append(current)
+        write_loop(sessions)
+        tmux_msg(f"Loop: added '{current}' ({len(sessions)} sessions)")
+
+
+def cmd_next() -> None:
+    _cycle(1)
+
+
+def cmd_prev() -> None:
+    _cycle(-1)
+
+
+def _cycle(direction: int) -> None:
+    sessions = read_loop()
+    if len(sessions) == 0:
+        tmux_msg("Loop: empty")
+        return
+    if len(sessions) == 1:
+        tmux("switch-client", "-t", sessions[0])
+        return
+    current = current_session()
+    try:
+        idx = sessions.index(current)
+    except ValueError:
+        tmux("switch-client", "-t", sessions[0])
+        return
+    target = (idx + direction) % len(sessions)
+    tmux("switch-client", "-t", sessions[target])
+
+
+def cmd_list() -> None:
+    sessions = read_loop()
+    count = len(sessions)
+    if count == 0:
+        tmux("choose-tree", "-sZ", "-O", "name")
+    elif count == 1:
+        tmux("switch-client", "-t", sessions[0])
+    elif count == 2:
+        cmd_next()
+    else:
+        tmux(
+            "display-popup",
+            "-E",
+            "-w",
+            "50%",
+            "-h",
+            "40%",
+            "--",
+            str(SCRIPT),
+            "_pick",
+        )
+
+
+def cmd_pick() -> None:
+    """Internal: runs inside the popup, pipes session list through fzf."""
+    current = current_session()
+    sessions = read_loop()
+    lines = [f"▸ {s}" if s == current else f"  {s}" for s in sessions]
+    try:
+        result = subprocess.run(
+            ["fzf", "--no-info", "--reverse", "--no-sort"],
+            input="\n".join(lines),
+            capture_output=True,
+            text=True,
+        )
+        selected = result.stdout.strip().lstrip("▸ ").strip()
+        if selected:
+            tmux("switch-client", "-t", selected)
+    except FileNotFoundError:
+        tmux_msg("Loop: fzf not found")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Tmux session loop")
+    sub = parser.add_subparsers(dest="command")
+    sub.add_parser("add", help="Add current session to loop")
+    sub.add_parser("remove", help="Remove current session from loop")
+    sub.add_parser("toggle", help="Toggle current session in/out of loop")
+    sub.add_parser("next", help="Switch to next session in loop")
+    sub.add_parser("prev", help="Switch to previous session in loop")
+    sub.add_parser("list", help="Smart picker: tree / toggle / fzf popup")
+    sub.add_parser("_pick", help=argparse.SUPPRESS)
+
+    args = parser.parse_args()
+    commands = {
+        "add": cmd_add,
+        "remove": cmd_remove,
+        "toggle": cmd_toggle,
+        "next": cmd_next,
+        "prev": cmd_prev,
+        "list": cmd_list,
+        "_pick": cmd_pick,
+        None: cmd_list,
+    }
+    commands[args.command]()
+
+
+if __name__ == "__main__":
+    main()

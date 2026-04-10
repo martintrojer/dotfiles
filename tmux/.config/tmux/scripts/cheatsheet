@@ -5,8 +5,10 @@ set -euo pipefail
 entries="
 ── Sessions ──
 d         Detach from session
-s         Switch session (tree picker)
-(  /  )   Previous / next session
+s         Session loop (auto: tree / toggle / fzf)
+S         Switch session (tree picker)
+_         Toggle session in/out of loop
+(  /  )   Previous / next session in loop
 \$         Rename session
 
 ── Windows ──
@@ -14,7 +16,6 @@ c         New window
 w         Switch window (tree picker)
 n  /  p   Next / previous window
 0-9       Go to window by number
-b         Last window
 ,         Rename window
 &         Kill window
 
@@ -42,6 +43,7 @@ y         Copy current line
 
 ── Tools ──
 F         tmux-fzf menu
+g         Cheatsheet (this)
 A         AI attention picker
 ?         List all keybindings
 I         Install plugins (TPM)
