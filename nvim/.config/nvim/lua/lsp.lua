@@ -1,5 +1,7 @@
 -- LSP server configs (0.12 vim.lsp.config)
 -- See README.md for install instructions
+local lua_globals = require("lua_globals")
+local util = require("util")
 
 ----------------------------------------------------------------------
 -- Server Configs
@@ -15,7 +17,7 @@ vim.lsp.config("lua_ls", {
 	settings = {
 		Lua = {
 			runtime = { version = "LuaJIT" },
-			diagnostics = { globals = { "vim" } },
+			diagnostics = { globals = lua_globals.globals },
 			workspace = { checkThirdParty = false, library = { vim.env.VIMRUNTIME } },
 			telemetry = { enable = false },
 		},
@@ -145,7 +147,7 @@ vim.lsp.config("typos_lsp", {
 vim.lsp.config("vale_ls", {
 	cmd = { "vale-ls" },
 	filetypes = { "markdown" },
-	root_markers = { ".git", ".jj", ".hg" },
+	root_markers = util.vcs_root_markers,
 })
 
 ----------------------------------------------------------------------

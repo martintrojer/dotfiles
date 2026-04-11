@@ -8,13 +8,9 @@ vim.g.markdown_recommended_style = 0
 ----------------------------------------------------------------------
 -- Helpers
 ----------------------------------------------------------------------
-local vale_root_markers = { ".git", ".jj", ".hg" }
+local util = require("util")
 local vale_regex_hint =
 	"# One regex per line. Use (?i) for case-insensitive matches and patterns like s? or (?:s|ies) for plurals, e.g. "
-
-local map = function(mode, lhs, rhs, opts)
-	vim.keymap.set(mode, lhs, rhs, vim.tbl_extend("force", { buffer = 0 }, opts or {}))
-end
 
 local function ensure_file(path, lines)
 	if vim.fn.filereadable(path) == 1 then
@@ -54,7 +50,7 @@ local function ensure_vale_vocab(root)
 end
 
 local function edit_vale_vocab(kind)
-	local root = vim.fs.root(0, vale_root_markers)
+	local root = vim.fs.root(0, util.vcs_root_markers)
 	if not root then
 		vim.notify("No project root found for Vale vocabulary", vim.log.levels.WARN)
 		return
@@ -77,15 +73,15 @@ vim.b.miniclue_config = vim.tbl_deep_extend("force", vim.b.miniclue_config or {}
 ----------------------------------------------------------------------
 
 -- LaTeX formula preview
-map("n", "<leader>pp", function()
+util.buf_map("n", "<leader>pp", function()
 	require("nabla").popup()
 end, { desc = "LaTeX popup" })
 
 -- Insert zk link
-map("i", "[[", "<Cmd>ZkInsertLink<CR>", { desc = "Insert zk link" })
+util.buf_map("i", "[[", "<Cmd>ZkInsertLink<CR>", { desc = "Insert zk link" })
 
 -- Carddown card
-map("n", "<leader>tf", function()
+util.buf_map("n", "<leader>tf", function()
 	local pos = vim.api.nvim_win_get_cursor(0)[2]
 	local line = vim.api.nvim_get_current_line()
 	local nline = line:sub(0, pos) .. "PROMPT : RESPONSE 🧠 #tag" .. line:sub(pos + 1)
@@ -93,7 +89,7 @@ map("n", "<leader>tf", function()
 end, { desc = "Insert flash card" })
 
 -- Date
-map("n", "<leader>td", function()
+util.buf_map("n", "<leader>td", function()
 	local pos = vim.api.nvim_win_get_cursor(0)[2]
 	local line = vim.api.nvim_get_current_line()
 	local nline = line:sub(0, pos) .. "## " .. os.date("%Y-%m-%d") .. line:sub(pos + 1)
@@ -103,10 +99,10 @@ end, { desc = "Insert current date" })
 ----------------------------------------------------------------------
 -- Note Helpers
 ----------------------------------------------------------------------
-local todo = require("toggletodo")
+local todos = require("todos")
 
-map("n", "<leader>tt", function()
-	todo.ToggleTodo({ v = true })
+util.buf_map("n", "<leader>tt", function()
+	todos.toggle({ v = true })
 end, { desc = "Toggle todo" })
 
 ----------------------------------------------------------------------
@@ -114,24 +110,24 @@ end, { desc = "Toggle todo" })
 ----------------------------------------------------------------------
 local ts = require("timestamps")
 
-map("n", "<leader>tr", function()
+util.buf_map("n", "<leader>tr", function()
 	ts.reset()
 end, { desc = "Reset timestamp timer and counter" })
 
-map("n", "<leader>tv", function()
+util.buf_map("n", "<leader>tv", function()
 	edit_vale_vocab("accept")
 end, { desc = "Edit Vale accepted words" })
 
-map("n", "<leader>tV", function()
+util.buf_map("n", "<leader>tV", function()
 	edit_vale_vocab("reject")
 end, { desc = "Edit Vale rejected words" })
 
-map("n", "<leader>tc", function()
+util.buf_map("n", "<leader>tc", function()
 	ts.disable_counter()
 	print("counter disabled")
 end, { desc = "Disable timestamp counter" })
 
-map("n", "<leader>ti", function()
+util.buf_map("n", "<leader>ti", function()
 	ts.get_ts_string(function(fullstr)
 		local pos = vim.api.nvim_win_get_cursor(0)[2]
 		local line = vim.api.nvim_get_current_line()

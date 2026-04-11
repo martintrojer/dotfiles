@@ -84,7 +84,7 @@ starter.setup({
 			vim.cmd("ZkNew { notebook_path = '" .. vim.g.notes_path .. "', group = 'journal' }")
 		end),
 		action_item(notes_header, "TODOs", function()
-			require("grep-todos").grep({ cwd = vim.g.notes_path })
+			require("todos").grep({ cwd = vim.g.notes_path })
 		end),
 		action_item("System", "Oil" .. cwd_glyph, function()
 			require("oil").open(vim.uv.cwd())
