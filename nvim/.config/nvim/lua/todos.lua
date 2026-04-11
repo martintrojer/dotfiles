@@ -1,9 +1,19 @@
--- Markdown TODO state machine: - → - [ ] TODO: → - [x] → -
+-- TODO helpers: grep TODOs/FIXes and toggle markdown todo states
 
 ----------------------------------------------------------------------
 -- Module
 ----------------------------------------------------------------------
 local M = {}
+
+----------------------------------------------------------------------
+-- Defaults
+----------------------------------------------------------------------
+local default_grep_opts = {
+	search = "TODO:|FIX:",
+	no_esc = true,
+	prompt = "TODOs> ",
+	rg_opts = "--column --line-number --no-heading --color=always --smart-case -g '!*archive*'",
+}
 
 ----------------------------------------------------------------------
 -- Transitions
@@ -37,7 +47,12 @@ end
 ----------------------------------------------------------------------
 -- Public API
 ----------------------------------------------------------------------
-function M.ToggleTodo(opts)
+function M.grep(opts)
+	local merged = vim.tbl_deep_extend("force", default_grep_opts, opts or {})
+	require("fzf-lua").grep(merged)
+end
+
+function M.toggle(opts)
 	opts = opts or {}
 	local startline, endline = vim.api.nvim_win_get_cursor(0)[1], vim.api.nvim_win_get_cursor(0)[1]
 	if opts.v then

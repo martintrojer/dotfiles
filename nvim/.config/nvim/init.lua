@@ -49,7 +49,7 @@ vim.cmd.colorscheme("catppuccin")
 ----------------------------------------------------------------------
 -- Plugin setup
 ----------------------------------------------------------------------
-require("mini-setup")
+require("mini_setup")
 require("starter")
 
 require("fzf-lua").setup({ "default-title", ui_select = true })
