@@ -188,6 +188,8 @@ local clue_clues = {
 	clue.gen_clues.z(),
 	{ mode = "n", keys = "<leader>f", desc = "+find" },
 	{ mode = "x", keys = "<leader>f", desc = "+find" },
+	{ mode = "n", keys = "<leader>s", desc = "+search" },
+	{ mode = "x", keys = "<leader>s", desc = "+search" },
 	{ mode = "n", keys = "<leader>z", desc = "+notes" },
 	{ mode = "x", keys = "<leader>z", desc = "+notes" },
 	{ mode = "n", keys = "<leader>c", desc = "+code" },
