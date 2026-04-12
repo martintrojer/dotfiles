@@ -1,6 +1,7 @@
 .claude
 .codex
 .DS_Store
+claude/mtrojer-plugin/skills/
 jj/.config/jj/repos/
 lazy-lock.json
 nvim/.config/nvim/nvim-pack-lock.json

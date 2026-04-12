@@ -13,6 +13,57 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behavior is a
 
 Use `./stow-all.py` to stow the packages that match the current OS and distro.
 
+Not everything at the repo root is a stow package. In particular, [`skills/`](./skills) is the shared source of truth for agent skills and is managed directly by `stow-all.py`, not by GNU Stow.
+
+## Agent Skills
+
+Repo-root [`skills/`](./skills) is the source of truth.
+
+`./stow-all.py --apply` does best-effort setup for that shared skill tree:
+
+- Creates or repairs per-skill links in `~/.codex/skills/`
+- Creates or repairs per-skill links in `~/.agents/skills/` for OpenCode and pi-agent
+- Generates [`claude/mtrojer-plugin/skills/`](./claude/mtrojer-plugin) by copying the shared `skills/` tree into the Claude plugin bundle
+
+Claude then installs that generated plugin bundle into its own cache under `~/.claude/plugins/cache/...`.
+That installed Claude copy is a snapshot. If skills are edited or new skills are added, it becomes stale until you reinstall the local plugin.
+
+`./stow-all.py --check` verifies all of these locations:
+
+- `~/.codex/skills/`
+- `~/.agents/skills/`
+- generated plugin bundle at `~/dotfiles/claude/mtrojer-plugin/skills/`
+- installed Claude plugin bundle under `~/.claude/plugins/cache/local/mtrojer/...`
+
+If the Claude plugin is missing, `--check` prints the manual install commands.
+
+## Agent Skill Flow
+
+Run the steps in this order:
+
+1. Populate links and generate the Claude plugin bundle:
+   ```bash
+   ./stow-all.py --apply
+   ```
+2. Install or update the Claude Code plugin from that generated bundle:
+   ```text
+   /plugin marketplace add ~/dotfiles/claude/mtrojer-plugin
+   /plugin install mtrojer@local
+   ```
+3. Verify everything:
+   ```bash
+   ./stow-all.py --check
+   ```
+
+When shared skills change, repeat the same order:
+
+1. `./stow-all.py --apply`
+2. `/plugin install mtrojer@local`
+3. `./stow-all.py --check`
+
+`stow-all.py` does not run Claude’s `/plugin ...` commands for you. It only prepares the bundle and verifies the installed copy.
+If Claude's installed copy is stale, `./stow-all.py --check` tells you to run `/plugin install mtrojer@local`.
+
 Key Linux packages now include:
 - `niri`
 - `waybar`
