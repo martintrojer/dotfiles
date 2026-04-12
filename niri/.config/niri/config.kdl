@@ -307,8 +307,8 @@ binds {
     Mod+Shift+Minus hotkey-overlay-title="Decrease Window Height" { set-window-height "-10%"; }
     Mod+Shift+Equal hotkey-overlay-title="Increase Window Height" { set-window-height "+10%"; }
 
-    // Mod+V       { toggle-window-floating; }
-    // Mod+Shift+V { switch-focus-between-floating-and-tiling; }
+    Mod+V       { toggle-window-floating; }
+    Mod+Shift+V { switch-focus-between-floating-and-tiling; }
 
     // Mod+W { toggle-column-tabbed-display; }
 
