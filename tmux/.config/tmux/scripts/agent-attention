@@ -338,12 +338,28 @@ def resolve_target(target: str) -> Optional[tuple[Optional[str], str]]:
     return None
 
 
+def is_active_window(ctx: dict[str, str]) -> bool:
+    """Check if the agent's window is the active window in its session."""
+    active_window = tmux(
+        ["display-message", "-t", ctx["session_id"], "-p", "#{window_id}"],
+        check=False,
+    )
+    return active_window == ctx["window_id"]
+
+
 def cmd_notify(args: argparse.Namespace) -> int:
     if not tmux_exists():
         return 0
 
     ctx = current_context(args.pane)
     if ctx is None:
+        return 0
+
+    # If the agent's window is already in the viewport, just send system
+    # notification (useful for unfocused terminals) but skip the attention list.
+    if is_active_window(ctx):
+        fields = parse_notify_fields(args)
+        send_system_notification(fields)
         return 0
 
     fields = parse_notify_fields(args)
