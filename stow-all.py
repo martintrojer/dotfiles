@@ -8,6 +8,7 @@ import logging
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -16,7 +17,7 @@ from time import monotonic
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Final, Literal, Mapping, Sequence, cast
+from typing import Any, Final, Literal, Sequence
 
 
 Action = Literal["check", "apply"]
@@ -31,10 +32,10 @@ class Args:
     show_diffs: bool
     verbose: bool
     target: str
+    ignore: set[str]
 
 
-SCRIPT_PATH = Path(__file__).resolve()
-SCRIPT_DIR: Final[Path] = SCRIPT_PATH.parent
+SCRIPT_DIR: Final[Path] = Path(__file__).resolve().parent
 LOGGER: Final[logging.Logger] = logging.getLogger("stow-all")
 SHARED_SKILLS_DIR: Final[Path] = SCRIPT_DIR / "skills"
 CLAUDE_PLUGIN_DIR: Final[Path] = SCRIPT_DIR / "claude" / "mtrojer-plugin"
@@ -46,46 +47,58 @@ SHARED_SKILL_LINKS: Final[tuple[tuple[str, Path], ...]] = (
     ("agents", Path(".agents/skills")),
 )
 
-# Portable baseline shared across hosts.
-COMMON_PACKAGES: Final[list[str]] = [
-    "bat",
-    "btop",
-    "eza",
-    "gdu",
-    "git",
-    "jj",
-    "nvim",
-    "ssh",
-    "tmux",
-    "tuicr",
-    "vale",
-    "yazi",
-    "zsh",
-]
-
-# macOS desktop/session layer.
-DARWIN_PACKAGES: Final[list[str]] = [
-    "ghostty",
-    "hammerspoon",
-]
-
-# Linux desktop/session layer.
-LINUX_PACKAGES: Final[list[str]] = [
-    "alacritty",
-    "bin",
-    "fuzzel",
-    "kanshi",
-    "mako",
-    "niri",
-    "swaylock",
-    "waybar",
-    "wallpapers",
-]
-
-# Fedora-only additions layered on top of the Linux desktop stack.
-FEDORA_PACKAGES: Final[list[str]] = [
-    "containers",
-    "systemd",
+# (scope, stow_dir, package_names)
+PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
+    (
+        "common",
+        SCRIPT_DIR,
+        [
+            "bat",
+            "btop",
+            "eza",
+            "gdu",
+            "git",
+            "jj",
+            "nvim",
+            "ssh",
+            "tmux",
+            "tuicr",
+            "vale",
+            "yazi",
+            "zsh",
+        ],
+    ),
+    (
+        "darwin",
+        SCRIPT_DIR,
+        [
+            "ghostty",
+            "hammerspoon",
+        ],
+    ),
+    (
+        "linux",
+        SCRIPT_DIR,
+        [
+            "alacritty",
+            "bin",
+            "fuzzel",
+            "kanshi",
+            "mako",
+            "niri",
+            "swaylock",
+            "waybar",
+            "wallpapers",
+        ],
+    ),
+    (
+        "fedora",
+        SCRIPT_DIR / "fedora",
+        [
+            "containers",
+            "systemd",
+        ],
+    ),
 ]
 
 IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
@@ -116,10 +129,7 @@ class PackageSpec:
 @dataclass(frozen=True)
 class SystemInfo:
     os_name: str
-    distro_id: str
-    distro_like: str
-    is_fedora_family: bool
-    is_debian_family: bool
+    is_fedora: bool
 
 
 def parse_args() -> Args:
@@ -170,6 +180,13 @@ def parse_args() -> Args:
         default=os.environ.get("TARGET", str(Path.home())),
         help="Override target directory (default: %(default)s)",
     )
+    parser.add_argument(
+        "--ignore",
+        action="append",
+        default=[],
+        metavar="ID",
+        help="Suppress a specific check failure by ID (repeatable)",
+    )
     namespace = parser.parse_args()
     return Args(
         action=namespace.action,
@@ -177,92 +194,55 @@ def parse_args() -> Args:
         show_diffs=namespace.show_diffs,
         verbose=namespace.verbose,
         target=namespace.target,
+        ignore=set(namespace.ignore),
     )
 
 
 def detect_system() -> SystemInfo:
     os_name = platform.system()
     distro_id = ""
-    distro_like = ""
 
     if os_name == "Linux":
         os_release = Path("/etc/os-release")
         if os_release.is_file():
-            values: dict[str, str] = {}
             for line in os_release.read_text().splitlines():
-                if "=" not in line:
-                    continue
-                key, value = line.split("=", 1)
-                values[key] = value.strip().strip('"')
-            distro_id = values.get("ID", "")
-            distro_like = values.get("ID_LIKE", "")
+                if line.startswith("ID="):
+                    distro_id = line.split("=", 1)[1].strip().strip('"')
+                    break
 
-    distro_id_lc = distro_id.lower()
-    distro_like_lc = distro_like.lower()
-
-    is_fedora_family = any(
-        marker in distro_id_lc or marker in distro_like_lc
-        for marker in ("fedora", "rhel")
-    )
-    is_debian_family = any(
-        marker in distro_id_lc or marker in distro_like_lc
-        for marker in ("debian", "ubuntu")
-    )
+    if distro_id:
+        LOGGER.info(f"Detected distro: {distro_id}")
 
     return SystemInfo(
         os_name=os_name,
-        distro_id=distro_id,
-        distro_like=distro_like,
-        is_fedora_family=is_fedora_family,
-        is_debian_family=is_debian_family,
+        is_fedora=distro_id.lower() == "fedora",
     )
 
 
 def configure_logging(args: Args) -> None:
-    level = logging.WARNING
-    if args.verbose:
-        level = logging.DEBUG
-
-    logging.basicConfig(level=level, format="%(message)s")
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.WARNING,
+        format="%(message)s",
+    )
 
 
 def build_specs() -> dict[str, PackageSpec]:
-    specs: dict[str, PackageSpec] = {}
-    for name in COMMON_PACKAGES:
-        specs[name] = PackageSpec(name=name, stow_dir=SCRIPT_DIR, scope="common")
-    for name in DARWIN_PACKAGES:
-        specs[name] = PackageSpec(name=name, stow_dir=SCRIPT_DIR, scope="darwin")
-    for name in LINUX_PACKAGES:
-        specs[name] = PackageSpec(name=name, stow_dir=SCRIPT_DIR, scope="linux")
-    fedora_dir = SCRIPT_DIR / "fedora"
-    for name in FEDORA_PACKAGES:
-        specs[name] = PackageSpec(name=name, stow_dir=fedora_dir, scope="fedora")
-    return specs
+    return {
+        name: PackageSpec(name=name, stow_dir=stow_dir, scope=scope)
+        for scope, stow_dir, names in PACKAGE_GROUPS
+        for name in names
+    }
 
 
-def active_package_names(system: SystemInfo) -> tuple[list[str], list[str]]:
-    # Canonical package-layer selection lives here.
-    # Do not duplicate OS package activation rules in shell startup files.
-    active = list(COMMON_PACKAGES)
-    inactive: list[str] = []
-
+def active_scopes(system: SystemInfo) -> set[PackageScope]:
+    """Canonical scope selection — all activation rules live here."""
+    scopes: set[PackageScope] = {"common"}
     if system.os_name == "Darwin":
-        active.extend(DARWIN_PACKAGES)
-        inactive.extend(LINUX_PACKAGES)
-        inactive.extend(FEDORA_PACKAGES)
-    elif system.os_name == "Linux":
-        active.extend(LINUX_PACKAGES)
-        inactive.extend(DARWIN_PACKAGES)
-        if system.is_fedora_family:
-            active.extend(FEDORA_PACKAGES)
-        else:
-            inactive.extend(FEDORA_PACKAGES)
-    else:
-        inactive.extend(DARWIN_PACKAGES)
-        inactive.extend(LINUX_PACKAGES)
-        inactive.extend(FEDORA_PACKAGES)
-
-    return active, inactive
+        scopes.add("darwin")
+    elif system.is_fedora:
+        scopes.add("linux")
+        scopes.add("fedora")
+    return scopes
 
 
 def ensure_stow_available() -> None:
@@ -363,10 +343,10 @@ def backup_conflict_path(rel_path: str, target: Path, backup_root: Path) -> None
 
 
 def shlex_quote(path: Path) -> str:
-    return subprocess.list2cmdline([str(path)])
+    return shlex.quote(str(path))
 
 
-def check_package_coverage(specs: dict[str, PackageSpec]) -> bool:
+def check_package_coverage(specs: dict[str, PackageSpec], *, ignore: set[str]) -> bool:
     expected = set(specs) | IGNORED_TOPLEVEL_DIRS
     found_issue = False
     for child in sorted(SCRIPT_DIR.iterdir(), key=lambda p: p.name):
@@ -375,10 +355,13 @@ def check_package_coverage(specs: dict[str, PackageSpec]) -> bool:
         if child.name.startswith("."):
             continue
         if child.name not in expected:
+            issue_id = f"unclassified:{child.name}"
+            if issue_id in ignore:
+                continue
             if not found_issue:
                 LOGGER.warning("\n[package-coverage]")
             found_issue = True
-            LOGGER.warning(f"UNCLASSIFIED: {child.name}")
+            LOGGER.warning(f"UNCLASSIFIED: {child.name}  (--ignore {issue_id})")
     return found_issue
 
 
@@ -399,12 +382,8 @@ def owner_for_repo_path(
     path: Path, specs: dict[str, PackageSpec]
 ) -> PackageSpec | None:
     for spec in specs.values():
-        package_root = spec.package_dir.resolve()
-        try:
-            path.relative_to(package_root)
-        except ValueError:
-            continue
-        return spec
+        if path.is_relative_to(spec.package_dir.resolve()):
+            return spec
     return None
 
 
@@ -416,9 +395,7 @@ def repo_target_of_link(path: Path, script_real: Path) -> Path | None:
     except OSError:
         return None
     resolved = (path.parent / raw_target).resolve(strict=False)
-    try:
-        resolved.relative_to(script_real)
-    except ValueError:
+    if not resolved.is_relative_to(script_real):
         return None
     return resolved
 
@@ -427,6 +404,8 @@ def check_repo_backlinks(
     target: Path,
     specs: dict[str, PackageSpec],
     active_names: set[str],
+    *,
+    ignore: set[str],
 ) -> bool:
     script_real = SCRIPT_DIR.resolve()
     found_stale = False
@@ -458,19 +437,27 @@ def check_repo_backlinks(
             rel_path = path.relative_to(target)
 
             if not path.exists():
+                issue_id = f"stale:{rel_path}"
+                if issue_id in ignore:
+                    continue
                 if not found_stale:
                     LOGGER.warning("\n[stale-symlinks]")
                     found_stale = True
                 has_issues = True
-                LOGGER.warning(f"STALE: {rel_path} -> {repo_target}")
+                LOGGER.warning(f"STALE: {rel_path}  (--ignore {issue_id})")
                 continue
 
             if spec.name not in active_names:
+                issue_id = f"invalid:{rel_path}"
+                if issue_id in ignore:
+                    continue
                 if not found_invalid:
                     LOGGER.warning("\n[invalid-backlinks]")
                     found_invalid = True
                 has_issues = True
-                LOGGER.warning(f"INVALID: {rel_path} -> {repo_target} [{spec.scope}]")
+                LOGGER.warning(
+                    f"INVALID: {rel_path} [{spec.scope}]  (--ignore {issue_id})"
+                )
 
     return has_issues
 
@@ -482,20 +469,39 @@ def run_check_group(
     target: Path,
     show_diffs: bool,
     verbose: bool,
+    *,
+    ignore: set[str],
 ) -> bool:
     if not packages:
         return False
     result = run_stow_command(stow_dir, packages, target, simulate=True, verbose=True)
-    output = meaningful_output(result.stdout + result.stderr)
+    raw = result.stdout + result.stderr
+    output = meaningful_output(raw)
     if not output:
         if verbose:
             LOGGER.debug(f"\n[{label}]")
             LOGGER.debug("OK")
         return False
+    conflicts = parse_conflicts(raw)
+    ignored_targets = {t for _, t in conflicts if f"conflict:{t}" in ignore}
+    remaining = [(s, t) for s, t in conflicts if t not in ignored_targets]
+    if not remaining and conflicts:
+        return False
+    # Re-filter output lines to hide ignored conflicts.
+    if ignored_targets:
+        output = "\n".join(
+            line
+            for line in output.splitlines()
+            if not any(t in line for t in ignored_targets)
+        )
+    if not output:
+        return False
     LOGGER.warning(f"\n[{label}]")
     sys.stdout.write(f"{output}\n")
+    for _, target_rel in remaining:
+        LOGGER.warning(f"  (--ignore conflict:{target_rel})")
     if show_diffs:
-        show_conflict_diffs(result.stdout + result.stderr, target)
+        show_conflict_diffs(raw, target)
     return True
 
 
@@ -507,23 +513,36 @@ def run_apply_group(
     verbose: bool,
     force_overwrite: bool,
     backup_root: Path | None,
+    *,
+    ignore: set[str],
 ) -> None:
     if not packages:
         return
 
-    if force_overwrite:
-        probe = run_stow_command(
-            stow_dir, packages, target, simulate=True, verbose=True
-        )
-        conflicts = parse_conflicts(probe.stdout + probe.stderr)
-        if conflicts:
+    # Probe for conflicts, then handle force-overwrite and ignore.
+    probe = run_stow_command(stow_dir, packages, target, simulate=True, verbose=True)
+    conflicts = parse_conflicts(probe.stdout + probe.stderr)
+    if conflicts:
+        ignored = {s for s, t in conflicts if f"conflict:{t}" in ignore}
+        if ignored:
+            # Re-derive which packages to skip: a source like
+            # "dotfiles/git/.gitconfig" means the "git" package.
+            skip_pkgs = {s.split("/")[1] for s in ignored if "/" in s}
+            packages = [p for p in packages if p not in skip_pkgs]
+            for pkg in sorted(skip_pkgs):
+                LOGGER.warning(f"Skipping package '{pkg}' (ignored conflict)")
+            if not packages:
+                return
+
+        if force_overwrite:
             LOGGER.warning(f"\n[{label}]")
             filtered = meaningful_output(probe.stdout + probe.stderr)
             if filtered:
                 sys.stdout.write(f"{filtered}\n")
             assert backup_root is not None
             for _, target_rel in conflicts:
-                backup_conflict_path(target_rel, target, backup_root)
+                if f"conflict:{target_rel}" not in ignore:
+                    backup_conflict_path(target_rel, target, backup_root)
 
     result = run_stow_command(
         stow_dir,
@@ -540,10 +559,6 @@ def run_apply_group(
 
 def shared_skill_entries() -> list[Path]:
     return sorted(SHARED_SKILLS_DIR.iterdir(), key=lambda path: path.name)
-
-
-def ensure_dir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
 
 
 def describe_skill_link_state(dest_dir: Path, source: Path) -> str | None:
@@ -607,7 +622,7 @@ def apply_shared_skill_links(dest_dir: Path) -> list[str]:
     if conflicts:
         return conflicts
 
-    ensure_dir(dest_dir)
+    dest_dir.mkdir(parents=True, exist_ok=True)
     for source in shared_skill_entries():
         path = dest_dir / source.name
         if is_managed_skill_link(path, source):
@@ -675,7 +690,7 @@ def compare_skill_trees(
 def sync_skill_tree(source: Path, dest: Path) -> None:
     if dest.is_symlink():
         replace_path(dest)
-    ensure_dir(dest)
+    dest.mkdir(parents=True, exist_ok=True)
     remove_dir_contents(dest, keep_names={".gitignore"})
     for source_path in source.iterdir():
         shutil.copytree(
@@ -685,16 +700,12 @@ def sync_skill_tree(source: Path, dest: Path) -> None:
         )
 
 
-def print_claude_install_instructions() -> None:
-    LOGGER.warning("Install the Claude Code plugin manually:")
-    LOGGER.warning(f"  /plugin marketplace add {CLAUDE_PLUGIN_DIR}")
-    LOGGER.warning(
-        f"  /plugin install {CLAUDE_PLUGIN_NAME}@{CLAUDE_PLUGIN_MARKETPLACE}"
-    )
-
-
-def print_claude_refresh_instructions() -> None:
-    LOGGER.warning("Refresh the installed Claude Code plugin snapshot:")
+def print_claude_plugin_hint(*, installed: bool) -> None:
+    if installed:
+        LOGGER.warning("Refresh the installed Claude Code plugin snapshot:")
+    else:
+        LOGGER.warning("Install the Claude Code plugin manually:")
+        LOGGER.warning(f"  /plugin marketplace add {CLAUDE_PLUGIN_DIR}")
     LOGGER.warning(
         f"  /plugin install {CLAUDE_PLUGIN_NAME}@{CLAUDE_PLUGIN_MARKETPLACE}"
     )
@@ -708,7 +719,7 @@ def log_issue_summary(issues: Sequence[str], *, max_items: int = 3) -> None:
         LOGGER.warning(f"  ... {remaining} more")
 
 
-def load_json(path: Path) -> object | None:
+def load_json(path: Path) -> Any:
     if not path.is_file():
         return None
     try:
@@ -717,29 +728,29 @@ def load_json(path: Path) -> object | None:
         return None
 
 
-def as_mapping(value: object) -> Mapping[str, object] | None:
-    if isinstance(value, dict):
-        return cast(Mapping[str, object], value)
-    return None
+def _dig(data: Any, *keys: str) -> Any:
+    """Walk nested dicts by key sequence, returning None on any miss."""
+    for key in keys:
+        if not isinstance(data, dict):
+            return None
+        data = data.get(key)
+    return data
 
 
 def iter_claude_installed_plugin_roots(target: Path) -> list[Path]:
     roots: set[Path] = set()
     plugins_dir = target / ".claude/plugins"
 
-    installed = as_mapping(load_json(plugins_dir / "installed_plugins.json"))
-    if installed is not None:
-        plugins = as_mapping(installed.get("plugins"))
-        if plugins is not None:
-            entries = plugins.get(f"{CLAUDE_PLUGIN_NAME}@{CLAUDE_PLUGIN_MARKETPLACE}")
-            if isinstance(entries, list):
-                for entry in entries:
-                    entry_map = as_mapping(entry)
-                    if entry_map is None:
-                        continue
-                    install_path = entry_map.get("installPath")
-                    if isinstance(install_path, str):
-                        roots.add(Path(install_path).expanduser())
+    entries = _dig(
+        load_json(plugins_dir / "installed_plugins.json"),
+        "plugins",
+        f"{CLAUDE_PLUGIN_NAME}@{CLAUDE_PLUGIN_MARKETPLACE}",
+    )
+    if isinstance(entries, list):
+        for entry in entries:
+            install_path = _dig(entry, "installPath")
+            if isinstance(install_path, str):
+                roots.add(Path(install_path).expanduser())
 
     return sorted(root.resolve(strict=False) for root in roots)
 
@@ -748,32 +759,38 @@ def iter_claude_marketplace_sources(target: Path) -> list[Path]:
     roots: set[Path] = set()
     plugins_dir = target / ".claude/plugins"
 
-    marketplaces = as_mapping(load_json(plugins_dir / "known_marketplaces.json"))
-    if marketplaces is not None:
-        marketplace = as_mapping(marketplaces.get(CLAUDE_PLUGIN_MARKETPLACE))
-        if marketplace is not None:
-            install_location = marketplace.get("installLocation")
-            if isinstance(install_location, str):
-                roots.add(Path(install_location).expanduser())
+    install_location = _dig(
+        load_json(plugins_dir / "known_marketplaces.json"),
+        CLAUDE_PLUGIN_MARKETPLACE,
+        "installLocation",
+    )
+    if isinstance(install_location, str):
+        roots.add(Path(install_location).expanduser())
 
     return sorted(root.resolve(strict=False) for root in roots)
 
 
-def check_shared_skills(target: Path, *, verbose: bool) -> bool:
+def _check_skill_links(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     has_issues = False
-
-    LOGGER.info("\n[shared-skills]")
     for label, rel_path in SHARED_SKILL_LINKS:
+        issue_id = f"skill:{label}"
+        if issue_id in ignore:
+            continue
         path = target / rel_path
         if path.exists() and not path.is_dir():
             has_issues = True
             detail = f" ({path})" if verbose else ""
-            LOGGER.warning(f"ISSUE: {label}: expected directory, found file{detail}")
+            LOGGER.warning(
+                f"ISSUE: {label}: expected directory, found file{detail}"
+                f"  (--ignore {issue_id})"
+            )
             continue
         if not path.exists():
             has_issues = True
             detail = f" ({path})" if verbose else ""
-            LOGGER.warning(f"ISSUE: {label}: missing directory{detail}")
+            LOGGER.warning(
+                f"ISSUE: {label}: missing directory{detail}  (--ignore {issue_id})"
+            )
             continue
 
         conflicts = check_shared_skill_link_conflicts(path)
@@ -781,6 +798,7 @@ def check_shared_skills(target: Path, *, verbose: bool) -> bool:
             has_issues = True
             LOGGER.warning(
                 f"ISSUE: {label}: {len(conflicts)} unmanaged skill conflicts"
+                f"  (--ignore {issue_id})"
             )
             if verbose:
                 LOGGER.debug(f"  {path}")
@@ -798,7 +816,10 @@ def check_shared_skills(target: Path, *, verbose: bool) -> bool:
 
         if issues:
             has_issues = True
-            LOGGER.warning(f"ISSUE: {label}: {len(issues)} skill links out of sync")
+            LOGGER.warning(
+                f"ISSUE: {label}: {len(issues)} skill links out of sync"
+                f"  (--ignore {issue_id})"
+            )
             if verbose:
                 LOGGER.debug(f"  {path}")
                 log_issue_summary(issues, max_items=10)
@@ -809,43 +830,53 @@ def check_shared_skills(target: Path, *, verbose: bool) -> bool:
                 LOGGER.debug(f"OK: {label} ({path})")
             else:
                 LOGGER.info(f"OK: {label}")
+    return has_issues
 
+
+def _check_claude_bundle(*, verbose: bool) -> bool:
     bundle_issues = compare_skill_trees(SHARED_SKILLS_DIR, CLAUDE_PLUGIN_SKILLS_DIR)
     if bundle_issues:
-        has_issues = True
-        LOGGER.warning(f"ISSUE: claude bundle: {len(bundle_issues)} differences")
+        LOGGER.warning(
+            f"ISSUE: claude bundle: {len(bundle_issues)} differences"
+            "  (--ignore skill:claude-bundle)"
+        )
         if verbose:
             LOGGER.debug(f"  {CLAUDE_PLUGIN_SKILLS_DIR}")
             log_issue_summary(bundle_issues, max_items=10)
         else:
             log_issue_summary(bundle_issues)
+        return True
+    if verbose:
+        LOGGER.debug(f"OK: claude bundle ({CLAUDE_PLUGIN_SKILLS_DIR})")
     else:
-        if verbose:
-            LOGGER.debug(f"OK: claude bundle ({CLAUDE_PLUGIN_SKILLS_DIR})")
-        else:
-            LOGGER.info("OK: claude bundle")
+        LOGGER.info("OK: claude bundle")
+    return False
 
+
+def _check_claude_plugin(target: Path, *, verbose: bool) -> bool:
     marketplace_sources = iter_claude_marketplace_sources(target)
-    if marketplace_sources:
-        if verbose:
-            LOGGER.debug("\n[claude-marketplace]")
-            for root in marketplace_sources:
-                LOGGER.debug(f"OK: source ({root})")
+    if marketplace_sources and verbose:
+        LOGGER.debug("\n[claude-marketplace]")
+        for root in marketplace_sources:
+            LOGGER.debug(f"OK: source ({root})")
 
     plugin_roots = iter_claude_installed_plugin_roots(target)
     if not plugin_roots:
-        has_issues = True
-        LOGGER.warning("ISSUE: claude plugin not installed")
-        print_claude_install_instructions()
-        return has_issues
+        LOGGER.warning("ISSUE: claude plugin not installed  (--ignore skill:plugin)")
+        print_claude_plugin_hint(installed=False)
+        return True
 
     LOGGER.info("[claude-plugin]")
+    has_issues = False
     for root in plugin_roots:
         plugin_skills_dir = root / "skills"
         issues = compare_skill_trees(SHARED_SKILLS_DIR, plugin_skills_dir)
         if issues:
             has_issues = True
-            LOGGER.warning(f"ISSUE: installed copy stale: {len(issues)} differences")
+            LOGGER.warning(
+                f"ISSUE: installed copy stale: {len(issues)} differences"
+                "  (--ignore skill:plugin)"
+            )
             if verbose:
                 LOGGER.debug(f"  {plugin_skills_dir}")
                 log_issue_summary(issues, max_items=10)
@@ -857,13 +888,25 @@ def check_shared_skills(target: Path, *, verbose: bool) -> bool:
                 LOGGER.debug(f"OK: installed copy ({plugin_skills_dir})")
             else:
                 LOGGER.info("OK: installed copy")
-
     return has_issues
 
 
-def apply_shared_skills(target: Path, *, verbose: bool) -> None:
+def check_shared_skills(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    has_issues = False
+    LOGGER.info("\n[shared-skills]")
+    has_issues |= _check_skill_links(target, verbose=verbose, ignore=ignore)
+    if "skill:claude-bundle" not in ignore:
+        has_issues |= _check_claude_bundle(verbose=verbose)
+    if "skill:plugin" not in ignore:
+        has_issues |= _check_claude_plugin(target, verbose=verbose)
+    return has_issues
+
+
+def apply_shared_skills(target: Path, *, verbose: bool, ignore: set[str]) -> None:
     LOGGER.info("\n[shared-skills]")
     for label, rel_path in SHARED_SKILL_LINKS:
+        if f"skill:{label}" in ignore:
+            continue
         path = target / rel_path
         conflicts = apply_shared_skill_links(path)
         if conflicts:
@@ -876,11 +919,15 @@ def apply_shared_skills(target: Path, *, verbose: bool) -> None:
         else:
             LOGGER.info(f"LINKED: {label}")
 
-    sync_skill_tree(SHARED_SKILLS_DIR, CLAUDE_PLUGIN_SKILLS_DIR)
-    if verbose:
-        LOGGER.debug(f"SYNCED: claude-plugin bundle -> {CLAUDE_PLUGIN_SKILLS_DIR}")
-    else:
-        LOGGER.info("SYNCED: claude-plugin bundle")
+    if "skill:claude-bundle" not in ignore:
+        sync_skill_tree(SHARED_SKILLS_DIR, CLAUDE_PLUGIN_SKILLS_DIR)
+        if verbose:
+            LOGGER.debug(f"SYNCED: claude-plugin bundle -> {CLAUDE_PLUGIN_SKILLS_DIR}")
+        else:
+            LOGGER.info("SYNCED: claude-plugin bundle")
+
+    if "skill:plugin" in ignore:
+        return
 
     marketplace_sources = iter_claude_marketplace_sources(target)
     if verbose and marketplace_sources:
@@ -891,7 +938,7 @@ def apply_shared_skills(target: Path, *, verbose: bool) -> None:
     plugin_roots = iter_claude_installed_plugin_roots(target)
     if not plugin_roots:
         LOGGER.warning("Claude Code plugin install still requires one manual step.")
-        print_claude_install_instructions()
+        print_claude_plugin_hint(installed=False)
         return
 
     stale_installed_copies = False
@@ -912,12 +959,11 @@ def apply_shared_skills(target: Path, *, verbose: bool) -> None:
             LOGGER.info("OK: installed copy")
 
     if stale_installed_copies:
-        print_claude_refresh_instructions()
+        print_claude_plugin_hint(installed=True)
 
 
 def main() -> int:
     args = parse_args()
-    configure_logging(args)
     ensure_stow_available()
 
     target = Path(args.target).expanduser()
@@ -925,10 +971,12 @@ def main() -> int:
         LOGGER.error(f"Target directory does not exist: {target}")
         return 1
 
+    configure_logging(args)
+
     system = detect_system()
     specs = build_specs()
-    active_names_list, _inactive_names_list = active_package_names(system)
-    active_names = set(active_names_list)
+    scopes = active_scopes(system)
+    active_names = {name for name, spec in specs.items() if spec.scope in scopes}
     backup_root = None
     if args.force_overwrite:
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -936,13 +984,6 @@ def main() -> int:
 
     LOGGER.info(f"Using target: {target}")
     LOGGER.info(f"Detected OS: {system.os_name}")
-    if system.distro_id:
-        if system.distro_like:
-            LOGGER.info(
-                f"Detected distro: {system.distro_id} (like: {system.distro_like})"
-            )
-        else:
-            LOGGER.info(f"Detected distro: {system.distro_id}")
     LOGGER.info(f"Mode: {args.action}")
     if backup_root is not None:
         LOGGER.info(
@@ -950,110 +991,48 @@ def main() -> int:
             f"{backup_root}"
         )
 
+    # Group active packages by stow_dir for batched stow calls.
+    groups: dict[tuple[str, Path], list[str]] = {}
+    for name in sorted(active_names):
+        spec = specs[name]
+        key = (spec.scope, spec.stow_dir)
+        groups.setdefault(key, []).append(name)
+
     has_issues = False
-
-    has_issues |= (
-        run_check_group(
-            "root",
-            SCRIPT_DIR,
-            COMMON_PACKAGES,
-            target,
-            args.show_diffs,
-            args.verbose,
-        )
-        if args.action == "check"
-        else False
-    )
-
-    if args.action == "apply":
-        run_apply_group(
-            "root",
-            SCRIPT_DIR,
-            COMMON_PACKAGES,
-            target,
-            verbose=args.verbose,
-            force_overwrite=args.force_overwrite,
-            backup_root=backup_root,
-        )
-
-    if system.os_name == "Darwin":
+    for (label, stow_dir), packages in groups.items():
         if args.action == "check":
             has_issues |= run_check_group(
-                "darwin",
-                SCRIPT_DIR,
-                DARWIN_PACKAGES,
+                label,
+                stow_dir,
+                packages,
                 target,
                 args.show_diffs,
                 args.verbose,
+                ignore=args.ignore,
             )
         else:
             run_apply_group(
-                "darwin",
-                SCRIPT_DIR,
-                DARWIN_PACKAGES,
+                label,
+                stow_dir,
+                packages,
                 target,
                 verbose=args.verbose,
                 force_overwrite=args.force_overwrite,
                 backup_root=backup_root,
+                ignore=args.ignore,
             )
-    elif system.os_name == "Linux":
-        if args.action == "check":
-            has_issues |= run_check_group(
-                "linux",
-                SCRIPT_DIR,
-                LINUX_PACKAGES,
-                target,
-                args.show_diffs,
-                args.verbose,
-            )
-        else:
-            run_apply_group(
-                "linux",
-                SCRIPT_DIR,
-                LINUX_PACKAGES,
-                target,
-                verbose=args.verbose,
-                force_overwrite=args.force_overwrite,
-                backup_root=backup_root,
-            )
-
-        if system.is_fedora_family:
-            if args.action == "check":
-                has_issues |= run_check_group(
-                    "fedora",
-                    SCRIPT_DIR / "fedora",
-                    FEDORA_PACKAGES,
-                    target,
-                    args.show_diffs,
-                    args.verbose,
-                )
-            else:
-                run_apply_group(
-                    "fedora",
-                    SCRIPT_DIR / "fedora",
-                    FEDORA_PACKAGES,
-                    target,
-                    verbose=args.verbose,
-                    force_overwrite=args.force_overwrite,
-                    backup_root=backup_root,
-                )
-        elif system.is_debian_family:
-            LOGGER.info("Skipping fedora/* packages on Debian-family distro.")
-        else:
-            LOGGER.info("Skipping fedora/* packages on non-Fedora Linux distro.")
-    else:
-        LOGGER.info(
-            f"Skipping OS-specific packages for unsupported OS: {system.os_name}"
-        )
-
-    has_issues |= check_package_coverage(specs)
 
     if args.action == "check":
-        has_issues |= check_shared_skills(target, verbose=args.verbose)
+        has_issues |= check_package_coverage(specs, ignore=args.ignore)
+        has_issues |= check_shared_skills(
+            target, verbose=args.verbose, ignore=args.ignore
+        )
         LOGGER.info("\n[repo-backlinks]")
         LOGGER.info("Scanning for stale or invalid repo backlinks...")
         backlink_scan_started = monotonic()
-        has_issues |= check_repo_backlinks(target, specs, active_names)
+        has_issues |= check_repo_backlinks(
+            target, specs, active_names, ignore=args.ignore
+        )
         backlink_scan_elapsed = monotonic() - backlink_scan_started
         LOGGER.info(f"Backlink scan finished in {backlink_scan_elapsed:.1f}s.")
         if has_issues:
@@ -1062,7 +1041,7 @@ def main() -> int:
         print("No missing stows or conflicts found.")
         return 0
 
-    apply_shared_skills(target, verbose=args.verbose)
+    apply_shared_skills(target, verbose=args.verbose, ignore=args.ignore)
     print("Done.")
     return 0
 
