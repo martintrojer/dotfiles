@@ -134,6 +134,12 @@ def cmd_pick() -> None:
     """Internal: runs inside the popup, pipes session list through fzf."""
     current = current_session()
     sessions = read_loop()
+    # Rotate so the next session after current is at the top
+    try:
+        idx = sessions.index(current)
+        sessions = sessions[idx + 1 :] + sessions[: idx + 1]
+    except ValueError:
+        pass
     lines = [f"▸ {s}" if s == current else f"  {s}" for s in sessions]
     try:
         result = subprocess.run(
