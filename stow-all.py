@@ -47,6 +47,30 @@ SHARED_SKILL_LINKS: Final[tuple[tuple[str, Path], ...]] = (
     ("agents", Path(".agents/skills")),
 )
 
+AGENT_ATTENTION_SCRIPT: Final[str] = "agent-attention notify"
+
+# Agent notification hooks that can only be checked (manual setup required).
+# (label, config_path_relative_to_target, check_function_name)
+AGENT_HOOK_CHECKS: Final[tuple[tuple[str, Path, str], ...]] = (
+    ("claude", Path(".claude/settings.json"), "claude"),
+    ("codex", Path(".codex/config.toml"), "codex"),
+)
+
+# Agent notification hook symlinks: (label, source_relative_to_repo, dest_relative_to_target)
+# Best-effort: skipped silently if source doesn't exist.
+AGENT_HOOK_LINKS: Final[tuple[tuple[str, Path, Path], ...]] = (
+    (
+        "pi",
+        Path("tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts"),
+        Path(".pi/agent/extensions/agent-attention.ts"),
+    ),
+    (
+        "opencode",
+        Path("tmux/.config/tmux/scripts/opencode-plugin/notify.ts"),
+        Path(".config/opencode/plugin/notify.ts"),
+    ),
+)
+
 # (scope, stow_dir, package_names)
 PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
     (
@@ -962,6 +986,103 @@ def apply_shared_skills(target: Path, *, verbose: bool, ignore: set[str]) -> Non
         print_claude_plugin_hint(installed=True)
 
 
+def _check_claude_hook(config_path: Path) -> str | None:
+    """Check if Claude Code settings.json has the agent-attention notification hook."""
+    data = load_json(config_path)
+    if data is None:
+        return "config not found"
+    hooks = _dig(data, "hooks", "Notification")
+    if not isinstance(hooks, list) or not hooks:
+        return "no Notification hook configured"
+    for entry in hooks:
+        for hook in entry.get("hooks", []):
+            cmd = hook.get("command", "")
+            if AGENT_ATTENTION_SCRIPT in cmd and "--source claude" in cmd:
+                return None
+    return "agent-attention hook not found in Notification hooks"
+
+
+def _check_codex_hook(config_path: Path) -> str | None:
+    """Check if Codex config.toml has the agent-attention notify command."""
+    if not config_path.is_file():
+        return "config not found"
+    try:
+        content = config_path.read_text()
+    except OSError:
+        return "cannot read config"
+    if AGENT_ATTENTION_SCRIPT in content and "--source codex" in content:
+        return None
+    return "agent-attention hook not found in config"
+
+
+def check_agent_hooks(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    has_issues = False
+
+    # Check-only hooks (manual setup required)
+    check_fns = {"claude": _check_claude_hook, "codex": _check_codex_hook}
+    for label, config_rel, fn_key in AGENT_HOOK_CHECKS:
+        issue_id = f"hook:{label}"
+        if issue_id in ignore:
+            continue
+        config_path = target / config_rel
+        problem = check_fns[fn_key](config_path)
+        if problem is None:
+            if verbose:
+                LOGGER.debug(f"OK: {label} hook ({config_path})")
+        else:
+            has_issues = True
+            LOGGER.warning(
+                f"ISSUE: {label} hook: {problem} (manual setup, --ignore {issue_id})"
+            )
+
+    # Symlink-based hooks
+    for label, source_rel, dest_rel in AGENT_HOOK_LINKS:
+        issue_id = f"hook:{label}"
+        if issue_id in ignore:
+            continue
+        source = SCRIPT_DIR / source_rel
+        if not source.is_file():
+            continue  # best-effort: skip if source doesn't exist
+        dest = target / dest_rel
+        if dest.is_symlink() and dest.resolve(strict=False) == source.resolve(
+            strict=False
+        ):
+            if verbose:
+                LOGGER.debug(f"OK: {label} hook ({dest})")
+            continue
+        if not dest.exists() and not dest.is_symlink():
+            has_issues = True
+            LOGGER.warning(f"ISSUE: {label} hook: missing  (--ignore {issue_id})")
+            continue
+        has_issues = True
+        LOGGER.warning(f"ISSUE: {label} hook: wrong target  (--ignore {issue_id})")
+    return has_issues
+
+
+def apply_agent_hooks(target: Path, *, verbose: bool, ignore: set[str]) -> None:
+    for label, source_rel, dest_rel in AGENT_HOOK_LINKS:
+        if f"hook:{label}" in ignore:
+            continue
+        source = SCRIPT_DIR / source_rel
+        if not source.is_file():
+            continue  # best-effort: skip if source doesn't exist
+        dest = target / dest_rel
+        if dest.is_symlink() and dest.resolve(strict=False) == source.resolve(
+            strict=False
+        ):
+            if verbose:
+                LOGGER.debug(f"OK: {label} hook ({dest})")
+            continue
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.exists() or dest.is_symlink():
+            replace_path(dest)
+        dest.symlink_to(os.path.relpath(source, start=dest.parent))
+        if verbose:
+            LOGGER.debug(f"LINKED: {label} hook -> {dest}")
+        else:
+            LOGGER.info(f"LINKED: {label} hook")
+
+
 def main() -> int:
     args = parse_args()
     ensure_stow_available()
@@ -1027,6 +1148,10 @@ def main() -> int:
         has_issues |= check_shared_skills(
             target, verbose=args.verbose, ignore=args.ignore
         )
+        LOGGER.info("\n[agent-hooks]")
+        has_issues |= check_agent_hooks(
+            target, verbose=args.verbose, ignore=args.ignore
+        )
         LOGGER.info("\n[repo-backlinks]")
         LOGGER.info("Scanning for stale or invalid repo backlinks...")
         backlink_scan_started = monotonic()
@@ -1042,6 +1167,8 @@ def main() -> int:
         return 0
 
     apply_shared_skills(target, verbose=args.verbose, ignore=args.ignore)
+    LOGGER.info("\n[agent-hooks]")
+    apply_agent_hooks(target, verbose=args.verbose, ignore=args.ignore)
     print("Done.")
     return 0
 

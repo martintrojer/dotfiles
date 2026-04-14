@@ -112,13 +112,15 @@ Runtime state is stored in:
 
 - `$HOME/.cache/tmux-agent-attention/pending.jsonl`
 
-## Hook Setup (manual, outside stow)
+## Hook Setup
 
-Point each harness to:
+Each agent harness calls `agent-attention notify --source <name>` when it needs attention. `stow-all.py` checks all four hooks and auto-creates symlinks for Pi and OpenCode. Claude Code and Codex require manual config.
 
-- `$HOME/.config/tmux/scripts/agent-attention notify`
+Run `stow-all.py -c -v` to see which hooks are configured and which are missing.
 
-### Claude Code (`$HOME/.claude/settings.json`)
+### Claude Code (manual — `$HOME/.claude/settings.json`)
+
+Add to the `hooks` key:
 
 ```json
 {
@@ -138,47 +140,25 @@ Point each harness to:
 }
 ```
 
-### Codex CLI (`$HOME/.codex/config.toml`)
+### Codex CLI (manual — `$HOME/.codex/config.toml`)
+
+Add to the top level:
 
 ```toml
 notify = "python3 $HOME/.config/tmux/scripts/agent-attention notify --source codex --event-type notify --title Codex"
 ```
 
-### OpenCode (`$HOME/.config/opencode/plugin/notify.ts`)
+### OpenCode (auto — `stow-all.py --apply`)
 
-```typescript
-import type { Plugin } from "@opencode-ai/plugin";
+Symlinked by `stow-all.py` from `tmux/.config/tmux/scripts/opencode-plugin/notify.ts` to `~/.config/opencode/plugin/notify.ts`.
 
-const NOTIFY_SCRIPT = `${process.env.HOME}/.config/tmux/scripts/agent-attention`;
+Subscribes to `session.idle` and `permission.asked` events.
 
-const plugin: Plugin = async ({ client, $ }) => {
-  const notify = (type: string, message: string) => {
-    const payload = JSON.stringify({ source: "opencode", type, title: "OpenCode", message });
-    $`echo ${payload} | python3 ${NOTIFY_SCRIPT} notify`.quiet().catch(() => {});
-  };
+### Pi Agent (auto — `stow-all.py --apply`)
 
-  return {
-    event: async ({ event }) => {
-      if (event.type === "session.idle") {
-        const { sessionID } = event.properties;
-        const sessions = await client.session.list({ limit: 50 });
-        const session = sessions.data?.find((s: { id: string }) => s.id === sessionID);
-        if (!session || session.parentID) return;
+Symlinked by `stow-all.py` from `tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts` to `~/.pi/agent/extensions/agent-attention.ts`.
 
-        notify("session.idle", session.title || "Task completed");
-      }
-
-      if (event.type === "permission.asked") {
-        const { permission, patterns } = event.properties;
-        const detail = patterns.length ? `: ${patterns.join(", ")}` : "";
-        notify("permission.asked", `${permission}${detail}`);
-      }
-    },
-  };
-};
-
-export default plugin;
-```
+Subscribes to Pi's `turn_end` event.
 
 ## Cheatsheet
 

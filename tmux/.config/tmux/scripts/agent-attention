@@ -610,7 +610,7 @@ def build_parser() -> argparse.ArgumentParser:
     notify.add_argument(
         "--pane", help="Explicit tmux pane target (defaults to TMUX_PANE)"
     )
-    notify.add_argument("--source", help="Event source, e.g. claude/codex/opencode")
+    notify.add_argument("--source", help="Event source, e.g. claude/codex/opencode/pi")
     notify.add_argument("--event-type", help="Event type")
     notify.add_argument("--title", help="Event title")
     notify.add_argument("--message", help="Event message")
