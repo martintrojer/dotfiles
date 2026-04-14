@@ -1,5 +1,5 @@
 ---
-name: Council
+name: council
 description: Multi-agent debate with visible transcripts where agents respond to each other. USE WHEN council, debate, perspectives, weigh options, deliberate, multiple viewpoints. Unlike RedTeam (adversarial), Council is collaborative-adversarial.
 ---
 

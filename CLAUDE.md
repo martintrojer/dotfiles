@@ -38,6 +38,12 @@ Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 - `fuzzel/.config/fuzzel/scripts/*` - Python 3 picker scripts (extensionless executable names)
 - Shared helpers: `fuzzel/.config/fuzzel/scripts/_common.py`
 
+### Tmux Scripts
+- `tmux/.config/tmux/scripts/agent-attention` - AI agent attention tracker (Python 3, supports claude/codex/opencode/pi)
+- `tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts` - Pi Agent extension for agent-attention
+- `tmux/.config/tmux/scripts/opencode-plugin/notify.ts` - OpenCode plugin for agent-attention
+- `tmux/.config/tmux/scripts/cheatsheet` - fzf cheatsheet popup
+
 ### Other Scripts
 - `waybar/.config/waybar/scripts/` - Waybar-specific shell helpers (if any)
 
