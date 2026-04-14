@@ -4,6 +4,7 @@
 ----------------------------------------------------------------------
 -- Options
 ----------------------------------------------------------------------
+vim.g.markdown_recommended_style = 0 -- must be set before built-in ftplugin loads
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
 vim.g.notes_path = vim.fn.expand("~/notes")
