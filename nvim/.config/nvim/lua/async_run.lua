@@ -17,7 +17,7 @@ local function append(b, data)
 	end)
 end
 
-vim.api.nvim_create_user_command("Sh", function(opts)
+local function run_sh(args, autoclose)
 	if not buf or not vim.api.nvim_buf_is_valid(buf) then
 		buf = vim.api.nvim_create_buf(false, true)
 		vim.bo[buf].buftype = "nofile"
@@ -41,9 +41,9 @@ vim.api.nvim_create_user_command("Sh", function(opts)
 	end
 
 	vim.bo[buf].modifiable = true
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "$ " .. opts.args, "" })
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "$ " .. args, "" })
 
-	vim.system({ "sh", "-c", opts.args }, {
+	vim.system({ "sh", "-c", args }, {
 		stdout = function(_, d)
 			append(buf, d)
 		end,
@@ -52,10 +52,27 @@ vim.api.nvim_create_user_command("Sh", function(opts)
 		end,
 	}, function(r)
 		vim.schedule(function()
-			if vim.api.nvim_buf_is_valid(buf) then
+			if not vim.api.nvim_buf_is_valid(buf) then
+				return
+			end
+			if r.code == 0 and autoclose then
+				for _, w in ipairs(vim.api.nvim_list_wins()) do
+					if vim.api.nvim_win_get_buf(w) == buf then
+						vim.api.nvim_win_close(w, true)
+					end
+				end
+			else
 				vim.api.nvim_buf_set_lines(buf, -1, -1, false, { "exit " .. r.code })
 				vim.bo[buf].modifiable = false
 			end
 		end)
 	end)
-end, { nargs = "+", desc = "Run shell command async" })
+end
+
+vim.api.nvim_create_user_command("Sh", function(opts)
+	run_sh(opts.args, true)
+end, { nargs = "+", desc = "Run shell command async (auto-close on success)" })
+
+vim.api.nvim_create_user_command("Shk", function(opts)
+	run_sh(opts.args, false)
+end, { nargs = "+", desc = "Run shell command async (keep output)" })
