@@ -2,11 +2,16 @@
 """Session loop: cycle between a small set of pinned tmux sessions."""
 
 import argparse
+import os
 import subprocess
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve()
-LOOP_FILE = Path.home() / ".tmux-session-loop"
+STATE_DIR = (
+    Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state")))
+    / "tmux-session-loop"
+)
+LOOP_FILE = STATE_DIR / "sessions"
 
 
 def tmux(*args: str) -> str:
@@ -18,67 +23,81 @@ def tmux_msg(msg: str) -> None:
     tmux("display-message", msg)
 
 
-def has_session(name: str) -> bool:
+def has_session(session_id: str) -> bool:
     return (
         subprocess.run(
-            ["tmux", "has-session", "-t", name], capture_output=True
+            ["tmux", "has-session", "-t", session_id], capture_output=True
         ).returncode
         == 0
     )
 
 
-def current_session() -> str:
+def current_session_id() -> str:
+    return tmux("display-message", "-p", "#{session_id}")
+
+
+def current_session_name() -> str:
     return tmux("display-message", "-p", "#S")
 
 
+def session_name(session_id: str) -> str:
+    """Resolve a session ID to its current name."""
+    name = tmux("display-message", "-t", session_id, "-p", "#S")
+    return name or session_id
+
+
 def read_loop() -> list[str]:
-    """Read loop file, prune missing sessions, and persist the cleaned list."""
+    """Read loop file (session IDs), prune missing sessions, persist."""
     if not LOOP_FILE.exists():
         return []
     sessions = [s for s in LOOP_FILE.read_text().splitlines() if s]
-    filtered = [session for session in sessions if has_session(session)]
+    filtered = [sid for sid in sessions if has_session(sid)]
     if filtered != sessions:
         write_loop(filtered)
     return filtered
 
 
 def write_loop(sessions: list[str]) -> None:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
     LOOP_FILE.write_text("\n".join(sessions) + "\n" if sessions else "")
 
 
 def cmd_add() -> None:
-    current = current_session()
+    sid = current_session_id()
+    name = current_session_name()
     sessions = read_loop()
-    if current in sessions:
-        tmux_msg(f"Loop: '{current}' already in loop")
+    if sid in sessions:
+        tmux_msg(f"Loop: '{name}' already in loop")
         return
-    sessions.append(current)
+    sessions.append(sid)
     write_loop(sessions)
-    tmux_msg(f"Loop: added '{current}' ({len(sessions)} sessions)")
+    tmux_msg(f"Loop: added '{name}' ({len(sessions)} sessions)")
 
 
 def cmd_remove() -> None:
-    current = current_session()
+    sid = current_session_id()
+    name = current_session_name()
     sessions = read_loop()
-    if current not in sessions:
-        tmux_msg(f"Loop: '{current}' not in loop")
+    if sid not in sessions:
+        tmux_msg(f"Loop: '{name}' not in loop")
         return
-    sessions.remove(current)
+    sessions.remove(sid)
     write_loop(sessions)
-    tmux_msg(f"Loop: removed '{current}' ({len(sessions)} sessions)")
+    tmux_msg(f"Loop: removed '{name}' ({len(sessions)} sessions)")
 
 
 def cmd_toggle() -> None:
-    current = current_session()
+    sid = current_session_id()
+    name = current_session_name()
     sessions = read_loop()
-    if current in sessions:
-        sessions.remove(current)
+    if sid in sessions:
+        sessions.remove(sid)
         write_loop(sessions)
-        tmux_msg(f"Loop: removed '{current}' ({len(sessions)} sessions)")
+        tmux_msg(f"Loop: removed '{name}' ({len(sessions)} sessions)")
     else:
-        sessions.append(current)
+        sessions.append(sid)
         write_loop(sessions)
-        tmux_msg(f"Loop: added '{current}' ({len(sessions)} sessions)")
+        tmux_msg(f"Loop: added '{name}' ({len(sessions)} sessions)")
 
 
 def cmd_next() -> None:
@@ -97,9 +116,9 @@ def _cycle(direction: int) -> None:
     if len(sessions) == 1:
         tmux("switch-client", "-t", sessions[0])
         return
-    current = current_session()
+    sid = current_session_id()
     try:
-        idx = sessions.index(current)
+        idx = sessions.index(sid)
     except ValueError:
         tmux("switch-client", "-t", sessions[0])
         return
@@ -132,25 +151,40 @@ def cmd_list() -> None:
 
 def cmd_pick() -> None:
     """Internal: runs inside the popup, pipes session list through fzf."""
-    current = current_session()
+    sid = current_session_id()
     sessions = read_loop()
     # Rotate so the next session after current is at the top
     try:
-        idx = sessions.index(current)
+        idx = sessions.index(sid)
         sessions = sessions[idx + 1 :] + sessions[: idx + 1]
     except ValueError:
         pass
-    lines = [f"▸ {s}" if s == current else f"  {s}" for s in sessions]
+    # Build fzf lines: "session_id\tDisplay Name"
+    lines = []
+    for s in sessions:
+        name = session_name(s)
+        marker = "▸" if s == sid else " "
+        lines.append(f"{s}\t{marker} {name}")
     try:
         result = subprocess.run(
-            ["fzf", "--no-info", "--reverse", "--no-sort"],
+            [
+                "fzf",
+                "--no-info",
+                "--reverse",
+                "--no-sort",
+                "--delimiter",
+                "\t",
+                "--with-nth",
+                "2..",
+            ],
             input="\n".join(lines),
             capture_output=True,
             text=True,
         )
-        selected = result.stdout.strip().lstrip("▸ ").strip()
-        if selected:
-            tmux("switch-client", "-t", selected)
+        chosen = result.stdout.strip()
+        if chosen:
+            selected_id = chosen.split("\t", 1)[0]
+            tmux("switch-client", "-t", selected_id)
     except FileNotFoundError:
         tmux_msg("Loop: fzf not found")
 

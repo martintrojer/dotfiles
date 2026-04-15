@@ -110,7 +110,7 @@ What it does:
 
 Runtime state is stored in:
 
-- `$HOME/.cache/tmux-agent-attention/pending.jsonl`
+- `$XDG_STATE_HOME/tmux-agent-attention/pending.jsonl` (default `~/.local/state/tmux-agent-attention/pending.jsonl`)
 
 ## Hook Setup
 

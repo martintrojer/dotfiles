@@ -15,8 +15,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
-CACHE_DIR = (
-    Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache")))
+STATE_DIR = (
+    Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state")))
     / "tmux-agent-attention"
 )
 MISE_SHIMS_DIR = (
@@ -25,7 +25,7 @@ MISE_SHIMS_DIR = (
     )
     / "shims"
 )
-PENDING_FILE = CACHE_DIR / "pending.jsonl"
+PENDING_FILE = STATE_DIR / "pending.jsonl"
 MAX_EVENTS = 4000
 DISABLE_SYSTEM_NOTIFY_ENV = "TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY"
 
@@ -94,8 +94,8 @@ def current_context(pane: Optional[str]) -> Optional[dict[str, str]]:
     }
 
 
-def ensure_cache_dir() -> None:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+def ensure_state_dir() -> None:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_events() -> list[dict[str, object]]:
@@ -118,7 +118,7 @@ def load_events() -> list[dict[str, object]]:
 
 
 def save_events(events: list[dict[str, object]]) -> None:
-    ensure_cache_dir()
+    ensure_state_dir()
     trimmed = events[-MAX_EVENTS:]
     with PENDING_FILE.open("w", encoding="utf-8") as f:
         for event in trimmed:
