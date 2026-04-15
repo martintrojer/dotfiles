@@ -200,6 +200,25 @@ vim.api.nvim_create_autocmd("LspAttach", {
 	end,
 })
 
+-- Auto-close terminal buffers so they don't block :q
+vim.api.nvim_create_autocmd("QuitPre", {
+	callback = function()
+		local terms, others = {}, 0
+		for _, w in ipairs(vim.api.nvim_list_wins()) do
+			if vim.bo[vim.api.nvim_win_get_buf(w)].buftype == "terminal" then
+				terms[#terms + 1] = vim.api.nvim_win_get_buf(w)
+			else
+				others = others + 1
+			end
+		end
+		if others <= 1 then
+			for _, b in ipairs(terms) do
+				vim.api.nvim_buf_delete(b, { force = true })
+			end
+		end
+	end,
+})
+
 -- Briefly highlight yanked text.
 vim.api.nvim_create_autocmd("TextYankPost", {
 	callback = function()
