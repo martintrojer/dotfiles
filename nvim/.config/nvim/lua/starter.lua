@@ -33,7 +33,7 @@ local function notes_section()
 end
 
 local function starter_header()
-	local hour = tonumber(os.date("%H"))
+	local hour = tonumber(os.date("!%H"))  -- UTC (UK)
 	local greeting
 	if hour < 6 then
 		greeting = "🌙 Good night"
