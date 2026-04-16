@@ -38,6 +38,8 @@ class Args:
 SCRIPT_DIR: Final[Path] = Path(__file__).resolve().parent
 LOGGER: Final[logging.Logger] = logging.getLogger("stow-all")
 SHARED_SKILLS_DIR: Final[Path] = SCRIPT_DIR / "skills"
+PI_EXTENSIONS_DIR: Final[Path] = SCRIPT_DIR / "pi" / "extensions"
+PI_EXTENSIONS_DEST: Final[Path] = Path(".pi/agent/extensions")
 CLAUDE_PLUGIN_DIR: Final[Path] = SCRIPT_DIR / "claude" / "mtrojer-plugin"
 CLAUDE_PLUGIN_SKILLS_DIR: Final[Path] = CLAUDE_PLUGIN_DIR / "skills"
 CLAUDE_PLUGIN_NAME: Final[str] = "mtrojer"
@@ -130,6 +132,7 @@ IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
     "chrome",
     "claude",
     "fedora",
+    "pi",
     "skills",
     "vscode",
 }
@@ -683,6 +686,7 @@ def compare_skill_trees(
         source_names = {path.name for path in source_dir.iterdir()}
         dest_names = {path.name for path in dest_dir.iterdir()}
         if is_root:
+            source_names = {n for n in source_names if (source_dir / n).is_dir()}
             dest_names.discard(".gitignore")
 
         for name in sorted(source_names - dest_names):
@@ -717,6 +721,8 @@ def sync_skill_tree(source: Path, dest: Path) -> None:
     dest.mkdir(parents=True, exist_ok=True)
     remove_dir_contents(dest, keep_names={".gitignore"})
     for source_path in source.iterdir():
+        if not source_path.is_dir():
+            continue
         shutil.copytree(
             source_path,
             dest / source_path.name,
@@ -915,6 +921,73 @@ def _check_claude_plugin(target: Path, *, verbose: bool) -> bool:
     return has_issues
 
 
+def _pi_extension_entries() -> list[Path]:
+    """Return all .ts files in the pi/extensions directory."""
+    if not PI_EXTENSIONS_DIR.is_dir():
+        return []
+    return sorted(p for p in PI_EXTENSIONS_DIR.iterdir() if p.suffix == ".ts")
+
+
+def _check_pi_extensions(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    issue_id = "pi:extensions"
+    if issue_id in ignore:
+        return False
+    dest_dir = target / PI_EXTENSIONS_DEST
+    entries = _pi_extension_entries()
+    if not entries:
+        return False
+    issues: list[str] = []
+    for source in entries:
+        link_path = dest_dir / source.name
+        desired = source.resolve(strict=False)
+        if not link_path.exists() and not link_path.is_symlink():
+            issues.append(f"{source.name}: missing")
+        elif not link_path.is_symlink():
+            issues.append(f"{source.name}: expected symlink, found file")
+        elif link_path.resolve(strict=False) != desired:
+            issues.append(
+                f"{source.name}: wrong target "
+                f"(points to {link_path.resolve(strict=False)}, expected {desired})"
+            )
+    if issues:
+        LOGGER.warning(
+            f"ISSUE: pi extensions: {len(issues)} links out of sync"
+            f"  (--ignore {issue_id})"
+        )
+        if verbose:
+            LOGGER.debug(f"  {dest_dir}")
+        log_issue_summary(issues, max_items=10)
+        return True
+    if verbose:
+        LOGGER.debug(f"OK: pi extensions ({dest_dir})")
+    return False
+
+
+def _apply_pi_extensions(target: Path, *, verbose: bool, ignore: set[str]) -> None:
+    issue_id = "pi:extensions"
+    if issue_id in ignore:
+        return
+    dest_dir = target / PI_EXTENSIONS_DEST
+    entries = _pi_extension_entries()
+    if not entries:
+        return
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    for source in entries:
+        link_path = dest_dir / source.name
+        desired = source.resolve(strict=False)
+        if link_path.is_symlink() and link_path.resolve(strict=False) == desired:
+            if verbose:
+                LOGGER.debug(f"OK: {source.name}")
+            continue
+        if link_path.exists() or link_path.is_symlink():
+            replace_path(link_path)
+        link_path.symlink_to(os.path.relpath(source, start=link_path.parent))
+        if verbose:
+            LOGGER.debug(f"LINKED: {source.name} -> {link_path}")
+        else:
+            LOGGER.info(f"LINKED: pi ext {source.name}")
+
+
 def check_shared_skills(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     has_issues = False
     LOGGER.info("\n[shared-skills]")
@@ -923,6 +996,8 @@ def check_shared_skills(target: Path, *, verbose: bool, ignore: set[str]) -> boo
         has_issues |= _check_claude_bundle(verbose=verbose)
     if "skill:plugin" not in ignore:
         has_issues |= _check_claude_plugin(target, verbose=verbose)
+    LOGGER.info("\n[pi-extensions]")
+    has_issues |= _check_pi_extensions(target, verbose=verbose, ignore=ignore)
     return has_issues
 
 
@@ -1168,6 +1243,8 @@ def main() -> int:
         return 0
 
     apply_shared_skills(target, verbose=args.verbose, ignore=args.ignore)
+    LOGGER.info("\n[pi-extensions]")
+    _apply_pi_extensions(target, verbose=args.verbose, ignore=args.ignore)
     LOGGER.info("\n[agent-hooks]")
     apply_agent_hooks(target, verbose=args.verbose, ignore=args.ignore)
     print("Done.")
