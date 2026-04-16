@@ -13,6 +13,8 @@ This repository uses **GNU Stow** for dotfile management. Each top-level directo
 - `ghostty/.config/ghostty`: macOS terminal config
 - `fedora/`: setup scripts plus `containers/` and `systemd/` configs
 - `claude/`: Claude-related configs and a local plugin (`claude/mtrojer-plugin`)
+- `pi/extensions/`: Pi coding agent extensions
+- `skills/`: shared agent skills (symlinked into `~/.agents/skills/`)
 
 ## Search Tips
 
@@ -56,6 +58,32 @@ Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 - Shared Fedora package lists live in `fedora/base-packages.sh` and `fedora/niri-packages.sh`
 - `fedora/setup-base*.sh`, `fedora/setup-niri*.sh`, and `fedora/setup-toolbox.sh` are thin wrappers around those shared lists
 - `fedora/setup-toolbox-ubuntu.sh` and `fedora/setup-toolbox-arch.sh` follow the same package intent, but keep distro-specific package names and bootstrap steps
+
+## Pi Extensions
+
+Pi coding agent extensions live in `pi/extensions/` and are symlinked into `~/.pi/agent/extensions/`.
+
+- `answer` — Extract questions from assistant responses into interactive Q&A TUI
+- `btw` — Side-chat popover for tangential questions
+- `context` — Show loaded extensions, skills, context files, and token usage
+- `loop` — Iterative loop that re-prompts until a condition is met
+
+See `pi/README.md` for details.
+
+## Skills
+
+Generic agent skills live in `skills/` and are symlinked into `~/.agents/skills/`. See `skills/README.md` for full reference.
+
+- `brainstorm` — Refine ideas into technical specs via dialogue
+- `write-plan` / `execute-plan` — Create and execute implementation plans
+- `code-reviewer` / `test-reviewer` — Review code and tests for quality issues
+- `council` — Multi-agent collaborative debate
+- `changelog` — Generate changelogs from git history
+- `caveman` / `caveman-commit` / `caveman-review` / `caveman-help` — Token-efficient communication modes
+- `github` — `gh` CLI cheatsheet for PRs, issues, CI
+- `summarize` — URL/PDF/DOCX → Markdown via `markitdown`
+- `librarian` — Cache remote git repos under `~/.cache/checkouts/` for reference
+- `tmux` — Remote-control tmux sessions for interactive CLIs
 
 ## Window Manager
 
