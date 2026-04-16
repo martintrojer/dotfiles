@@ -1010,7 +1010,8 @@ def _check_codex_hook(config_path: Path) -> str | None:
         content = config_path.read_text()
     except OSError:
         return "cannot read config"
-    if AGENT_ATTENTION_SCRIPT in content and "--source codex" in content:
+    # Support both string and TOML array formats for the notify command.
+    if "agent-attention" in content and "--source" in content and "codex" in content:
         return None
     return "agent-attention hook not found in config"
 
