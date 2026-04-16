@@ -145,7 +145,7 @@ Add to the `hooks` key:
 Add to the top level:
 
 ```toml
-notify = "python3 $HOME/.config/tmux/scripts/agent-attention notify --source codex --event-type notify --title Codex"
+notify = ["python3", "$HOME/.config/tmux/scripts/agent-attention", "notify", "--source", "codex", "--event-type", "notify", "--title", "Codex"]
 ```
 
 ### OpenCode (auto — `stow-all.py --apply`)
