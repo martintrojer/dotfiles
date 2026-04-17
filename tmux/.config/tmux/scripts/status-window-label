@@ -1,0 +1,150 @@
+#!/bin/sh
+# Render a smarter tmux window label from active-pane metadata.
+#
+# Called per visible window from window-status-format. tmux already
+# evaluates the format-string variables in the context of that window's
+# active pane, so we receive the relevant fields directly and avoid
+# re-querying tmux.
+#
+# Usage:
+#   status-window-label <window_name> <pane_current_command> \
+#                       <pane_title> <pane_current_path> <host> <pane_pid>
+#
+# Customise these lists by exporting the matching env vars before tmux
+# starts; values are space-separated, e.g.:
+#   export TMUX_LABEL_AGENTS="claude codex pi opencode aider"
+
+window_name=${1-}
+pane_current_command=${2-}
+pane_title=${3-}
+pane_current_path=${4-}
+host_name=${5-}
+pane_pid=${6-}
+
+shells=${TMUX_LABEL_SHELLS:-zsh bash sh fish nu}
+editors=${TMUX_LABEL_EDITORS:-nvim vim vi hx helix kak emacs nano}
+agents=${TMUX_LABEL_AGENTS:-claude codex pi opencode}
+agent_wrappers=${TMUX_LABEL_AGENT_WRAPPERS:-Python python python3 node nodejs bun deno}
+agent_helpers=${TMUX_LABEL_AGENT_HELPERS:-less more man}
+
+# Match needle against a space-separated list passed as the second
+# argument. Word splitting on $list is intentional, hence the disable.
+# shellcheck disable=SC2086
+matches() {
+  needle=$1
+  list=$2
+  for item in $list; do
+    [ "$needle" = "$item" ] && return 0
+  done
+  return 1
+}
+
+# A title is "meaningful" when it is non-empty, not just the host name,
+# and does not look like a path-ish leftover such as ":/foo", "/foo",
+# or "~/foo".
+has_meaningful_title() {
+  [ -n "$pane_title" ] || return 1
+  [ "$pane_title" != "$host_name" ] || return 1
+  case "$pane_title" in
+    :*|/*|~*) return 1 ;;
+  esac
+  return 0
+}
+
+# Walk the descendant process tree of $pane_pid and return the first
+# command matching $agents. This is the most trustworthy signal because
+# pane_title and window_name can both be stale leftovers from a previous
+# tenant of the pane (e.g. an old "✳ Claude Code" title when Pi is
+# actually the running process).
+detect_agent_in_tree() {
+  root_pid=$1
+  [ -n "$root_pid" ] || return 1
+  command -v ps >/dev/null 2>&1 || return 1
+  ps -axo pid=,ppid=,comm= 2>/dev/null | awk -v root="$root_pid" -v list="$agents" '
+    BEGIN {
+      n = split(list, items, " ")
+      for (i = 1; i <= n; i++) want[items[i]] = 1
+    }
+    {
+      # Use the basename of comm so paths like /usr/bin/pi still match.
+      cmd = $3
+      sub(".*/", "", cmd)
+      pids[NR] = $1
+      ppids[NR] = $2
+      cmds[NR] = cmd
+    }
+    END {
+      head = 1; tail = 1
+      queue[1] = root
+      while (head <= tail) {
+        cur = queue[head++]
+        for (i = 1; i <= NR; i++) {
+          if (pids[i] == cur && want[cmds[i]]) {
+            print cmds[i]
+            exit
+          }
+        }
+        for (i = 1; i <= NR; i++) {
+          if (ppids[i] == cur) {
+            queue[++tail] = pids[i]
+          }
+        }
+      }
+    }
+  '
+}
+
+path_base=${pane_current_path##*/}
+
+if matches "$pane_current_command" "$editors"; then
+  printf '%s' "$pane_current_command"
+  exit 0
+fi
+
+if matches "$pane_current_command" "$shells"; then
+  if has_meaningful_title; then
+    printf '%s' "$pane_title"
+  elif [ -n "$path_base" ]; then
+    printf '%s' "$path_base"
+  elif [ -n "$window_name" ]; then
+    printf '%s' "$window_name"
+  else
+    printf '%s' "$pane_current_command"
+  fi
+  exit 0
+fi
+
+# Agent-likely path: window claims to be an agent, OR the active command
+# is a wrapper interpreter (Python/node/etc) that often hosts an agent.
+# In both cases pane_title and window_name are unreliable, so we walk the
+# process tree first.
+if matches "$window_name" "$agents" \
+  || matches "$pane_current_command" "$agent_wrappers" \
+  || matches "$pane_current_command" "$agent_helpers"; then
+  detected=$(detect_agent_in_tree "$pane_pid")
+  if [ -n "$detected" ]; then
+    printf '%s' "$detected"
+    exit 0
+  fi
+  if has_meaningful_title; then
+    printf '%s' "$pane_title"
+  elif matches "$pane_current_command" "$agent_wrappers" \
+    || matches "$pane_current_command" "$agent_helpers"; then
+    printf '%s' "$window_name"
+  elif [ -n "$pane_current_command" ]; then
+    printf '%s' "$pane_current_command"
+  else
+    printf '%s' "$window_name"
+  fi
+  exit 0
+fi
+
+if has_meaningful_title; then
+  printf '%s' "$pane_title"
+elif [ -n "$pane_current_command" ]; then
+  printf '%s' "$pane_current_command"
+elif [ -n "$path_base" ]; then
+  printf '%s' "$path_base"
+else
+  printf '%s' "$window_name"
+fi

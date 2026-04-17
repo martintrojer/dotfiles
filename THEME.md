@@ -51,7 +51,7 @@ All configs are now unified around **Catppuccin Mocha**.
 | Niri | `niri/.config/niri/config.kdl` | Catppuccin hex values |
 | Zsh | `zsh/.zsh/tools.zsh`, `zsh/.zsh/overrides.zsh` | Native `PROMPT`/`RPROMPT` with Catppuccin hex values |
 | Swaylock | `swaylock/.config/swaylock/config` | Catppuccin-inspired colors with wallpaper from `wallpapers/` |
-| Tmux | `tmux/.tmux.conf` | `catppuccin/tmux` plugin, mocha flavor |
+| Tmux | `tmux/.tmux.conf` | Native tmux status bar using Catppuccin Mocha hex values |
 | Waybar | `waybar/.config/waybar/style.css` | Catppuccin colors defined |
 | Waybar Calendar | `waybar/.config/waybar/config.jsonc` | Inline Catppuccin hex |
 | Wallpapers | `wallpapers/.config/wallpapers/` | Shared background assets |

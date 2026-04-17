@@ -13,21 +13,32 @@ This config uses TPM plus a mix of quality-of-life, persistence, navigation, and
 - `tmux-plugins/tmux-sensible`: conservative tmux defaults. It provides a small baseline of settings that are meant to be broadly useful without overriding your explicit config.
 - `tmux-plugins/tmux-yank`: copies from tmux into the system clipboard. Most useful in copy mode and for pushing text out of tmux into the desktop clipboard.
 - `tmux-plugins/tmux-resurrect`: saves and restores tmux sessions, windows, panes, layouts, and some running programs.
-- `tmux-plugins/tmux-cpu`: provides CPU usage segments for the status line.
+- `tmux-plugins/tmux-cpu`: provides the `#{cpu_percentage}` format used by the native status bar's CPU segment.
 - `Morantron/tmux-fingers`: hint-based picking inside visible pane content, similar to Vimium-style jump labels for paths, URLs, SHAs, numbers, and other matches.
 - `sainnhe/tmux-fzf`: fzf-powered tmux management for sessions, windows, panes, bindings, clipboard history, and process actions.
-- `catppuccin/tmux`: the Catppuccin theme integration that drives the Mocha status line styling and the rounded window/tab appearance.
 - `christoomey/vim-tmux-navigator`: seamless navigation between Neovim splits and tmux panes with the same control-key motions.
 
 ## What You Actually Use Here
 
 From your current `tmux/.tmux.conf`:
 
-- The visible "power bar" look is mainly `catppuccin/tmux`.
+- The visible status bar is native tmux formatting using Catppuccin Mocha hex values directly.
 - Vim split to tmux pane movement comes from `christoomey/vim-tmux-navigator`.
 - The right side CPU segment comes from `tmux-cpu`.
 - Session save and restore comes from `tmux-resurrect`.
 - The `agent-attention` integration is not a plugin. It is a local script in this repo that adds `[!]` markers and the popup picker.
+- Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
+- Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `claude`, `π - ...`, or a cwd basename.
+- The AI badge itself is rendered by `$HOME/.config/tmux/scripts/status-ai`.
+
+## Status Bar Layout
+
+The current bar keeps the same useful information as before, but without the pill-style Catppuccin theme chrome.
+
+- Left: a filled session block.
+- Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline `!` / `Z` markers.
+- Pane, window, and session switches trigger an immediate `refresh-client -S`, so label changes show up right away instead of waiting for the status timer.
+- Right: boxed `PREFIX` and `AI` segments, followed by flatter glyph-based `CPU`, `host`, and `uptime` segments.
 
 ## Using Resurrect
 
@@ -102,9 +113,10 @@ This package includes `$HOME/.config/tmux/scripts/agent-attention`, a lightweigh
 What it does:
 
 - marks windows with pending agent attention as `[!]`
-- shows total flagged windows in `status-right` as `AI:<count>`
+- shows total flagged windows in `status-right` as a boxed `AI <count>` segment
 - opens a picker (`prefix + A`) listing flagged windows, then jumps to the selected one
-- clears attention automatically when you visit that window
+- clears attention automatically when you focus the agent's pane (window-level visit alone is not enough, so vertical splits behave correctly)
+- when a notify event fires, the badge is only suppressed if the user is *already* focused on the agent's pane; same-window-but-different-pane still queues the badge
 - sends desktop notifications on macOS/Linux by default (set `TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY=1` to disable)
 - emits OSC 777 terminal notifications to the controlling TTY (for terminals that support it)
 
@@ -114,7 +126,7 @@ Runtime state is stored in:
 
 ## Hook Setup
 
-Each agent harness calls `agent-attention notify --source <name>` when it needs attention. `stow-all.py` checks all four hooks and auto-creates symlinks for Pi and OpenCode. Claude Code and Codex require manual config.
+Each agent harness calls `agent-attention notify --source <name>` when it needs attention. The script resolves the current tmux target from `--pane`, then `TMUX_PANE`, then the controlling TTY, which makes hook subprocesses more reliable. `stow-all.py` checks all four hooks and auto-creates symlinks for Pi and OpenCode. Claude Code and Codex require manual config.
 
 Run `stow-all.py -c -v` to see which hooks are configured and which are missing.
 
@@ -145,8 +157,10 @@ Add to the `hooks` key:
 Add to the top level:
 
 ```toml
-notify = ["python3", "$HOME/.config/tmux/scripts/agent-attention", "notify", "--source", "codex", "--event-type", "notify", "--title", "Codex"]
+notify = ["/bin/sh", "-lc", "python3 \"$HOME/.config/tmux/scripts/agent-attention\" notify --source codex --event-type notify --title Codex"]
 ```
+
+The `/bin/sh -lc` wrapper is important here because Codex's TOML array form does not expand `$HOME` by itself.
 
 ### OpenCode (auto — `stow-all.py --apply`)
 
@@ -158,7 +172,7 @@ Subscribes to `session.idle` and `permission.asked` events.
 
 Symlinked by `stow-all.py` from `tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts` to `~/.pi/agent/extensions/agent-attention.ts`.
 
-Subscribes to Pi's `turn_end` event.
+Subscribes to Pi's `agent_end` event so attention only fires once the prompt is actually finished.
 
 ## Cheatsheet
 

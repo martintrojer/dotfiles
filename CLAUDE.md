@@ -42,9 +42,32 @@ Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 
 ### Tmux Scripts
 - `tmux/.config/tmux/scripts/agent-attention` - AI agent attention tracker (Python 3, supports claude/codex/opencode/pi)
+- `tmux/.config/tmux/scripts/status-ai` - Renders the boxed `AI <count>` segment for the right-hand status
+- `tmux/.config/tmux/scripts/status-uptime` - Cross-platform short uptime string for the status bar
+- `tmux/.config/tmux/scripts/status-window-label` - Active-pane derived window label, prefers the real running agent over stale titles
+- `tmux/.config/tmux/scripts/session-loop` - Cycle/list/toggle a small pinned set of tmux sessions
 - `tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts` - Pi Agent extension for agent-attention
 - `tmux/.config/tmux/scripts/opencode-plugin/notify.ts` - OpenCode plugin for agent-attention
 - `tmux/.config/tmux/scripts/cheatsheet` - fzf cheatsheet popup
+- `tmux/.config/tmux/scripts/test-status-tools` - Smoke tests for `agent-attention` and `status-window-label` against an isolated tmux server
+
+#### Running the tmux status tool tests
+
+Runs the helpers against an isolated tmux server (`-L test-status-tools`) and a throwaway `XDG_STATE_HOME`, so it never touches your real tmux session, sockets, or pending events:
+
+```bash
+tmux/.config/tmux/scripts/test-status-tools           # run all assertions, exit 0 on success
+tmux/.config/tmux/scripts/test-status-tools -v        # verbose subprocess output
+tmux/.config/tmux/scripts/test-status-tools --keep    # leave the test tmux server + tmpdir up for inspection
+```
+
+When `--keep` is set, attach to the test server with:
+
+```bash
+tmux -L test-status-tools attach
+```
+
+The script honors `TMUX_SOCKET_NAME` / `TMUX_SOCKET_PATH` to pin `agent-attention` to a non-default tmux server, which is what makes the tests possible. Real tmux subprocesses inherit `TMUX` from their pane and ignore these env vars.
 
 ### Other Scripts
 - `waybar/.config/waybar/scripts/` - Waybar-specific shell helpers (if any)
