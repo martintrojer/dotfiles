@@ -5,12 +5,13 @@ tmux needs a manual step to install plugins:
 1. `git clone https://github.com/tmux-plugins/tpm $HOME/.tmux/plugins/tpm`
 2. [inside tmux] `<CTRL>b I`
 
+This setup expects `sesh` for the repo-defined session flows in `tmux/.tmux.conf`, such as `prefix + s`, `prefix + g`, and any other local sesh binds you keep enabled.
+
 ## Plugin Inventory
 
 This config uses TPM plus a mix of quality-of-life, persistence, navigation, and status-line plugins.
 
 - `tmux-plugins/tpm`: tmux plugin manager. It installs, updates, and loads the rest of the plugins from `.tmux.conf`.
-- `tmux-plugins/tmux-sensible`: conservative tmux defaults. It provides a small baseline of settings that are meant to be broadly useful without overriding your explicit config.
 - `tmux-plugins/tmux-yank`: copies from tmux into the system clipboard. Most useful in copy mode and for pushing text out of tmux into the desktop clipboard.
 - `tmux-plugins/tmux-resurrect`: saves and restores tmux sessions, windows, panes, layouts, and some running programs.
 - `tmux-plugins/tmux-cpu`: provides the `#{cpu_percentage}` format used by the native status bar's CPU segment.
@@ -22,7 +23,7 @@ This config uses TPM plus a mix of quality-of-life, persistence, navigation, and
 
 From your current `tmux/.tmux.conf`:
 
-- The visible status bar is native tmux formatting using Catppuccin Mocha hex values directly.
+- The visible status bar is native tmux formatting using named Catppuccin Mocha palette variables defined near the top of `.tmux.conf`.
 - Built-in tmux UI surfaces such as `choose-tree`, menus, popups, and prompts are also styled directly with Catppuccin Mocha hex values instead of the stock tmux colors.
 - Vim split to tmux pane movement comes from `christoomey/vim-tmux-navigator`.
 - The right side CPU segment comes from `tmux-cpu`.
@@ -46,7 +47,14 @@ The current bar keeps the same useful information as before, but without the pil
 
 Native tmux pickers and overlays use the same palette as the status bar instead of the default yellow-accent tmux theme.
 
+Repo-defined bindings in the current `tmux/.tmux.conf`:
+
+- `prefix` + `s`: `sesh` picker popup
 - `prefix` + `S`: tmux `choose-tree` session picker, sorted by name
+- `prefix` + `N`: `tmux-fzf` new session flow
+- `prefix` + `g`: switch to last session via `sesh`
+- `prefix` + `w`: built-in tmux session-window tree picker
+- `prefix` + `Ctrl-g`: cheatsheet popup
 - mouse click on the left status session block: opens the tmux session picker
 - built-in menus, prompts, and popups use Mocha background/foreground colors with a sky selection highlight
 
@@ -112,6 +120,12 @@ Default flow:
 
 Notes:
 
+- `prefix` + `s` opens the local popup-backed `sesh` picker script.
+- the sesh picker uses `-d -s` so duplicates are hidden and separator matching feels better
+- `prefix` + `N` jumps straight into `tmux-fzf`'s new-session flow.
+- `prefix` + `g` keeps `sesh last` on an easy key without colliding with your existing tmux binds.
+- `prefix` + `w` remains tmux's standard session-window tree picker.
+- `prefix` + `Ctrl-g` moves the cheatsheet off a prime lowercase key.
 - This is complementary to `tmux-fingers`: `tmux-fzf` is for tmux state and management, while `tmux-fingers` is for picking text from pane content.
 - Your config makes the popup larger than the plugin default with `TMUX_FZF_OPTIONS="-p -w 80% -h 75% -m"`.
 - The `-m` flag enables multi-select in pickers that support it.
@@ -186,4 +200,4 @@ Subscribes to Pi's `agent_end` event so attention only fires once the prompt is 
 
 ## Cheatsheet
 
-`prefix + g` opens an fzf cheatsheet popup inside tmux. The entries are embedded in `.config/tmux/scripts/cheatsheet` — update that script when adding or changing keybindings.
+`prefix + Ctrl-g` opens an fzf cheatsheet popup inside tmux. The entries mix repo-defined bindings with stock tmux and plugin defaults, so update that script when adding, removing, or reclassifying keys.
