@@ -555,19 +555,20 @@ export default function (pi: ExtensionAPI) {
 			return null;
 		}
 
+		const sessionManager = SessionManager.inMemory();
+		const seedMessages = buildSeedMessages(ctx, thread);
+		for (const message of seedMessages) {
+			sessionManager.appendMessage(message);
+		}
+
 		const { session } = await createAgentSession({
-			sessionManager: SessionManager.inMemory(),
+			sessionManager,
 			model: ctx.model,
 			modelRegistry: ctx.modelRegistry as AgentSession["modelRegistry"],
 			thinkingLevel: pi.getThinkingLevel() as SessionThinkingLevel,
 			tools: codingTools,
 			resourceLoader: createBtwResourceLoader(ctx),
 		});
-
-		const seedMessages = buildSeedMessages(ctx, thread);
-		if (seedMessages.length > 0) {
-			session.agent.replaceMessages(seedMessages as typeof session.state.messages);
-		}
 
 		const unsubscribe = session.subscribe((event: AgentSessionEvent) => {
 			if (!sideBusy || !pendingQuestion) {
