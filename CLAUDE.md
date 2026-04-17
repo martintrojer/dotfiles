@@ -103,10 +103,8 @@ Generic agent skills live in `skills/` and are symlinked into `~/.agents/skills/
 - `code-reviewer` / `test-reviewer` — Review code and tests for quality issues
 - `council` — Multi-agent collaborative debate
 - `changelog` — Generate changelogs from git history
-- `caveman` / `caveman-commit` / `caveman-review` / `caveman-help` — Token-efficient communication modes
-- `github` — `gh` CLI cheatsheet for PRs, issues, CI
+- `caveman` — Token-efficient communication mode
 - `summarize` — URL/PDF/DOCX → Markdown via `markitdown`
-- `librarian` — Cache remote git repos under `~/.cache/checkouts/` for reference
 - `tmux` — Remote-control tmux sessions for interactive CLIs
 
 ## Window Manager
