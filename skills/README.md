@@ -33,15 +33,10 @@ Skills are auto-discovered and can be invoked explicitly with `/skill:name` or l
 | Skill | Trigger | Description |
 |-------|---------|-------------|
 | `/skill:caveman` | "caveman mode", "be brief" | Ultra-compressed communication (~75% token savings). Levels: lite, full, ultra |
-| `/skill:caveman-commit` | "write a commit", "/commit" | Compressed commit messages in Conventional Commits format |
-| `/skill:caveman-review` | "review this PR", "/review" | One-line code review comments: location, problem, fix |
-| `/skill:caveman-help` | "caveman help" | Quick-reference card for all caveman modes and commands |
 
 ### Tools & Integrations
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `/skill:github` | GitHub tasks (PRs, issues, CI) | `gh` CLI cheatsheet for PRs, issues, runs, and API queries |
 | `/skill:summarize` | "summarize this URL/file" | Fetch URL or convert PDF/DOCX/HTML to Markdown via `markitdown` |
-| `/skill:librarian` | Remote git repo references | Cache remote repos under `~/.cache/checkouts/` for local reference |
 | `/skill:tmux` | Interactive CLI needed | Remote-control tmux sessions by sending keystrokes and scraping output |
