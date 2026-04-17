@@ -11,6 +11,7 @@ This repository uses **GNU Stow** for dotfile management. Each top-level directo
 - `eza/.config/eza`: eza theme (Catppuccin Mocha)
 - `vscode/settings.json`, `vale/.vale.ini`, `bat/.config/bat`, `btop/.config/btop`, `yazi/.config/yazi`: app configs
 - `ghostty/.config/ghostty`: macOS terminal config
+- `sesh/.config/sesh`: sesh project/session manager config
 - `fedora/`: setup scripts plus `containers/` and `systemd/` configs
 - `claude/`: Claude-related configs and a local plugin (`claude/mtrojer-plugin`)
 - `pi/extensions/`: Pi coding agent extensions
@@ -45,7 +46,7 @@ Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 - `tmux/.config/tmux/scripts/status-ai` - Renders the boxed `AI <count>` segment for the right-hand status
 - `tmux/.config/tmux/scripts/status-uptime` - Cross-platform short uptime string for the status bar
 - `tmux/.config/tmux/scripts/status-window-label` - Active-pane derived window label, prefers the real running agent over stale titles
-- `tmux/.config/tmux/scripts/session-loop` - Cycle/list/toggle a small pinned set of tmux sessions
+- `tmux/.config/tmux/scripts/sesh-window` - `fzf` picker wrapper around `sesh window`
 - `tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts` - Pi Agent extension for agent-attention
 - `tmux/.config/tmux/scripts/opencode-plugin/notify.ts` - OpenCode plugin for agent-attention
 - `tmux/.config/tmux/scripts/cheatsheet` - fzf cheatsheet popup

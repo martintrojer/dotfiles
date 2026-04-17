@@ -10,3 +10,7 @@ alias l='eza -lahG --icons=auto --no-permissions --no-user'
 if [[ -f /run/.toolboxenv ]]; then
     export TERM=xterm-256color
 fi
+
+tm() {
+    "$HOME/.config/tmux/scripts/sesh-connect"
+}

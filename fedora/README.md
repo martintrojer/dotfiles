@@ -11,6 +11,8 @@ Typical order:
 3. Run `fedora/setup-mise.sh` to install userland tools with `mise`.
 4. Optionally run `fedora/setup-toolbox.sh` inside a Fedora toolbox.
 
+If you want the tmux / `sesh` session workflow from this repo, make sure `sesh` is installed too. The dotfiles only manage `~/.config/sesh/sesh.toml`; they do not install the `sesh` binary for you.
+
 For non-Fedora toolboxes:
 
 - `fedora/setup-toolbox-ubuntu.sh`
@@ -37,6 +39,7 @@ The package split reflects a few explicit decisions:
 - `mise` is a core bootstrap tool, so the host base keeps a small native build toolchain: `automake`, `binutils`, `gcc`, `gcc-c++`, and `make`.
 - `git`, `git-lfs`, `jq`, `ripgrep`, `stow`, `tmux`, and `zsh` are treated as common baseline tooling.
 - `btop` and `gdu` are still in base as shared comfort tools.
+- `sesh` is expected by the tmux and zsh session-launch flow, but it is installed separately from the RPM base packages.
 - Desktop/session packages live in `niri-packages.sh`, including `alacritty`, `distrobox`, `fastfetch`, `rclone`, `swaybg`, `swayidle`, `swaylock`, `waybar`, and `wtype`.
 - `wl-clipboard` is part of the common Niri package set because the active Niri config starts `wl-paste`.
 - `btop`, `gdu`, and `distrobox` do not fit the package split perfectly, but they are placed pragmatically based on how this setup is actually bootstrapped and used.
