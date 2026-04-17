@@ -415,7 +415,7 @@ def owner_for_repo_path(
     return None
 
 
-def repo_target_of_link(path: Path, script_real: Path) -> Path | None:
+def managed_link_target(path: Path, source_root: Path) -> Path | None:
     if not path.is_symlink():
         return None
     try:
@@ -423,9 +423,36 @@ def repo_target_of_link(path: Path, script_real: Path) -> Path | None:
     except OSError:
         return None
     resolved = (path.parent / raw_target).resolve(strict=False)
-    if not resolved.is_relative_to(script_real):
+    if not resolved.is_relative_to(source_root.resolve(strict=False)):
         return None
     return resolved
+
+
+def repo_target_of_link(path: Path, script_real: Path) -> Path | None:
+    return managed_link_target(path, script_real)
+
+
+def extra_managed_backlink_issues(
+    dest_dir: Path,
+    *,
+    source_root: Path,
+    expected_names: set[str],
+    stale_label: str,
+    extra_label: str,
+) -> list[str]:
+    if not dest_dir.exists() or not dest_dir.is_dir():
+        return []
+
+    issues: list[str] = []
+    for path in sorted(dest_dir.iterdir()):
+        target = managed_link_target(path, source_root)
+        if target is None or path.name in expected_names:
+            continue
+        if target.exists():
+            issues.append(f"{path.name}: {extra_label} {target}")
+        else:
+            issues.append(f"{path.name}: {stale_label} {target}")
+    return issues
 
 
 def check_repo_backlinks(
@@ -621,6 +648,20 @@ def is_managed_skill_link(path: Path, source: Path) -> bool:
     )
 
 
+def _shared_skill_link_target(path: Path) -> Path | None:
+    return managed_link_target(path, SHARED_SKILLS_DIR)
+
+
+def _shared_skill_extra_issues(dest_dir: Path, expected_names: set[str]) -> list[str]:
+    return extra_managed_backlink_issues(
+        dest_dir,
+        source_root=SHARED_SKILLS_DIR,
+        expected_names=expected_names,
+        stale_label="stale backlink to missing",
+        extra_label="unmanaged extra link to",
+    )
+
+
 def has_unmanaged_skill_conflict(dest_dir: Path, source: Path) -> bool:
     path = dest_dir / source.name
     if not path.exists() and not path.is_symlink():
@@ -654,7 +695,13 @@ def apply_shared_skill_links(dest_dir: Path) -> list[str]:
     if conflicts:
         return conflicts
 
+    expected_names = {source.name for source in shared_skill_entries()}
     dest_dir.mkdir(parents=True, exist_ok=True)
+    for path in sorted(dest_dir.iterdir()):
+        target = _shared_skill_link_target(path)
+        if target is None or path.name in expected_names:
+            continue
+        replace_path(path)
     for source in shared_skill_entries():
         path = dest_dir / source.name
         if is_managed_skill_link(path, source):
@@ -843,11 +890,13 @@ def _check_skill_links(target: Path, *, verbose: bool, ignore: set[str]) -> bool
             continue
 
         issues: list[str] = []
+        expected_names = {source.name for source in shared_skill_entries()}
         for source in shared_skill_entries():
             problem = describe_skill_link_state(path, source)
             if problem is None:
                 continue
             issues.append(f"{source.name}: {problem}")
+        issues.extend(_shared_skill_extra_issues(path, expected_names))
 
         if issues:
             has_issues = True
@@ -933,13 +982,28 @@ def _pi_extension_entries() -> list[Path]:
     return sorted(p for p in PI_EXTENSIONS_DIR.iterdir() if p.suffix == ".ts")
 
 
+def _pi_extension_link_target(path: Path) -> Path | None:
+    return managed_link_target(path, PI_EXTENSIONS_DIR)
+
+
+def _pi_extension_extra_issues(dest_dir: Path, expected_names: set[str]) -> list[str]:
+    return extra_managed_backlink_issues(
+        dest_dir,
+        source_root=PI_EXTENSIONS_DIR,
+        expected_names=expected_names,
+        stale_label="stale backlink to missing",
+        extra_label="unmanaged extra link to",
+    )
+
+
 def _check_pi_extensions(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     issue_id = "pi:extensions"
     if issue_id in ignore:
         return False
     dest_dir = target / PI_EXTENSIONS_DEST
     entries = _pi_extension_entries()
-    if not entries:
+    expected_names = {source.name for source in entries}
+    if not entries and not dest_dir.exists():
         return False
     issues: list[str] = []
     for source in entries:
@@ -954,6 +1018,7 @@ def _check_pi_extensions(target: Path, *, verbose: bool, ignore: set[str]) -> bo
                 f"{source.name}: wrong target "
                 f"(points to {link_path.resolve(strict=False)}, expected {desired})"
             )
+    issues.extend(_pi_extension_extra_issues(dest_dir, expected_names))
     if issues:
         LOGGER.warning(
             f"ISSUE: pi extensions: {len(issues)} links out of sync"
@@ -974,9 +1039,19 @@ def _apply_pi_extensions(target: Path, *, verbose: bool, ignore: set[str]) -> No
         return
     dest_dir = target / PI_EXTENSIONS_DEST
     entries = _pi_extension_entries()
-    if not entries:
+    if not entries and not dest_dir.exists():
         return
     dest_dir.mkdir(parents=True, exist_ok=True)
+    expected_names = {source.name for source in entries}
+    for path in sorted(dest_dir.iterdir()):
+        target_path = _pi_extension_link_target(path)
+        if target_path is None or path.name in expected_names:
+            continue
+        replace_path(path)
+        if verbose:
+            LOGGER.debug(f"REMOVED: stale pi ext {path.name}")
+        else:
+            LOGGER.info(f"REMOVED: pi ext {path.name}")
     for source in entries:
         link_path = dest_dir / source.name
         desired = source.resolve(strict=False)
@@ -1075,8 +1150,17 @@ def _check_claude_hook(config_path: Path) -> str | None:
     if not isinstance(hooks, list) or not hooks:
         return "no Notification hook configured"
     for entry in hooks:
-        for hook in entry.get("hooks", []):
+        if not isinstance(entry, dict):
+            continue
+        entry_hooks = entry.get("hooks", [])
+        if not isinstance(entry_hooks, list):
+            continue
+        for hook in entry_hooks:
+            if not isinstance(hook, dict):
+                continue
             cmd = hook.get("command", "")
+            if not isinstance(cmd, str):
+                continue
             if AGENT_ATTENTION_SCRIPT in cmd and "--source claude" in cmd:
                 return None
     return "agent-attention hook not found in Notification hooks"
