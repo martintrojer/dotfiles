@@ -1,0 +1,294 @@
+#!/usr/bin/env python3
+"""Smoke tests for the tmux status helpers (agent-attention, status-window-label).
+
+Runs against an isolated tmux server and a throwaway XDG_STATE_HOME so it
+never touches the user's real tmux session, sockets, or pending events.
+
+Usage:
+    tmux/.config/tmux/scripts/test-status-tools
+    tmux/.config/tmux/scripts/test-status-tools --keep   # keep server+tmpdir
+    tmux/.config/tmux/scripts/test-status-tools -v       # verbose subprocess output
+
+Exits non-zero on the first failed assertion. Pass `--keep` to inspect the
+isolated tmux server with `tmux -L test-status-tools attach`.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Optional
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+AGENT_ATTENTION = SCRIPT_DIR / "agent-attention"
+STATUS_WINDOW_LABEL = SCRIPT_DIR / "status-window-label"
+SOCKET = "test-status-tools"
+
+
+# ---------- assertion helpers ----------
+
+
+class TestFailure(SystemExit):
+    pass
+
+
+PASSED: list[str] = []
+FAILED: list[tuple[str, str]] = []
+
+
+def expect(name: str, got: object, want: object) -> None:
+    if got == want:
+        PASSED.append(name)
+        print(f"  ok  {name}")
+    else:
+        FAILED.append((name, f"want={want!r} got={got!r}"))
+        print(f"  FAIL {name}\n    want={want!r}\n    got ={got!r}")
+
+
+def expect_truthy(name: str, got: object) -> None:
+    if got:
+        PASSED.append(name)
+        print(f"  ok  {name}")
+    else:
+        FAILED.append((name, f"expected truthy, got={got!r}"))
+        print(f"  FAIL {name}\n    expected truthy, got={got!r}")
+
+
+# ---------- isolated tmux + state ----------
+
+
+def tmux(env: dict[str, str], args: list[str], check: bool = True) -> str:
+    cmd = ["tmux", "-L", SOCKET, *args]
+    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    if check and result.returncode != 0:
+        raise TestFailure(
+            f"tmux {' '.join(args)} failed:\n  stdout={result.stdout}\n  stderr={result.stderr}"
+        )
+    return result.stdout.strip()
+
+
+def attention(env: dict[str, str], args: list[str], pane: Optional[str] = None) -> str:
+    """Run agent-attention with TMUX_PANE inherited the way real hooks would."""
+    sub_env = env.copy()
+    if pane is not None:
+        sub_env["TMUX_PANE"] = pane
+    elif "TMUX_PANE" in sub_env:
+        del sub_env["TMUX_PANE"]
+    result = subprocess.run(
+        ["python3", str(AGENT_ATTENTION), *args],
+        capture_output=True,
+        text=True,
+        env=sub_env,
+    )
+    if result.returncode != 0:
+        raise TestFailure(
+            f"agent-attention {' '.join(args)} failed:\n  stdout={result.stdout}\n  stderr={result.stderr}"
+        )
+    return result.stdout.strip()
+
+
+def label(
+    window_name: str, cmd: str, title: str, path: str, host: str, pid: str
+) -> str:
+    result = subprocess.run(
+        [str(STATUS_WINDOW_LABEL), window_name, cmd, title, path, host, pid],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise TestFailure(
+            f"status-window-label failed:\n  stdout={result.stdout}\n  stderr={result.stderr}"
+        )
+    return result.stdout.strip()
+
+
+def setup_server(env: dict[str, str]) -> dict[str, str]:
+    """Start an isolated tmux server with one detached session, two windows."""
+    tmux(env, ["kill-server"], check=False)  # ignore if not running
+    tmux(env, ["new-session", "-d", "-s", "s1", "-n", "w1"])
+    tmux(env, ["new-window", "-t", "s1:", "-n", "w2"])
+    tmux(env, ["select-window", "-t", "s1:1"])  # focus w1
+    tmux(env, ["split-window", "-h", "-t", "s1:1"])  # pane in w1
+    tmux(env, ["select-pane", "-t", "s1:1.1"])  # focus first pane
+
+    panes = {}
+    for window in ("s1:1", "s1:2"):
+        for line in tmux(
+            env,
+            [
+                "list-panes",
+                "-t",
+                window,
+                "-F",
+                "#{window_index} #{pane_index} #{pane_id}",
+            ],
+        ).splitlines():
+            wi, pi, pid = line.split()
+            panes[f"w{wi}p{pi}"] = pid
+    return panes
+
+
+def teardown_server(env: dict[str, str]) -> None:
+    tmux(env, ["kill-server"], check=False)
+
+
+# ---------- the actual tests ----------
+
+
+def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
+    print("\n[agent-attention]")
+
+    expect("status starts empty", attention(env, ["status"]), "")
+
+    # The session is detached (no client attached), so even notifying on the
+    # truly active pane should QUEUE, exercising the session_attached check.
+    attention(
+        env,
+        ["notify", "--source", "test", "--event-type", "detached"],
+        pane=panes["w1p1"],
+    )
+    expect("notify on detached session queues", attention(env, ["status"]), "1")
+    expect(
+        "@agent_attention set on the right window",
+        tmux(env, ["display-message", "-p", "-t", "s1:1", "#{@agent_attention}"]),
+        "1",
+    )
+
+    # Clear it the way tmux hooks do (--pane #{pane_id}).
+    attention(env, ["clear-current", "--pane", panes["w1p1"]])
+    expect("clear-current clears the badge", attention(env, ["status"]), "")
+    expect(
+        "@agent_attention is unset after clear",
+        tmux(env, ["display-message", "-p", "-t", "s1:1", "#{@agent_attention}"]),
+        "",
+    )
+
+    # Notify for window 2 so we can test clear-target by window id.
+    w2_id = tmux(env, ["display-message", "-p", "-t", "s1:2", "#{window_id}"])
+    attention(
+        env, ["notify", "--source", "test", "--event-type", "w2"], pane=panes["w2p1"]
+    )
+    expect("notify queues on second window", attention(env, ["status"]), "1")
+    attention(env, ["clear-target", w2_id])
+    expect("clear-target clears the second window", attention(env, ["status"]), "")
+
+    # JSON payload via stdin (the OpenCode plugin path).
+    json_proc = subprocess.run(
+        ["python3", str(AGENT_ATTENTION), "notify"],
+        input='{"source":"opencode","type":"session.idle","title":"OC","message":"done"}',
+        capture_output=True,
+        text=True,
+        env={**env, "TMUX_PANE": panes["w1p2"]},
+    )
+    expect("stdin JSON notify exits 0", json_proc.returncode, 0)
+    expect("stdin JSON notify queues", attention(env, ["status"]), "1")
+    attention(env, ["clear-current", "--pane", panes["w1p2"]])
+    expect("status empty again", attention(env, ["status"]), "")
+
+    print("\n[status-window-label]")
+
+    # Pick a pid that is virtually guaranteed not to exist (and therefore
+    # has no descendant agent processes). 9_999_999 is well above the
+    # default ulimit on macOS/Linux.
+    fake_pid = "9999999"
+    host = "test-host"
+
+    expect(
+        "shell with cwd basename",
+        label("zsh", "zsh", host, "/tmp/projectx", host, fake_pid),
+        "projectx",
+    )
+    expect(
+        "active editor wins over title",
+        label("zsh", "nvim", "host-only-title", "/tmp/projectx", host, fake_pid),
+        "nvim",
+    )
+    expect(
+        "meaningful title beats path basename for shells",
+        label("zsh", "zsh", "★ Side Project", "/tmp/projectx", host, fake_pid),
+        "★ Side Project",
+    )
+    expect(
+        "rejects host-equal title",
+        label("zsh", "zsh", host, "/tmp/aaa", host, fake_pid),
+        "aaa",
+    )
+    expect(
+        "rejects path-shaped title",
+        label("zsh", "zsh", ":/foo/bar", "/tmp/aaa", host, fake_pid),
+        "aaa",
+    )
+    expect(
+        "agent window with no detected child falls back to title",
+        label("claude", "Python", "✳ Claude Code", "/tmp/x", host, fake_pid),
+        "✳ Claude Code",
+    )
+    expect(
+        "agent window with wrapper but no title falls back to window name",
+        label("claude", "Python", "", "/tmp/x", host, fake_pid),
+        "claude",
+    )
+    expect(
+        "non-agent generic command fallback",
+        label("daemons", "improve-writing", "", "/tmp/x", host, fake_pid),
+        "improve-writing",
+    )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--keep", action="store_true", help="Keep tmux server and tmp dir on exit"
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Show all subprocess output"
+    )
+    args = parser.parse_args()
+
+    if shutil.which("tmux") is None:
+        print("tmux not installed; aborting.")
+        return 1
+
+    tmpdir = tempfile.mkdtemp(prefix="tmux-status-tools-test-")
+    env = {
+        **os.environ,
+        "XDG_STATE_HOME": tmpdir,
+        "TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY": "1",
+        # Pin the script to our isolated tmux server.
+        "TMUX_SOCKET_NAME": SOCKET,
+    }
+    # Ensure the script never picks up a stray TMUX env from this shell.
+    env.pop("TMUX_PANE", None)
+    env.pop("TMUX", None)
+
+    print(f"socket   : {SOCKET}")
+    print(f"tmpdir   : {tmpdir}")
+    print(f"agent-attention : {AGENT_ATTENTION}")
+    print(f"status-window-label: {STATUS_WINDOW_LABEL}")
+
+    try:
+        panes = setup_server(env)
+        if args.verbose:
+            print("panes:", panes)
+        run_tests(env, panes)
+    finally:
+        if not args.keep:
+            teardown_server(env)
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        else:
+            print(f"\nKeeping server (tmux -L {SOCKET} attach) and {tmpdir}")
+
+    print(f"\nresult: {len(PASSED)} passed, {len(FAILED)} failed")
+    if FAILED:
+        for name, detail in FAILED:
+            print(f"  - {name}: {detail}")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

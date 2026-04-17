@@ -585,7 +585,11 @@ def run_apply_group(
 
 
 def shared_skill_entries() -> list[Path]:
-    return sorted(SHARED_SKILLS_DIR.iterdir(), key=lambda path: path.name)
+    """Return only top-level skill directories meant to be linked/copied."""
+    return sorted(
+        (path for path in SHARED_SKILLS_DIR.iterdir() if path.is_dir()),
+        key=lambda path: path.name,
+    )
 
 
 def describe_skill_link_state(dest_dir: Path, source: Path) -> str | None:
