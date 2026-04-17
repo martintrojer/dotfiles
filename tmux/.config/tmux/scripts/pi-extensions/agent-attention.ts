@@ -15,7 +15,7 @@ function notify(eventType: string, message: string) {
 }
 
 export default function (pi: ExtensionAPI) {
-  pi.on("turn_end", async () => {
-    notify("turn_end", "Waiting for input");
+  pi.on("agent_end", async () => {
+    notify("agent_end", "Waiting for input");
   });
 }
