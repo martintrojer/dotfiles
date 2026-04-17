@@ -7,6 +7,8 @@ Install Oh My Zsh and the plugins used by this config:
 2. `git clone --depth 1 https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions`
 3. `git clone --depth 1 https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting`
 
+If you want the `tm` helper and tmux session launcher flow to work, install `sesh` too.
+
 ## Plugin Highlights
 
 - `git`: Git aliases and completions.
@@ -39,11 +41,18 @@ Install Oh My Zsh and the plugins used by this config:
 - `systemd`: short aliases for `systemctl` and `systemctl --user`.
   - Examples: `sc-status sshd`, `sc-restart foo`, `scu-status waybar`, `scu-restart mako`.
 - `tmux`: tmux aliases and completions for terminal workflow.
-  - Examples: `ta` to attach, `tls` to list sessions, `tkss name` to kill a session by name.
+  - Examples: `ta` to attach, `tl` to list sessions, `tkss name` to kill a session by name.
 - `rust`: Rust and Cargo completions/aliases.
   - Examples: `cb` for `cargo build`, `ct` for `cargo test`, `cr` for `cargo run`.
 - `alias-finder`: helps discover existing aliases for a command.
   - Example: run `alias-finder git checkout` to see whether a shorter alias already exists.
+
+## Tmux Helper
+
+This config adds a small `tm` shell helper in `.zsh/overrides.zsh`.
+
+- `tm` calls the shared `$HOME/.config/tmux/scripts/sesh-connect` picker script
+- after selection, `sesh` handles attaching or creating the tmux session
 
 ## Boundary
 

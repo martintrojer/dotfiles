@@ -16,6 +16,7 @@ mise use \
   eza@latest \
   fzf@latest \
   github:danielmiessler/Fabric@latest \
+  github:joshmedeski/sesh@latest \
   github:pythops/bluetui@latest \
   github:rgwood/systemctl-tui@latest \
   github:zk-org/zk@latest \

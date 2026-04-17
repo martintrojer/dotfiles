@@ -77,6 +77,11 @@ Fedora-specific setup lives under `fedora/`, with shared package definitions in:
 - `fedora/base-packages.sh`
 - `fedora/niri-packages.sh`
 
+Other notable shared packages:
+- `tmux/` for tmux config, local picker scripts, and status helpers
+- `zsh/` for shell config and the `tm` helper that launches into tmux or `sesh`
+- `sesh/` for curated `sesh` sessions under `~/.config/sesh/sesh.toml`
+
 ## Platform Stance
 
 Linux in this repo is intentionally opinionated: Fedora + Wayland + `niri`.
