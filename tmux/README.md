@@ -23,8 +23,10 @@ This config uses TPM plus a mix of quality-of-life, persistence, navigation, and
 From your current `tmux/.tmux.conf`:
 
 - The visible status bar is native tmux formatting using Catppuccin Mocha hex values directly.
+- Built-in tmux UI surfaces such as `choose-tree`, menus, popups, and prompts are also styled directly with Catppuccin Mocha hex values instead of the stock tmux colors.
 - Vim split to tmux pane movement comes from `christoomey/vim-tmux-navigator`.
 - The right side CPU segment comes from `tmux-cpu`.
+- Cross-platform RAM usage is provided by `$HOME/.config/tmux/scripts/status-ram`.
 - Session save and restore comes from `tmux-resurrect`.
 - The `agent-attention` integration is not a plugin. It is a local script in this repo that adds `[!]` markers and the popup picker.
 - Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
@@ -38,7 +40,15 @@ The current bar keeps the same useful information as before, but without the pil
 - Left: a filled session block.
 - Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline `!` / `Z` markers.
 - Pane, window, and session switches trigger an immediate `refresh-client -S`, so label changes show up right away instead of waiting for the status timer.
-- Right: boxed `PREFIX` and `AI` segments, followed by flatter glyph-based `CPU`, `host`, and `uptime` segments.
+- Right: boxed `PREFIX` and `AI` segments, followed by flatter glyph-based `CPU`, `RAM`, `host`, and `uptime` segments.
+
+## Built-in Tmux UI
+
+Native tmux pickers and overlays use the same palette as the status bar instead of the default yellow-accent tmux theme.
+
+- `prefix` + `S`: tmux `choose-tree` session picker, sorted by name
+- mouse click on the left status session block: opens the tmux session picker
+- built-in menus, prompts, and popups use Mocha background/foreground colors with a sky selection highlight
 
 ## Using Resurrect
 
