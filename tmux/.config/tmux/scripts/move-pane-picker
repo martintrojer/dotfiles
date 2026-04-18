@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Mark source pane, run choose-tree move, always clear mark on exit.
+set -euo pipefail
+
+src_pane=${1:?source pane id required}
+
+tmux select-pane -m -t "$src_pane"
+trap 'tmux select-pane -M >/dev/null 2>&1 || true' EXIT
+
+tmux choose-tree -Zw -f '#{!=:#{window_id},}' "join-pane -h -t '%%'"
