@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from _common import ScriptError, fuzzel_dmenu, picker_cache_path, require_commands, run
 
@@ -19,6 +20,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     require_commands(["fuzzel"])
+    lock_screen = Path.home() / ".config/niri/scripts/lock-screen"
 
     cache = picker_cache_path("powermenu")
     options = [
@@ -43,7 +45,7 @@ def main() -> int:
     action = next((action for label, action in options if label == selected), "")
 
     if action == "lock":
-        run(["swaylock", "--daemonize"], check=False)
+        run([str(lock_screen), "--daemonize"], check=False)
     elif action == "suspend":
         run(["systemctl", "suspend"], check=False)
     elif action == "shutdown":

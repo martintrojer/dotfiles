@@ -1,0 +1,296 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF' >&2
+Usage:
+  wallpaper set <url-or-file>
+  wallpaper use [archive-file]
+  wallpaper current
+  wallpaper restart
+
+Subcommands:
+  set      Download or copy a wallpaper into ~/.local/share/wallpapers/archive/,
+           update ~/.local/share/wallpapers/current, and restart swaybg.service
+  use      Switch to an existing archived wallpaper; opens an fzf picker when no
+           archive file is provided
+  current  Print the active wallpaper path if one is installed
+  restart  Restart swaybg.service to re-apply the current wallpaper
+EOF
+  exit 2
+}
+
+require_systemctl() {
+  if ! command -v systemctl >/dev/null 2>&1; then
+    echo "wallpaper: systemctl is unavailable" >&2
+    exit 1
+  fi
+}
+
+restart_wallpaper() {
+  require_systemctl
+
+  if ! systemctl --user restart swaybg.service; then
+    echo "wallpaper: failed to restart swaybg.service" >&2
+    exit 1
+  fi
+}
+
+wallpaper_paths() {
+  data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+  target_dir="$data_home/wallpapers"
+  archive_dir="$target_dir/archive"
+  current_link="$target_dir/current"
+}
+
+archive_name_for_path() {
+  local src_path source_name stem ext
+  src_path="$1"
+  source_name="$(basename "$src_path")"
+  stem="$source_name"
+  ext=""
+
+  if [[ "$source_name" == *.* && "$source_name" != .* ]]; then
+    stem="${source_name%.*}"
+    ext=".${source_name##*.}"
+  fi
+
+  stem="$(printf '%s' "$stem" | tr -cs 'A-Za-z0-9._-' '-')"
+  stem="${stem#-}"
+  stem="${stem%-}"
+  if [[ -z "$stem" ]]; then
+    stem="wallpaper"
+  fi
+
+  printf '%s\t%s\n' "$stem" "$ext"
+}
+
+archive_existing_current() {
+  local resolved_current current_stem current_ext archived_current
+  wallpaper_paths
+
+  if [[ ! -e "$current_link" ]]; then
+    return 0
+  fi
+
+  if command -v readlink >/dev/null 2>&1; then
+    resolved_current="$(readlink -f "$current_link")"
+  else
+    resolved_current="$current_link"
+  fi
+
+  if [[ -z "$resolved_current" || ! -f "$resolved_current" ]]; then
+    return 0
+  fi
+
+  case "$resolved_current" in
+    "$archive_dir"/*)
+      return 0
+      ;;
+  esac
+
+  IFS=$'\t' read -r current_stem current_ext <<< "$(archive_name_for_path "$resolved_current")"
+  archived_current="$(mktemp "$archive_dir/$(date +%Y%m%d-%H%M%S)-${current_stem}.XXXXXX${current_ext}")"
+
+  if [[ -L "$current_link" ]]; then
+    cp "$resolved_current" "$archived_current"
+  else
+    mv "$current_link" "$archived_current"
+  fi
+}
+
+activate_wallpaper() {
+  local archive_path current_link
+  archive_path="$1"
+  wallpaper_paths
+
+  if [[ ! -f "$archive_path" ]]; then
+    echo "wallpaper: archive file not found: $archive_path" >&2
+    exit 1
+  fi
+
+  archive_existing_current
+  ln -sfn "$archive_path" "$current_link"
+  restart_wallpaper
+}
+
+print_current() {
+  local config_home data_home candidate
+  config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+  data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+
+  for candidate in \
+    "$data_home/wallpapers/current" \
+    "$config_home/wallpapers/current"; do
+    if [[ -f "$candidate" ]]; then
+      if command -v readlink >/dev/null 2>&1; then
+        readlink -f "$candidate"
+      else
+        printf '%s\n' "$candidate"
+      fi
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+set_wallpaper() {
+  local src source_name stem ext tmp_path install_path
+
+  if [[ $# -ne 1 ]]; then
+    usage
+  fi
+
+  src="$1"
+  wallpaper_paths
+
+  mkdir -p "$target_dir" "$archive_dir"
+
+  source_name="$(basename "${src%%\?*}")"
+  if [[ "$source_name" == "$src" && -f "$src" ]]; then
+    source_name="$(basename "$src")"
+  fi
+  IFS=$'\t' read -r stem ext <<< "$(archive_name_for_path "$source_name")"
+
+  tmp_path="$(mktemp "$archive_dir/.incoming.XXXXXX")"
+  cleanup() {
+    rm -f "$tmp_path"
+  }
+  trap cleanup EXIT
+
+  if [[ -f "$src" ]]; then
+    cp "$src" "$tmp_path"
+  else
+    if ! command -v curl >/dev/null 2>&1; then
+      echo "wallpaper: curl is required for URL downloads" >&2
+      exit 1
+    fi
+
+    curl -fL "$src" -o "$tmp_path"
+  fi
+
+  install_path="$(mktemp "$archive_dir/$(date +%Y%m%d-%H%M%S)-${stem}.XXXXXX${ext}")"
+  mv "$tmp_path" "$install_path"
+  trap - EXIT
+
+  activate_wallpaper "$install_path"
+
+  printf 'Set wallpaper to %s\n' "$install_path"
+}
+
+pick_wallpaper() {
+  local archive_dir choice
+  wallpaper_paths
+
+  mkdir -p "$archive_dir"
+
+  if ! command -v fzf >/dev/null 2>&1; then
+    echo "wallpaper: fzf is required for interactive selection" >&2
+    exit 1
+  fi
+
+  choice="$(
+    find "$archive_dir" -maxdepth 1 -type f -printf '%f\n' | sort -r | \
+      fzf \
+        --prompt='wallpaper> ' \
+        --border-label=' wallpapers ' \
+        --no-multi \
+        --preview-window='up:60%' \
+        --preview "$HOME/.local/bin/wallpaper preview {} 2>/dev/null"
+  )" || exit 0
+
+  [[ -n "$choice" ]] || exit 0
+  printf '%s\n' "$archive_dir/$choice"
+}
+
+use_wallpaper() {
+  local archive_path archive_dir selected
+
+  wallpaper_paths
+  archive_path="${1:-}"
+
+  if [[ $# -gt 1 ]]; then
+    usage
+  fi
+
+  if [[ -z "$archive_path" ]]; then
+    selected="$(pick_wallpaper)"
+    [[ -n "$selected" ]] || exit 0
+    archive_path="$selected"
+  elif [[ ! -f "$archive_path" ]]; then
+    if [[ -f "$archive_dir/$archive_path" ]]; then
+      archive_path="$archive_dir/$archive_path"
+    else
+      echo "wallpaper: archive file not found: $archive_path" >&2
+      exit 1
+    fi
+  fi
+
+  activate_wallpaper "$archive_path"
+  printf 'Using wallpaper %s\n' "$archive_path"
+}
+
+preview_wallpaper() {
+  local archive_path
+
+  if [[ $# -ne 1 ]]; then
+    usage
+  fi
+
+  wallpaper_paths
+  archive_path="$1"
+
+  if [[ ! -f "$archive_path" ]]; then
+    if [[ -f "$archive_dir/$archive_path" ]]; then
+      archive_path="$archive_dir/$archive_path"
+    else
+      exit 0
+    fi
+  fi
+
+  if command -v chafa >/dev/null 2>&1; then
+    if chafa \
+      --animate=off \
+      --size="${FZF_PREVIEW_COLUMNS:-80}x${FZF_PREVIEW_LINES:-24}" \
+      "$archive_path"; then
+      exit 0
+    fi
+  fi
+
+  printf '%s\n' "$archive_path"
+}
+
+if [[ $# -lt 1 ]]; then
+  usage
+fi
+
+subcommand="$1"
+shift
+
+case "$subcommand" in
+  set)
+    set_wallpaper "$@"
+    ;;
+  use)
+    use_wallpaper "$@"
+    ;;
+  current)
+    if [[ $# -ne 0 ]]; then
+      usage
+    fi
+    print_current
+    ;;
+  restart)
+    if [[ $# -ne 0 ]]; then
+      usage
+    fi
+    restart_wallpaper
+    ;;
+  preview)
+    preview_wallpaper "$@"
+    ;;
+  *)
+    usage
+    ;;
+esac

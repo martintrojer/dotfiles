@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec swaybg -i "$(readlink -f "$HOME/.config/wallpapers/current")" -m fill
+fallback_color="#1e1e2e"
+wallpaper_helper="${HOME}/.local/bin/wallpaper"
+
+if [[ -x "$wallpaper_helper" ]] && wallpaper_path="$("$wallpaper_helper" current 2>/dev/null)"; then
+  exec swaybg -i "$wallpaper_path" -m fill
+fi
+
+exec swaybg -c "$fallback_color"

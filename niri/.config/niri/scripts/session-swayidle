@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+lock_screen="${HOME}/.config/niri/scripts/lock-screen"
+
 exec swayidle -w \
-  before-sleep 'pidof swaylock || swaylock --daemonize' \
+  before-sleep "pidof swaylock || \"$lock_screen\" --daemonize" \
   timeout 300 'brightnessctl -s set 10' \
   resume 'brightnessctl -r' \
-  timeout 330 'pidof swaylock || swaylock --daemonize' \
+  timeout 330 "pidof swaylock || \"$lock_screen\" --daemonize" \
   timeout 350 'niri msg action power-off-monitors' \
   resume 'niri msg action power-on-monitors' \
   timeout 3600 'systemctl suspend'
