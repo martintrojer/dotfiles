@@ -3,8 +3,7 @@ ignore-empty-password
 show-failed-attempts
 
 font=JetBrainsMono Nerd Font
-image=~/.config/wallpapers/current
-scaling=fill
+color=1e1e2e
 
 indicator-radius=110
 indicator-thickness=8

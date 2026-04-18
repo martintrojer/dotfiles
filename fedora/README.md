@@ -44,7 +44,7 @@ The package split reflects a few explicit decisions:
 - `wl-clipboard` is part of the common Niri package set because the active Niri config starts `wl-paste`.
 - `btop`, `gdu`, and `distrobox` do not fit the package split perfectly, but they are placed pragmatically based on how this setup is actually bootstrapped and used.
 - Hypr-specific setup was removed in favor of `swaybg`, `swayidle`, and `swaylock`.
-- Wallpaper assets were moved to the shared `wallpapers/` stow package.
+- Wallpapers are managed per machine with `wallpaper set <url-or-file>`, which stores files under `~/.local/share/wallpapers/` and restarts `swaybg.service`.
 
 ## Stow Notes
 
