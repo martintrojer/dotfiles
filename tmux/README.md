@@ -53,10 +53,18 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `S`: tmux `choose-tree` session picker, sorted by name
 - `prefix` + `N`: `tmux-fzf` new session flow
 - `prefix` + `g`: switch to last session via `sesh`
+- `prefix` + `!`: break the current pane out into a new window
+- `prefix` + `M`: move the current pane into the selected window or pane as a split
 - `prefix` + `w`: built-in tmux session-window tree picker
 - `prefix` + `Ctrl-g`: cheatsheet popup
 - mouse click on the left status session block: opens the tmux session picker
 - built-in menus, prompts, and popups use Mocha background/foreground colors with a sky selection highlight
+
+Mental model for pane moving:
+
+- `prefix` + `!`: split current pane away from its window. Current pane becomes a new one-pane window.
+- `prefix` + `M`: pick destination in tmux tree, then insert current pane there as a split. Source window loses that pane.
+- In short: `!` means "pull this pane out"; `M` means "move this pane into there".
 
 ## Using Resurrect
 
@@ -91,7 +99,7 @@ Notes:
 
 Configured flow:
 
-- `prefix` + `Space`: start `tmux-fingers`
+- `prefix` + `h`: start `tmux-fingers`
 - `prefix` + `j`: start `tmux-fingers` in jump mode, which moves the cursor to the selected match
 - type the shown hint to copy the match to the clipboard and tmux buffer
 - type `Shift` + the final hint character to copy and paste immediately into the active pane

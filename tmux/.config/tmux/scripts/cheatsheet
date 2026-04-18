@@ -22,6 +22,8 @@ n  /  p   Next / previous window
 ── Panes ──
 \"         Horizontal split
 %         Vertical split
+!         Break current pane into new window
+M         Move current pane into selected window/pane
 C-hjkl    Move between panes/vim (no prefix)
 ;         Last pane
 o         Next pane
@@ -30,12 +32,12 @@ x         Kill pane
 { / }     Swap pane up / down
 
 ── Resize ──
-HJKL      Resize pane by 5 (repeatable)
+M-arrows  Resize pane by 5 (repeatable)
 V         Cycle split 1/3 → 1/2 → 2/3
 
 ── Copy & Pick ──
 [         Enter copy mode
-Space     Thumbs hint picker
+h         Thumbs hint picker
 v         Clipboard history (fzf)
 ]         Paste buffer
 =         Buffer list
