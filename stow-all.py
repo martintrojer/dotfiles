@@ -85,6 +85,7 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
             "gdu",
             "git",
             "jj",
+            "local-bin",
             "nvim",
             "sesh",
             "ssh",
@@ -108,7 +109,6 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
         SCRIPT_DIR,
         [
             "alacritty",
-            "bin",
             "fuzzel",
             "kanshi",
             "mako",
@@ -122,6 +122,7 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
         "fedora",
         SCRIPT_DIR / "fedora",
         [
+            "bin",
             "containers",
             "systemd",
         ],
