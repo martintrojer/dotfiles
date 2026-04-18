@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+import argparse
+import fcntl
+import hashlib
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+def find_project_root() -> Path:
+    cwd = Path.cwd().resolve()
+
+    if shutil_which("git") is not None:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            root = result.stdout.strip()
+            if root:
+                return Path(root).resolve()
+
+    current = cwd
+    while True:
+        for marker in (".git", ".hg", ".jj"):
+            if (current / marker).exists():
+                return current
+        if current.parent == current:
+            return cwd
+        current = current.parent
+
+
+def shutil_which(cmd: str) -> str | None:
+    path = os.environ.get("PATH", "")
+    for entry in path.split(os.pathsep):
+        candidate = Path(entry) / cmd
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+    return None
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="solo",
+        usage="solo [--force] [-n name] <command> [args...]",
+        add_help=True,
+    )
+    parser.add_argument("--force", action="store_true")
+    parser.add_argument("-n", "--name", default="default")
+    parser.add_argument("command", nargs=argparse.REMAINDER)
+    args = parser.parse_args()
+
+    if args.command and args.command[0] == "--":
+        args.command = args.command[1:]
+
+    if not args.command:
+        parser.error("the following arguments are required: <command> [args...]")
+
+    return args
+
+
+def state_root() -> Path:
+    return Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state")))
+
+
+def slugify_project_root(project_root: Path) -> str:
+    text = str(project_root)
+    slug = "".join(char if char.isalnum() else "-" for char in text).strip("-")
+    slug = slug or "root"
+    digest = hashlib.sha256(text.encode()).hexdigest()[:12]
+    return f"{slug[:80]}-{digest}"
+
+
+def main() -> int:
+    args = parse_args()
+    project_root = find_project_root()
+    lock_dir = state_root() / "solo" / slugify_project_root(project_root)
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = lock_dir / f"{args.name}.lock"
+
+    if args.force and lock_path.exists():
+        stale_fd = os.open(lock_path, os.O_RDWR)
+        try:
+            try:
+                fcntl.flock(stale_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                print(
+                    f"❌ [{args.name}] lock active at [{project_root}]", file=sys.stderr
+                )
+                return 100
+            os.unlink(lock_path)
+        finally:
+            os.close(stale_fd)
+
+    fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print(f"❌ [{args.name}] lock active at [{project_root}]", file=sys.stderr)
+        return 100
+
+    os.ftruncate(fd, 0)
+    os.write(fd, f"{os.getpid()}\n".encode())
+
+    try:
+        completed = subprocess.run(args.command)
+    except KeyboardInterrupt:
+        return 130
+    finally:
+        os.close(fd)
+
+    return completed.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

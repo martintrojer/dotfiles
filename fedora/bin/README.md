@@ -1,4 +1,4 @@
-# Bin
+# Fedora Bin
 
 Small wrapper executables that should be available on `$PATH` even outside an
 interactive shell live here under `.local/bin/`.
