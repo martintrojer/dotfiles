@@ -12,7 +12,9 @@ This repository uses **GNU Stow** for dotfile management. Each top-level directo
 - `vscode/settings.json`, `vale/.vale.ini`, `bat/.config/bat`, `btop/.config/btop`, `yazi/.config/yazi`: app configs
 - `ghostty/.config/ghostty`: macOS terminal config
 - `sesh/.config/sesh`: sesh project/session manager config
+- `local-bin/.local/bin`: shared cross-platform user commands on `$PATH`
 - `fedora/`: setup scripts plus `containers/` and `systemd/` configs
+- `fedora/bin/.local/bin`: Fedora-only user commands on `$PATH`
 - `claude/`: Claude-related configs and a local plugin (`claude/mtrojer-plugin`)
 - `pi/extensions/`: Pi coding agent extensions
 - `skills/`: shared agent skills (symlinked into `~/.agents/skills/`)
