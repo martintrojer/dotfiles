@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-fallback_color="#1e1e2e"
+fallback_color="1e1e2e"
 wallpaper_helper="${HOME}/.local/bin/wallpaper"
 
 if [[ -x "$wallpaper_helper" ]] && wallpaper_path="$("$wallpaper_helper" current 2>/dev/null)"; then
-  exec swaybg -i "$wallpaper_path" -m fill
+  exec swaylock --image "$wallpaper_path" --scaling fill "$@"
 fi
 
-exec swaybg -c "$fallback_color"
+exec swaylock --color "$fallback_color" "$@"
