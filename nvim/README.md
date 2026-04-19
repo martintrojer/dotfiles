@@ -159,12 +159,13 @@ See `lua/keymaps.lua` for the full list. Highlights:
 | `<leader>gB` | Branches (fzf) |
 | `<leader>gS` | Stash (fzf) |
 | `<leader>gT` | Tags (fzf) |
-| `<leader>gd` | Diff (mini.git) |
-| `<leader>gD` | Diff current file (mini.git) |
+| `<leader>gd` | Git diff |
+| `<leader>gU` | Git diff current file (unified) |
+| `<leader>gD` | Git diff current file (side by side) |
 | `<leader>go` | Diff overlay toggle (mini.diff) |
-| `<leader>gl` | Log with stats (mini.git) |
-| `<leader>gL` | Log current file with stats (mini.git) |
-| `<leader>gi` | Inspect at cursor (mini.git) |
+| `<leader>gl` | Git log with stats |
+| `<leader>gL` | Git log current file with stats |
+| `<leader>gi` | Git inspect at cursor (mini.git) |
 | `<leader>gt` | Code review (tuicr) |
 | `<leader>gj` | Jujutsu (jj-fugitive) |
 | **Find (`<leader>f`)** | |
@@ -333,14 +334,21 @@ Three layers working together:
 
 - **lazygit** (`<leader>gg`) — full-screen TUI for staging, committing, rebasing, branch management. Opens in a tab terminal so tmux navigation works normally.
 - **fzf-lua git pickers** (`<leader>gf/gc/gh/gb/gB/gS/gT`) — fuzzy searchable status, commits, blame, branches with preview panes.
-- **mini.git / mini.diff** (`<leader>gd/gD/go/gl/gL/gi`) — lightweight inline diffs, log with stats, and cursor-context inspection.
+- **git diff + mini.git / mini.diff** (`<leader>gd/gU/gD/go/gl/gL/gi`) — Git diff views, inline overlay, log with stats, and cursor-context inspection.
 
 **Drill-down workflow:**
 1. `<leader>gl` — repo log with stats (pick a commit)
 2. `<leader>gi` on a commit hash — opens full commit diff
 3. `<leader>gi` inside the diff on a hunk — jumps to source file at that line
 
-Note: `<leader>gd`/`<leader>gl`/`<leader>gi` auto-lcd to the VCS root so mini.git path resolution works correctly.
+Git-specific diff views:
+
+- `<leader>gd` — repo diff in a mini.git split
+- `<leader>gU` — current-file unified diff
+- `<leader>gD` — current-file side-by-side diff (index vs current buffer) using `fugitive-core`
+- `q` inside `<leader>gD` closes the side-by-side review tab and returns to the previous view
+
+Note: `<leader>gd`/`<leader>gl`/`<leader>gi` auto-lcd to the VCS root so mini.git path resolution works correctly. `<leader>gD` is Git-only and uses `mini.git` metadata plus `fugitive-core`'s side-by-side helper.
 
 ### fzf-lua
 
