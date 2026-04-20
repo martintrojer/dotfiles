@@ -5,10 +5,10 @@ set -euo pipefail
 entries="
 ── Sessions ──
 d         Detach from session
-s         Sesh picker
+s         Session picker
 S         Switch session (tree picker)
-N         New session (tmux-fzf)
-g         Last session (sesh)
+g         Last session
+T         Root session from cwd
 \$         Rename session
 
 ── Windows ──

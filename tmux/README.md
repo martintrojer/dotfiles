@@ -5,7 +5,7 @@ tmux needs a manual step to install plugins:
 1. `git clone https://github.com/tmux-plugins/tpm $HOME/.tmux/plugins/tpm`
 2. [inside tmux] `<CTRL>b I`
 
-This setup expects `sesh` for the repo-defined session flows in `tmux/.tmux.conf`, such as `prefix + s`, `prefix + g`, and any other local sesh binds you keep enabled.
+This setup uses a local Python session launcher (`$HOME/.config/tmux/scripts/tms`) for the repo-defined session flows in `tmux/.tmux.conf`, such as `prefix + s`, `prefix + g`, and `prefix + T`.
 
 ## Plugin Inventory
 
@@ -47,13 +47,14 @@ Native tmux pickers and overlays use the same palette as the status bar instead 
 
 Repo-defined bindings in the current `tmux/.tmux.conf`:
 
-- `prefix` + `s`: `sesh` picker popup
+- `prefix` + `s`: local `tms` picker popup
 - `prefix` + `S`: tmux `choose-tree` session picker, sorted by name
-- `prefix` + `N`: `tmux-fzf` new session flow
-- `prefix` + `g`: switch to last session via `sesh`
+- `prefix` + `g`: switch to last session via `tms`
+- `prefix` + `T`: create or switch to a session rooted at the current pane path
 - `prefix` + `!`: break the current pane out into a new window
 - `prefix` + `M`: move the current pane into the selected window or pane as a split
 - `prefix` + `w`: built-in tmux session-window tree picker
+- `prefix` + `A`: agent-attention picker
 - `prefix` + `Ctrl-g`: cheatsheet popup
 - mouse click on the left status session block: opens the tmux session picker
 - built-in menus, prompts, and popups use Mocha background/foreground colors with a sky selection highlight
@@ -68,11 +69,49 @@ Mental model for pane moving:
 
 This config does not save or restore tmux state across reboots. The workflow is intentionally on-the-fly:
 
-- `sesh` recreates any project session in two keystrokes (`prefix` + `s`), with `startup_command` re-launching `yazi`, `nvim`, etc.
+- `tms` recreates any project session in two keystrokes (`prefix` + `s`), with pinned sessions from `~/.config/tmux/tms.toml` and optional startup commands.
 - `detach-on-destroy off` keeps sessions sticky within a running tmux server, so accidental window closes don't kick you out.
 - Neovim's `shada` restores oldfiles, registers, global marks, and command/search history across restarts. Buffer lists and window layouts are **not** persisted — use `<leader>fo` (recent files) or `mini.starter` to re-enter.
 - Shell history is global via zsh.
 - Agent CLIs (`claude`, `codex`, `opencode`, `pi`) keep their conversation state in their own session stores, not in tmux pane state.
+
+### `tms` config
+
+Pinned sessions live in `~/.config/tmux/tms.toml`.
+
+Example:
+
+```toml
+find_max_depth = 2
+preview_command = "eza --all --git --icons --color=always {path}"
+blacklist = [".cache", ".codex", ".config", ".local", "Library", "tmp"]
+noisy_basenames = ["node_modules", "dependencies", "docker", "examples", "m4", "opam", "scripts", "website", "target", "dist", "build", ".git"]
+
+[[sessions]]
+name = "dotfiles"
+path = "~/dotfiles"
+startup = "yazi"
+split = "vertical"
+
+[[sessions]]
+name = "docs"
+path = "~/docs"
+startup = "nvim"
+split = "vertical"
+```
+
+Notes:
+
+- `find_max_depth` and `preview_command` are required.
+- `blacklist`, `noisy_basenames`, and `sessions` default to empty when omitted.
+- `sessions` are shown first in the picker with a `★` marker.
+- sessions with pending `agent-attention` are highlighted with the same subtle yellow-on-surface treatment used elsewhere in the tmux UI.
+- per-session `split` is optional.
+- valid `split` values are `vertical` and `horizontal`.
+- if `split` is omitted, that session starts with a single pane.
+- `startup` runs in the original first pane. If that session has a split configured, the extra pane is created afterwards and starts empty.
+- `Ctrl-c` filters the picker down to configured sessions only.
+- `Ctrl-t` shows live tmux sessions, `Ctrl-x` shows `zoxide`, and `Ctrl-f` runs the fallback `fd` scan.
 
 ## Using tmux-fingers
 
@@ -109,10 +148,9 @@ Default flow:
 
 Notes:
 
-- `prefix` + `s` opens the local popup-backed `sesh` picker script.
-- the sesh picker uses `-d -s` so duplicates are hidden and separator matching feels better
-- `prefix` + `N` jumps straight into `tmux-fzf`'s new-session flow.
-- `prefix` + `g` keeps `sesh last` on an easy key without colliding with your existing tmux binds.
+- `prefix` + `s` opens the local popup-backed `tms` picker script.
+- `tms` merges pinned sessions, live tmux sessions, and `zoxide` directories, with a fallback `find` scan on `Ctrl-f`.
+- `prefix` + `g` keeps last-session switching on an easy key without colliding with your existing tmux binds.
 - `prefix` + `w` remains tmux's standard session-window tree picker.
 - `prefix` + `Ctrl-g` moves the cheatsheet off a prime lowercase key.
 - This is complementary to `tmux-fingers`: `tmux-fzf` is for tmux state and management, while `tmux-fingers` is for picking text from pane content.

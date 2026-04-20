@@ -87,7 +87,6 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
             "jj",
             "local-bin",
             "nvim",
-            "sesh",
             "ssh",
             "tmux",
             "tuicr",

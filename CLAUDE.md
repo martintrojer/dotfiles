@@ -11,7 +11,6 @@ This repository uses **GNU Stow** for dotfile management. Each top-level directo
 - `eza/.config/eza`: eza theme (Catppuccin Mocha)
 - `vscode/settings.json`, `vale/.vale.ini`, `bat/.config/bat`, `btop/.config/btop`, `yazi/.config/yazi`: app configs
 - `ghostty/.config/ghostty`: macOS terminal config
-- `sesh/.config/sesh`: sesh project/session manager config
 - `local-bin/.local/bin`: shared cross-platform user commands on `$PATH`
 - `fedora/`: setup scripts plus `containers/` and `systemd/` configs
 - `fedora/bin/.local/bin`: Fedora-only user commands on `$PATH`
@@ -49,7 +48,9 @@ Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 - `tmux/.config/tmux/scripts/status-ram` - Cross-platform RAM usage percentage for the status bar
 - `tmux/.config/tmux/scripts/status-uptime` - Cross-platform short uptime string for the status bar
 - `tmux/.config/tmux/scripts/status-window-label` - Active-pane derived window label, prefers the real running agent over stale titles
-- `tmux/.config/tmux/scripts/sesh-connect` - `fzf` popup picker wrapper around `sesh list` (bound to `prefix + s`)
+- `tmux/.config/tmux/scripts/tms` - local Python tmux session launcher (pinned sessions + tmux sessions + zoxide + finder)
+- `tmux/.config/tmux/tms.toml` - pinned session config plus finder/preview knobs and optional per-session split mode (`vertical` / `horizontal`)
+- `tmux/.config/tmux/scripts/session-picker` - thin wrapper that opens the `tms` picker (bound to `prefix + s`)
 - `tmux/.config/tmux/scripts/move-pane-picker` - `choose-tree` driven helper for `prefix + M` (move pane into another window/pane)
 - `tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts` - Pi Agent extension for agent-attention
 - `tmux/.config/tmux/scripts/opencode-plugin/notify.ts` - OpenCode plugin for agent-attention

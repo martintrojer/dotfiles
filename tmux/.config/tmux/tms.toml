@@ -1,0 +1,29 @@
+find_max_depth = 2
+preview_command = "eza --all --git --icons --color=always {path}"
+blacklist = [".cache", ".codex", ".config", ".local", "Library", "tmp"]
+noisy_basenames = [
+  "node_modules",
+  "dependencies",
+  "docker",
+  "examples",
+  "m4",
+  "opam",
+  "scripts",
+  "website",
+  "target",
+  "dist",
+  "build",
+  ".git",
+]
+
+[[sessions]]
+name = "dotfiles"
+path = "~/dotfiles"
+startup = "yazi"
+split = "vertical"
+
+[[sessions]]
+name = "notes"
+path = "~/notes"
+startup = "nvim"
+split = "vertical"

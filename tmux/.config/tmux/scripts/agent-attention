@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import sys
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Optional
 
@@ -496,6 +496,20 @@ def build_menu_rows() -> list[tuple[str, str]]:
     return [(target, label) for target, label, _, _ in rows]
 
 
+def cmd_sessions(_: argparse.Namespace) -> int:
+    if not tmux_exists():
+        return 0
+    prune_stale_events()
+    counts = Counter(
+        session_name
+        for window in attention_windows()
+        if (session_name := window.get("session_name", "").strip())
+    )
+    for session_name in sorted(counts):
+        print(f"{session_name}\t{counts[session_name]}")
+    return 0
+
+
 def cmd_menu(_: argparse.Namespace) -> int:
     if not tmux_exists():
         return 0
@@ -570,6 +584,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("status", help="Render status-right segment").set_defaults(
         func=cmd_status
     )
+
+    sub.add_parser(
+        "sessions", help="List sessions with pending attention counts"
+    ).set_defaults(func=cmd_sessions)
 
     sub.add_parser(
         "menu", help="Open chooser for attention windows and jump"

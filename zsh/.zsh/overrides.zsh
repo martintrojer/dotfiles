@@ -12,5 +12,5 @@ if [[ -f /run/.toolboxenv ]]; then
 fi
 
 tm() {
-    "$HOME/.config/tmux/scripts/sesh-connect"
+    "$HOME/.config/tmux/scripts/session-picker"
 }

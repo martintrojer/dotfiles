@@ -1,0 +1,828 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+import tomllib
+from dataclasses import dataclass
+from functools import cache
+from pathlib import Path
+from shlex import quote as sh_quote
+from typing import Iterable
+
+DISPLAY_NAME_WIDTH = 20
+DEFAULT_SPLIT = ""
+CONFIG_PATH = Path(__file__).resolve().parent.parent / "tms.toml"
+AGENT_ATTENTION_SCRIPT = Path(__file__).with_name("agent-attention")
+STATE_DIR = (
+    Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "tms"
+)
+LAST_FILE = STATE_DIR / "last"
+
+KIND_ICON = {
+    "default": "★",
+    "tmux": "●",
+    "zoxide": "◦",
+    "find": "·",
+}
+
+CATPPUCCIN = {
+    "rosewater": "#f5e0dc",
+    "peach": "#fab387",
+    "yellow": "#f9e2af",
+    "sky": "#89dceb",
+    "sapphire": "#74c7ec",
+    "lavender": "#b4befe",
+    "text": "#cdd6f4",
+    "subtext0": "#a6adc8",
+    "overlay0": "#6c7086",
+    "surface0": "#313244",
+    "base": "#1e1e2e",
+}
+
+FZF_BORDER_LABEL = " sessions "
+
+class ConfigError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class SessionConfig:
+    name: str
+    path: str
+    startup: str = ""
+    split: str = DEFAULT_SPLIT
+
+
+@dataclass(frozen=True)
+class TmsConfig:
+    sessions: tuple[SessionConfig, ...]
+    blacklist: frozenset[str]
+    noisy_basenames: frozenset[str]
+    find_max_depth: int
+    preview_command: str
+
+
+@dataclass(frozen=True)
+class Entry:
+    kind: str
+    name: str
+    session_name: str
+    path: str = ""
+    startup: str = ""
+    split: str = ""
+    attention_count: int = 0
+    is_running: bool = False
+
+    @property
+    def icon(self) -> str:
+        return KIND_ICON[self.kind]
+
+    @property
+    def display_name(self) -> str:
+        return truncate(self.name, DISPLAY_NAME_WIDTH)
+
+    @property
+    def display_path(self) -> str:
+        if not self.path:
+            return ""
+        home = str(Path.home())
+        return self.path.replace(home, "~", 1)
+
+    def visible_text(self) -> str:
+        name = self.display_name.ljust(DISPLAY_NAME_WIDTH)
+        if self.display_path:
+            text = f"{self.icon}  {name}  {self.display_path}"
+        else:
+            text = f"{self.icon}  {name}"
+        if self.attention_count > 0:
+            return ansi_style(
+                text,
+                fg=CATPPUCCIN["yellow"],
+                bg=CATPPUCCIN["surface0"],
+                bold=True,
+            )
+        style_map: dict[str, str] = {
+            "default": CATPPUCCIN["lavender"],
+            "tmux": CATPPUCCIN["sky"],
+            "zoxide": CATPPUCCIN["sapphire"],
+            "find": CATPPUCCIN["subtext0"],
+        }
+        style_kind = "tmux" if self.kind == "default" and self.is_running else self.kind
+        fg = style_map.get(style_kind)
+        if fg is None:
+            return text
+        return ansi_style(text, fg=fg)
+
+    def to_fzf_row(self) -> str:
+        return "\t".join(
+            [
+                self.visible_text(),
+                self.kind,
+                self.session_name,
+                self.path,
+                self.startup,
+                self.split,
+            ]
+        )
+
+
+def truncate(text: str, width: int) -> str:
+    if len(text) <= width:
+        return text
+    return text[: width - 1] + "…"
+
+
+def ansi_style(
+    text: str, *, fg: str | None = None, bg: str | None = None, bold: bool = False
+) -> str:
+    parts: list[str] = []
+    if bold:
+        parts.append("1")
+    if fg:
+        parts.append(f"38;2;{int(fg[1:3], 16)};{int(fg[3:5], 16)};{int(fg[5:7], 16)}")
+    if bg:
+        parts.append(f"48;2;{int(bg[1:3], 16)};{int(bg[3:5], 16)};{int(bg[5:7], 16)}")
+    if not parts:
+        return text
+    return f"\x1b[{';'.join(parts)}m{text}\x1b[0m"
+
+
+def run(
+    cmd: list[str], *, check: bool = True, capture: bool = True
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, check=check, text=True, capture_output=capture)
+
+
+def tmux_cmd(
+    *args: str, check: bool = True, capture: bool = True
+) -> subprocess.CompletedProcess[str]:
+    return run(["tmux", *args], check=check, capture=capture)
+
+
+def exact_session_target(name: str) -> str:
+    return f"={name}"
+
+
+def exact_pane_target(name: str, pane: str) -> str:
+    return f"={name}:{pane}"
+
+
+def expand(path: str) -> str:
+    return str(Path(path).expanduser())
+
+
+def prompt_for_mode(mode: str) -> str:
+    return {
+        "all": "›  ",
+        "default": "★  ",
+        "tmux": "●  ",
+        "zoxide": "◦  ",
+        "find": "·  ",
+    }[mode]
+
+
+def header_text() -> str:
+    items = [
+        ("^a all", CATPPUCCIN["subtext0"]),
+        ("^c pinned", CATPPUCCIN["lavender"]),
+        ("^t live", CATPPUCCIN["sky"]),
+        ("^x zoxide", CATPPUCCIN["sapphire"]),
+        ("^f find", CATPPUCCIN["subtext0"]),
+    ]
+    return "  " + " ".join(ansi_style(label, fg=color) for label, color in items)
+
+
+def sanitize_session_part(part: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", part)
+    return re.sub(r"-+", "-", cleaned).strip("-")
+
+
+def session_name_for_path(path: str) -> str:
+    resolved = Path(path).expanduser().resolve()
+    home = Path.home().resolve()
+    try:
+        parts = resolved.relative_to(home).parts
+    except ValueError:
+        parts = tuple(
+            part for part in resolved.parts if part not in {resolved.anchor, "/"}
+        )
+    sanitized = [sanitize_session_part(part) for part in parts]
+    sanitized = [part for part in sanitized if part]
+    return "/".join(sanitized) or "session"
+
+
+def display_name_for_path(path: str) -> str:
+    return Path(path).expanduser().name or session_name_for_path(path)
+
+
+def list_tmux_sessions() -> list[str]:
+    result = tmux_cmd("list-sessions", "-F", "#{session_name}", check=False)
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def zoxide_paths() -> list[str]:
+    result = run(["zoxide", "query", "--list"], check=False)
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def find_paths(config: TmsConfig) -> list[str]:
+    home = str(Path.home())
+    cmd = ["fd", "-H", "-d", str(config.find_max_depth), "-t", "d"]
+    for name in sorted(config.blacklist):
+        cmd.extend(["-E", name])
+    cmd.extend([".", home])
+    result = run(cmd, check=False)
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def is_useful_path(path: str, *, mode: str, config: TmsConfig) -> bool:
+    p = Path(path).expanduser()
+    parts = p.parts
+    basename = p.name
+
+    if basename in config.blacklist or basename in config.noisy_basenames:
+        return False
+    if basename.startswith(".") and basename not in {".dotfiles"}:
+        return False
+    if any(part in config.blacklist for part in parts):
+        return False
+    if any(part in config.noisy_basenames for part in parts):
+        return False
+
+    home = Path.home()
+    try:
+        rel = p.resolve().relative_to(home)
+        rel_parts = rel.parts
+        if rel_parts and rel_parts[0] == "dotfiles" and len(rel_parts) > 1:
+            return False
+        if any(part.startswith(".") for part in rel_parts):
+            return False
+        if mode == "zoxide" and len(rel_parts) > 2:
+            return False
+    except Exception:
+        pass
+
+    return True
+
+
+def require_str_list(value: object, key: str) -> list[str]:
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise ConfigError(f"{CONFIG_PATH}: {key} must be an array of strings")
+    return [item for item in value if isinstance(item, str)]
+
+
+@cache
+def load_config() -> TmsConfig:
+    if not CONFIG_PATH.exists():
+        raise ConfigError(f"Missing config: {CONFIG_PATH}")
+    try:
+        with CONFIG_PATH.open("rb") as handle:
+            data = tomllib.load(handle)
+    except OSError as exc:
+        raise ConfigError(f"Failed to read config: {CONFIG_PATH}: {exc}") from exc
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(f"Invalid TOML in {CONFIG_PATH}: {exc}") from exc
+
+    required = ("find_max_depth", "preview_command")
+    missing = [key for key in required if key not in data]
+    if missing:
+        raise ConfigError(
+            f"Missing required keys in {CONFIG_PATH}: {', '.join(missing)}"
+        )
+
+    blacklist = require_str_list(data.get("blacklist", []), "blacklist")
+    noisy_basenames = require_str_list(
+        data.get("noisy_basenames", []), "noisy_basenames"
+    )
+    find_max_depth = data["find_max_depth"]
+    preview_command = data["preview_command"]
+    sessions = data.get("sessions", [])
+    if not isinstance(find_max_depth, int) or find_max_depth < 0:
+        raise ConfigError(
+            f"{CONFIG_PATH}: find_max_depth must be a non-negative integer"
+        )
+    if not isinstance(preview_command, str) or not preview_command:
+        raise ConfigError(f"{CONFIG_PATH}: preview_command must be a non-empty string")
+    if not isinstance(sessions, list):
+        raise ConfigError(f"{CONFIG_PATH}: sessions must be an array")
+
+    out: list[SessionConfig] = []
+    for session in sessions:
+        if not isinstance(session, dict):
+            raise ConfigError(f"{CONFIG_PATH}: each session must be an object")
+        name = session.get("name")
+        path = session.get("path")
+        if not isinstance(name, str) or not name:
+            raise ConfigError(f"{CONFIG_PATH}: session.name must be a non-empty string")
+        if not isinstance(path, str) or not path:
+            raise ConfigError(f"{CONFIG_PATH}: session.path must be a non-empty string")
+        startup = session.get("startup", "")
+        if not isinstance(startup, str):
+            raise ConfigError(f"{CONFIG_PATH}: session.startup must be a string")
+        split = session.get("split", DEFAULT_SPLIT)
+        if split not in {DEFAULT_SPLIT, "vertical", "horizontal"}:
+            raise ConfigError(
+                f"{CONFIG_PATH}: session.split must be '', 'vertical', or 'horizontal'"
+            )
+        out.append(SessionConfig(name=name, path=path, startup=startup, split=split))
+
+    return TmsConfig(
+        sessions=tuple(out),
+        blacklist=frozenset(blacklist),
+        noisy_basenames=frozenset(noisy_basenames),
+        find_max_depth=find_max_depth,
+        preview_command=preview_command,
+    )
+
+
+def attention_counts() -> dict[str, int]:
+    result = run([str(AGENT_ATTENTION_SCRIPT), "sessions"], check=False)
+    if result.returncode != 0:
+        return {}
+    counts: dict[str, int] = {}
+    for row in result.stdout.splitlines():
+        session_name, _, count = row.partition("\t")
+        if not session_name or not count:
+            continue
+        try:
+            counts[session_name] = int(count)
+        except ValueError:
+            continue
+    return counts
+
+
+def build_path_entries(
+    *,
+    kind: str,
+    paths: list[str],
+    configured_paths: set[str],
+    mode: str,
+    config: TmsConfig,
+) -> list[Entry]:
+    seen_paths: set[str] = set()
+    entries: list[Entry] = []
+    for path in paths:
+        full = expand(path)
+        if (
+            full in configured_paths
+            or full in seen_paths
+            or not is_useful_path(full, mode=mode, config=config)
+        ):
+            continue
+        seen_paths.add(full)
+        entries.append(
+            Entry(
+                kind=kind,
+                name=display_name_for_path(full),
+                session_name=session_name_for_path(full),
+                path=full,
+            )
+        )
+    return entries
+
+
+def build_entries(mode: str) -> list[Entry]:
+    config = load_config()
+    configured_sessions = config.sessions
+    sessions_by_name = {session.name: session for session in configured_sessions}
+    configured_paths = {expand(session.path) for session in configured_sessions}
+    live_names = set(list_tmux_sessions())
+    attention_by_session = attention_counts()
+
+    entries: list[Entry] = []
+
+    if mode in {"all", "default"}:
+        for session in configured_sessions:
+            entries.append(
+                Entry(
+                    kind="default",
+                    name=session.name,
+                    session_name=session.name,
+                    path=expand(session.path),
+                    startup=session.startup,
+                    split=session.split,
+                    attention_count=attention_by_session.get(session.name, 0),
+                    is_running=session.name in live_names,
+                )
+            )
+
+    if mode in {"all", "tmux"}:
+        configured_names = {session.name for session in configured_sessions}
+        for session_name in sorted(live_names):
+            if mode == "all" and session_name in configured_names:
+                continue
+            session = sessions_by_name.get(session_name)
+            entries.append(
+                Entry(
+                    kind="tmux",
+                    name=session_name,
+                    session_name=session_name,
+                    path=expand(session.path) if session else "",
+                    startup=session.startup if session else "",
+                    split=session.split if session else DEFAULT_SPLIT,
+                    attention_count=attention_by_session.get(session_name, 0),
+                    is_running=True,
+                )
+            )
+
+    if mode in {"all", "zoxide"}:
+        entries.extend(
+            build_path_entries(
+                kind="zoxide",
+                paths=zoxide_paths(),
+                configured_paths=configured_paths,
+                mode="zoxide",
+                config=config,
+            )
+        )
+
+    if mode == "find":
+        entries.extend(
+            build_path_entries(
+                kind="find",
+                paths=find_paths(config),
+                configured_paths=configured_paths,
+                mode="find",
+                config=config,
+            )
+        )
+
+    return entries
+
+
+def tmux_session_preview(name: str) -> int:
+    session = tmux_cmd(
+        "display-message",
+        "-p",
+        "-t",
+        exact_session_target(name),
+        "#{session_name}\t#{session_attached}",
+        check=False,
+    )
+    if session.returncode != 0:
+        return 1
+
+    windows = tmux_cmd(
+        "list-windows",
+        "-t",
+        exact_session_target(name),
+        "-F",
+        "#{window_index}\t#{window_active}\t#{window_name}\t#{window_panes}\t#{?@agent_attention,1,0}",
+        check=False,
+    )
+    panes = tmux_cmd(
+        "list-panes",
+        "-t",
+        exact_session_target(name),
+        "-F",
+        "#{window_index}\t#{pane_index}\t#{pane_active}\t#{window_active}\t#{pane_current_command}\t#{pane_current_path}",
+        check=False,
+    )
+    if windows.returncode != 0 or panes.returncode != 0:
+        print(session.stdout.strip())
+        return 0
+
+    session_name, _, attached = session.stdout.strip().partition("\t")
+    attention_total = 0
+    active_window_index = ""
+    active_window_name = ""
+    active_window_attention = "0"
+    for line in windows.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 5:
+            continue
+        window_index, window_active, window_name, _window_panes, window_attention = (
+            parts
+        )
+        if window_attention == "1":
+            attention_total += 1
+        if window_active == "1":
+            active_window_index = window_index
+            active_window_name = window_name
+            active_window_attention = window_attention
+
+    active_pane_index = ""
+    active_command = ""
+    active_path = ""
+    for line in panes.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 6:
+            continue
+        window_index, pane_index, pane_active, window_active, command, pane_path = parts
+        if window_active == "1" and pane_active == "1":
+            active_pane_index = pane_index
+            active_command = command
+            active_path = pane_path
+            if not active_window_index:
+                active_window_index = window_index
+            break
+
+    meta: list[str] = []
+    if attached:
+        meta.append(f"attached {attached}")
+    if attention_total:
+        meta.append(f"attention {attention_total}")
+    suffix = f" ({', '.join(meta)})" if meta else ""
+    print(f"{session_name}{suffix}")
+
+    if active_window_index:
+        attention_marker = " !" if active_window_attention == "1" else ""
+        print(f"window: {active_window_index}{attention_marker} {active_window_name}")
+    if active_pane_index:
+        short_path = active_path.replace(str(Path.home()), "~", 1)
+        print(f"pane: {active_pane_index}  {active_command}  {short_path}")
+    print()
+
+    target = (
+        exact_pane_target(name, f"{active_window_index}.{active_pane_index}")
+        if active_window_index and active_pane_index
+        else exact_pane_target(name, "1.1")
+    )
+    capture = tmux_cmd(
+        "capture-pane", "-p", "-J", "-t", target, "-S", "-200", check=False
+    )
+    if capture.returncode != 0:
+        print("(unable to capture active pane)")
+        return 0
+    print(capture.stdout.rstrip())
+    return 0
+
+
+def preview(path: str, session_name: str = "", kind: str = "", split: str = "") -> int:
+    if (
+        kind in {"tmux", "default"}
+        and session_name
+        and tmux_session_exists(session_name)
+    ):
+        return tmux_session_preview(session_name)
+
+    target = expand(path)
+    if not target:
+        if split and kind == "default":
+            print(f"session: {session_name or '(unknown)'}\nsplit: {split}", end="")
+        else:
+            print(f"session: {session_name or '(unknown)'}", end="")
+        return 0
+    if split:
+        print(f"split: {split}\n")
+    os.execvp(
+        "sh", ["sh", "-lc", load_config().preview_command.format(path=sh_quote(target))]
+    )
+    return 0
+
+
+def reload_cmd(mode: str) -> str:
+    return f"{sh_quote(sys.argv[0])} list --mode {mode}"
+
+
+def print_entries(mode: str) -> int:
+    for entry in build_entries(mode):
+        print(entry.to_fzf_row())
+    return 0
+
+
+def fzf(mode: str = "all") -> int:
+    entries = "\n".join(entry.to_fzf_row() for entry in build_entries(mode))
+    cmd = [
+        "fzf",
+        "--layout=reverse",
+        "--border=rounded",
+        "--no-sort",
+        "--ansi",
+        "--color",
+        f"bg:{CATPPUCCIN['base']},bg+:{CATPPUCCIN['surface0']},fg:{CATPPUCCIN['text']},fg+:{CATPPUCCIN['text']},hl:{CATPPUCCIN['sky']},hl+:{CATPPUCCIN['sky']},border:{CATPPUCCIN['overlay0']},gutter:{CATPPUCCIN['base']},header:{CATPPUCCIN['subtext0']},info:{CATPPUCCIN['overlay0']},prompt:{CATPPUCCIN['lavender']},pointer:{CATPPUCCIN['peach']},marker:{CATPPUCCIN['peach']},spinner:{CATPPUCCIN['sky']},label:{CATPPUCCIN['subtext0']},query:{CATPPUCCIN['text']},preview-bg:{CATPPUCCIN['base']},preview-border:{CATPPUCCIN['overlay0']}",
+        "--delimiter",
+        "\t",
+        "--with-nth",
+        "1",
+        "--border-label",
+        FZF_BORDER_LABEL,
+        "--prompt",
+        prompt_for_mode(mode),
+        "--header",
+        header_text(),
+        "--bind",
+        "tab:down,btab:up",
+        "--bind",
+        f"ctrl-a:change-prompt({prompt_for_mode('all')})+reload({reload_cmd('all')})",
+        "--bind",
+        f"ctrl-c:change-prompt({prompt_for_mode('default')})+reload({reload_cmd('default')})",
+        "--bind",
+        f"ctrl-t:change-prompt({prompt_for_mode('tmux')})+reload({reload_cmd('tmux')})",
+        "--bind",
+        f"ctrl-x:change-prompt({prompt_for_mode('zoxide')})+reload({reload_cmd('zoxide')})",
+        "--bind",
+        f"ctrl-f:change-prompt({prompt_for_mode('find')})+reload({reload_cmd('find')})",
+        "--preview-window",
+        "right:55%,border-left",
+        "--preview",
+        f"{sh_quote(sys.argv[0])} preview --kind {{2}} --session-name {{3}} --path {{4}} --split {{6}}",
+    ]
+    proc = subprocess.run(cmd, input=entries, text=True)
+    return proc.returncode
+
+
+def tmux_session_exists(name: str) -> bool:
+    return (
+        tmux_cmd(
+            "has-session",
+            "-t",
+            exact_session_target(name),
+            check=False,
+            capture=True,
+        ).returncode
+        == 0
+    )
+
+
+def update_last(name: str) -> None:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    LAST_FILE.write_text(name + "\n")
+
+
+def switch_or_attach(name: str) -> None:
+    if os.environ.get("TMUX"):
+        tmux_cmd("switch-client", "-t", exact_session_target(name), capture=False)
+    else:
+        subprocess.run(
+            ["tmux", "attach-session", "-t", exact_session_target(name)],
+            check=True,
+        )
+    update_last(name)
+
+
+def create_session(name: str, path: str, startup: str | None, split: str = "") -> None:
+    tmux_cmd("new-session", "-d", "-s", name, "-c", path, capture=False)
+    if startup:
+        tmux_cmd(
+            "send-keys",
+            "-t",
+            exact_pane_target(name, "1.1"),
+            startup,
+            "C-m",
+            capture=False,
+        )
+    if split == "vertical":
+        tmux_cmd(
+            "split-window",
+            "-h",
+            "-t",
+            exact_pane_target(name, "1.1"),
+            "-c",
+            path,
+            capture=False,
+        )
+    elif split == "horizontal":
+        tmux_cmd(
+            "split-window",
+            "-v",
+            "-t",
+            exact_pane_target(name, "1.1"),
+            "-c",
+            path,
+            capture=False,
+        )
+
+
+def connect_resolved(
+    session_name: str,
+    path: str | None,
+    startup: str | None,
+    split: str = DEFAULT_SPLIT,
+) -> int:
+    if tmux_session_exists(session_name):
+        switch_or_attach(session_name)
+        return 0
+
+    if path is None:
+        print(f"No such session or path: {session_name}", file=sys.stderr)
+        return 1
+
+    create_session(session_name, path, startup, split)
+    switch_or_attach(session_name)
+    return 0
+
+
+def connect(target: str) -> int:
+    target = expand(target)
+    sessions_by_name = {session.name: session for session in load_config().sessions}
+    session = sessions_by_name.get(target)
+    if session:
+        return connect_resolved(
+            session.name,
+            expand(session.path),
+            session.startup,
+            session.split,
+        )
+    if Path(target).exists():
+        path = target
+        return connect_resolved(
+            session_name_for_path(path),
+            path,
+            None,
+            DEFAULT_SPLIT,
+        )
+    return connect_resolved(target, None, None, DEFAULT_SPLIT)
+
+
+def parse_selection(choice: str) -> tuple[str, str | None, str | None, str]:
+    parts = choice.split("\t")
+    if len(parts) != 6:
+        raise ConfigError(
+            f"Invalid picker row: expected 6 tab-separated fields, got {len(parts)}"
+        )
+    session_name = parts[2]
+    path = parts[3] or None
+    startup = parts[4] or None
+    split = parts[5] or DEFAULT_SPLIT
+    return session_name, path, startup, split
+
+
+def connect_selection() -> int:
+    choice = os.environ.get("TMS_SELECTION")
+    if choice is None:
+        choice = sys.stdin.read().rstrip("\n")
+    if not choice:
+        return 1
+    session_name, path, startup, split = parse_selection(choice)
+    return connect_resolved(session_name, path, startup, split)
+
+
+def last() -> int:
+    result = tmux_cmd("display-message", "-p", "#{client_last_session}", check=False)
+    if result.returncode == 0:
+        target = result.stdout.strip()
+        if target:
+            return connect(target)
+    if LAST_FILE.exists():
+        target = LAST_FILE.read_text().strip()
+        if target:
+            return connect(target)
+    print("No last session recorded", file=sys.stderr)
+    return 1
+
+
+def main(argv: Iterable[str] | None = None) -> int:
+    try:
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="cmd", required=True)
+
+        p_list = sub.add_parser("list")
+        p_list.add_argument(
+            "--mode",
+            choices=["all", "default", "tmux", "zoxide", "find"],
+            default="all",
+        )
+
+        p_pick = sub.add_parser("picker")
+        p_pick.add_argument(
+            "--mode",
+            choices=["all", "default", "tmux", "zoxide", "find"],
+            default="all",
+        )
+
+        p_connect = sub.add_parser("connect")
+        p_connect.add_argument("target")
+
+        sub.add_parser("connect-selection")
+
+        p_preview = sub.add_parser("preview")
+        p_preview.add_argument("--kind", default="")
+        p_preview.add_argument("--session-name", default="")
+        p_preview.add_argument("--path", default="")
+        p_preview.add_argument("--split", default=DEFAULT_SPLIT)
+
+        sub.add_parser("last")
+
+        args = parser.parse_args(list(argv) if argv is not None else None)
+
+        if args.cmd == "list":
+            return print_entries(args.mode)
+        if args.cmd == "picker":
+            return fzf(args.mode)
+        if args.cmd == "connect":
+            return connect(args.target)
+        if args.cmd == "connect-selection":
+            return connect_selection()
+        if args.cmd == "preview":
+            return preview(args.path, args.session_name, args.kind, args.split)
+        if args.cmd == "last":
+            return last()
+        return 1
+    except ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -7,7 +7,7 @@ Install Oh My Zsh and the plugins used by this config:
 2. `git clone --depth 1 https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions`
 3. `git clone --depth 1 https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting`
 
-If you want the `tm` helper and tmux session launcher flow to work, install `sesh` too.
+If you want the `tm` helper and tmux session launcher flow to work, install `tmux`, `fzf`, `zoxide`, `fd`, and `eza`.
 
 ## Plugin Highlights
 
@@ -51,8 +51,8 @@ If you want the `tm` helper and tmux session launcher flow to work, install `ses
 
 This config adds a small `tm` shell helper in `.zsh/overrides.zsh`.
 
-- `tm` calls the shared `$HOME/.config/tmux/scripts/sesh-connect` picker script
-- after selection, `sesh` handles attaching or creating the tmux session
+- `tm` calls the shared `$HOME/.config/tmux/scripts/session-picker` wrapper
+- after selection, `tms` handles attaching or creating the tmux session
 
 ## Boundary
 
