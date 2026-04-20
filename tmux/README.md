@@ -13,7 +13,6 @@ This config uses TPM plus a mix of quality-of-life, persistence, navigation, and
 
 - `tmux-plugins/tpm`: tmux plugin manager. It installs, updates, and loads the rest of the plugins from `.tmux.conf`.
 - `tmux-plugins/tmux-yank`: copies from tmux into the system clipboard. Most useful in copy mode and for pushing text out of tmux into the desktop clipboard.
-- `tmux-plugins/tmux-resurrect`: saves and restores tmux sessions, windows, panes, layouts, and some running programs.
 - `tmux-plugins/tmux-cpu`: provides the `#{cpu_percentage}` format used by the native status bar's CPU segment.
 - `Morantron/tmux-fingers`: hint-based picking inside visible pane content, similar to Vimium-style jump labels for paths, URLs, SHAs, numbers, and other matches.
 - `sainnhe/tmux-fzf`: fzf-powered tmux management for sessions, windows, panes, bindings, clipboard history, and process actions.
@@ -28,7 +27,6 @@ From your current `tmux/.tmux.conf`:
 - Vim split to tmux pane movement comes from `christoomey/vim-tmux-navigator`.
 - The right side CPU segment comes from `tmux-cpu`.
 - Cross-platform RAM usage is provided by `$HOME/.config/tmux/scripts/status-ram`.
-- Session save and restore comes from `tmux-resurrect`.
 - The `agent-attention` integration is not a plugin. It is a local script in this repo that adds `[!]` markers and the popup picker.
 - Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
 - Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `claude`, `π - ...`, or a cwd basename.
@@ -66,32 +64,15 @@ Mental model for pane moving:
 - `prefix` + `M`: pick destination in tmux tree, then insert current pane there as a split. Source window loses that pane.
 - In short: `!` means "pull this pane out"; `M` means "move this pane into there".
 
-## Using Resurrect
+## Session Persistence
 
-`tmux-resurrect` gives you manual session save and restore.
+This config does not save or restore tmux state across reboots. The workflow is intentionally on-the-fly:
 
-Default keys:
-
-- `prefix` + `Ctrl-s`: save the current tmux state
-- `prefix` + `Ctrl-r`: restore the last saved tmux state
-
-What it restores well:
-
-- sessions, windows, panes, and layouts
-- pane working directories
-- some long-running programs, depending on plugin support and program behavior
-
-Practical workflow:
-
-1. Arrange your tmux sessions, windows, and panes the way you want.
-2. Press `prefix` + `Ctrl-s` to save.
-3. Later, start tmux and press `prefix` + `Ctrl-r` to restore.
-
-Notes:
-
-- This is manual restore only. There is no auto-restore now that `tmux-continuum` has been removed.
-- Restoring tmux structure is more reliable than restoring arbitrary application state.
-- If a restored program does not come back exactly as expected, the pane layout and working directory are usually still restored correctly.
+- `sesh` recreates any project session in two keystrokes (`prefix` + `s`), with `startup_command` re-launching `yazi`, `nvim`, etc.
+- `detach-on-destroy off` keeps sessions sticky within a running tmux server, so accidental window closes don't kick you out.
+- Neovim's `shada` restores oldfiles, registers, global marks, and command/search history across restarts. Buffer lists and window layouts are **not** persisted — use `<leader>fo` (recent files) or `mini.starter` to re-enter.
+- Shell history is global via zsh.
+- Agent CLIs (`claude`, `codex`, `opencode`, `pi`) keep their conversation state in their own session stores, not in tmux pane state.
 
 ## Using tmux-fingers
 

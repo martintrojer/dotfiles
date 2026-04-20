@@ -16,20 +16,32 @@ Minimal Neovim 0.12 config. No framework, no plugin manager plugin — just `vim
 init.lua                        — options, colorscheme, diagnostics, commands, autocommands
 lua/
   plugins.lua                   — vim.pack.add + build hooks
-  mini-setup.lua                — 17 mini modules + clue + statusline + notify
+  mini_setup.lua                — 17 mini modules + clue + statusline + notify
   starter.lua                   — start screen + logo + greeting
-  keymaps.lua                   — all keymaps (source control, fzf, tmux, zk, vecgrep, terminal, LSP)
+  keymaps/                      — keymaps split by domain
+    init.lua                    — dispatcher: loads each submodule with shared `map` helper
+    core.lua                    — editor, terminal, tmux nav, buffer mgmt
+    find.lua                    — fzf-lua pickers
+    git.lua                     — source control (lazygit, mini.git, jj-fugitive, sl-fugitive)
+    search.lua                  — grep, search & replace, vecgrep
+    notes.lua                   — zk + markdown helpers
+    lsp.lua                     — LSP actions (definitions, references, code actions)
+    meta.lua                    — Meta-internal keymaps (loaded only with fbcode)
   lsp.lua                       — LSP server configs + enable
   tabterm.lua                   — tab-based terminal helper (used by lazygit, tuicr)
   history.lua                   — message and notification history viewers
-  grep-todos.lua                — shared TODO grep config
+  todos.lua                     — TODO grep + markdown todo toggle
   timestamps.lua                — elapsed time utility (markdown notes)
-  toggletodo.lua                — markdown TODO toggler
+  async_run.lua                 — `:Sh` async shell with streaming output split
+  git_diff.lua                  — side-by-side git diff helpers (used by `<leader>gD`)
+  util.lua                      — shared helpers (VCS root detection, meta_root, etc.)
+  lua_globals.lua               — lua-language-server globals list
+  setup_meta.lua                — Meta-specific setup (devservers, fbcode runtime path)
 after/ftplugin/
   markdown.lua                  — markdown-specific keymaps (nabla, zk link, cards, todos)
 ```
 
-## Plugins (13 vim.pack entries)
+## Plugins (14 vim.pack entries)
 
 ### mini.nvim (17 modules from one repo)
 
@@ -146,7 +158,7 @@ Then run `:TSSync` in nvim to install treesitter parsers.
 
 ## Key mappings
 
-See `lua/keymaps.lua` for the full list. Highlights:
+See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`, `notes`, `lsp`, `meta`). Highlights:
 
 | Key | Action |
 |-----|--------|

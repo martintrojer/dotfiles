@@ -46,9 +46,11 @@ Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 ### Tmux Scripts
 - `tmux/.config/tmux/scripts/agent-attention` - AI agent attention tracker (Python 3, supports claude/codex/opencode/pi)
 - `tmux/.config/tmux/scripts/status-ai` - Renders the boxed `AI <count>` segment for the right-hand status
+- `tmux/.config/tmux/scripts/status-ram` - Cross-platform RAM usage percentage for the status bar
 - `tmux/.config/tmux/scripts/status-uptime` - Cross-platform short uptime string for the status bar
 - `tmux/.config/tmux/scripts/status-window-label` - Active-pane derived window label, prefers the real running agent over stale titles
-- `tmux/.config/tmux/scripts/sesh-window` - `fzf` picker wrapper around `sesh window`
+- `tmux/.config/tmux/scripts/sesh-connect` - `fzf` popup picker wrapper around `sesh list` (bound to `prefix + s`)
+- `tmux/.config/tmux/scripts/move-pane-picker` - `choose-tree` driven helper for `prefix + M` (move pane into another window/pane)
 - `tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts` - Pi Agent extension for agent-attention
 - `tmux/.config/tmux/scripts/opencode-plugin/notify.ts` - OpenCode plugin for agent-attention
 - `tmux/.config/tmux/scripts/cheatsheet` - fzf cheatsheet popup
@@ -72,9 +74,6 @@ tmux -L test-status-tools attach
 
 The script honors `TMUX_SOCKET_NAME` / `TMUX_SOCKET_PATH` to pin `agent-attention` to a non-default tmux server, which is what makes the tests possible. Real tmux subprocesses inherit `TMUX` from their pane and ignore these env vars.
 
-### Other Scripts
-- `waybar/.config/waybar/scripts/` - Waybar-specific shell helpers (if any)
-
 ## Package Docs
 
 - Fuzzel-specific scripts, conventions, and config notes now live in `fuzzel/README.md`
@@ -91,8 +90,6 @@ Pi coding agent extensions live in `pi/extensions/` and are symlinked into `~/.p
 
 - `answer` — Extract questions from assistant responses into interactive Q&A TUI
 - `btw` — Side-chat popover for tangential questions
-- `context` — Show loaded extensions, skills, context files, and token usage
-- `loop` — Iterative loop that re-prompts until a condition is met
 
 See `pi/README.md` for details.
 
