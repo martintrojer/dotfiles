@@ -47,9 +47,9 @@ All configs are now unified around **Catppuccin Mocha**.
 | Fuzzel | `fuzzel/.config/fuzzel/fuzzel.ini` | Catppuccin Mocha palette |
 | Ghostty | `ghostty/.config/ghostty/config` | `theme = Catppuccin Mocha` |
 | Mako | `mako/.config/mako/config` | Catppuccin hex values |
-| Neovim | `nvim/.config/nvim/lua/plugins/colorscheme.lua` | catppuccin/nvim plugin |
+| Neovim | `nvim/.config/nvim/init.lua` (setup) + `nvim/.config/nvim/lua/plugins.lua` (spec) | catppuccin/nvim plugin |
 | Niri | `niri/.config/niri/config.kdl` | Catppuccin hex values |
-| Zsh | `zsh/.zsh/tools.zsh`, `zsh/.zsh/overrides.zsh` | Native `PROMPT`/`RPROMPT` with Catppuccin hex values |
+| Zsh | `zsh/.zsh/tools.zsh` | Native `PROMPT`/`RPROMPT` with Catppuccin hex values |
 | Swaylock | `swaylock/.config/swaylock/config` | Catppuccin-inspired colors with wallpaper from `wallpapers/` |
 | Tmux | `tmux/.tmux.conf` | Native tmux status bar using Catppuccin Mocha hex values |
 | Waybar | `waybar/.config/waybar/style.css` | Catppuccin colors defined |

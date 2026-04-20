@@ -50,10 +50,6 @@ A         AI attention picker
 ?         List all keybindings
 I         Install plugins (TPM)
 
-── Session Persistence ──
-C-s       Save session (resurrect)
-C-r       Restore session (resurrect)
-
 ── Other ──
 C-q       Clear pane history (no prefix)
 :         Command prompt
