@@ -22,11 +22,10 @@ lua/
     init.lua                    — dispatcher: loads each submodule with shared `map` helper
     core.lua                    — editor, terminal, tmux nav, buffer mgmt
     find.lua                    — fzf-lua pickers
-    git.lua                     — source control (lazygit, mini.git, jj-fugitive, sl-fugitive)
+    git.lua                     — source control (lazygit, mini.git, jj-fugitive)
     search.lua                  — grep, search & replace, vecgrep
     notes.lua                   — zk + markdown helpers
     lsp.lua                     — LSP actions (definitions, references, code actions)
-    meta.lua                    — Meta-internal keymaps (loaded only with fbcode)
   lsp.lua                       — LSP server configs + enable
   tabterm.lua                   — tab-based terminal helper (used by lazygit, tuicr)
   history.lua                   — message and notification history viewers
@@ -34,9 +33,8 @@ lua/
   timestamps.lua                — elapsed time utility (markdown notes)
   async_run.lua                 — `:Sh` async shell with streaming output split
   git_diff.lua                  — side-by-side git diff helpers (used by `<leader>gD`)
-  util.lua                      — shared helpers (VCS root detection, meta_root, etc.)
+  util.lua                      — shared helpers (VCS root detection, cwd helpers, etc.)
   lua_globals.lua               — lua-language-server globals list
-  setup_meta.lua                — Meta-specific setup (devservers, fbcode runtime path)
 after/ftplugin/
   markdown.lua                  — markdown-specific keymaps (nabla, zk link, cards, todos)
 ```
@@ -104,13 +102,12 @@ First launch clones all plugins via `vim.pack`. Then install LSP servers:
 
 ```bash
 brew install fzf ripgrep fd tree-sitter-cli zoxide tmux lazygit
-brew install lua-language-server bash-language-server uv
+brew install lua-language-server bash-language-server taplo uv
 brew install gopls
 brew install typescript-language-server vscode-langservers-extracted
 brew install typos-lsp vale rust-analyzer zk
 uv tool install ty ruff
 cargo install --git https://github.com/errata-ai/vale-ls
-opam install ocaml-lsp-server  # optional, for OCaml
 ```
 
 ### Linux (mise)
@@ -122,6 +119,7 @@ mise use node@latest rust@latest fzf@latest ripgrep@latest fd@latest tree-sitter
 # LSP servers via mise
 mise use github:LuaLS/lua-language-server
 mise use github:tekumara/typos-lsp
+mise use cargo:taplo-cli
 mise use aqua:zk-org/zk
 go install golang.org/x/tools/gopls@latest
 

@@ -42,6 +42,12 @@ vim.lsp.config("cssls", {
 	root_markers = { ".git" },
 })
 
+vim.lsp.config("taplo", {
+	cmd = { "taplo", "lsp", "stdio" },
+	filetypes = { "toml" },
+	root_markers = { "taplo.toml", ".taplo.toml", ".git" },
+})
+
 vim.lsp.config("ty", {
 	cmd = { "ty", "server" },
 	filetypes = { "python" },
@@ -158,6 +164,7 @@ vim.lsp.enable({
 	"bashls",
 	"html",
 	"cssls",
+	"taplo",
 	"ty",
 	"ruff",
 	"ts_ls",
