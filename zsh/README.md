@@ -18,10 +18,7 @@ If you want the `tm` helper and tmux session launcher flow to work, install `tmu
 - Diff review wrappers in `.zsh/aliases.zsh`.
   - `gvd` runs `git difftool --dir-diff --no-prompt --extcmd=nvdiff`.
   - `jvd` runs `jj --no-pager diff --tool nvdiff`.
-  - `hvd` runs `hg --config extensions.extdiff= extdiff -p nvdiff`.
   - `nvdiff` launches normal Neovim startup and opens a `:DiffTool` session.
-- `mercurial`: Mercurial aliases and completions.
-  - Examples: `hg st`, `hg pull`, `hg up`.
 - `fzf`: fuzzy finder integration for shell workflows.
   - Example: use your local `F` global alias to turn `history F` or `rg foo F` into an interactive picker.
 - `zoxide`: smarter directory jumping.
@@ -53,6 +50,11 @@ This config adds a small `tm` shell helper in `.zsh/overrides.zsh`.
 
 - `tm` calls the shared `$HOME/.config/tmux/scripts/session-picker` wrapper
 - after selection, `tms` handles attaching or creating the tmux session
+
+## Startup Layout
+
+- `.zshrc`: interactive shell config, prompt, aliases, functions, Oh My Zsh, and early macOS Homebrew PATH bootstrap before plugin loading.
+- `.zsh/homebrew.zsh`: cheap macOS Homebrew PATH bootstrap used by `.zshrc` so Homebrew-installed tools are visible to Oh My Zsh plugins without relying on login shells or `brew shellenv`.
 
 ## Boundary
 

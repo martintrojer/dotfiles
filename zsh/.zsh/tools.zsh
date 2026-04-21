@@ -7,7 +7,6 @@ fi
 
 # Initialize other tools
 test -e "${HOME}/.ghcup/env" && . "${HOME}/.ghcup/env"
-command -v opam >/dev/null && eval "$(opam config env)"
 
 autoload -Uz colors && colors
 setopt prompt_subst

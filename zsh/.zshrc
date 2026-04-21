@@ -1,15 +1,20 @@
 export ZSH="$HOME/.oh-my-zsh"
 
+# Keep inherited completion paths from compounding across nested shells.
+typeset +x FPATH
+typeset -U path fpath
+
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
 # ZSH_THEME="minimal"
 
-zstyle ':omz:update' mode auto
-zstyle ':omz:update' frequency 13
+zstyle ':omz:update' mode reminder
+zstyle ':omz:update' frequency 30
 
 # ENABLE_CORRECTION="true"
 # COMPLETION_WAITING_DOTS="true"
 
 DISABLE_UNTRACKED_FILES_DIRTY="true"
+ZSH_DISABLE_COMPFIX=true
 
 # Base plugins (OS-agnostic)
 plugins=(
@@ -18,7 +23,6 @@ plugins=(
          fzf
          git
          jj
-         mercurial
          podman
          rust
          ssh
@@ -54,6 +58,9 @@ zstyle ':omz:plugins:alias-finder' cheaper yes
 # Modular config (sourced before omz)
 # ======================================================
 
+# Homebrew-backed tools must be on PATH before OMZ plugins load.
+[[ "$OSTYPE" == darwin* ]] && [[ -f "$HOME/.zsh/homebrew.zsh" ]] && source "$HOME/.zsh/homebrew.zsh"
+
 case "$OSTYPE" in
   darwin*)
     [[ -f "$HOME/.zsh/os-darwin.zsh" ]] && source "$HOME/.zsh/os-darwin.zsh"
@@ -65,7 +72,7 @@ esac
 
 for file in $HOME/.zsh/*.zsh; do
   case "${file:t}" in
-    os-darwin.zsh|os-linux.zsh)
+    homebrew.zsh|os-darwin.zsh|os-linux.zsh)
       continue
       ;;
   esac
@@ -82,3 +89,6 @@ source $ZSH/oh-my-zsh.sh
 
 # Source overrides after omz
 source $HOME/.zsh/overrides.zsh
+
+# Don't leak OMZ/plugin completion paths into child shell environments.
+typeset +x FPATH

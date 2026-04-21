@@ -21,7 +21,7 @@ export HISTFILESIZE=1048576
 export HISTSIZE=1048576
 
 # GPG configuration
-export GPG_TTY=$(tty)
+[[ -n "${TTY:-}" ]] && export GPG_TTY="$TTY"
 
 # Application-specific exports
 export ELECTRON_OZONE_PLATFORM_HINT=auto
