@@ -7,12 +7,10 @@ alias -g L='| less'
 alias -g LL='2>&1 | less'
 alias -g NE='2> /dev/null'
 alias -g NUL='> /dev/null 2>&1'
-alias port_forward='ssh -L 8081:localhost:8081 dev'
 alias serve='python3 -m http.server 8081'
 test -e "/opt/homebrew/bin/gdu-go" && alias gdu='gdu-go'
 alias gvd='git difftool --dir-diff --no-prompt --extcmd=nvdiff'
 alias jvd='jj --no-pager diff --tool nvdiff'
-alias hvd='hg --config extensions.extdiff= extdiff -p nvdiff'
 
 # Common `less` misspellings
 alias lees='less'
