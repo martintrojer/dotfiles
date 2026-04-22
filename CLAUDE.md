@@ -104,7 +104,7 @@ Generic agent skills live in `skills/` and are symlinked into `~/.agents/skills/
 - `council` — Multi-agent collaborative debate
 - `changelog` — Generate changelogs from git history
 - `caveman` — Token-efficient communication mode
-- `summarize` — URL/PDF/DOCX → Markdown via `markitdown`
+- `summarize` — `summarize.sh` workflow helper for URL/PDF/DOCX → Markdown via `markitdown`
 - `tmux` — Remote-control tmux sessions for interactive CLIs
 
 ## Window Manager

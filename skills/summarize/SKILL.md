@@ -1,59 +1,54 @@
 ---
 name: summarize
-description: "Fetch a URL or convert a local file (PDF/DOCX/HTML/etc.) into Markdown using `uvx markitdown`, optionally it can summarize"
+description: Summarize or extract text/transcripts from URLs, podcasts, and local files (great fallback for “transcribe this YouTube/video”).
+homepage: https://summarize.sh
 ---
 
-Turn “things” (URLs, PDFs, Word docs, PowerPoints, HTML pages, text files, etc.) into **Markdown** so they can be inspected/quoted/processed like normal text.
+# Summarize
 
-`markitdown` can fetch URLs by itself; this skill mainly wraps it to make saving + summarizing convenient.
-For PDF inputs, use the `markitdown[pdf]` extra (or the wrapper below, which now does this automatically).
+Fast CLI to summarize URLs, local files, and YouTube links.
 
-## When to use
+## When to use (trigger phrases)
 
-Use this skill when you need to:
-- pull down a web page as a document-like Markdown representation
-- convert binary docs (PDF/DOCX/PPTX) into Markdown for analysis
-- quickly produce a short summary of a long document before deeper work
+Use this skill immediately when the user asks any of:
 
-## Quick usage
+- “use summarize.sh”
+- “what’s this link/video about?”
+- “summarize this URL/article”
+- “transcribe this YouTube/video” (best-effort transcript extraction; no `yt-dlp` needed)
 
-### Convert a URL or file to Markdown
-
-Run from **this skill folder** (the agent should `cd` here first):
+## Quick start
 
 ```bash
-uvx --from 'markitdown[pdf]' markitdown <url-or-path>
+summarize "https://example.com" --model google/gemini-3-flash-preview
+summarize "/path/to/file.pdf" --model google/gemini-3-flash-preview
+summarize "https://youtu.be/dQw4w9WgXcQ" --youtube auto
 ```
 
-To write Markdown to a temp file (prints the path) use the wrapper:
+## YouTube: summary vs transcript
+
+Best-effort transcript (URLs only):
 
 ```bash
-node to-markdown.mjs <url-or-path> --tmp
+summarize "https://youtu.be/dQw4w9WgXcQ" --youtube auto --extract-only
 ```
 
-Tip: when summarizing, the script will **always** write the full converted Markdown to a temp `.md` file and will **always** print a final "Hint" line with the path (so you can open/inspect the full content).
+If the user asked for a transcript but it’s huge, return a tight summary first, then ask which section/time range to expand.
 
-Write Markdown to a specific file:
+## Useful flags
 
-```bash
-uvx --from 'markitdown[pdf]' markitdown <url-or-path> > /tmp/doc.md
-```
+- `--length short|medium|long|xl|xxl|<chars>`
+- `--max-output-tokens <count>`
+- `--extract-only` (URLs only)
+- `--json` (machine readable)
+- `--firecrawl auto|off|always` (fallback extraction)
+- `--youtube auto` (Apify fallback if `APIFY_API_TOKEN` set)
 
-### Convert + summarize with haiku-4-5 (pass context!)
+## Config
 
-Summaries are only useful when you provide **what you want extracted** and the **audience/purpose**.
+Optional config file: `~/.summarize/config.json`
 
-```bash
-node to-markdown.mjs <url-or-path> --summary --prompt "Summarize focusing on X, for audience Y. Extract Z."
-```
+Optional services:
 
-Or:
-
-```bash
-node to-markdown.mjs <url-or-path> --summary --prompt "Focus on security implications and action items."
-```
-
-This will:
-1) convert to Markdown via `uvx --from 'markitdown[pdf]' markitdown`
-2) write the full Markdown to a temp `.md` file and print its path as a "Hint" line
-3) run `pi --model claude-haiku-4-5` (no-tools, no-session) to summarize using your extra prompt
+- `FIRECRAWL_API_KEY` for blocked sites
+- `APIFY_API_TOKEN` for YouTube fallback
