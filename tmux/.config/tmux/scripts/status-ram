@@ -1,17 +1,176 @@
 #!/usr/bin/env python3
-"""Render RAM usage percentage for tmux on macOS and Linux."""
+"""Render RAM usage on Linux and a memory-pressure-ish score on macOS."""
 
 from __future__ import annotations
 
+import json
+import os
 import platform
 import re
 import subprocess
+import time
+from pathlib import Path
 
 LOW_STYLE = "#[bg=#313244]#[fg=#a6adc8]"
 MEDIUM_STYLE = "#[bg=#313244]#[fg=#fab387]"
 HIGH_STYLE = "#[bg=#313244]#[fg=#cdd6f4]"
 MEDIUM_THRESH = 75
 HIGH_THRESH = 90
+
+STATE_DIR = (
+    Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state")))
+    / "tmux-status"
+)
+DARWIN_STATE = STATE_DIR / "memory-pressure.json"
+
+
+def clamp(value: float, lower: float = 0.0, upper: float = 100.0) -> int:
+    return round(max(lower, min(upper, value)))
+
+
+def ramp(value: float, start: float, end: float) -> int:
+    if end <= start:
+        raise ValueError("end must be greater than start")
+    if value <= start:
+        return 0
+    if value >= end:
+        return 100
+    return clamp(((value - start) / (end - start)) * 100)
+
+
+def parse_vm_stat() -> tuple[int, dict[str, int]]:
+    vm_stat = subprocess.check_output(["vm_stat"], text=True)
+    page_size_match = re.search(r"page size of (\d+) bytes", vm_stat)
+    if page_size_match is None:
+        raise RuntimeError("could not parse vm_stat page size")
+
+    counts: dict[str, int] = {}
+    for line in vm_stat.splitlines():
+        match = re.match(r'^"?([^":]+)"?:\s+(\d+)\.$', line.strip())
+        if match is not None:
+            counts[match.group(1)] = int(match.group(2))
+    return int(page_size_match.group(1)), counts
+
+
+def parse_memory_pressure() -> dict[str, int]:
+    output = subprocess.check_output(["memory_pressure"], text=True)
+    values: dict[str, int] = {}
+
+    pages_match = re.search(r"\((\d+) pages with a page size of (\d+)\)", output)
+    if pages_match is not None:
+        values["total_pages"] = int(pages_match.group(1))
+        values["page_size"] = int(pages_match.group(2))
+
+    free_match = re.search(r"System-wide memory free percentage:\s+(\d+)%", output)
+    if free_match is not None:
+        values["free_percentage"] = int(free_match.group(1))
+
+    pressure_match = re.search(r"System-wide memory pressure:\s+(\d+)%", output)
+    if pressure_match is not None:
+        values["pressure_percentage"] = int(pressure_match.group(1))
+
+    return values
+
+
+def load_darwin_state() -> dict[str, float] | None:
+    try:
+        return json.loads(DARWIN_STATE.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        return None
+
+
+def save_darwin_state(payload: dict[str, float]) -> None:
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        DARWIN_STATE.write_text(json.dumps(payload), encoding="utf-8")
+    except OSError:
+        return
+
+
+def darwin_pressure_score() -> int:
+    page_size, counts = parse_vm_stat()
+    pressure = parse_memory_pressure()
+    page_size = pressure.get("page_size", page_size)
+    total_pages = pressure.get("total_pages") or sum(
+        counts.get(key, 0)
+        for key in (
+            "Pages free",
+            "Pages active",
+            "Pages inactive",
+            "Pages speculative",
+            "Pages wired down",
+            "Pages occupied by compressor",
+        )
+    )
+    if total_pages <= 0:
+        raise RuntimeError("could not derive total pages")
+
+    free_pages = counts.get("Pages free", 0) + counts.get("Pages speculative", 0)
+    reclaimable_pages = counts.get("Pages purgeable", 0) + counts.get(
+        "File-backed pages", 0
+    )
+    wired_pages = counts.get("Pages wired down", 0)
+    compressor_pages = counts.get("Pages occupied by compressor", 0)
+    available_ratio = (free_pages + reclaimable_pages) / total_pages
+    wired_ratio = wired_pages / total_pages
+    compressor_ratio = compressor_pages / total_pages
+
+    # Apple describes memory pressure in terms of available free memory,
+    # swap rate, wired memory, and file cache. The exact gauge is private,
+    # so approximate it from those same ingredients. memory_pressure's
+    # read-only output gives the closest cheap baseline availability signal;
+    # using it avoids a dead zone where Activity Monitor still shows a low
+    # green pressure graph but a thresholded vm_stat formula reports 0%.
+    if "pressure_percentage" in pressure:
+        headroom_score = pressure["pressure_percentage"]
+    elif "free_percentage" in pressure:
+        headroom_score = clamp((100 - pressure["free_percentage"]) * 0.45)
+    else:
+        headroom_score = ramp(0.5 - available_ratio, 0.0, 0.5)
+
+    wired_score = ramp(wired_ratio, 0.16, 0.42)
+    compressor_score = ramp(compressor_ratio, 0.02, 0.16)
+
+    now = time.time()
+    previous = load_darwin_state() or {}
+    elapsed = max(0.001, now - float(previous.get("ts", now)))
+    previous_compressions = int(
+        previous.get("compressions", counts.get("Compressions", 0))
+    )
+    previous_pageouts = int(previous.get("pageouts", counts.get("Pageouts", 0)))
+    previous_swapouts = int(previous.get("swapouts", counts.get("Swapouts", 0)))
+
+    compression_rate = max(
+        0.0, (counts.get("Compressions", 0) - previous_compressions) / elapsed
+    )
+    pageout_rate = max(0.0, (counts.get("Pageouts", 0) - previous_pageouts) / elapsed)
+    swapout_rate = max(0.0, (counts.get("Swapouts", 0) - previous_swapouts) / elapsed)
+
+    compression_mib_s = (compression_rate * page_size) / (1024 * 1024)
+    eviction_mib_s = ((pageout_rate + swapout_rate) * page_size) / (1024 * 1024)
+    compression_churn_score = ramp(compression_mib_s, 4.0, 64.0)
+    swap_churn_score = ramp(eviction_mib_s, 0.5, 24.0)
+
+    score = clamp(
+        (headroom_score * 0.45)
+        + (wired_score * 0.2)
+        + (compressor_score * 0.15)
+        + (max(compression_churn_score, swap_churn_score) * 0.2)
+    )
+    if swap_churn_score >= MEDIUM_THRESH:
+        score = max(score, MEDIUM_THRESH)
+    if swap_churn_score >= HIGH_THRESH:
+        score = max(score, HIGH_THRESH)
+
+    save_darwin_state(
+        {
+            "ts": now,
+            "compressions": counts.get("Compressions", 0),
+            "pageouts": counts.get("Pageouts", 0),
+            "swapouts": counts.get("Swapouts", 0),
+        }
+    )
+    return score
 
 
 def ram_percentage() -> int:
@@ -30,37 +189,13 @@ def ram_percentage() -> int:
         return round((used / total) * 100)
 
     if system == "Darwin":
-        vm_stat = subprocess.check_output(["vm_stat"], text=True)
-        counts: dict[str, int] = {}
-        for line in vm_stat.splitlines():
-            match = re.match(r"^([^:]+):\s+(\d+)\.$", line.strip())
-            if match is not None:
-                counts[match.group(1)] = int(match.group(2))
-        total = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"], text=True))
-        used_pages = (
-            counts.get("Pages active", 0)
-            + counts.get("Pages speculative", 0)
-            + counts.get("Pages wired down", 0)
-        )
-        total_pages = sum(
-            counts.get(key, 0)
-            for key in (
-                "Pages free",
-                "Pages active",
-                "Pages inactive",
-                "Pages speculative",
-                "Pages wired down",
-                "Pages occupied by compressor",
-            )
-        )
-        if total_pages <= 0:
-            raise RuntimeError("could not derive total pages")
-        return round((used_pages / total_pages) * 100)
+        return darwin_pressure_score()
 
     raise RuntimeError(f"unsupported OS: {system}")
 
 
 def render_segment(percentage: int) -> str:
+    icon = "󰾆" if platform.system() != "Darwin" else "◔"
     if percentage >= HIGH_THRESH:
         style = HIGH_STYLE
     elif percentage >= MEDIUM_THRESH:
@@ -68,7 +203,7 @@ def render_segment(percentage: int) -> str:
     else:
         style = LOW_STYLE
 
-    return f"{style}󰾆 {percentage}%"
+    return f"{style}{icon} {percentage}%"
 
 
 def main() -> None:
