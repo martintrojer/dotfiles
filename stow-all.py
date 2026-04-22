@@ -98,10 +98,7 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
     (
         "darwin",
         SCRIPT_DIR,
-        [
-            "ghostty",
-            "hammerspoon",
-        ],
+        ["ghostty", "hammerspoon", "summarize"],
     ),
     (
         "linux",

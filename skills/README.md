@@ -38,5 +38,5 @@ Skills are auto-discovered and can be invoked explicitly with `/skill:name` or l
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `/skill:summarize` | "summarize this URL/file" | Fetch URL or convert PDF/DOCX/HTML to Markdown via `markitdown` |
+| `/skill:summarize` | "use summarize.sh", "summarize this URL/article", "transcribe this YouTube/video" | `summarize.sh` workflow helper for URLs, podcasts, local files, and best-effort transcript extraction |
 | `/skill:tmux` | Interactive CLI needed | Remote-control tmux sessions by sending keystrokes and scraping output |
