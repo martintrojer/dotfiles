@@ -1,8 +1,6 @@
 #!/bin/bash
 
 base_packages=(
-  # Needed when building some tools from source.
-  automake
   # Provides linker and binary utilities for native builds.
   binutils
   # Preferred system monitor.

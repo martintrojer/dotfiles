@@ -45,6 +45,7 @@ CATPPUCCIN = {
 
 FZF_BORDER_LABEL = " sessions "
 
+
 class ConfigError(ValueError):
     pass
 

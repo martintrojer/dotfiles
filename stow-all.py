@@ -108,7 +108,7 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
             "fuzzel",
             "kanshi",
             "mako",
-            "niri",
+            "sway",
             "swaylock",
             "waybar",
             "wallpapers",
@@ -120,6 +120,7 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
         [
             "bin",
             "containers",
+            "gtk-3.0",
             "systemd",
         ],
     ),

@@ -9,3 +9,4 @@ if [[ -x "$wallpaper_helper" ]] && wallpaper_path="$("$wallpaper_helper" current
 fi
 
 exec swaylock --color "$fallback_color" "$@"
+

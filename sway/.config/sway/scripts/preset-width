@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/sway"
+state_file="${state_dir}/preset-width"
+presets=(33 50 67)
+
+mkdir -p "$state_dir"
+
+current="50"
+if [[ -r "$state_file" ]]; then
+  current="$(<"$state_file")"
+fi
+
+next="${presets[0]}"
+for i in "${!presets[@]}"; do
+  if [[ "${presets[$i]}" == "$current" ]]; then
+    next="${presets[$(((i + 1) % ${#presets[@]}))]}"
+    break
+  fi
+done
+
+printf '%s\n' "$next" >"$state_file"
+exec swaymsg "resize set width ${next} ppt"

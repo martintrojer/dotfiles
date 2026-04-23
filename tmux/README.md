@@ -51,6 +51,10 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `S`: tmux `choose-tree` session picker, sorted by name
 - `prefix` + `g`: switch to last session via `tms`
 - `prefix` + `T`: create or switch to a session rooted at the current pane path
+- `prefix` + `R`: reload `~/.tmux.conf` (mirrors sway `mod+Shift+r`)
+- `prefix` + `r`: cycle active pane width 1/3 → 1/2 → 2/3 (mirrors sway `mod+r`)
+- `prefix` + `v`: clipboard history picker (mirrors sway `mod+v`)
+- `prefix` + `Tab` / `Shift-Tab`: tmux-fingers pick / jump-pick visible matches
 - `prefix` + `!`: break the current pane out into a new window
 - `prefix` + `M`: move the current pane into the selected window or pane as a split
 - `prefix` + `w`: built-in tmux session-window tree picker
@@ -119,8 +123,8 @@ Notes:
 
 Configured flow:
 
-- `prefix` + `h`: start `tmux-fingers`
-- `prefix` + `j`: start `tmux-fingers` in jump mode, which moves the cursor to the selected match
+- `prefix` + `Tab`: start `tmux-fingers`
+- `prefix` + `Shift-Tab`: start `tmux-fingers` in jump mode, which moves the cursor to the selected match
 - type the shown hint to copy the match to the clipboard and tmux buffer
 - type `Shift` + the final hint character to copy and paste immediately into the active pane
 
@@ -227,4 +231,8 @@ Subscribes to Pi's `agent_end` event so attention only fires once the prompt is 
 
 ## Cheatsheet
 
-`prefix + Ctrl-g` opens an fzf cheatsheet popup inside tmux. The entries mix repo-defined bindings with stock tmux and plugin defaults, so update that script when adding, removing, or reclassifying keys.
+`prefix + Ctrl-g` opens an fzf cheatsheet popup inside tmux. The script auto-derives entries from `tmux list-keys -T prefix -N`, so adding `bind -N "label" key cmd` in `.tmux.conf` is enough to make it appear in the picker — no separate cheatsheet edit required. Stock tmux defaults show up with their own one-liners.
+
+A small static section in the script lists plugin binds (tmux-fingers, tmux-fzf, TPM) and no-prefix keys (`C-q`, `C-h/j/k/l` via vim-tmux-navigator) since those don't show up as annotated `bind -N` entries. Update that block when adding or removing plugins.
+
+The picker shows a curated subset by default — keys mapped into the `Sessions / Windows / Panes / Resize / Copy & Pick / Tools` sections. Run `~/.config/tmux/scripts/cheatsheet --all` to dump every binding in the prefix table without filtering.

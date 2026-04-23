@@ -4,7 +4,7 @@ Intended to be used with [GNU Stow](https://www.gnu.org/software/stow/)
 ## Repository Shape
 
 - Portable core: shell, editor, git, terminal tooling
-- Linux desktop stack: Fedora + Wayland + `niri`
+- Linux desktop stack: Fedora + Wayland + `sway`
 - macOS desktop stack: Hammerspoon + Ghostty
 
 The shared layer is intentionally the CLI/editor baseline. Desktop behavior is allowed to diverge by platform.
@@ -65,7 +65,7 @@ When shared skills change, repeat the same order:
 If Claude's installed copy is stale, `./stow-all.py --check` tells you to run `/plugin install mtrojer@local`.
 
 Key Linux packages now include:
-- `niri`
+- `sway`
 - `waybar`
 - `fuzzel`
 - `kanshi`
@@ -75,7 +75,7 @@ Key Linux packages now include:
 
 Fedora-specific setup lives under `fedora/`, with shared package definitions in:
 - `fedora/base-packages.sh`
-- `fedora/niri-packages.sh`
+- `fedora/sway-packages.sh`
 
 Other notable shared packages:
 - `tmux/` for tmux config, local picker scripts, and status helpers
@@ -87,8 +87,8 @@ Fedora-only command wrappers live in `fedora/bin/`.
 
 ## Platform Stance
 
-Linux in this repo is intentionally opinionated: Fedora + Wayland + `niri`.
-The goal is not to keep the desktop stack compositor-agnostic; the goal is to keep the `niri` workflow cohesive and maintainable.
+Linux in this repo is intentionally opinionated: Fedora + Wayland + `sway`.
+The goal is not to keep the desktop stack compositor-agnostic; the goal is to keep the Sway workflow cohesive and maintainable.
 
 ## OS Conditionals
 

@@ -5,17 +5,20 @@
 - `fuzzel/.config/fuzzel/scripts/ssh` - SSH host selector
 - `fuzzel/.config/fuzzel/scripts/toolboxes` - Toolbox container selector
 - `fuzzel/.config/fuzzel/scripts/calc` - Calculator with qalc/bc
-- `fuzzel/.config/fuzzel/scripts/windows` - Window switcher (niri)
-- `fuzzel/.config/fuzzel/scripts/hotkeys` - Niri keybindings picker
+- `fuzzel/.config/fuzzel/scripts/windows` - Window switcher (Sway)
+- `fuzzel/.config/fuzzel/scripts/chrome-tabs` - Chrome tab switcher via DevTools Protocol
 - `fuzzel/.config/fuzzel/scripts/clipboard` - Clipboard history via clipman
 - `fuzzel/.config/fuzzel/scripts/emoji` - Emoji picker with bemoji
+- `fuzzel/.config/fuzzel/scripts/hotkeys` - Sway keybindings picker (executes selection via `swaymsg`)
 - `fuzzel/.config/fuzzel/scripts/powermenu` - Power menu (lock/suspend/logout/reboot/shutdown)
-- `fuzzel/.config/fuzzel/scripts/raise-window` - Focus a niri window by id
+- `fuzzel/.config/fuzzel/scripts/raise-window` - Focus a Sway window by id
 
 `raise-window` supports:
 - `--id <window_id>` for direct focus
 - `--app-id-regex` and/or `--title-regex` to find and focus a matching window
 - `--spawn-sh '<cmd>'` to launch fallback command when no match is found
+
+`hotkeys` parses `~/.config/sway/config` for `bindsym` lines, presents them in fuzzel, and dispatches the chosen action with `swaymsg --` so it behaves identically to pressing the actual key. Pass `--no-exec` to print the action instead of running it.
 
 ## Script Pattern
 

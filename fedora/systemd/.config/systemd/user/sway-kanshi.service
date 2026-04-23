@@ -1,0 +1,15 @@
+[Unit]
+Description=Kanshi Output Profile Daemon (Sway)
+PartOf=sway-session.target
+BindsTo=sway-session.target
+After=sway-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/kanshi
+ExecReload=/usr/bin/kanshictl reload
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=sway-session.target

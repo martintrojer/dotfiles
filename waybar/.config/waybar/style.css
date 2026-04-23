@@ -70,6 +70,7 @@
 #waybar.first #language,
 #waybar.first #memory.swap,
 #waybar.first #memory.ram,
+#waybar.first #mode,
 #waybar.first #submap,
 #waybar.first #pulseaudio,
 #waybar.first #temperature,
@@ -116,6 +117,7 @@
   animation-timing-function: steps(15);
 }
 
+#waybar.first #mode,
 #waybar.first #submap.RESIZE {
   color: @white;
   animation-iteration-count: infinite;
@@ -155,7 +157,7 @@
   background: @indigo1;
 }
 
-/* Niri workspace states */
+/* Workspace states */
 #waybar.first #workspaces button.active {
   color: @white;
   background: @indigo1;

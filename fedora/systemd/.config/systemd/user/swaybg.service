@@ -1,14 +1,14 @@
 [Unit]
-Description=Swaybg Wallpaper Daemon
-PartOf=niri-session.target
-BindsTo=niri-session.target
-After=niri-session.target
+Description=Swaybg Wallpaper Daemon (Sway)
+PartOf=sway-session.target
+BindsTo=sway-session.target
+After=sway-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/.config/niri/scripts/session-wallpaper
+ExecStart=%h/.config/sway/scripts/session-wallpaper
 Restart=always
 RestartSec=1
 
 [Install]
-WantedBy=niri-session.target
+WantedBy=sway-session.target

@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""Show Niri keybindings in a fuzzel picker."""
+"""Show Sway keybindings in a fuzzel picker and execute the chosen one.
+
+Parses ``~/.config/sway/config`` for ``bindsym`` lines, presents them as a
+fuzzel picker, and dispatches the selected action via ``swaymsg``. Sway treats
+any ``bindsym`` action as a sway command, so feeding the action verbatim to
+``swaymsg`` reproduces what pressing the keystroke would have done — including
+``exec`` invocations, ``mode`` switches, ``floating toggle``, and so on.
+"""
 
 from __future__ import annotations
 
 import argparse
 import os
 import re
-import shlex
 from pathlib import Path
 
 from _common import (
@@ -19,111 +25,105 @@ from _common import (
 )
 
 
+DEFAULT_CONFIG = (
+    f"{os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))}/sway/config"
+)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--config",
-        default=f"{os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))}/niri/config.kdl",
-        help="Path to niri config.kdl",
-    )
+    parser.add_argument("--config", default=DEFAULT_CONFIG, help="Path to sway config")
     parser.add_argument("--prompt", default="Hotkeys  ")
-    parser.add_argument("--width", type=int, default=80)
+    parser.add_argument("--width", type=int, default=90)
     parser.add_argument("--lines", type=int, default=20)
     parser.add_argument("--key-width", type=int, default=24)
+    parser.add_argument(
+        "--no-exec",
+        action="store_true",
+        help="Show the picker but do not run the selected binding (read-only mode).",
+    )
     return parser.parse_args()
 
 
 def parse_bind_entries(config_path: Path, key_width: int) -> list[tuple[str, str]]:
-    content = config_path.read_text(encoding="utf-8")
-    lines = content.splitlines()
+    """Return ``(label, action)`` pairs for every ``bindsym`` line in the config.
 
-    in_binds = False
+    ``label`` is what the picker shows; ``action`` is the raw sway command
+    suitable for ``swaymsg``.
+    """
     entries: list[tuple[str, str]] = []
-    title_re = re.compile(r'hotkey-overlay-title="([^"]+)"')
-
-    for raw in lines:
+    for raw in config_path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
-        if not in_binds:
-            if re.match(r"^binds\s*\{", line):
-                in_binds = True
+        if not line.startswith("bindsym "):
             continue
-
-        if line == "}":
-            break
-        if not line or line.startswith("//"):
+        parts = line.split(None, 2)
+        if len(parts) < 3:
             continue
-        if "{" not in line or "}" not in line:
+        # Skip flag-form bindsyms (--release etc.) for now; they're rare here
+        # and the action position shifts.
+        key = parts[1]
+        action = re.sub(r"\s+", " ", parts[2]).strip()
+        if key.startswith("--") or action.startswith("--"):
             continue
-
-        key = line.split()[0]
-        title_match = title_re.search(line)
-        title = title_match.group(1) if title_match else ""
-
-        action_match = re.search(r"\{([^}]+)\}", line)
-        action = ""
-        if action_match:
-            action = action_match.group(1).strip().removesuffix(";").strip()
-
-        label = title or action
-        if label:
-            entries.append((f"{key:<{key_width}} {label}", action))
-
+        display_key = key.replace("$mod", "Mod")
+        entries.append((f"{display_key:<{key_width}} {action}", action))
     return entries
 
 
-def execute_action(action: str) -> None:
+def execute_action(action: str) -> int:
+    """Dispatch a sway command via ``swaymsg``.
+
+    Returns the swaymsg exit code so callers can surface failures.
+    """
     if not action:
-        return
-
-    parts = shlex.split(action)
-    if not parts:
-        return
-
-    verb = parts[0]
-
-    if verb == "spawn-sh" and len(parts) >= 2:
-        run(["sh", "-lc", parts[1]], check=False)
-        return
-
-    if verb == "spawn" and len(parts) >= 2:
-        run(parts[1:], check=False)
-        return
-
-    run(["niri", "msg", "action", *parts], check=False)
+        return 0
+    result = run(["swaymsg", "--", action], check=False)
+    if result.returncode != 0:
+        stderr = (result.stderr or "").strip()
+        notify("Hotkeys", f"swaymsg failed: {stderr or action}")
+    return result.returncode
 
 
 def main() -> int:
     args = parse_args()
-    config_path = Path(args.config).expanduser()
-    require_commands(["fuzzel", "niri"])
+    require_commands(["fuzzel", "swaymsg"])
 
-    if not config_path.exists():
-        notify("Hotkeys", f"Niri config not found: {config_path}")
-        raise ScriptError(f"Niri config not found: {config_path}")
+    config_path = Path(args.config)
+    if not config_path.is_file():
+        raise ScriptError(f"sway config not found: {config_path}")
 
     entries = parse_bind_entries(config_path, args.key_width)
     if not entries:
-        notify("Hotkeys", f"No keybindings found in {config_path}")
-        raise ScriptError("No keybindings found")
+        notify("Hotkeys", "No bindsym entries found")
+        return 0
 
-    cache = picker_cache_path("hotkeys")
-    display = [item[0] for item in entries]
+    label_to_action = {label: action for label, action in entries}
     selected = fuzzel_dmenu(
         prompt=args.prompt,
         width=args.width,
         lines=args.lines,
-        cache=cache,
-        options=display,
+        cache=picker_cache_path("hotkeys"),
+        options=(label for label, _ in entries),
     )
     if not selected:
         return 0
 
-    chosen = next((item for item in entries if item[0] == selected), None)
-    if chosen is None:
+    action = label_to_action.get(selected)
+    if action is None:
+        # Fuzzel may return free-form input on Enter; try a best-effort match.
+        for label, candidate in entries:
+            if selected.strip() == label.strip():
+                action = candidate
+                break
+    if action is None:
+        notify("Hotkeys", "Could not resolve selected entry to an action")
+        return 1
+
+    if args.no_exec:
+        print(action)
         return 0
 
-    execute_action(chosen[1])
-    return 0
+    return execute_action(action)
 
 
 if __name__ == "__main__":

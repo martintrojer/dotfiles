@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+browser="${BROWSER:-}"
+if [[ -z "$browser" || "$browser" == *" "* ]]; then
+  for candidate in google-chrome-stable google-chrome chromium; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      browser="$candidate"
+      break
+    fi
+  done
+fi
+
+if [[ -z "$browser" ]]; then
+  echo "open-browser: no Chrome/Chromium browser found" >&2
+  exit 1
+fi
+
+exec "$browser" \
+  --remote-debugging-port=9222 \
+  --enable-features=UseOzonePlatform \
+  --ozone-platform=wayland

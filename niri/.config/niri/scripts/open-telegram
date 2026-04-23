@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-exec ~/.config/fuzzel/scripts/raise-window \
-  --app-id-regex 'telegram' \
-  --title-regex 'Telegram' \
-  --spawn-sh 'flatpak run org.telegram.desktop'
