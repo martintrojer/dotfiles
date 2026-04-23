@@ -75,7 +75,9 @@ Pickers (all under `fuzzel/.config/fuzzel/scripts/`):
 - `mod+Shift+s` — `ssh`, ssh-config host picker.
 - `mod+Shift+t` — `toolboxes`, toolbox container picker.
 - `mod+Shift+p` — `powermenu` (lock / suspend / logout / reboot / shutdown).
-- `mod+Shift+grave` — `chrome-tabs`, DevTools-protocol tab switcher.
+- `mod+grave` — `chrome-tabs`, DevTools-protocol tab switcher (paired
+  visually with `mod+Tab` window switcher — grave and Tab sit adjacent
+  on the keyboard).
 - `mod+Shift+/` — `hotkeys`, parses this file's bindings and dispatches the
   chosen action via `swaymsg`.
 
@@ -110,8 +112,8 @@ Naming rule: daemons whose binary already starts with `sway` (`swaybg`,
 session in one place.
 
 Idle behavior lives in `~/.config/sway/scripts/session-swayidle` because
-monitor power commands are compositor-specific (`swaymsg "output * power off"`
-rather than the niri equivalent that used to live here).
+monitor power commands are compositor-specific
+(`swaymsg "output * power off"`).
 
 `Ctrl+Alt+Delete` runs `~/.config/sway/scripts/session-quit`, which stops
 `sway-session.target` and then `swaymsg exit` — leaving systemd cleanly

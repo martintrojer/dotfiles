@@ -77,7 +77,7 @@ bindsym $mod+Shift+t exec ~/.config/fuzzel/scripts/toolboxes
 bindsym $mod+v exec ~/.config/fuzzel/scripts/clipboard
 bindsym $mod+e exec ~/.config/fuzzel/scripts/emoji
 bindsym $mod+Tab exec ~/.config/fuzzel/scripts/windows
-bindsym $mod+Shift+grave exec ~/.config/fuzzel/scripts/chrome-tabs
+bindsym $mod+grave exec ~/.config/fuzzel/scripts/chrome-tabs
 bindsym $mod+Shift+s exec ~/.config/fuzzel/scripts/ssh
 bindsym $mod+backslash exec ~/.config/fuzzel/scripts/calc
 

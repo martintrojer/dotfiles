@@ -19,6 +19,7 @@ import {
 	Markdown,
 	truncateToWidth,
 	visibleWidth,
+	wrapTextWithAnsi,
 	type Focusable,
 	type KeybindingsManager,
 	type OverlayHandle,
@@ -108,23 +109,21 @@ function extractText(parts: AssistantMessage["content"]): string {
 		.trim();
 }
 
-function extractEventAssistantText(message: unknown): string {
+/**
+ * Narrow an unknown event payload to an ``AssistantMessage`` content array,
+ * or return ``null`` if the value isn't an assistant message with a content
+ * list. Lets stream-event handlers reuse ``extractText`` instead of
+ * duplicating the text-part filter.
+ */
+function unwrapAssistant(message: unknown): AssistantMessage["content"] | null {
 	if (!message || typeof message !== "object") {
-		return "";
+		return null;
 	}
-
 	const maybeMessage = message as { role?: unknown; content?: unknown };
 	if (maybeMessage.role !== "assistant" || !Array.isArray(maybeMessage.content)) {
-		return "";
+		return null;
 	}
-
-	return maybeMessage.content
-		.filter((part): part is { type: "text"; text: string } => {
-			return !!part && typeof part === "object" && (part as { type?: unknown }).type === "text";
-		})
-		.map((part) => part.text)
-		.join("\n")
-		.trim();
+	return maybeMessage.content as AssistantMessage["content"];
 }
 
 function getLastAssistantMessage(session: AgentSession): AssistantMessage | null {
@@ -342,13 +341,12 @@ export default function (pi: ExtensionAPI) {
 			const md = new Markdown(text, 0, 0, mdTheme);
 			return md.render(width);
 		} catch {
-			// Fall back to plain text wrapping if Markdown rendering fails
+			// Fall back to plain text wrapping if Markdown rendering fails.
+			// `wrapTextWithAnsi` handles multi-byte glyphs and ANSI escapes
+			// correctly; the previous char-index slicing did not.
 			return text.split("\n").flatMap((line) => {
 				if (!line) return [""];
-				const wrapped: string[] = [];
-				for (let i = 0; i < line.length; i += width) {
-					wrapped.push(line.slice(i, i + width));
-				}
+				const wrapped = wrapTextWithAnsi(line, width);
 				return wrapped.length > 0 ? wrapped : [""];
 			});
 		}
@@ -579,7 +577,8 @@ export default function (pi: ExtensionAPI) {
 				case "message_start":
 				case "message_update":
 				case "message_end": {
-					const streamed = extractEventAssistantText(event.message);
+					const content = unwrapAssistant(event.message);
+					const streamed = content ? extractText(content) : "";
 					if (streamed) {
 						pendingAnswer = streamed;
 						pendingError = null;

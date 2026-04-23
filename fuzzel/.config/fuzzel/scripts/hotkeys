@@ -97,7 +97,7 @@ def main() -> int:
         notify("Hotkeys", "No bindsym entries found")
         return 0
 
-    label_to_action = {label: action for label, action in entries}
+    label_to_action = dict(entries)
     selected = fuzzel_dmenu(
         prompt=args.prompt,
         width=args.width,
@@ -108,13 +108,10 @@ def main() -> int:
     if not selected:
         return 0
 
+    # Free-text Enter in fuzzel returns the typed string verbatim; if it
+    # doesn't match a known label we surface the failure to the user rather
+    # than silently dispatching the wrong action.
     action = label_to_action.get(selected)
-    if action is None:
-        # Fuzzel may return free-form input on Enter; try a best-effort match.
-        for label, candidate in entries:
-            if selected.strip() == label.strip():
-                action = candidate
-                break
     if action is None:
         notify("Hotkeys", "Could not resolve selected entry to an action")
         return 1

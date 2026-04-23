@@ -26,6 +26,7 @@ from typing import Optional
 SCRIPT_DIR = Path(__file__).resolve().parent
 AGENT_ATTENTION = SCRIPT_DIR / "agent-attention"
 STATUS_WINDOW_LABEL = SCRIPT_DIR / "status-window-label"
+CHEATSHEET = SCRIPT_DIR / "cheatsheet"
 SOCKET = "test-status-tools"
 
 
@@ -236,6 +237,106 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
         "non-agent generic command fallback",
         label("daemons", "improve-writing", "", "/tmp/x", host, fake_pid),
         "improve-writing",
+    )
+
+    print("\n[cheatsheet]")
+    run_cheatsheet_tests()
+
+
+def _import_cheatsheet():
+    """Load the cheatsheet script as a module so its pure helpers are testable.
+
+    The script has no ``.py`` extension, so we go through SourceFileLoader
+    rather than the more usual ``spec_from_file_location`` shortcut.
+    """
+    import importlib.machinery
+    import importlib.util
+
+    loader = importlib.machinery.SourceFileLoader("cheatsheet_mod", str(CHEATSHEET))
+    spec = importlib.util.spec_from_loader("cheatsheet_mod", loader)
+    if spec is None:
+        raise TestFailure(f"could not build module spec for {CHEATSHEET}")
+    mod = importlib.util.module_from_spec(spec)
+    loader.exec_module(mod)
+    return mod
+
+
+def run_cheatsheet_tests() -> None:
+    cs = _import_cheatsheet()
+
+    # parse_keys: skip blank lines, split on first whitespace, strip empty notes.
+    sample = (
+        "s       session picker (tms)\n"
+        "v       clipboard history\n"
+        "\n"
+        "X       \n"  # empty note: must be skipped
+        "M-Up    Resize the pane up by 5\n"
+    )
+    expect(
+        "parse_keys handles blanks and empty-note lines",
+        cs.parse_keys(sample),
+        [
+            ("s", "session picker (tms)"),
+            ("v", "clipboard history"),
+            ("M-Up", "Resize the pane up by 5"),
+        ],
+    )
+
+    expect("classify(s) -> Sessions", cs.classify("s"), "Sessions")
+    expect("classify(0) -> Windows", cs.classify("0"), "Windows")
+    expect("classify(C-Up) -> Resize", cs.classify("C-Up"), "Resize")
+    expect("classify(M-Up) -> Resize", cs.classify("M-Up"), "Resize")
+    expect("classify(C-z) -> None", cs.classify("C-z"), None)
+
+    # format_sections: only categorised keys appear; section headers; blank between.
+    entries = [
+        ("s", "session picker"),
+        ("r", "resize cycle"),
+        ("v", "clipboard"),
+        ("C-z", "suspend client"),  # uncategorised
+    ]
+    out = cs.format_sections(entries, show_all=False)
+    expect_truthy("format_sections includes Sessions header", "── Sessions ──" in out)
+    expect_truthy("format_sections includes Resize header", "── Resize ──" in out)
+    expect_truthy(
+        "format_sections excludes uncategorised by default",
+        not any("suspend client" in line for line in out),
+    )
+    expect_truthy(
+        "format_sections does not show Other without --all",
+        "── Other ──" not in out,
+    )
+
+    # show_all=True surfaces uncategorised under "Other".
+    out_all = cs.format_sections(entries, show_all=True)
+    expect_truthy("format_sections show_all surfaces Other", "── Other ──" in out_all)
+    expect_truthy(
+        "format_sections show_all includes the uncategorised note",
+        any("suspend client" in line for line in out_all),
+    )
+
+    # Section ordering must be deterministic and follow SECTION_ORDER.
+    section_lines = [line for line in out_all if line.startswith("── ")]
+    expect_truthy(
+        "sections appear in declared order",
+        section_lines
+        == [f"── {s} ──" for s in ["Sessions", "Resize", "Copy & Pick", "Other"]],
+    )
+
+    # render_extras always includes the static plugin + no-prefix sections.
+    extras = cs.render_extras()
+    expect_truthy("render_extras includes Plugins block", "── Plugins ──" in extras)
+    expect_truthy("render_extras includes No prefix block", "── No prefix ──" in extras)
+
+    # Live integration: --no-picker must produce non-empty, well-formed output.
+    proc = subprocess.run(
+        [str(CHEATSHEET), "--no-picker"], capture_output=True, text=True
+    )
+    expect("cheatsheet --no-picker exits 0", proc.returncode, 0)
+    expect_truthy("cheatsheet --no-picker has output", bool(proc.stdout.strip()))
+    expect_truthy(
+        "cheatsheet --no-picker contains Sessions header",
+        "── Sessions ──" in proc.stdout,
     )
 
 

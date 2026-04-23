@@ -91,100 +91,24 @@ def list_sway_windows(*, mru: bool = False) -> list[dict]:
     Returns an empty list if swaymsg fails or the tree cannot be parsed; let
     callers decide how to surface that to the user (notify, ScriptError, etc.).
     """
+    tree = _get_sway_tree()
+    if tree is None:
+        return []
+    if mru:
+        return _focused_last(_collect_mru(tree))
+    return _collect_dfs(tree)
+
+
+def _get_sway_tree() -> dict | None:
+    """Run ``swaymsg -t get_tree`` and return the parsed root, or ``None``."""
     result = run(["swaymsg", "-t", "get_tree"], check=False)
     if result.returncode != 0:
-        return []
+        return None
     try:
         tree = json.loads(result.stdout)
     except json.JSONDecodeError:
-        return []
-
-    windows: list[dict] = []
-
-    def visit_dfs(node: dict) -> None:
-        if _is_window(node):
-            windows.append(_window_dict(node))
-        for child in node.get("nodes", []) + node.get("floating_nodes", []):
-            if isinstance(child, dict):
-                visit_dfs(child)
-
-    def collect_workspace_cons(ws: dict) -> list[dict]:
-        """Flatten a workspace into a list of windows in its focus order."""
-        cons: list[dict] = []
-
-        def visit(node: dict) -> None:
-            if _is_window(node):
-                cons.append(_window_dict(node))
-                return
-            children = {
-                child["id"]: child
-                for child in node.get("nodes", []) + node.get("floating_nodes", [])
-                if isinstance(child, dict) and "id" in child
-            }
-            focus_order = [cid for cid in node.get("focus") or [] if cid in children]
-            seen = set(focus_order)
-            ordered = focus_order + [cid for cid in children if cid not in seen]
-            for cid in ordered:
-                visit(children[cid])
-
-        visit(ws)
-        return cons
-
-    def collect_mru(root: dict) -> list[dict]:
-        """Round-robin workspaces in output-MRU order.
-
-        Sway tracks focus history per-container, not globally, so a naive
-        depth-first walk would emit *all* windows from workspace A before
-        any from workspace B — even if B was the last place you looked.
-        Round-robining (workspace0.focus[0], ws1.focus[0], ws2.focus[0],
-        then workspace0.focus[1], ws1.focus[1], ...) gives a global MRU
-        that matches user expectation: the previously focused window
-        from the previously focused workspace ends up on top.
-        """
-        # Workspaces in output-MRU order across all outputs.
-        workspaces: list[list[dict]] = []
-        for output in root.get("nodes", []):
-            if not isinstance(output, dict):
-                continue
-            ws_by_id = {
-                ws["id"]: ws
-                for ws in output.get("nodes", [])
-                if isinstance(ws, dict) and "id" in ws
-            }
-            focus_order = [wid for wid in output.get("focus") or [] if wid in ws_by_id]
-            ordered_ws = focus_order + [
-                wid for wid in ws_by_id if wid not in set(focus_order)
-            ]
-            for wid in ordered_ws:
-                ws = ws_by_id[wid]
-                if ws.get("name", "").startswith("__"):
-                    continue  # skip i3-internal scratch workspaces
-                cons = collect_workspace_cons(ws)
-                if cons:
-                    workspaces.append(cons)
-
-        # Round-robin across workspaces.
-        merged: list[dict] = []
-        max_len = max((len(ws) for ws in workspaces), default=0)
-        for rank in range(max_len):
-            for ws in workspaces:
-                if rank < len(ws):
-                    merged.append(ws[rank])
-        return merged
-
-    if isinstance(tree, dict):
-        if mru:
-            windows = collect_mru(tree)
-            # Push the currently focused window to the end so Enter on the
-            # picker's first row toggles to the previous window.
-            focused_idx = next(
-                (i for i, w in enumerate(windows) if w.get("focused")), -1
-            )
-            if focused_idx >= 0:
-                windows.append(windows.pop(focused_idx))
-        else:
-            visit_dfs(tree)
-    return windows
+        return None
+    return tree if isinstance(tree, dict) else None
 
 
 def _is_window(node: dict) -> bool:
@@ -199,6 +123,104 @@ def _window_dict(node: dict) -> dict:
         "title": node.get("name") or "",
         "focused": bool(node.get("focused")),
     }
+
+
+def _collect_dfs(node: dict) -> list[dict]:
+    """Walk the tree depth-first and return windows in tree order."""
+    out: list[dict] = []
+    if _is_window(node):
+        out.append(_window_dict(node))
+    for child in node.get("nodes", []) + node.get("floating_nodes", []):
+        if isinstance(child, dict):
+            out.extend(_collect_dfs(child))
+    return out
+
+
+def _collect_workspace_cons(ws: dict) -> list[dict]:
+    """Flatten a workspace into a list of windows in its container focus order.
+
+    Within the workspace, walk children in the order recorded by each
+    container's ``focus`` array (most-recently-focused first), falling back
+    to the natural child order for any IDs not listed (e.g. newly created
+    windows that haven't been touched yet).
+    """
+    if _is_window(ws):
+        return [_window_dict(ws)]
+    children = {
+        child["id"]: child
+        for child in ws.get("nodes", []) + ws.get("floating_nodes", [])
+        if isinstance(child, dict) and "id" in child
+    }
+    focus_order = [cid for cid in ws.get("focus") or [] if cid in children]
+    seen = set(focus_order)
+    ordered = focus_order + [cid for cid in children if cid not in seen]
+    out: list[dict] = []
+    for cid in ordered:
+        out.extend(_collect_workspace_cons(children[cid]))
+    return out
+
+
+def _collect_mru(root: dict) -> list[dict]:
+    """Round-robin windows across workspaces in output-MRU order.
+
+    Sway tracks focus history per-container, not globally, so a naive
+    depth-first walk would emit *all* windows from workspace A before any
+    from workspace B — even if B was the last place you looked.
+    Round-robining (ws0.focus[0], ws1.focus[0], ws2.focus[0], then
+    ws0.focus[1], ws1.focus[1], ...) gives a global MRU that matches user
+    expectation: the previously focused window from the previously focused
+    workspace ends up on top.
+    """
+    workspaces = _ordered_workspaces(root)
+    merged: list[dict] = []
+    max_len = max((len(ws) for ws in workspaces), default=0)
+    for rank in range(max_len):
+        for ws in workspaces:
+            if rank < len(ws):
+                merged.append(ws[rank])
+    return merged
+
+
+def _ordered_workspaces(root: dict) -> list[list[dict]]:
+    """Return per-workspace window lists in output-MRU order.
+
+    Skips i3-internal scratch workspaces (names starting with ``__``) and
+    workspaces with no real windows (no ``pid``).
+    """
+    workspaces: list[list[dict]] = []
+    for output in root.get("nodes", []):
+        if not isinstance(output, dict):
+            continue
+        ws_by_id = {
+            ws["id"]: ws
+            for ws in output.get("nodes", [])
+            if isinstance(ws, dict) and "id" in ws
+        }
+        focus_order = [wid for wid in output.get("focus") or [] if wid in ws_by_id]
+        seen = set(focus_order)
+        ordered_ws = focus_order + [wid for wid in ws_by_id if wid not in seen]
+        for wid in ordered_ws:
+            ws = ws_by_id[wid]
+            if ws.get("name", "").startswith("__"):
+                continue
+            cons = _collect_workspace_cons(ws)
+            if cons:
+                workspaces.append(cons)
+    return workspaces
+
+
+def _focused_last(windows: list[dict]) -> list[dict]:
+    """Return ``windows`` with the currently-focused entry moved to the end.
+
+    No-op if no entry is marked ``focused``. Used by MRU mode so the picker
+    pre-selects the most recent *other* window on row 0.
+    """
+    focused_idx = next((i for i, w in enumerate(windows) if w.get("focused")), -1)
+    if focused_idx < 0:
+        return windows
+    out = list(windows)
+    out.append(out.pop(focused_idx))
+    return out
 
 
 def picker_cache_path(name: str) -> str:

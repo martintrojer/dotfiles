@@ -233,6 +233,9 @@ Subscribes to Pi's `agent_end` event so attention only fires once the prompt is 
 
 `prefix + Ctrl-g` opens an fzf cheatsheet popup inside tmux. The script auto-derives entries from `tmux list-keys -T prefix -N`, so adding `bind -N "label" key cmd` in `.tmux.conf` is enough to make it appear in the picker — no separate cheatsheet edit required. Stock tmux defaults show up with their own one-liners.
 
-A small static section in the script lists plugin binds (tmux-fingers, tmux-fzf, TPM) and no-prefix keys (`C-q`, `C-h/j/k/l` via vim-tmux-navigator) since those don't show up as annotated `bind -N` entries. Update that block when adding or removing plugins.
+The script is Python (`tmux/.config/tmux/scripts/cheatsheet`). Section membership lives in the `SECTION_KEYS` dict near the top; add a key there to put it in a section. The picker shows a curated subset by default — keys mapped into the `Sessions / Windows / Panes / Resize / Copy & Pick / Tools` sections. Useful flags:
 
-The picker shows a curated subset by default — keys mapped into the `Sessions / Windows / Panes / Resize / Copy & Pick / Tools` sections. Run `~/.config/tmux/scripts/cheatsheet --all` to dump every binding in the prefix table without filtering.
+- `--all` dumps every binding in the prefix table; uncategorised keys go to a trailing `Other` section.
+- `--no-picker` prints the rendered cheatsheet to stdout instead of opening fzf, used by `tmux/.config/tmux/scripts/test-status-tools` to assert formatting.
+
+A small static block in the script lists plugin binds (tmux-fingers, tmux-fzf, TPM) and no-prefix keys (`C-q`, `C-h/j/k/l` via vim-tmux-navigator) since those don't show up as annotated `bind -N` entries. Update `PLUGIN_EXTRAS` / `NO_PREFIX_EXTRAS` when adding or removing plugins.

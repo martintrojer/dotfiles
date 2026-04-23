@@ -11,6 +11,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import tomllib
 import sys
 from itertools import chain
 from time import monotonic
@@ -426,10 +427,6 @@ def managed_link_target(path: Path, source_root: Path) -> Path | None:
     return resolved
 
 
-def repo_target_of_link(path: Path, script_real: Path) -> Path | None:
-    return managed_link_target(path, script_real)
-
-
 def extra_managed_backlink_issues(
     dest_dir: Path,
     *,
@@ -479,7 +476,7 @@ def check_repo_backlinks(
         for path in scan_iter:
             if not path.is_symlink():
                 continue
-            repo_target = repo_target_of_link(path, script_real)
+            repo_target = managed_link_target(path, script_real)
             if repo_target is None:
                 continue
 
@@ -1165,17 +1162,33 @@ def _check_claude_hook(config_path: Path) -> str | None:
 
 
 def _check_codex_hook(config_path: Path) -> str | None:
-    """Check if Codex config.toml has the agent-attention notify command."""
+    """Check if Codex config.toml has the agent-attention notify command.
+
+    Codex's ``notify`` key is a TOML array of strings invoked as argv
+    (typically ``["/bin/sh", "-lc", "... agent-attention notify --source
+    codex ..."]``). Parse the file with ``tomllib`` and inspect that key
+    directly so comments and unrelated keys can't false-positive.
+    """
     if not config_path.is_file():
         return "config not found"
     try:
-        content = config_path.read_text()
+        with config_path.open("rb") as fh:
+            data = tomllib.load(fh)
     except OSError:
         return "cannot read config"
-    # Support both string and TOML array formats for the notify command.
-    if "agent-attention" in content and "--source" in content and "codex" in content:
+    except tomllib.TOMLDecodeError as exc:
+        return f"invalid TOML: {exc}"
+
+    notify = data.get("notify")
+    if not isinstance(notify, list) or not notify:
+        return "no notify command configured"
+    joined = " ".join(part for part in notify if isinstance(part, str))
+    # The script path can be quoted (codex's TOML array form requires it for
+    # ``$HOME`` expansion via ``sh -lc``), so just check for the script's
+    # filename plus the codex-specific ``--source`` flag.
+    if "agent-attention" in joined and "--source codex" in joined:
         return None
-    return "agent-attention hook not found in config"
+    return "agent-attention hook not found in notify command"
 
 
 def check_agent_hooks(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
