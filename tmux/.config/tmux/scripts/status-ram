@@ -18,10 +18,40 @@ MEDIUM_THRESH = 75
 HIGH_THRESH = 90
 
 STATE_DIR = (
-    Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state")))
+    Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
     / "tmux-status"
 )
 DARWIN_STATE = STATE_DIR / "memory-pressure.json"
+ERROR_LOG = STATE_DIR / "status-ram.log"
+ERROR_LOG_THROTTLE_SECONDS = 60 * 60  # one breadcrumb per hour
+
+# Exceptions the rendering path can plausibly raise from OS / parsing /
+# arithmetic. Anything outside this set is a programmer error and should
+# crash loudly so the bug surfaces in normal development instead of
+# silently turning into a `?` glyph in the tmux status bar.
+EXPECTED_ERRORS = (
+    OSError,
+    subprocess.SubprocessError,
+    RuntimeError,
+    ValueError,
+    KeyError,
+    ZeroDivisionError,
+)
+
+
+def log_error(message: str) -> None:
+    """Append a throttled error breadcrumb so silent failures stay debuggable."""
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        now = time.time()
+        if ERROR_LOG.is_file():
+            mtime = ERROR_LOG.stat().st_mtime
+            if now - mtime < ERROR_LOG_THROTTLE_SECONDS:
+                return
+        with ERROR_LOG.open("a", encoding="utf-8") as handle:
+            handle.write(f"{int(now)}\t{message}\n")
+    except OSError:
+        return
 
 
 def clamp(value: float, lower: float = 0.0, upper: float = 100.0) -> int:
@@ -209,7 +239,8 @@ def render_segment(percentage: int) -> str:
 def main() -> None:
     try:
         print(render_segment(ram_percentage()))
-    except Exception:
+    except EXPECTED_ERRORS as exc:
+        log_error(f"ram render failed: {exc!r}")
         print("ram ?")
 
 

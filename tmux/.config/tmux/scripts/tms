@@ -18,7 +18,7 @@ DEFAULT_SPLIT = ""
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "tms.toml"
 AGENT_ATTENTION_SCRIPT = Path(__file__).with_name("agent-attention")
 STATE_DIR = (
-    Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "tms"
+    Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state") / "tms"
 )
 LAST_FILE = STATE_DIR / "last"
 
@@ -65,6 +65,20 @@ class TmsConfig:
     noisy_basenames: frozenset[str]
     find_max_depth: int
     preview_command: str
+
+
+# Picker-row schema. The first field is the rendered (ANSI-styled) display
+# text fzf shows; the rest are payload fields parsed back out of the
+# selected row. Reordering or adding to this list updates both `to_fzf_row`
+# and `from_fzf_row` at once, so the producer and consumer can never drift.
+FZF_ROW_FIELDS: tuple[str, ...] = (
+    "display",  # synthetic: rendered text from visible_text()
+    "kind",
+    "session_name",
+    "path",
+    "startup",
+    "split",
+)
 
 
 @dataclass(frozen=True)
@@ -119,16 +133,32 @@ class Entry:
         return ansi_style(text, fg=fg)
 
     def to_fzf_row(self) -> str:
-        return "\t".join(
-            [
-                self.visible_text(),
-                self.kind,
-                self.session_name,
-                self.path,
-                self.startup,
-                self.split,
-            ]
-        )
+        values = {
+            "display": self.visible_text(),
+            "kind": self.kind,
+            "session_name": self.session_name,
+            "path": self.path,
+            "startup": self.startup,
+            "split": self.split,
+        }
+        return "\t".join(values[name] for name in FZF_ROW_FIELDS)
+
+    @classmethod
+    def from_fzf_row(cls, row: str) -> dict[str, str]:
+        """Parse a tab-joined picker row back into a ``{field: value}`` dict.
+
+        Returns a dict rather than an ``Entry`` because the rendered display
+        text is one-way (ANSI styled) and downstream consumers only need the
+        payload fields. Raises ``ConfigError`` on field-count mismatch so
+        schema drift fails loudly in one place.
+        """
+        parts = row.split("\t")
+        if len(parts) != len(FZF_ROW_FIELDS):
+            raise ConfigError(
+                f"Invalid picker row: expected {len(FZF_ROW_FIELDS)} "
+                f"tab-separated fields, got {len(parts)}"
+            )
+        return dict(zip(FZF_ROW_FIELDS, parts))
 
 
 def truncate(text: str, width: int) -> str:
@@ -177,13 +207,10 @@ def expand(path: str) -> str:
 
 
 def prompt_for_mode(mode: str) -> str:
-    return {
-        "all": "›  ",
-        "default": "★  ",
-        "tmux": "●  ",
-        "zoxide": "◦  ",
-        "find": "·  ",
-    }[mode]
+    # "all" is a synthetic mode that doesn't appear in KIND_ICON; the rest
+    # share their glyph with the per-entry kind icon for visual consistency.
+    glyph = "›" if mode == "all" else KIND_ICON[mode]
+    return f"{glyph}  "
 
 
 def header_text() -> str:
@@ -251,13 +278,13 @@ def is_useful_path(path: str, *, mode: str, config: TmsConfig) -> bool:
     parts = p.parts
     basename = p.name
 
-    if basename in config.blacklist or basename in config.noisy_basenames:
-        return False
     if basename.startswith(".") and basename not in {".dotfiles"}:
         return False
-    if any(part in config.blacklist for part in parts):
-        return False
-    if any(part in config.noisy_basenames for part in parts):
+    # `parts` includes the basename, so a single pass against the union of
+    # both deny-lists subsumes the per-basename and per-segment checks the
+    # earlier version did separately.
+    blocked = config.blacklist | config.noisy_basenames
+    if any(part in blocked for part in parts):
         return False
 
     home = Path.home()
@@ -725,28 +752,22 @@ def connect(target: str) -> int:
             session.startup,
             session.split,
         )
-    if Path(target).exists():
-        path = target
-        return connect_resolved(
-            session_name_for_path(path),
-            path,
-            None,
-            DEFAULT_SPLIT,
-        )
-    return connect_resolved(target, None, None, DEFAULT_SPLIT)
+    # Either a real path (create/attach a session rooted there) or a bare
+    # session name (attach if it exists, error otherwise — connect_resolved
+    # handles both via its `path is None` branch).
+    path = target if Path(target).exists() else None
+    name = session_name_for_path(target) if path else target
+    return connect_resolved(name, path, None, DEFAULT_SPLIT)
 
 
 def parse_selection(choice: str) -> tuple[str, str | None, str | None, str]:
-    parts = choice.split("\t")
-    if len(parts) != 6:
-        raise ConfigError(
-            f"Invalid picker row: expected 6 tab-separated fields, got {len(parts)}"
-        )
-    session_name = parts[2]
-    path = parts[3] or None
-    startup = parts[4] or None
-    split = parts[5] or DEFAULT_SPLIT
-    return session_name, path, startup, split
+    fields = Entry.from_fzf_row(choice)
+    return (
+        fields["session_name"],
+        fields["path"] or None,
+        fields["startup"] or None,
+        fields["split"] or DEFAULT_SPLIT,
+    )
 
 
 def connect_selection() -> int:

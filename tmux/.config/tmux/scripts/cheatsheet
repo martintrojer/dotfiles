@@ -1,86 +1,249 @@
-#!/usr/bin/env bash
-# Auto-generated tmux cheatsheet picker.
-#
-# Pulls the live key table via `tmux list-keys -T prefix -N` so descriptions
-# track what's actually loaded in the running tmux server. Repo-defined
-# bindings show their `bind -N "..."` annotation; built-in defaults show
-# tmux's own one-liners.
-#
-# By default the picker only includes a curated set of high-signal keys
-# (the ones in the section maps below). Pass `--all` to dump every binding
-# in the prefix table without filtering.
-set -euo pipefail
+#!/usr/bin/env python3
+"""Auto-generated tmux cheatsheet picker.
 
-show_all=0
-[[ ${1:-} == "--all" ]] && show_all=1
+Pulls the live key table via ``tmux list-keys -T prefix -N`` so descriptions
+track what's actually loaded in the running tmux server. Repo-defined
+bindings show their ``bind -N "..."`` annotation; built-in defaults show
+tmux's own one-liners.
 
-prefix=${PREFIX_LABEL:-prefix}
+By default the picker only includes a curated set of high-signal keys (the
+ones in the ``SECTION_KEYS`` map below). Pass ``--all`` to dump every binding
+in the prefix table without filtering, with un-categorised keys grouped
+under "Other".
+"""
 
-# key → section. Order matters only for readability; first match wins.
-classify() {
-  local key=$1
-  case "$key" in
-    s|S|g|T|R|w|d|D|'$') echo "Sessions" ;;
-    c|n|p|','|'&'|'.'|"'"|0|1|2|3|4|5|6|7|8|9) echo "Windows" ;;
-    '!'|'"'|'%'|M|';'|o|z|x|'{'|'}'|q|Up|Down|Left|Right) echo "Panes" ;;
-    r|M-Up|M-Down|M-Left|M-Right) echo "Resize" ;;
-    '['|']'|'='|'#'|y|v|Tab|BTab) echo "Copy & Pick" ;;
-    F|C-g|A|'?'|I|'/'|':'|t) echo "Tools" ;;
-    *) [[ $show_all -eq 1 ]] && echo "Other" || echo "" ;;
-  esac
+from __future__ import annotations
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+
+# Section ordering when rendering. "Plugins" and "No prefix" are static
+# footers (see PLUGIN_EXTRAS / NO_PREFIX_EXTRAS) and not produced from
+# list-keys output.
+SECTION_ORDER = ["Sessions", "Windows", "Panes", "Resize", "Copy & Pick", "Tools"]
+
+# section -> set of keys that belong there. Membership is exact-string match
+# against the first column of `tmux list-keys -T prefix -N`. Add a new key
+# here and it shows up in the picker on next run.
+SECTION_KEYS: dict[str, set[str]] = {
+    "Sessions": {"s", "S", "g", "T", "R", "w", "d", "D", "$"},
+    "Windows": {
+        "c",
+        "n",
+        "p",
+        ",",
+        "&",
+        ".",
+        "'",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+    },
+    "Panes": {
+        "!",
+        '"',
+        "%",
+        "M",
+        ";",
+        "o",
+        "z",
+        "x",
+        "{",
+        "}",
+        "q",
+        "Up",
+        "Down",
+        "Left",
+        "Right",
+    },
+    "Resize": {
+        "r",
+        # 5-step resize (Meta) and 1-step resize (Ctrl) defaults.
+        "M-Up",
+        "M-Down",
+        "M-Left",
+        "M-Right",
+        "C-Up",
+        "C-Down",
+        "C-Left",
+        "C-Right",
+    },
+    "Copy & Pick": {"[", "]", "=", "#", "y", "v", "Tab", "BTab"},
+    "Tools": {"F", "C-g", "A", "?", "I", "/", ":", "t"},
 }
-
-raw=$(tmux list-keys -T prefix -N 2>/dev/null \
-  | awk '{ key = $1; $1 = ""; sub(/^ +/, ""); if ($0 == "") next; printf "%s\t%s\n", key, $0 }')
-
-if [[ -z "$raw" ]]; then
-  echo "No tmux key bindings found." >&2
-  exit 1
-fi
-
-formatted=$(
-  printf '%s\n' "$raw" \
-    | while IFS=$'\t' read -r key note; do
-        section=$(classify "$key")
-        [[ -z "$section" ]] && continue
-        printf '%s\t%-9s %s\n' "$section" "$key" "$note"
-      done \
-    | sort -t$'\t' -k1,1 -k2,2 \
-    | awk -F'\t' '
-        BEGIN { current = "" }
-        {
-          if ($1 != current) {
-            if (current != "") print ""
-            printf "── %s ──\n", $1
-            current = $1
-          }
-          print $2
-        }
-      '
-)
 
 # Static footer: plugin binds and no-prefix keys that don't surface as
 # annotated `bind -N ...` entries in list-keys. Update when adding plugins.
-extras=$(cat <<'EXTRAS'
+PLUGIN_EXTRAS: list[tuple[str, str]] = [
+    ("Tab", "tmux-fingers: pick visible token"),
+    ("BTab", "tmux-fingers: pick + jump to token"),
+    ("F", "tmux-fzf menu (sessions / windows / panes / clipboard / ...)"),
+    ("I", "TPM: install plugins"),
+    ("U", "TPM: update plugins"),
+]
+NO_PREFIX_EXTRAS: list[tuple[str, str]] = [
+    ("C-q", "Clear pane history"),
+    ("C-h/j/k/l", "Move between panes / vim splits (vim-tmux-navigator)"),
+]
 
-── Plugins ──
-Tab       tmux-fingers: pick visible token
-BTab      tmux-fingers: pick + jump to token
-F         tmux-fzf menu (sessions / windows / panes / clipboard / ...)
-I         TPM: install plugins
-U         TPM: update plugins
+KEY_COL_WIDTH = 9
 
-── No prefix ──
-C-q       Clear pane history
-C-h/j/k/l Move between panes / vim splits (vim-tmux-navigator)
-EXTRAS
-)
 
-printf '%s\n%s\n' "$formatted" "$extras" \
-  | fzf \
-      --prompt="$prefix > " \
-      --reverse \
-      --no-multi \
-      --ansi \
-      --header="tmux cheatsheet (auto-generated; --all for everything)" \
-  || true
+def parse_keys(raw: str) -> list[tuple[str, str]]:
+    """Parse ``tmux list-keys -T prefix -N`` output into ``(key, note)`` pairs.
+
+    Skips entries with an empty note (typically built-in keys without a
+    description registered). Returns the order tmux emitted, which is
+    alphanumeric — callers may re-sort.
+    """
+    entries: list[tuple[str, str]] = []
+    for line in raw.splitlines():
+        # Each line is "<key><whitespace><note>". The note may itself
+        # contain spaces, so split into exactly 2 parts on whitespace.
+        parts = line.split(None, 1)
+        if len(parts) < 2:
+            continue
+        key, note = parts[0], parts[1].strip()
+        if not note:
+            continue
+        entries.append((key, note))
+    return entries
+
+
+def classify(key: str) -> str | None:
+    """Return the section name for ``key``, or ``None`` if uncategorised."""
+    for section, keys in SECTION_KEYS.items():
+        if key in keys:
+            return section
+    return None
+
+
+def format_sections(entries: list[tuple[str, str]], *, show_all: bool) -> list[str]:
+    """Group + format ``entries`` into ordered section blocks.
+
+    Returns a flat list of lines suitable for piping to fzf: each section
+    starts with a ``── Section ──`` header followed by ``key  note`` rows,
+    with one blank line between sections. With ``show_all=True`` every
+    entry is included; uncategorised keys go to a trailing "Other" section.
+    """
+    by_section: dict[str, list[tuple[str, str]]] = {s: [] for s in SECTION_ORDER}
+    other: list[tuple[str, str]] = []
+
+    for key, note in entries:
+        section = classify(key)
+        if section is not None:
+            by_section[section].append((key, note))
+        elif show_all:
+            other.append((key, note))
+
+    blocks: list[list[str]] = []
+    for section in SECTION_ORDER:
+        rows = by_section[section]
+        if rows:
+            blocks.append(_render_block(section, rows))
+    if show_all and other:
+        blocks.append(_render_block("Other", other))
+
+    out: list[str] = []
+    for i, block in enumerate(blocks):
+        if i > 0:
+            out.append("")
+        out.extend(block)
+    return out
+
+
+def _render_block(title: str, rows: list[tuple[str, str]]) -> list[str]:
+    """Render one section: a header line followed by ``key  note`` rows."""
+    sorted_rows = sorted(rows, key=lambda kv: (kv[0].lower(), kv[0]))
+    lines = [f"── {title} ──"]
+    for key, note in sorted_rows:
+        lines.append(f"{key:<{KEY_COL_WIDTH}} {note}")
+    return lines
+
+
+def render_extras() -> list[str]:
+    """Render the static Plugins / No-prefix footer blocks."""
+    out: list[str] = [""]
+    out.extend(_render_block("Plugins", PLUGIN_EXTRAS))
+    out.append("")
+    out.extend(_render_block("No prefix", NO_PREFIX_EXTRAS))
+    return out
+
+
+def fetch_keys() -> str:
+    """Run ``tmux list-keys -T prefix -N`` and return its raw stdout."""
+    result = subprocess.run(
+        ["tmux", "list-keys", "-T", "prefix", "-N"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Include every prefix-table binding, not just the curated sections.",
+    )
+    parser.add_argument(
+        "--no-picker",
+        action="store_true",
+        help="Print the rendered cheatsheet to stdout instead of opening fzf "
+        "(used by tests).",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+
+    raw = fetch_keys()
+    entries = parse_keys(raw)
+    if not entries:
+        print("No tmux key bindings found.", file=sys.stderr)
+        return 1
+
+    lines = format_sections(entries, show_all=args.all) + render_extras()
+
+    if args.no_picker:
+        sys.stdout.write("\n".join(lines) + "\n")
+        return 0
+
+    if shutil.which("fzf") is None:
+        # Degrade gracefully: if fzf is missing, print to stdout.
+        sys.stdout.write("\n".join(lines) + "\n")
+        return 0
+
+    prefix = os.environ.get("PREFIX_LABEL", "prefix")
+    proc = subprocess.run(
+        [
+            "fzf",
+            f"--prompt={prefix} > ",
+            "--reverse",
+            "--no-multi",
+            "--ansi",
+            "--header=tmux cheatsheet (auto-generated; --all for everything)",
+        ],
+        input="\n".join(lines),
+        text=True,
+        check=False,
+    )
+    # fzf returns 130 on Ctrl-C / Esc; that's not an error for us.
+    return 0 if proc.returncode in (0, 1, 130) else proc.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -51,8 +51,9 @@ def main() -> int:
 
     if window_id is None:
         for window in list_sway_windows():
-            app_id = str(window.get("app_id", ""))
-            title = str(window.get("title", ""))
+            # _common.list_sway_windows guarantees these are strings.
+            app_id = window.get("app_id", "")
+            title = window.get("title", "")
             app_match = (
                 app_id_pattern.search(app_id) is not None
                 if app_id_pattern is not None

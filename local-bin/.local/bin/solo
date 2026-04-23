@@ -64,7 +64,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def state_root() -> Path:
-    return Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state")))
+    return Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
 
 
 def slugify_project_root(project_root: Path) -> str:

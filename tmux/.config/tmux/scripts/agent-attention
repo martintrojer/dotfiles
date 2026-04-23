@@ -4,18 +4,21 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import fcntl
 import json
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
 STATE_DIR = (
-    Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state")))
+    Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
     / "tmux-agent-attention"
 )
 PENDING_FILE = STATE_DIR / "pending.jsonl"
@@ -78,11 +81,25 @@ def to_int(value: object, default: int = 0) -> int:
 
 
 def find_tty() -> Optional[str]:
-    """Walk up the process tree to find a controlling TTY.
+    """Resolve the controlling TTY for the current process.
+
+    Fast path: ``os.ttyname(fd)`` for stdin/stdout/stderr — zero forks when
+    the script is run interactively or from a tmux pane that inherited a
+    TTY on at least one standard fd.
+
+    Slow path: walk up the process tree via ``ps``, used for hook
+    subprocesses (systemd, agent harnesses) where none of fd0/1/2 is a TTY.
+    Each ``ps`` invocation is two forks; we cap the walk at 8 levels.
 
     On macOS ``ps -o tty=`` outputs ``??`` for processes with no controlling
     tty (Linux uses ``?``). Treat any all-``?`` value as no-tty.
     """
+    for fd in (0, 1, 2):
+        try:
+            return os.ttyname(fd)
+        except OSError:
+            continue
+
     pid = str(os.getpid())
     for _ in range(8):
         try:
@@ -162,6 +179,37 @@ def is_focused_pane(ctx: dict[str, str]) -> bool:
 
 
 # ---------- pending events store ----------
+#
+# Concurrency model: the file is JSONL, one event per line. The notify hot
+# path (`append_event`) does a single `O_APPEND` write of one line, which is
+# atomic w.r.t. concurrent appends on POSIX local filesystems for writes
+# below PIPE_BUF (~4 KB) — a single JSON event fits easily. The
+# truncate-rewrite paths (`save_events`, `prune_stale_events`,
+# `clear_events_for_target`) use a `.lock` sidecar guarded by `fcntl.flock`
+# and write to a tempfile + atomic rename, so concurrent appends and
+# rewrites can't interleave or leave a half-written file behind.
+
+LOCK_FILE = PENDING_FILE.with_suffix(PENDING_FILE.suffix + ".lock")
+
+
+@contextlib.contextmanager
+def _events_lock() -> Iterator[None]:
+    """Hold an exclusive flock on the sidecar lock file for the duration.
+
+    The lock lives on a sidecar (not on PENDING_FILE itself) so that the
+    truncate-rewrite path can rename the data file underneath without
+    invalidating the lock fd held by other waiters.
+    """
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    fd = os.open(LOCK_FILE, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
 
 
 def load_events() -> list[dict[str, object]]:
@@ -182,11 +230,47 @@ def load_events() -> list[dict[str, object]]:
     return events
 
 
-def save_events(events: list[dict[str, object]]) -> None:
+def append_event(event: dict[str, object]) -> None:
+    """Atomically append a single event to the JSONL store.
+
+    Uses ``O_APPEND`` so concurrent notifies from multiple panes can't
+    overwrite each other. No flock is needed for the append itself; the
+    lock only matters for truncate-rewrite paths that may run in parallel.
+    """
     STATE_DIR.mkdir(parents=True, exist_ok=True)
-    with PENDING_FILE.open("w", encoding="utf-8") as f:
-        for event in events[-MAX_EVENTS:]:
-            f.write(json.dumps(event, separators=(",", ":")) + "\n")
+    line = json.dumps(event, separators=(",", ":")) + "\n"
+    fd = os.open(PENDING_FILE, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    try:
+        os.write(fd, line.encode("utf-8"))
+    finally:
+        os.close(fd)
+
+
+def _rewrite_events_locked(events: list[dict[str, object]]) -> None:
+    """Truncate-rewrite the store via tempfile + atomic rename.
+
+    Caller must hold ``_events_lock()``. Trims to ``MAX_EVENTS`` retaining
+    the most recent entries.
+    """
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(
+        prefix=PENDING_FILE.name + ".", suffix=".tmp", dir=str(STATE_DIR)
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            for event in events[-MAX_EVENTS:]:
+                f.write(json.dumps(event, separators=(",", ":")) + "\n")
+        os.replace(tmp_path, PENDING_FILE)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_path)
+        raise
+
+
+def save_events(events: list[dict[str, object]]) -> None:
+    """Replace the entire store with ``events``. Locks; safe under contention."""
+    with _events_lock():
+        _rewrite_events_locked(events)
 
 
 def list_existing_targets() -> set[tuple[str, str]]:
@@ -200,32 +284,35 @@ def list_existing_targets() -> set[tuple[str, str]]:
 
 
 def prune_stale_events() -> list[dict[str, object]]:
-    events = load_events()
-    if not events:
-        return events
-    targets = list_existing_targets()
-    if not targets:
-        save_events([])
-        return []
-    filtered = [
-        e
-        for e in events
-        if (str(e.get("session_id", "")), str(e.get("window_id", ""))) in targets
-    ]
-    if len(filtered) != len(events):
-        save_events(filtered)
-    return filtered
+    with _events_lock():
+        events = load_events()
+        if not events:
+            return events
+        targets = list_existing_targets()
+        if not targets:
+            _rewrite_events_locked([])
+            return []
+        filtered = [
+            e
+            for e in events
+            if (str(e.get("session_id", "")), str(e.get("window_id", ""))) in targets
+        ]
+        if len(filtered) != len(events):
+            _rewrite_events_locked(filtered)
+        return filtered
 
 
 def clear_events_for_target(session_id: Optional[str], window_id: str) -> None:
-    events = load_events()
-    filtered = [
-        e
-        for e in events
-        if str(e.get("window_id")) != window_id
-        or (session_id is not None and str(e.get("session_id")) != session_id)
-    ]
-    save_events(filtered)
+    with _events_lock():
+        events = load_events()
+        filtered = [
+            e
+            for e in events
+            if str(e.get("window_id")) != window_id
+            or (session_id is not None and str(e.get("session_id")) != session_id)
+        ]
+        if len(filtered) != len(events):
+            _rewrite_events_locked(filtered)
 
 
 # ---------- notifications ----------
@@ -364,9 +451,7 @@ def cmd_notify(args: argparse.Namespace) -> int:
         return 0
 
     event: dict[str, object] = {"ts": int(time.time()), **ctx, **fields}
-    events = load_events()
-    events.append(event)
-    save_events(events)
+    append_event(event)
 
     set_attention_flag(ctx["window_id"], True)
     send_system_notification(fields)
