@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode="${1:-all}"
+target_dir="${HOME}/Pictures/Screenshots"
+target="${target_dir}/Screenshot from $(date '+%Y-%m-%d %H-%M-%S').png"
+
+mkdir -p "$target_dir"
+
+case "$mode" in
+  all)
+    exec grim "$target"
+    ;;
+  output)
+    output="$(swaymsg -t get_outputs | jq -r '.[] | select(.focused).name')"
+    if [[ -z "$output" ]]; then
+      echo "screenshot: no focused output found" >&2
+      exit 1
+    fi
+    exec grim -o "$output" "$target"
+    ;;
+  region)
+    exec grim -g "$(slurp)" "$target"
+    ;;
+  *)
+    echo "usage: screenshot [all|output|region]" >&2
+    exit 2
+    ;;
+esac

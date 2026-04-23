@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""Window switcher using niri msg."""
+"""Window switcher using swaymsg."""
 
 from __future__ import annotations
 
 import argparse
-import json
 
 from _common import (
     ScriptError,
     fuzzel_dmenu,
+    list_sway_windows,
     notify,
-    picker_cache_path,
     require_commands,
     run,
 )
@@ -24,37 +23,32 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def list_windows() -> list[dict]:
-    result = run(["niri", "msg", "-j", "windows"], check=False)
-    if result.returncode != 0:
-        return []
-    windows = json.loads(result.stdout)
-    if not isinstance(windows, list):
-        return []
-    return windows
-
-
 def main() -> int:
     args = parse_args()
-    require_commands(["niri", "fuzzel"])
-    cache = picker_cache_path("windows")
+    require_commands(["fuzzel", "swaymsg"])
 
-    windows = list_windows()
+    # MRU order with the focused window pushed to the bottom: the previous
+    # window ends up on row 0 so `mod+Tab Enter` toggles between the two
+    # most recent windows like Alt-Tab. No fuzzel cache here — the cache
+    # would re-sort by selection-recency and clobber sway's own focus order.
+    windows = list_sway_windows(mru=True)
     if not windows:
-        notify("Windows", "No windows open or niri is unavailable")
+        notify("Windows", "No windows open or sway IPC is unavailable")
         return 0
 
+    # Markers must be non-whitespace: fuzzel_dmenu() strips its result, which
+    # would otherwise eat the leading spaces and break the index lookup below.
     display_options: list[str] = []
     for item in windows:
         app_id = item.get("app_id") or "unknown"
         title = item.get("title") or "untitled"
-        display_options.append(f"{app_id}: {title}")
+        marker = "•" if item.get("focused") else "·"
+        display_options.append(f"{marker} {app_id}: {title}")
 
     selected = fuzzel_dmenu(
         prompt=args.prompt,
         width=args.width,
         lines=args.lines,
-        cache=cache,
         options=display_options,
     )
     if not selected:
@@ -69,13 +63,13 @@ def main() -> int:
     if window_id is None:
         return 0
 
-    run(["niri", "msg", "action", "focus-window", "--id", str(window_id)], check=False)
+    run(["swaymsg", f"[con_id={window_id}]", "focus"], check=False)
     return 0
 
 
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (ScriptError, json.JSONDecodeError) as exc:
+    except ScriptError as exc:
         print(f"windows: {exc}")
         raise SystemExit(1)

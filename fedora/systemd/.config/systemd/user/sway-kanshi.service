@@ -1,12 +1,13 @@
 [Unit]
-Description=Swayidle Idle Manager (Sway)
+Description=Kanshi Output Profile Daemon (Sway)
 PartOf=sway-session.target
 BindsTo=sway-session.target
 After=sway-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/.config/sway/scripts/session-swayidle
+ExecStart=/usr/bin/kanshi
+ExecReload=/usr/bin/kanshictl reload
 Restart=always
 RestartSec=1
 

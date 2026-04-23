@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+session_env=(
+  DISPLAY
+  WAYLAND_DISPLAY
+  XDG_CURRENT_DESKTOP
+  XDG_SESSION_TYPE
+  SWAYSOCK
+)
+
+systemctl --user import-environment "${session_env[@]}" || true
+
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+  dbus-update-activation-environment --systemd "${session_env[@]}" >/dev/null 2>&1 || true
+fi
+
+systemctl --user start sway-session.target
+systemctl --user reload-or-restart sway-kanshi.service >/dev/null 2>&1 || true

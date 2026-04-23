@@ -1,0 +1,174 @@
+# Catppuccin-flavoured Sway config.
+
+set $mod Mod4
+set $term alacritty
+set $menu fuzzel --prompt 'Run '
+set $browser sh -lc "$HOME/.config/sway/scripts/open-browser"
+set $browser_profile sh -lc "$HOME/.config/sway/scripts/open-browser-profile"
+set $lock ~/.config/sway/scripts/lock-screen
+set $quit ~/.config/sway/scripts/session-quit
+
+set $rosewater #f5e0dc
+set $mauve #cba6f7
+set $red #f38ba8
+set $blue #89b4fa
+set $lavender #b4befe
+set $text #cdd6f4
+set $subtext0 #a6adc8
+set $surface0 #313244
+set $overlay0 #6c7086
+set $base #1e1e2e
+set $mantle #181825
+
+font pango:JetBrains Mono Nerd Font Bold 11
+
+input * {
+    xkb_layout us
+    xkb_options caps:escape
+}
+
+input type:keyboard {
+    xkb_numlock enabled
+}
+
+focus_follows_mouse yes
+mouse_warping container
+focus_wrapping no
+workspace_auto_back_and_forth yes
+
+# Outputs are intentionally left to kanshi.
+
+default_border pixel 2
+default_floating_border pixel 2
+hide_edge_borders smart_no_gaps
+gaps inner 4
+gaps outer 0
+smart_gaps on
+
+client.focused          $blue     $base $text     $lavender $blue
+client.focused_inactive $surface0 $base $subtext0 $surface0 $surface0
+client.unfocused        $mantle   $base $overlay0 $mantle   $mantle
+client.urgent           $red      $base $text     $red      $red
+client.placeholder      $mantle   $base $text     $mantle   $mantle
+client.background       $base
+
+for_window [title="^Picture in picture$"] floating enable, sticky enable, border pixel 2
+for_window [title="^Picture-in-Picture$"] floating enable, sticky enable, border pixel 2
+for_window [app_id="^pavucontrol$"] floating enable
+for_window [app_id="^nm-connection-editor$"] floating enable
+
+exec_always ~/.config/sway/scripts/session-start
+
+bindsym $mod+Shift+slash exec ~/.config/fuzzel/scripts/hotkeys
+
+bindsym $mod+t exec $term
+bindsym $mod+space exec $menu
+bindsym $mod+b exec $browser
+bindsym $mod+Shift+b exec $browser_profile
+# mod+y / mod+Shift+y: files in TUI (yazi) vs GUI (thunar).
+bindsym $mod+y exec sh -lc "$HOME/.config/sway/scripts/open-yazi"
+bindsym $mod+Shift+y exec thunar
+bindsym $mod+m exec sh -lc "$HOME/.config/sway/scripts/open-cider"
+bindsym $mod+i exec sh -lc "$HOME/.config/sway/scripts/open-vscode"
+
+bindsym $mod+Shift+p exec ~/.config/fuzzel/scripts/powermenu
+bindsym $mod+Shift+t exec ~/.config/fuzzel/scripts/toolboxes
+# mod+v: clipboard picker (mirrors tmux prefix+v).
+bindsym $mod+v exec ~/.config/fuzzel/scripts/clipboard
+bindsym $mod+e exec ~/.config/fuzzel/scripts/emoji
+bindsym $mod+Tab exec ~/.config/fuzzel/scripts/windows
+bindsym $mod+Shift+grave exec ~/.config/fuzzel/scripts/chrome-tabs
+bindsym $mod+Shift+s exec ~/.config/fuzzel/scripts/ssh
+bindsym $mod+backslash exec ~/.config/fuzzel/scripts/calc
+
+bindsym XF86AudioRaiseVolume exec wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+
+bindsym XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+bindsym XF86AudioMicMute exec wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+bindsym XF86AudioPlay exec playerctl play-pause
+bindsym XF86AudioStop exec playerctl stop
+bindsym XF86AudioPrev exec playerctl previous
+bindsym XF86AudioNext exec playerctl next
+bindsym XF86MonBrightnessUp exec brightnessctl s 10%+
+bindsym XF86MonBrightnessDown exec brightnessctl s 10%-
+
+bindsym $mod+Shift+q kill
+
+bindsym $mod+Left focus left
+bindsym $mod+Down focus down
+bindsym $mod+Up focus up
+bindsym $mod+Right focus right
+bindsym $mod+h focus left
+bindsym $mod+j focus down
+bindsym $mod+k focus up
+bindsym $mod+l focus right
+
+bindsym $mod+Shift+Left move left
+bindsym $mod+Shift+Down move down
+bindsym $mod+Shift+Up move up
+bindsym $mod+Shift+Right move right
+bindsym $mod+Shift+h move left
+bindsym $mod+Shift+j move down
+bindsym $mod+Shift+k move up
+bindsym $mod+Shift+l move right
+
+bindsym $mod+Home focus parent
+bindsym $mod+End focus child
+bindsym $mod+Ctrl+Home move workspace to output left
+bindsym $mod+Ctrl+End move workspace to output right
+
+bindsym $mod+Page_Down workspace next
+bindsym $mod+Page_Up workspace prev
+# mod+g: toggle to last workspace (mirrors tmux prefix+g for last session).
+bindsym $mod+g workspace back_and_forth
+bindsym $mod+Ctrl+Page_Down move container to workspace next; workspace next
+bindsym $mod+Ctrl+Page_Up move container to workspace prev; workspace prev
+bindsym $mod+Shift+Page_Down move workspace to output right
+bindsym $mod+Shift+Page_Up move workspace to output left
+bindsym $mod+Shift+u move workspace to output left
+bindsym $mod+Shift+i move workspace to output right
+
+bindsym $mod+1 workspace number 1
+bindsym $mod+2 workspace number 2
+bindsym $mod+3 workspace number 3
+bindsym $mod+4 workspace number 4
+bindsym $mod+5 workspace number 5
+bindsym $mod+6 workspace number 6
+bindsym $mod+Shift+1 move container to workspace number 1
+bindsym $mod+Shift+2 move container to workspace number 2
+bindsym $mod+Shift+3 move container to workspace number 3
+bindsym $mod+Shift+4 move container to workspace number 4
+bindsym $mod+Shift+5 move container to workspace number 5
+bindsym $mod+Shift+6 move container to workspace number 6
+
+# Column-adjacent muscle memory mapped to Sway container primitives.
+bindsym $mod+bracketleft splitv
+bindsym $mod+bracketright splith
+bindsym $mod+period layout toggle tabbed split
+# mod+r cycles container width 33/50/67 ppt (mirrors tmux prefix+r).
+bindsym $mod+r exec ~/.config/sway/scripts/preset-width
+# mod+Shift+r reloads sway config (mirrors tmux prefix+R).
+bindsym $mod+Shift+r reload
+# Resize mode disabled (unused). Use mod+r preset cycle or mod+-/=/Shift+-/=.
+# bindsym $mod+Ctrl+Shift+r mode "resize"
+bindsym $mod+Ctrl+r resize set 0 0
+bindsym $mod+f fullscreen toggle
+# mod+Shift+f toggles floating (mnemonic: shift-fullscreen = make it free).
+bindsym $mod+Shift+f floating toggle
+bindsym $mod+Ctrl+f layout tabbed
+bindsym $mod+c focus parent
+bindsym $mod+Ctrl+c focus child
+bindsym $mod+minus resize shrink width 10 ppt
+bindsym $mod+equal resize grow width 10 ppt
+bindsym $mod+Shift+minus resize shrink height 10 ppt
+bindsym $mod+Shift+equal resize grow height 10 ppt
+# Note: tile<->float swap removed; mod+Shift+f (floating toggle) covers most cases.
+
+bindsym $mod+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot all"
+bindsym $mod+Ctrl+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot output"
+bindsym $mod+Alt+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot region"
+
+bindsym $mod+Escape inhibit_idle focus
+bindsym Ctrl+Alt+Delete exec $quit
+
+# Resize mode removed (unused); see git history if you want to revive it.

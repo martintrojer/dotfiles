@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-exec ~/.config/fuzzel/scripts/raise-window \
-  --app-id-regex 'whatsapp|zapzap' \
-  --title-regex 'WhatsApp' \
-  --spawn-sh 'flatpak run com.rtosta.zapzap'

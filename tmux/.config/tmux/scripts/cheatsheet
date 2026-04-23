@@ -1,59 +1,86 @@
 #!/usr/bin/env bash
-# Tmux cheatsheet picker — fzf over keybindings
+# Auto-generated tmux cheatsheet picker.
+#
+# Pulls the live key table via `tmux list-keys -T prefix -N` so descriptions
+# track what's actually loaded in the running tmux server. Repo-defined
+# bindings show their `bind -N "..."` annotation; built-in defaults show
+# tmux's own one-liners.
+#
+# By default the picker only includes a curated set of high-signal keys
+# (the ones in the section maps below). Pass `--all` to dump every binding
+# in the prefix table without filtering.
 set -euo pipefail
 
-entries="
-── Sessions ──
-d         Detach from session
-s         Session picker
-S         Switch session (tree picker)
-g         Last session
-T         Root session from cwd
-\$         Rename session
+show_all=0
+[[ ${1:-} == "--all" ]] && show_all=1
 
-── Windows ──
-c         New window
-w         Session-window tree picker
-n  /  p   Next / previous window
-0-9       Go to window by number
-,         Rename window
-&         Kill window
+prefix=${PREFIX_LABEL:-prefix}
 
-── Panes ──
-\"         Horizontal split
-%         Vertical split
-!         Break current pane into new window
-M         Move current pane into selected window/pane
-C-hjkl    Move between panes/vim (no prefix)
-;         Last pane
-o         Next pane
-z         Zoom / unzoom pane
-x         Kill pane
-{ / }     Swap pane up / down
+# key → section. Order matters only for readability; first match wins.
+classify() {
+  local key=$1
+  case "$key" in
+    s|S|g|T|R|w|d|D|'$') echo "Sessions" ;;
+    c|n|p|','|'&'|'.'|"'"|0|1|2|3|4|5|6|7|8|9) echo "Windows" ;;
+    '!'|'"'|'%'|M|';'|o|z|x|'{'|'}'|q|Up|Down|Left|Right) echo "Panes" ;;
+    r|M-Up|M-Down|M-Left|M-Right) echo "Resize" ;;
+    '['|']'|'='|'#'|y|v|Tab|BTab) echo "Copy & Pick" ;;
+    F|C-g|A|'?'|I|'/'|':'|t) echo "Tools" ;;
+    *) [[ $show_all -eq 1 ]] && echo "Other" || echo "" ;;
+  esac
+}
 
-── Resize ──
-M-arrows  Resize pane by 5 (repeatable)
-V         Cycle split 1/3 → 1/2 → 2/3
+raw=$(tmux list-keys -T prefix -N 2>/dev/null \
+  | awk '{ key = $1; $1 = ""; sub(/^ +/, ""); if ($0 == "") next; printf "%s\t%s\n", key, $0 }')
 
-── Copy & Pick ──
-[         Enter copy mode
-h         Thumbs hint picker
-v         Clipboard history (fzf)
-]         Paste buffer
-=         Buffer list
-y         Copy current line
+if [[ -z "$raw" ]]; then
+  echo "No tmux key bindings found." >&2
+  exit 1
+fi
 
-── Tools ──
-F         tmux-fzf menu
-C-g       Cheatsheet (this)
-A         AI attention picker
-?         List all keybindings
-I         Install plugins (TPM)
+formatted=$(
+  printf '%s\n' "$raw" \
+    | while IFS=$'\t' read -r key note; do
+        section=$(classify "$key")
+        [[ -z "$section" ]] && continue
+        printf '%s\t%-9s %s\n' "$section" "$key" "$note"
+      done \
+    | sort -t$'\t' -k1,1 -k2,2 \
+    | awk -F'\t' '
+        BEGIN { current = "" }
+        {
+          if ($1 != current) {
+            if (current != "") print ""
+            printf "── %s ──\n", $1
+            current = $1
+          }
+          print $2
+        }
+      '
+)
 
-── Other ──
-C-q       Clear pane history (no prefix)
-:         Command prompt
-t         Clock
-"
+# Static footer: plugin binds and no-prefix keys that don't surface as
+# annotated `bind -N ...` entries in list-keys. Update when adding plugins.
+extras=$(cat <<'EXTRAS'
 
-echo "$entries" | grep -v '^$' | fzf --prompt="cheatsheet> " --reverse --no-multi --ansi || true
+── Plugins ──
+Tab       tmux-fingers: pick visible token
+BTab      tmux-fingers: pick + jump to token
+F         tmux-fzf menu (sessions / windows / panes / clipboard / ...)
+I         TPM: install plugins
+U         TPM: update plugins
+
+── No prefix ──
+C-q       Clear pane history
+C-h/j/k/l Move between panes / vim splits (vim-tmux-navigator)
+EXTRAS
+)
+
+printf '%s\n%s\n' "$formatted" "$extras" \
+  | fzf \
+      --prompt="$prefix > " \
+      --reverse \
+      --no-multi \
+      --ansi \
+      --header="tmux cheatsheet (auto-generated; --all for everything)" \
+  || true

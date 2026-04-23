@@ -7,7 +7,7 @@ This repository uses **GNU Stow** for dotfile management. Each top-level directo
 - `nvim/.config/nvim`: Neovim config (Lua + `lazy-lock.json`)
 - `zsh/.zshrc`, `tmux/.tmux.conf`: shell/prompt/tmux setup
 - `git/.gitconfig*`, `ssh/.ssh/config`: Git and SSH config
-- `niri/.config/niri`, `waybar/.config/waybar`, `fuzzel/.config/fuzzel`, `kanshi/.config/kanshi`, `mako/.config/mako`, `swaylock/.config/swaylock`, `wallpapers/.config/wallpapers`: Wayland/WM and related tooling
+- `sway/.config/sway`, `waybar/.config/waybar`, `fuzzel/.config/fuzzel`, `kanshi/.config/kanshi`, `mako/.config/mako`, `swaylock/.config/swaylock`, `wallpapers/.config/wallpapers`: Wayland/WM and related tooling
 - `eza/.config/eza`: eza theme (Catppuccin Mocha)
 - `vscode/settings.json`, `vale/.vale.ini`, `bat/.config/bat`, `btop/.config/btop`, `yazi/.config/yazi`: app configs
 - `ghostty/.config/ghostty`: macOS terminal config
@@ -81,8 +81,8 @@ The script honors `TMUX_SOCKET_NAME` / `TMUX_SOCKET_PATH` to pin `agent-attentio
 
 ## Fedora Setup
 
-- Shared Fedora package lists live in `fedora/base-packages.sh` and `fedora/niri-packages.sh`
-- `fedora/setup-base*.sh`, `fedora/setup-niri*.sh`, and `fedora/setup-toolbox.sh` are thin wrappers around those shared lists
+- Shared Fedora package lists live in `fedora/base-packages.sh` and `fedora/sway-packages.sh`
+- `fedora/setup-base*.sh`, `fedora/setup-sway*.sh`, and `fedora/setup-toolbox.sh` are thin wrappers around those shared lists
 - `fedora/setup-toolbox-ubuntu.sh` and `fedora/setup-toolbox-arch.sh` follow the same package intent, but keep distro-specific package names and bootstrap steps
 
 ## Pi Extensions
@@ -109,4 +109,4 @@ Generic agent skills live in `skills/` and are symlinked into `~/.agents/skills/
 
 ## Window Manager
 
-Uses **niri** (Wayland compositor). Window operations use `niri msg` commands.
+Uses **sway** (Wayland compositor). Window operations use `swaymsg` commands.

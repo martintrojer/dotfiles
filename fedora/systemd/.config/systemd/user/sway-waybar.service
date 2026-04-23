@@ -1,12 +1,12 @@
 [Unit]
-Description=Swayidle Idle Manager (Sway)
+Description=Waybar Status Bar (Sway)
 PartOf=sway-session.target
 BindsTo=sway-session.target
 After=sway-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/.config/sway/scripts/session-swayidle
+ExecStart=/usr/bin/waybar --config %h/.config/waybar/config.jsonc --style %h/.config/waybar/style.css
 Restart=always
 RestartSec=1
 
