@@ -119,6 +119,42 @@ monitor power commands are compositor-specific
 `sway-session.target` and then `swaymsg exit` — leaving systemd cleanly
 shutting down the daemons before the compositor itself terminates.
 
+## Lock Screen
+
+`~/.config/sway/scripts/lock-screen` is a Python wrapper around `swaylock`
+that dresses the lock screen so it can't be mistaken for a screensaver:
+
+- Dims the current wallpaper (`magick -modulate 55,90,100`).
+- Stamps a `🔒  LOCKED   user@host` banner near the bottom-center.
+- Plucks an accent color from the wallpaper (16-bin histogram, scored by
+  `count × saturation^1.5 × mid-brightness`, then desaturated ~15 %) and
+  passes it as `--ring-color` / `--key-hl-color` so the indicator harmonizes
+  with whatever's behind it. `ring-ver-color` (green) and `ring-wrong-color`
+  (red) stay static so the verify/wrong signals remain semantically obvious.
+- Combined with `indicator-idle-visible` in `swaylock/.config/swaylock/config`
+  the thin (3 px) ring is always drawn, which is the strongest "this is
+  locked" cue at a glance.
+
+Results are cached under `$XDG_CACHE_HOME/lock-screen/<sha1(path+mtime)>.{png,color}`,
+keyed by wallpaper path + mtime, so the ~3 s ImageMagick render only runs
+once per wallpaper. The warm path is <20 ms. Cache hits `touch` their files,
+and entries untouched for 30 days are pruned on the next invocation.
+
+Locking must always succeed, so the script falls back from cached image →
+fresh render → raw wallpaper → solid color on any failure, and finally
+`os.execvp`'s into `swaylock` so swayidle/systemd see the same process tree
+as the old bash version.
+
+Unknown flags pass through to swaylock verbatim (`parse_known_args`), which
+is why `session-swayidle` can keep calling `lock-screen --daemonize`. Useful
+flags during tweaking:
+
+- `--print-command` — dry-run, print the swaylock command that would run.
+- `--force-rebuild` — ignore cached image / color for the current wallpaper.
+- `--dim PCT` / `--saturation-scale F` — tune the dimming and accent toning.
+- `--no-banner` / `--no-color-pick` — disable either dressing-up step.
+- `--prune-days N` — change the cache eviction horizon (`0` disables).
+
 ## Screenshots
 
 `~/.config/sway/scripts/screenshot` writes PNGs to `~/Pictures/Screenshots/`

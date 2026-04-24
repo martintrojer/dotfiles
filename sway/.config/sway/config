@@ -61,6 +61,10 @@ for_window [title="^Picture in picture$"] floating enable, sticky enable, border
 for_window [title="^Picture-in-Picture$"] floating enable, sticky enable, border pixel 2
 for_window [app_id="^pavucontrol$"] floating enable
 for_window [app_id="^nm-connection-editor$"] floating enable
+# wiremix launched from waybar (alacritty --class wiremix-float -e wiremix).
+for_window [app_id="^wiremix-float$"] floating enable, resize set 720 480, move position center
+# GNOME Calculator (flatpak): summon, type, dismiss.
+for_window [app_id="^org\.gnome\.Calculator$"] floating enable, resize set 480 600, move position center
 # Cider (Apple Music client) auto-stashes into the scratchpad on launch.
 # Summon with $mod+n, hide with $mod+n. Never wastes a workspace slot.
 for_window [app_id="^Cider$"] move scratchpad
@@ -182,7 +186,7 @@ bindsym $mod+minus       resize shrink width  50 px
 bindsym $mod+equal       resize grow   width  50 px
 bindsym $mod+Shift+minus resize shrink height 50 px
 bindsym $mod+Shift+equal resize grow   height 50 px
-# Note: tile<->float swap removed; mod+Shift+f (floating toggle) covers most cases.
+# Note: tile<->float swap removed; mod+Shift+space (floating toggle) covers most cases.
 
 bindsym $mod+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot all"
 bindsym $mod+Ctrl+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot output"

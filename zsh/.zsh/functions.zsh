@@ -52,9 +52,33 @@ rmhist() {
   echo "Removed history lines matching: $1"
 }
 
-# m: Render a markdown file with glow, sized to the current terminal width
+# m: Render a markdown file with glow, paged through less.
+# Glow's built-in pager (-p) gets sluggish on long files (regressed in
+# glow 2.x), so we render once and page with less -R for instant scroll
+# and proper / search.
+#
+# The python snippet runs glow under a pseudo-tty so termenv keeps
+# emitting truecolor ANSI; without it, glow downgrades to bold-only
+# when stdout is a pipe. -s carries the absolute style path because
+# glow's YAML config does not expand ~ or $HOME.
 m() {
-  glow -p -w "$(($(tput cols) - 6))" "$@"
+  # TERM override: under TERM=xterm-*/alacritty/ghostty/kitty, termenv
+  # sends OSC 10/11 background-color queries and blocks waiting for a
+  # response on the pty slave that nobody answers. tmux-256color and
+  # screen-256color are not on termenv's "supports color queries" list,
+  # so it skips the query while still emitting truecolor.
+  TERM=tmux-256color python3 -c 'import pty,sys,os,signal
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+pid,fd=pty.fork()
+if pid==0: os.execvp(sys.argv[1], sys.argv[1:])
+while True:
+    try: chunk=os.read(fd,4096)
+    except OSError: break
+    if not chunk: break
+    sys.stdout.buffer.write(chunk); sys.stdout.flush()
+os.waitpid(pid,0)' \
+    glow -s "$HOME/.config/glow/catppuccin-mocha.json" \
+         -w "$(($(tput cols) - 6))" "$@" | less -R
 }
 
 # openrouter: Run a command with OPENROUTER_API from OpenClaw auth profiles.

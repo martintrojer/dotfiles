@@ -159,7 +159,7 @@
         "default": ["", ""]
       },
       "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
-      "on-click-right": "alacritty -e wiremix",
+      "on-click-right": "alacritty --class wiremix-float -e wiremix",
       "tooltip": true,
       "scroll-step": 5
     },
@@ -171,7 +171,7 @@
       "on-scroll-down": "pactl set-source-volume @DEFAULT_SOURCE@ -5%",
       "max-volume": "100",
       "on-click": "pactl set-source-mute @DEFAULT_SOURCE@ toggle",
-      "on-click-right": "alacritty -e wiremix",
+      "on-click-right": "alacritty --class wiremix-float -e wiremix",
       "tooltip-format": "{source_desc}"
     },
     "tray": {

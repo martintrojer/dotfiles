@@ -89,6 +89,7 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
             "local-bin",
             "nvim",
             "ssh",
+            "summarize",
             "tmux",
             "tuicr",
             "vale",
@@ -99,7 +100,7 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
     (
         "darwin",
         SCRIPT_DIR,
-        ["ghostty", "hammerspoon", "summarize"],
+        ["ghostty", "hammerspoon"],
     ),
     (
         "linux",

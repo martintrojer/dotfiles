@@ -1,12 +1,13 @@
 daemonize
 ignore-empty-password
 show-failed-attempts
+indicator-idle-visible
 
 font=JetBrainsMono Nerd Font
 color=1e1e2e
 
-indicator-radius=110
-indicator-thickness=8
+indicator-radius=90
+indicator-thickness=3
 
 inside-color=1e1e2eff
 inside-clear-color=1e1e2eff
