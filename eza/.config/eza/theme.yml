@@ -44,7 +44,7 @@ size:
 users:
   user_you: {foreground: "#cdd6f4"}
   user_root: {foreground: "#f38ba8"}
-  user_other: {foreground: "#eba0ac"}
+  user_other: {foreground: "#fab387"}
   group_yours: {foreground: "#a6adc8"}
   group_other: {foreground: "#9399b2"}
   group_root: {foreground: "#f38ba8"}
@@ -58,7 +58,7 @@ git:
   modified: {foreground: "#f9e2af"}
   deleted: {foreground: "#eba0ac"}
   renamed: {foreground: "#94e2d5"}
-  typechange: {foreground: "#f5c2e7"}
+  typechange: {foreground: "#74c7ec"}
   ignored: {foreground: "#7f849c"}
   conflicted: {foreground: "#fab387"}
 
@@ -77,13 +77,13 @@ security_context:
 
 file_type:
   image: {foreground: "#f9e2af"}
-  video: {foreground: "#f38ba8"}
+  video: {foreground: "#fab387"}
   music: {foreground: "#a6e3a1"}
   lossless: {foreground: "#94e2d5"}
   crypto: {foreground: "#7f849c"}
   document: {foreground: "#cdd6f4"}
-  compressed: {foreground: "#f5c2e7"}
-  temp: {foreground: "#eba0ac"}
+  compressed: {foreground: "#fab387"}
+  temp: {foreground: "#7f849c"}
   compiled: {foreground: "#74c7ec"}
   source: {foreground: "#89b4fa"}
 

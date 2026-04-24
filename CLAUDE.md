@@ -42,6 +42,9 @@ Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 - `fuzzel/.config/fuzzel/scripts/*` - Python 3 picker scripts (extensionless executable names)
 - Shared helpers: `fuzzel/.config/fuzzel/scripts/_common.py`
 
+### Sway Scripts
+- `sway/.config/sway/scripts/lock-screen` - Python `swaylock` wrapper: dims the wallpaper, stamps a `LOCKED user@host` banner, and plucks a wallpaper-derived accent color for the ring (cached under `$XDG_CACHE_HOME/lock-screen/`). `--help` for knobs; unknown flags pass through to swaylock. See `sway/README.md` § Lock Screen.
+
 ### Tmux Scripts
 - `tmux/.config/tmux/scripts/agent-attention` - AI agent attention tracker (Python 3, supports claude/codex/opencode/pi)
 - `tmux/.config/tmux/scripts/status-ai` - Renders the boxed `AI <count>` segment for the right-hand status
