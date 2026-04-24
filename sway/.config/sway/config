@@ -32,9 +32,14 @@ input type:keyboard {
 }
 
 focus_follows_mouse yes
-mouse_warping container
+mouse_warping none
 focus_wrapping no
 workspace_auto_back_and_forth yes
+
+# Hold $mod and drag with the mouse to move/resize floating windows.
+# Left-click+drag = move; right-click+drag = resize.
+# `normal` means tiled windows still receive clicks underneath the modifier.
+floating_modifier $mod normal
 
 # Outputs are intentionally left to kanshi.
 
@@ -56,6 +61,9 @@ for_window [title="^Picture in picture$"] floating enable, sticky enable, border
 for_window [title="^Picture-in-Picture$"] floating enable, sticky enable, border pixel 2
 for_window [app_id="^pavucontrol$"] floating enable
 for_window [app_id="^nm-connection-editor$"] floating enable
+# Cider (Apple Music client) auto-stashes into the scratchpad on launch.
+# Summon with $mod+n, hide with $mod+n. Never wastes a workspace slot.
+for_window [app_id="^Cider$"] move scratchpad
 
 exec_always ~/.config/sway/scripts/session-start
 
@@ -153,15 +161,27 @@ bindsym $mod+Shift+r reload
 # bindsym $mod+Ctrl+Shift+r mode "resize"
 bindsym $mod+Ctrl+r resize set 0 0
 bindsym $mod+f fullscreen toggle
-# mod+Shift+f toggles floating (mnemonic: shift-fullscreen = make it free).
-bindsym $mod+Shift+f floating toggle
+# mod+Shift+space toggles floating (i3/sway default).
+bindsym $mod+Shift+space floating toggle
+# mod+a toggles focus between the tiled tree and the floating layer.
+# (i3 default is mod+space, but that's bound to fuzzel here.)
+# Use to jump from a tile to a floater (or back) without the mouse.
+bindsym $mod+a focus mode_toggle
+# Scratchpad: a hidden stash of floating utility windows.
+# mod+Shift+n: send focused window into the scratchpad (it disappears).
+# mod+n: show/hide the scratchpad. Cycles through stashed windows on repeat.
+bindsym $mod+Shift+n move scratchpad
+bindsym $mod+n scratchpad show
 bindsym $mod+Ctrl+f layout tabbed
 bindsym $mod+c focus parent
 bindsym $mod+Ctrl+c focus child
-bindsym $mod+minus resize shrink width 10 ppt
-bindsym $mod+equal resize grow width 10 ppt
-bindsym $mod+Shift+minus resize shrink height 10 ppt
-bindsym $mod+Shift+equal resize grow height 10 ppt
+# Resize works on both tiled and floating windows.
+# Using `px` (no unit specifier needed for px) so floating resizes work too.
+# 50 px per press: noticeable on floats, fine on tiled (sway clamps to layout).
+bindsym $mod+minus       resize shrink width  50 px
+bindsym $mod+equal       resize grow   width  50 px
+bindsym $mod+Shift+minus resize shrink height 50 px
+bindsym $mod+Shift+equal resize grow   height 50 px
 # Note: tile<->float swap removed; mod+Shift+f (floating toggle) covers most cases.
 
 bindsym $mod+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot all"
