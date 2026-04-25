@@ -1,0 +1,11 @@
+{
+  "name": "mtrojer-dotfiles",
+  "version": "1.0.0",
+  "description": "Personal dotfiles. The pi manifest below exposes the shared skills suite and pi extensions; the Claude plugin (.claude-plugin/) and skills/ directory are also consumable via 'npx skills add martintrojer/dotfiles' and '/plugin marketplace add martintrojer/dotfiles' respectively.",
+  "private": true,
+  "keywords": ["pi-package"],
+  "pi": {
+    "extensions": ["./pi/extensions"],
+    "skills": ["./skills", "!**/README.md"]
+  }
+}
