@@ -892,6 +892,17 @@ def main() -> int:
             f"{backup_root}"
         )
 
+    if args.action == "apply":
+        # Pre-create directories that are owned by more than one stow scope.
+        # Without this, the first scope's stow run folds the shared dir into
+        # a single symlink (e.g. .local -> local-bin/.local), and the second
+        # scope's run then refuses with "existing target is not owned by stow."
+        # Pre-creating forces stow to descend and link per-leaf in both scopes.
+        # Currently: ~/.local/bin is contributed by `local-bin` (common) and
+        # `fedora/bin` (fedora).
+        for shared in [target / ".local" / "bin"]:
+            shared.mkdir(parents=True, exist_ok=True)
+
     # Group active packages by stow_dir for batched stow calls.
     groups: dict[tuple[str, Path], list[str]] = {}
     for name in sorted(active_names):
