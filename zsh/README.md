@@ -48,8 +48,8 @@ If you want the `tm` helper and tmux session launcher flow to work, install `tmu
 
 This config adds a small `tm` shell helper in `.zsh/overrides.zsh`.
 
-- `tm` calls the shared `$HOME/.config/tmux/scripts/session-picker` wrapper
-- after selection, `tms` handles attaching or creating the tmux session
+- `tm` runs `$HOME/.config/tmux/scripts/tms pick-and-connect`
+- the picker shows the selection UI; on `<Enter>` `tms` attaches or creates the tmux session in one step
 
 ## Startup Layout
 

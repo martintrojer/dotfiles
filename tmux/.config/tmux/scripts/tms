@@ -645,9 +645,8 @@ def print_entries(mode: str) -> int:
     return 0
 
 
-def fzf(mode: str = "all") -> int:
-    entries = "\n".join(entry.to_fzf_row() for entry in build_entries(mode))
-    cmd = [
+def _fzf_command(mode: str) -> list[str]:
+    return [
         "fzf",
         "--layout=reverse",
         "--border=rounded",
@@ -682,8 +681,37 @@ def fzf(mode: str = "all") -> int:
         "--preview",
         f"{sh_quote(sys.argv[0])} preview --kind {{2}} --session-name {{3}} --path {{4}} --split {{6}}",
     ]
-    proc = subprocess.run(cmd, input=entries, text=True)
+
+
+def fzf(mode: str = "all") -> int:
+    entries = "\n".join(entry.to_fzf_row() for entry in build_entries(mode))
+    proc = subprocess.run(_fzf_command(mode), input=entries, text=True)
     return proc.returncode
+
+
+def pick_and_connect(mode: str = "all") -> int:
+    """Run the fzf picker and connect to the selection in one step.
+
+    fzf writes its UI to /dev/tty when stdout is captured, so the picker
+    still renders interactively while we keep the selection in-process.
+    """
+    entries = "\n".join(entry.to_fzf_row() for entry in build_entries(mode))
+    proc = subprocess.run(
+        _fzf_command(mode), input=entries, text=True, capture_output=True
+    )
+    if proc.returncode != 0:
+        return proc.returncode
+    # Strip only the trailing newline fzf appends, not surrounding whitespace.
+    # Picker rows can end in empty tab-separated fields (e.g. blank `startup`
+    # and `split`); using bare `.strip()` would eat those trailing `\t`s and
+    # leave the row short of `len(FZF_ROW_FIELDS)`.
+    choice = proc.stdout.rstrip("\n")
+    if not choice:
+        return 1
+    payload = EntryPayload.from_fzf_row(choice)
+    return connect_resolved(
+        payload.session_name, payload.path, payload.startup, payload.split
+    )
 
 
 def tmux_session_exists(name: str) -> bool:
@@ -786,18 +814,6 @@ def connect(target: str) -> int:
     return connect_resolved(name, path, None, DEFAULT_SPLIT)
 
 
-def connect_selection() -> int:
-    choice = os.environ.get("TMS_SELECTION")
-    if choice is None:
-        choice = sys.stdin.read().rstrip("\n")
-    if not choice:
-        return 1
-    payload = EntryPayload.from_fzf_row(choice)
-    return connect_resolved(
-        payload.session_name, payload.path, payload.startup, payload.split
-    )
-
-
 def last() -> int:
     result = tmux_cmd("display-message", "-p", "#{client_last_session}", check=False)
     if result.returncode == 0:
@@ -831,10 +847,15 @@ def main(argv: Iterable[str] | None = None) -> int:
             default="all",
         )
 
+        p_pick_connect = sub.add_parser("pick-and-connect")
+        p_pick_connect.add_argument(
+            "--mode",
+            choices=["all", "default", "tmux", "zoxide", "find"],
+            default="all",
+        )
+
         p_connect = sub.add_parser("connect")
         p_connect.add_argument("target")
-
-        sub.add_parser("connect-selection")
 
         p_preview = sub.add_parser("preview")
         p_preview.add_argument("--kind", default="")
@@ -850,10 +871,10 @@ def main(argv: Iterable[str] | None = None) -> int:
             return print_entries(args.mode)
         if args.cmd == "picker":
             return fzf(args.mode)
+        if args.cmd == "pick-and-connect":
+            return pick_and_connect(args.mode)
         if args.cmd == "connect":
             return connect(args.target)
-        if args.cmd == "connect-selection":
-            return connect_selection()
         if args.cmd == "preview":
             return preview(args.path, args.session_name, args.kind, args.split)
         if args.cmd == "last":

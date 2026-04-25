@@ -7,7 +7,7 @@ This repository uses **GNU Stow** for dotfile management. Each top-level directo
 - `nvim/.config/nvim`: Neovim config (Lua + `lazy-lock.json`)
 - `zsh/.zshrc`, `tmux/.tmux.conf`: shell/prompt/tmux setup
 - `git/.gitconfig*`, `ssh/.ssh/config`: Git and SSH config
-- `sway/.config/sway`, `waybar/.config/waybar`, `fuzzel/.config/fuzzel`, `kanshi/.config/kanshi`, `mako/.config/mako`, `swaylock/.config/swaylock`, `wallpapers/.config/wallpapers`: Wayland/WM and related tooling
+- `sway/.config/sway`, `waybar/.config/waybar`, `fuzzel/.config/fuzzel`, `kanshi/.config/kanshi`, `mako/.config/mako`, `swaylock/.config/swaylock`: Wayland/WM and related tooling (wallpapers are not stowed; managed per machine by the `wallpaper` helper under `~/.local/share/wallpapers/`)
 - `eza/.config/eza`: eza theme (Catppuccin Mocha)
 - `vscode/settings.json`, `vale/.vale.ini`, `bat/.config/bat`, `btop/.config/btop`, `yazi/.config/yazi`: app configs
 - `ghostty/.config/ghostty`: macOS terminal config
@@ -54,7 +54,7 @@ Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 - `tmux/.config/tmux/scripts/status-window-label` - Active-pane derived window label, prefers the real running agent over stale titles
 - `tmux/.config/tmux/scripts/tms` - local Python tmux session launcher (pinned sessions + tmux sessions + zoxide + finder)
 - `tmux/.config/tmux/tms.toml` - pinned session config plus finder/preview knobs and optional per-session split mode (`vertical` / `horizontal`)
-- `tmux/.config/tmux/scripts/session-picker` - thin wrapper that opens the `tms` picker (bound to `prefix + s`)
+- `tms pick-and-connect` - opens the picker and attaches to the selection (bound to `prefix + s` and the `tm` zsh function)
 - `tmux/.config/tmux/scripts/move-pane-picker` - `choose-tree` driven helper for `prefix + M` (move pane into another window/pane)
 - `tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts` - Pi Agent extension for agent-attention
 - `tmux/.config/tmux/scripts/opencode-plugin/notify.ts` - OpenCode plugin for agent-attention

@@ -61,18 +61,13 @@ zstyle ':omz:plugins:alias-finder' cheaper yes
 # Homebrew-backed tools must be on PATH before OMZ plugins load.
 [[ "$OSTYPE" == darwin* ]] && [[ -f "$HOME/.zsh/homebrew.zsh" ]] && source "$HOME/.zsh/homebrew.zsh"
 
-case "$OSTYPE" in
-  darwin*)
-    [[ -f "$HOME/.zsh/os-darwin.zsh" ]] && source "$HOME/.zsh/os-darwin.zsh"
-    ;;
-  linux*)
-    [[ -f "$HOME/.zsh/os-linux.zsh" ]] && source "$HOME/.zsh/os-linux.zsh"
-    ;;
-esac
+if [[ "$OSTYPE" == darwin* ]] && [[ -f "$HOME/.zsh/os-darwin.zsh" ]]; then
+  source "$HOME/.zsh/os-darwin.zsh"
+fi
 
 for file in $HOME/.zsh/*.zsh; do
   case "${file:t}" in
-    homebrew.zsh|os-darwin.zsh|os-linux.zsh)
+    homebrew.zsh|os-darwin.zsh)
       continue
       ;;
   esac
