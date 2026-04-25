@@ -85,7 +85,7 @@ The script honors `TMUX_SOCKET_NAME` / `TMUX_SOCKET_PATH` to pin `agent-attentio
 ## Fedora Setup
 
 - Shared Fedora package lists live in `fedora/base-packages.sh` and `fedora/sway-packages.sh`
-- `fedora/setup-base*.sh`, `fedora/setup-sway*.sh`, and `fedora/setup-toolbox.sh` are thin wrappers around those shared lists
+- `fedora/setup-base.sh`, `fedora/setup-sway.sh`, and `fedora/setup-toolbox.sh` are thin wrappers around those shared lists (rpm-ostree only; mutable workstation variants are no longer supported)
 - `fedora/setup-toolbox-ubuntu.sh` and `fedora/setup-toolbox-arch.sh` follow the same package intent, but keep distro-specific package names and bootstrap steps
 
 ## Pi Extensions

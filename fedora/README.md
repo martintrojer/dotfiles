@@ -2,12 +2,14 @@
 
 This directory holds Fedora-specific bootstrap scripts plus `containers/` and `systemd/` packages that are only stowed on Fedora-family systems.
 
+This setup targets rpm-ostree (immutable) Fedora variants only. Mutable workstation installs are no longer supported.
+
 ## Setup Flow
 
 Typical order:
 
-1. Run `fedora/setup-base.sh` on rpm-ostree systems, or `fedora/setup-base-workstation.sh` on mutable Fedora installs.
-2. Run `fedora/setup-sway.sh` on rpm-ostree systems, or `fedora/setup-sway-workstation.sh` on mutable Fedora installs.
+1. Run `fedora/setup-base.sh` to layer the base packages with `rpm-ostree`.
+2. Run `fedora/setup-sway.sh` to layer the Sway session packages with `rpm-ostree`.
 3. Run `fedora/setup-mise.sh` to install userland tools with `mise`.
 4. Optionally run `fedora/setup-toolbox.sh` inside a Fedora toolbox.
 
@@ -25,10 +27,7 @@ The main Fedora setup scripts are intentionally thin wrappers around shared pack
 - `base-packages.sh`: common bootstrap and CLI tooling
 - `sway-packages.sh`: desktop/session packages for the Sway environment, split into Fedora Sericea base packages and extra packages this setup still layers
 
-This keeps the package decisions in one place while allowing different installers:
-
-- `rpm-ostree install` on immutable Fedora
-- `dnf install -y` on mutable Fedora
+This keeps the package decisions in one place. Both base and Sway wrappers call `rpm-ostree install`.
 
 ## Decisions
 
@@ -40,8 +39,8 @@ The package split reflects a few explicit decisions:
 - `git`, `git-lfs`, `ripgrep`, `stow`, `tmux`, and `zsh` are treated as common baseline tooling.
 - `btop` and `gdu` are still in base as shared comfort tools.
 - The tmux and zsh session-launch flow uses local scripts plus `fzf`, `zoxide`, `fd`, and `eza`, rather than a separate session-manager binary.
-- Desktop/session packages live in `sway-packages.sh`. `sway_sericea_base_packages` tracks packages already provided by Fedora Sericea (the Sway atomic spin), while `sway_extra_packages` tracks packages this setup still wants layered or installed on mutable systems.
-- The combined `sway_packages` list intentionally includes both groups so mutable Fedora installs and non-Sericea rpm-ostree variants still get a complete Sway session.
+- Desktop/session packages live in `sway-packages.sh`. `sway_sericea_base_packages` tracks packages already provided by Fedora Sericea (the Sway atomic spin), while `sway_extra_packages` tracks packages this setup still wants layered.
+- The combined `sway_packages` list intentionally includes both groups so non-Sericea rpm-ostree variants still get a complete Sway session.
 - `wl-clipboard` is part of the common Sway package set because the active Sway session starts `wl-paste`.
 - `btop`, `gdu`, and `distrobox` do not fit the package split perfectly, but they are placed pragmatically based on how this setup is actually bootstrapped and used.
 - Wallpapers are managed per machine with `wallpaper set <url-or-file>`, which stores files under `~/.local/share/wallpapers/` and restarts `swaybg.service`.
