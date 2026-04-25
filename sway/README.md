@@ -121,39 +121,52 @@ shutting down the daemons before the compositor itself terminates.
 
 ## Lock Screen
 
-`~/.config/sway/scripts/lock-screen` is a Python wrapper around `swaylock`
-that dresses the lock screen so it can't be mistaken for a screensaver:
+`~/.config/sway/scripts/lock-screen` is a small (~140 line) wrapper
+around `swaylock`. All the picture work — blur, banner stamp, accent
+color pluck, cache management — lives in the [`wallpaper`](../../fedora/bin/.local/bin/wallpaper)
+helper. The lock-screen script just:
 
-- Dims the current wallpaper (`magick -modulate 55,90,100`).
-- Stamps a `🔒  LOCKED   user@host` banner near the bottom-center.
-- Plucks an accent color from the wallpaper (16-bin histogram, scored by
-  `count × saturation^1.5 × mid-brightness`, then desaturated ~15 %) and
-  passes it as `--ring-color` / `--key-hl-color` so the indicator harmonizes
-  with whatever's behind it. `ring-ver-color` (green) and `ring-wrong-color`
-  (red) stay static so the verify/wrong signals remain semantically obvious.
-- Combined with `indicator-idle-visible` in `swaylock/.config/swaylock/config`
-  the thin (3 px) ring is always drawn, which is the strongest "this is
-  locked" cue at a glance.
+1. Calls `wallpaper status`, which returns JSON like
+   `{"path": ..., "lock_image": ..., "accent": "9b8c32"}`.
+2. Builds `swaylock --ring-color <accent>ff --key-hl-color <accent>ff
+   --image <lock_image> --scaling fill <passthrough-args>`.
+3. exec's into `swaylock`.
 
-Results are cached under `$XDG_CACHE_HOME/lock-screen/<sha1(path+mtime)>.{png,color}`,
-keyed by wallpaper path + mtime, so the ~3 s ImageMagick render only runs
-once per wallpaper. The warm path is <20 ms. Cache hits `touch` their files,
-and entries untouched for 30 days are pruned on the next invocation.
+Locking must always succeed, so there's a fallback chain:
 
-Locking must always succeed, so the script falls back from cached image →
-fresh render → raw wallpaper → solid color on any failure, and finally
-`os.execvp`'s into `swaylock` so swayidle/systemd see the same process tree
-as the old bash version.
+- `wallpaper` helper missing or status JSON malformed → solid Catppuccin
+  base color (`swaylock --color 1e1e2e`).
+- `lock_image` missing (e.g. magick not installed when the wallpaper
+  was set) but `path` present → raw wallpaper, no blur or banner.
+- `path` also missing → solid color again.
 
-Unknown flags pass through to swaylock verbatim (`parse_known_args`), which
-is why `session-swayidle` can keep calling `lock-screen --daemonize`. Useful
-flags during tweaking:
+The ring uses the swaylock default behaviour (only visible while typing
+/ on key activity); the stacked LOCKED + user@host text on the
+pre-rendered image is the dominant "this is locked" cue.
 
-- `--print-command` — dry-run, print the swaylock command that would run.
-- `--force-rebuild` — ignore cached image / color for the current wallpaper.
-- `--dim PCT` / `--saturation-scale F` — tune the dimming and accent toning.
-- `--no-banner` / `--no-color-pick` — disable either dressing-up step.
-- `--prune-days N` — change the cache eviction horizon (`0` disables).
+Unknown flags pass through to swaylock verbatim (`parse_known_args`),
+which is why `session-swayidle` can keep calling `lock-screen --daemonize`.
+
+### Lock image rendering (lives in `wallpaper`)
+
+The rendering recipe (blurred wallpaper + banner stamp) lives in
+`fedora/bin/.local/bin/wallpaper`. It runs:
+
+- as part of `wallpaper set <url-or-file>` and `wallpaper use [archive-file]`,
+  so the next lock after a wallpaper change is instant; or
+- via `wallpaper rebuild-cache` to force a fresh render (used after
+  editing the render constants in `wallpaper`).
+
+The blur (sigma 18), banner geometry, font (`JetBrainsMono-NF-Bold`),
+and saturation scale (0.85) are constants at the top of the script.
+Change them and bump `RENDER_VERSION` next to the constants — that
+invalidates all cached entries automatically.
+
+Results are cached under `$XDG_CACHE_HOME/wallpaper/<sha1(path+mtime+RENDER_VERSION)>.{png,color}`.
+The warm path (cache hit during `wallpaper status`) is essentially
+instant. Cold render is ~3–6 s depending on wallpaper size. Cache
+hits `touch` their files, and entries untouched for 30 days are
+pruned on the next invocation.
 
 ## Screenshots
 

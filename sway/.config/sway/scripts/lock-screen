@@ -1,113 +1,62 @@
 #!/usr/bin/env python3
-"""Lock the session with swaylock, dressed up so it cannot be mistaken for a
-screensaver: dimmed wallpaper, "LOCKED  user@host" banner, and a thin ring
-tinted with an accent color plucked from the wallpaper.
+"""Lock the session with swaylock.
 
-Locking must always succeed. Any failure in the dressing-up steps falls back
-to a plain-wallpaper lock, then to a solid-color lock.
+All the picture work (blur, banner stamp, accent pluck, cache) lives in
+the `wallpaper` helper now. This script just:
+  1. Reads `wallpaper status` to get the pre-rendered lock image + accent.
+  2. Builds a swaylock command using those.
+  3. Falls back to a solid-color lock if anything's missing.
+  4. exec's into swaylock.
+
+Locking must always succeed. If `wallpaper` is unavailable, the JSON is
+malformed, the cached image is missing, or magick failed during the
+last `wallpaper set/use` — we still launch swaylock with the Catppuccin
+base color so the session is locked.
+
+Unknown flags pass through to swaylock verbatim (`parse_known_args`),
+so callers like `session-swayidle` can keep passing e.g. `--daemonize`.
 """
-
 from __future__ import annotations
 
 import argparse
-import colorsys
-import hashlib
+import json
 import os
-import re
 import shlex
 import shutil
-import socket
 import subprocess
 import sys
-import time
 from pathlib import Path
 
-WALLPAPER_HELPER = Path.home() / ".local/bin/wallpaper"
-DEFAULT_CACHE_DIR = (
-    Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "lock-screen"
-)
-FALLBACK_COLOR = "1e1e2e"
+
+WALLPAPER_HELPER = Path.home() / ".local" / "bin" / "wallpaper"
+FALLBACK_COLOR = "1e1e2e"  # Catppuccin Mocha base
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(
+        prog="lock-screen",
         description=__doc__,
-        epilog="Any unrecognized arguments are forwarded to swaylock verbatim, "
-        "e.g. `lock-screen --daemonize --grace 5`.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    p.add_argument(
-        "--cache-dir",
-        type=Path,
-        default=DEFAULT_CACHE_DIR,
-        help="directory for cached lock images / accent colors (default: %(default)s)",
-    )
-    p.add_argument(
-        "--dim",
-        type=int,
-        default=55,
-        metavar="PCT",
-        help="brightness percentage passed to ImageMagick -modulate "
-        "(default: %(default)s)",
-    )
-    p.add_argument(
-        "--saturation-scale",
-        type=float,
-        default=0.85,
-        metavar="F",
-        help="multiply plucked-color saturation by F so the ring reads as an "
-        "accent rather than neon (default: %(default)s)",
-    )
-    p.add_argument(
-        "--font",
-        default="JetBrainsMono-NF-Bold",
-        help="ImageMagick font for the banner (default: %(default)s)",
-    )
-    p.add_argument(
-        "--no-banner",
-        action="store_true",
-        help="skip the LOCKED user@host banner (still dims the wallpaper)",
-    )
-    p.add_argument(
-        "--no-color-pick",
-        action="store_true",
-        help="do not derive the ring color from the wallpaper",
-    )
-    p.add_argument(
-        "--prune-days",
-        type=int,
-        default=30,
-        metavar="N",
-        help="delete cache entries untouched for more than N days "
-        "(default: %(default)s; 0 disables)",
-    )
-    p.add_argument(
-        "--force-rebuild",
-        action="store_true",
-        help="ignore cached image / color for this wallpaper",
     )
     p.add_argument(
         "--print-command",
         action="store_true",
         help="print the swaylock command that would run, then exit (dry-run)",
     )
-    # Anything argparse doesn't recognize is forwarded to swaylock verbatim,
-    # so callers like swayidle can keep passing e.g. --daemonize directly.
     args, passthrough = p.parse_known_args(argv)
-    # Strip an explicit "--" separator if the user typed one.
     if passthrough and passthrough[0] == "--":
         passthrough = passthrough[1:]
     args.swaylock_args = passthrough
     return args
 
 
-def current_wallpaper() -> Path | None:
-    """Return the active wallpaper path, or None if the helper is unavailable."""
+def wallpaper_status() -> dict | None:
+    """Return the parsed `wallpaper status` JSON, or None on any failure."""
     if not os.access(WALLPAPER_HELPER, os.X_OK):
         return None
     try:
-        out = subprocess.run(
-            [str(WALLPAPER_HELPER), "current"],
+        res = subprocess.run(
+            [str(WALLPAPER_HELPER), "status"],
             capture_output=True,
             text=True,
             timeout=5,
@@ -115,145 +64,61 @@ def current_wallpaper() -> Path | None:
         )
     except (OSError, subprocess.SubprocessError):
         return None
-    if out.returncode != 0:
-        return None
-    path = Path(out.stdout.strip())
-    return path if path.is_file() else None
-
-
-def cache_key(wallpaper: Path) -> str | None:
-    """Stable key derived from absolute path + mtime."""
-    try:
-        mtime = wallpaper.stat().st_mtime_ns
-    except OSError:
-        return None
-    raw = f"{wallpaper}\0{mtime}".encode()
-    return hashlib.sha1(raw).hexdigest()[:16]
-
-
-def build_lock_image(
-    src: Path, dst: Path, *, dim: int, font: str, draw_banner: bool
-) -> bool:
-    """Render dimmed (+ optionally banner-stamped) wallpaper to dst."""
-    if not shutil.which("magick"):
-        return False
-    label = f"\U0001f512  LOCKED   {os.environ.get('USER', 'user')}@{socket.gethostname().split('.')[0]}"
-    cmd: list[str] = ["magick", str(src), "-modulate", f"{dim},90,100"]
-    if draw_banner:
-        cmd += [
-            "-gravity",
-            "south",
-            "-font",
-            font,
-            "-pointsize",
-            "38",
-            "-fill",
-            "#00000099",
-            "-annotate",
-            "+2+118",
-            label,
-            "-fill",
-            "#cdd6f4ff",
-            "-annotate",
-            "+0+120",
-            label,
-        ]
-    cmd.append(str(dst))
-    try:
-        res = subprocess.run(cmd, capture_output=True, timeout=30, check=False)
-    except (OSError, subprocess.SubprocessError):
-        return False
-    return res.returncode == 0 and dst.is_file() and dst.stat().st_size > 0
-
-
-# Match lines like:  "  1962: (92,37,12) #5C250C srgb(...)"
-_HIST_RE = re.compile(r"^\s*(\d+):.*#([0-9A-Fa-f]{6})")
-
-
-def pick_accent_color(src: Path, *, saturation_scale: float) -> str | None:
-    """Quantize wallpaper to 16 colors; pick the most-prominent vivid one.
-
-    Score = count * saturation^1.5 * brightness-near-mid. Winner is then
-    desaturated by ``saturation_scale`` so it reads as an accent rather than
-    a neon stripe. Returns 6-char hex (no #) or None on failure.
-    """
-    if not shutil.which("magick"):
-        return None
-    try:
-        res = subprocess.run(
-            [
-                "magick",
-                str(src),
-                "-resize",
-                "200x200",
-                "-colors",
-                "16",
-                "-depth",
-                "8",
-                "-format",
-                "%c",
-                "histogram:info:-",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
     if res.returncode != 0:
         return None
-
-    best: tuple[float, float, float, float] | None = None  # (score, h, l, s)
-    for line in res.stdout.splitlines():
-        m = _HIST_RE.match(line)
-        if not m:
-            continue
-        count = int(m.group(1))
-        hexv = m.group(2).lower()
-        r, g, b = (int(hexv[i : i + 2], 16) / 255 for i in (0, 2, 4))
-        hue, lightness, sat = colorsys.rgb_to_hls(r, g, b)
-        bright = max(0.0, 1 - abs(lightness - 0.55) * 1.4)
-        score = count * (sat**1.5) * bright
-        if score <= 0:
-            continue
-        if best is None or score > best[0]:
-            best = (score, hue, lightness, sat)
-
-    if best is None:
-        return None
-    _, hue, lightness, sat = best
-    r, g, b = colorsys.hls_to_rgb(hue, lightness, sat * saturation_scale)
-    return "{:02x}{:02x}{:02x}".format(round(r * 255), round(g * 255), round(b * 255))
-
-
-def touch(path: Path) -> None:
-    """Best-effort mtime bump so the prune step keeps active entries warm."""
     try:
-        path.touch()
-    except OSError:
-        pass
+        data = json.loads(res.stdout)
+    except (ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
 
 
-def prune_cache(cache_dir: Path, days: int) -> None:
-    if days <= 0 or not cache_dir.is_dir():
-        return
-    cutoff = days * 86400
-    now = time.time()
-    for entry in cache_dir.iterdir():
-        try:
-            if entry.is_file() and (now - entry.stat().st_mtime) > cutoff:
-                entry.unlink()
-        except OSError:
-            pass
+def build_swaylock_cmd(passthrough: list[str]) -> list[str]:
+    """Build the swaylock command from `wallpaper status`, with fallbacks.
+
+    Decision tree:
+      - wallpaper helper missing OR no current wallpaper      -> solid color
+      - lock_image present and on disk                         -> -i lock_image
+      - lock_image missing but wallpaper path present and OK   -> -i wallpaper
+        (raw wallpaper, no blur/banner — degraded but still locked)
+      - everything missing                                     -> solid color
+
+    The accent ring is added when present and valid, regardless of
+    which image path we end up using.
+    """
+    status = wallpaper_status()
+
+    image: Path | None = None
+    accent: str | None = None
+    if status:
+        accent_v = status.get("accent")
+        if isinstance(accent_v, str) and len(accent_v) == 6:
+            accent = accent_v
+        for key in ("lock_image", "path"):
+            v = status.get(key)
+            if isinstance(v, str) and Path(v).is_file():
+                image = Path(v)
+                break
+
+    if image is None:
+        return ["swaylock", "--color", FALLBACK_COLOR, *passthrough]
+
+    cmd = ["swaylock"]
+    if accent is not None:
+        cmd += ["--ring-color", f"{accent}ff", "--key-hl-color", f"{accent}ff"]
+    cmd += ["--image", str(image), "--scaling", "fill", *passthrough]
+    return cmd
 
 
-def exec_swaylock(cmd: list[str], *, dry_run: bool) -> "int | None":
-    """exec into swaylock, or just print the command in dry-run mode."""
+def exec_swaylock(cmd: list[str], *, dry_run: bool) -> int:
     if dry_run:
-        # Quote args minimally so the printed line is copy-pasteable.
         print(shlex.join(cmd))
         return 0
+    if shutil.which(cmd[0]) is None:
+        print(f"lock-screen: {cmd[0]} not on PATH", file=sys.stderr)
+        return 127
     try:
         os.execvp(cmd[0], cmd)
     except OSError as e:
@@ -263,94 +128,7 @@ def exec_swaylock(cmd: list[str], *, dry_run: bool) -> "int | None":
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-
-    cache_dir = args.cache_dir
-    try:
-        cache_dir.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        pass
-
-    lock_image: Path | None = None
-    accent_args: list[str] = []
-
-    wallpaper = current_wallpaper()
-    if wallpaper is not None:
-        key = cache_key(wallpaper)
-        if key is not None:
-            img_path = cache_dir / f"{key}.png"
-            color_path = cache_dir / f"{key}.color"
-
-            if args.force_rebuild:
-                for p in (img_path, color_path):
-                    p.unlink(missing_ok=True)
-
-            # Dimmed + (optionally) banner-stamped lock image.
-            if img_path.is_file() and img_path.stat().st_size > 0:
-                lock_image = img_path
-                touch(img_path)
-            elif build_lock_image(
-                wallpaper,
-                img_path,
-                dim=args.dim,
-                font=args.font,
-                draw_banner=not args.no_banner,
-            ):
-                lock_image = img_path
-
-            # Plucked accent color. ``--no-color-pick`` is a hard kill
-            # switch: don't read the cache, don't pluck a new value, lock
-            # without a tinted ring this run. Otherwise: read the cache
-            # if present; on miss pluck fresh and try to persist (but if
-            # the persist fails, keep the in-memory value rather than
-            # re-reading from a missing file).
-            accent = ""
-            if not args.no_color_pick:
-                if color_path.is_file() and color_path.stat().st_size > 0:
-                    try:
-                        accent = color_path.read_text().strip()
-                    except OSError:
-                        accent = ""
-                else:
-                    accent = (
-                        pick_accent_color(
-                            wallpaper, saturation_scale=args.saturation_scale
-                        )
-                        or ""
-                    )
-                    if accent:
-                        try:
-                            color_path.write_text(accent + "\n")
-                        except OSError:
-                            pass
-
-            if re.fullmatch(r"[0-9a-fA-F]{6}", accent):
-                touch(color_path)
-                accent_args = [
-                    "--ring-color",
-                    f"{accent}ff",
-                    "--key-hl-color",
-                    f"{accent}ff",
-                ]
-
-        # If preprocessing failed, fall back to the raw wallpaper.
-        if lock_image is None:
-            lock_image = wallpaper
-
-    prune_cache(cache_dir, args.prune_days)
-
-    if lock_image is not None:
-        cmd = [
-            "swaylock",
-            *accent_args,
-            "--image",
-            str(lock_image),
-            "--scaling",
-            "fill",
-            *args.swaylock_args,
-        ]
-    else:
-        cmd = ["swaylock", "--color", FALLBACK_COLOR, *args.swaylock_args]
-
+    cmd = build_swaylock_cmd(args.swaylock_args)
     rc = exec_swaylock(cmd, dry_run=args.print_command)
     return rc if rc is not None else 1
 
