@@ -15,9 +15,8 @@ This repository uses **GNU Stow** for dotfile management. Each top-level directo
 - `fedora/`: setup scripts plus `containers/` and `systemd/` configs
 - `fedora/bin/.local/bin`: Fedora-only user commands on `$PATH`
 - `.claude-plugin/`, `agents/`, `commands/`, `hooks/`: Claude Code plugin assets at repo root, distributed via `claude plugin marketplace add martintrojer/dotfiles`
-- `pi/extensions/`: Pi coding agent extensions, distributed via `pi install git:github.com/martintrojer/dotfiles`
-- `skills/`: shared agent skills following the Agent Skills standard, distributed via `npx skills add martintrojer/dotfiles`
-- `package.json`: pi manifest (extensions + skills paths)
+- `pi/extensions/`: Pi coding agent extensions; `stow-all.py --apply` symlinks them into `~/.pi/agent/extensions/` (pi auto-discovers there)
+- `skills/`: shared agent skills following the Agent Skills standard; `stow-all.py --apply` symlinks each into `~/.agents/skills/<name>` (universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, Claude Code, ...)
 
 ## Search Tips
 
@@ -92,7 +91,7 @@ Both `agent-attention` and `cheatsheet` honor `TMUX_SOCKET_NAME` / `TMUX_SOCKET_
 
 ## Pi Extensions
 
-Pi coding agent extensions live in `pi/extensions/`. Distribution: `pi install git:github.com/martintrojer/dotfiles` (or local: `pi install /path/to/dotfiles`). Pi reads them via the `pi` manifest in `package.json`; no copy or symlink, pi loads from the package source path at runtime.
+Pi coding agent extensions live in `pi/extensions/`. `stow-all.py --apply` symlinks each `*.ts` into `~/.pi/agent/extensions/`, where pi auto-discovers them (with `/reload` support). Edits propagate live.
 
 - `answer` — Extract questions from assistant responses into interactive Q&A TUI
 - `btw` — Side-chat popover for tangential questions
@@ -101,7 +100,7 @@ See `pi/README.md` for details.
 
 ## Skills
 
-Generic agent skills live in `skills/`. Distribution: `npx skills add martintrojer/dotfiles` (per-skill symlinks into `~/.agents/skills/` and per-agent paths). The same `skills/` tree is also exposed by the Claude plugin (`claude plugin install mtrojer@dotfiles`) and the pi package. See `skills/README.md` for full reference.
+Generic agent skills live in `skills/`. `stow-all.py --apply` symlinks each `<name>` into `~/.agents/skills/<name>`. All supported agents (Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, Claude Code via the plugin) read this universal path. Edits propagate live. The same `skills/` tree is also bundled into the Claude plugin (`claude plugin install mtrojer@dotfiles`). See `skills/README.md` for full reference.
 
 - `brainstorm` — Refine ideas into technical specs via dialogue
 - `write-plan` / `execute-plan` — Create and execute implementation plans
