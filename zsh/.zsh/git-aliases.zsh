@@ -1,6 +1,7 @@
 # Cherry-picked from oh-my-zsh git plugin. Only the aliases that
-# actually appeared in zsh history (>= 5 uses, see TODO.md item #1).
-# OMZ ships ~200 git aliases; we use 13.
+# actually appeared in zsh history (>= 5 uses; see CLAUDE.md
+# "Audit usage with shell history" rule). OMZ ships ~200 git aliases;
+# we use 13.
 
 alias g='git'
 alias ga='git add'

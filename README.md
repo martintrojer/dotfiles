@@ -80,7 +80,7 @@ When any of the agent-side content changes in this repo:
 
 ### Why this layout
 
-Previous incarnations of `stow-all.py` carried ~600 lines of code to fan-out skills into 4 different agent dirs, copy a Claude plugin bundle, symlink Pi extensions, and verify Claude/Codex notification hooks. The simplification: `~/.agents/skills/` is the universal path *all* the agents already read, so a plain symlink covers Codex/OpenCode/Pi/Cursor/Amp/Cline/Warp/OpenClaw at once. Same for `~/.pi/agent/extensions/`. Only Claude needed special treatment. See [`TODO.md`](./TODO.md) item #6 for the audit and decision.
+Previous incarnations of `stow-all.py` carried ~600 lines of code to fan-out skills into 4 different agent dirs, copy a Claude plugin bundle, symlink Pi extensions, and verify Claude/Codex notification hooks. The simplification: `~/.agents/skills/` is the universal path *all* the agents already read, so a plain symlink covers Codex/OpenCode/Pi/Cursor/Amp/Cline/Warp/OpenClaw at once. Same for `~/.pi/agent/extensions/`. Only Claude needed special treatment.
 
 Key Linux packages now include:
 - `sway`
@@ -112,6 +112,25 @@ The goal is not to keep the desktop stack compositor-agnostic; the goal is to ke
 
 Keep OS detection at explicit boundaries such as package selection, bootstrap scripts, and backend helpers.
 Avoid embedding platform branches directly in otherwise shared user-facing config when a wrapper script or sourced OS-specific file would be clearer.
+
+## Considered And Rejected
+
+Ideas that look attractive on first read but failed the pillar test on inspection. **Do not relitigate without new evidence.**
+
+### chezmoi (rejected 2026-04-25)
+
+Audited [chezmoi](https://www.chezmoi.io/) v2.70.2 against `stow-all.py`'s actual responsibilities. Findings:
+
+- chezmoi cleanly replaces the boring half of `stow-all.py` (stow driver + conflict UX + OS scoping). `chezmoi diff` / `chezmoi apply --dry-run` are nicer than the custom `--check` flow.
+- chezmoi does **not** solve the harder half:
+  - Per-skill symlinks into `~/.agents/skills/` don't fit the static-target-state model. Either you duplicate symlink declarations or you drop into `run_onchange_*.sh` scripts — same Python code, just relocated under a different roof.
+  - Files mutated by other tools (`~/.claude/settings.json`, `~/.codex/config.toml`) don't fit chezmoi's "chezmoi owns the target" model.
+- **Pillar costs:** violates pillar #2 (chezmoi is a heavier abstraction than stow + Python), pillar #3 (filename munging like `dot_`, `private_`, `executable_`, `symlink_`, `run_onchange_` plus Go template syntax = more concepts to hold in head, not fewer), pillar #10 (source tree no longer mirrors `$HOME` shape; today `nvim/.config/nvim/init.lua` is its own destination, under chezmoi it becomes `dot_config/nvim/init.lua` and the repo loses its self-documenting layout).
+- **Features not used today:** templating (no per-machine variation in `git/.gitconfig` etc.), encryption (secrets are intentionally out-of-repo per `AGENTS.md`), the externals fetcher. chezmoi's most valuable features would sit unused on day one.
+
+**Conclusion:** chezmoi solves the *easy* half of the problem and ignores the *hard* half. The right response to "`stow-all.py` is sprawling" was to delete the agent-orchestration code in favor of upstream tools and `~/.agents/skills/` symlinks (already done), not to swap the underlying tool.
+
+**Reconsider only if:** chezmoi gains a real per-skill fan-out primitive (one source file → N symlink destinations), *or* you start needing per-machine templated configs and in-repo secrets at scale.
 
 ## Notes
 Project-specific setup details should live in the corresponding package folder

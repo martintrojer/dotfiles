@@ -76,16 +76,26 @@ for _, name in ipairs(IDE) do
 	SKIP_FULL_ENUM[name] = true
 end
 
-local function getAppWindowsOnCurrentSpace(app)
-	local currentSpace = hs.spaces.focusedSpace()
-	local ok, spaceWinIDs = pcall(hs.spaces.windowsForSpace, currentSpace)
-	if not ok or not spaceWinIDs then
-		return {}
+-- Set of window IDs on the currently-focused Space, or nil if hs.spaces
+-- query fails. Both window-enumeration helpers below need this prelude;
+-- factored out to avoid the (previously duplicated) 8-line dance.
+local function currentSpaceWindowIds()
+	local space = hs.spaces.focusedSpace()
+	local ok, ids = pcall(hs.spaces.windowsForSpace, space)
+	if not ok or not ids then
+		return nil
 	end
+	local set = {}
+	for _, wid in ipairs(ids) do
+		set[wid] = true
+	end
+	return set
+end
 
-	local onSpace = {}
-	for _, wid in ipairs(spaceWinIDs) do
-		onSpace[wid] = true
+local function getAppWindowsOnCurrentSpace(app)
+	local onSpace = currentSpaceWindowIds()
+	if not onSpace then
+		return {}
 	end
 
 	-- Fast path: check mainWindow/focusedWindow (single AX query each)
@@ -178,14 +188,9 @@ end
 
 -- Get all standard windows on the current space for the given app names, sorted by ID
 local function getWindowsOnCurrentSpace(appNames)
-	local currentSpace = hs.spaces.focusedSpace()
-	local ok, spaceWinIDs = pcall(hs.spaces.windowsForSpace, currentSpace)
-	if not ok or not spaceWinIDs then
+	local onSpace = currentSpaceWindowIds()
+	if not onSpace then
 		return {}
-	end
-	local onSpace = {}
-	for _, wid in ipairs(spaceWinIDs) do
-		onSpace[wid] = true
 	end
 	local wins = {}
 	for _, name in ipairs(appNames) do
