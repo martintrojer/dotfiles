@@ -1,302 +1,384 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""Wallpaper helper for sway/swaybg.
 
-usage() {
-  cat <<'EOF' >&2
-Usage:
-  wallpaper set <url-or-file>
-  wallpaper use [archive-file]
-  wallpaper current
-  wallpaper restart
-  wallpaper preview <archive-file>
+Stores wallpapers under ~/.local/share/wallpapers/archive/ keyed by a
+sanitized stem + timestamp + 6 random chars, points
+~/.local/share/wallpapers/current at the active one, and restarts
+swaybg.service so the new image takes effect.
 
-Subcommands:
-  set      Download or copy a wallpaper into ~/.local/share/wallpapers/archive/,
-           update ~/.local/share/wallpapers/current, and restart swaybg.service
-  use      Switch to an existing archived wallpaper; opens an fzf picker when no
-           archive file is provided
-  current  Print the active wallpaper path if one is installed
-  restart  Restart swaybg.service to re-apply the current wallpaper
-  preview  Render an archived wallpaper into the fzf preview pane (used by `use`)
-EOF
-  exit 2
-}
+Subcommands
+-----------
+  set <url-or-file>     Download (curl) or copy a wallpaper into the
+                        archive, snapshot the previous current if it
+                        wasn't already an archive entry, activate, and
+                        restart swaybg.service.
+  use [archive-file]    Activate an existing archive entry. Without an
+                        argument: open an fzf picker. Argument can be a
+                        bare basename or a full path.
+  current               Print the resolved path of the active wallpaper
+                        (checks ~/.local/share/wallpapers/current first,
+                        then ~/.config/wallpapers/current as fallback).
+  restart               Restart swaybg.service.
+  preview <file>        Render via chafa for fzf's preview pane.
 
-require_systemctl() {
-  if ! command -v systemctl >/dev/null 2>&1; then
-    echo "wallpaper: systemctl is unavailable" >&2
-    exit 1
-  fi
-}
+Why this is Python
+------------------
+Was 305 lines of bash with `declare -g` global contracts, `set -u`
+tripping on `local`-shadowed-globals, tab-separated `mktemp` templates
+parsed by `read`, and quoted-eval gymnastics for filename sanitization.
+Per AGENTS.md "Shell vs Python rule": got moved to Python. Behavior
+should be drop-in compatible with the bash version (consumers:
+sway/scripts/lock-screen and sway/scripts/session-wallpaper, both of
+which call `wallpaper current`; plus fzf invokes `wallpaper preview`
+internally).
+"""
+from __future__ import annotations
 
-restart_wallpaper() {
-  require_systemctl
+import argparse
+import os
+import re
+import shutil
+import string
+import subprocess
+import sys
+import tempfile
+from datetime import datetime
+from pathlib import Path
+from urllib.parse import urlparse
 
-  if ! systemctl --user restart swaybg.service; then
-    echo "wallpaper: failed to restart swaybg.service" >&2
-    exit 1
-  fi
-}
 
-# Sets the four globals consumed by every subcommand: $data_home,
-# $target_dir, $archive_dir, $current_link. `declare -g` makes the
-# contract explicit so callers don't accidentally `local` one of these
-# names and shadow the global value.
-wallpaper_paths() {
-  declare -g data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
-  declare -g target_dir="$data_home/wallpapers"
-  declare -g archive_dir="$target_dir/archive"
-  declare -g current_link="$target_dir/current"
-}
+# ----------------------------------------------------------------------
+# Paths (single source of truth; no global-shadowing footguns)
+# ----------------------------------------------------------------------
 
-archive_name_for_path() {
-  local src_path source_name stem ext
-  src_path="$1"
-  source_name="$(basename "$src_path")"
-  stem="$source_name"
-  ext=""
+XDG_DATA_HOME = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
 
-  if [[ "$source_name" == *.* && "$source_name" != .* ]]; then
-    stem="${source_name%.*}"
-    ext=".${source_name##*.}"
-  fi
+TARGET_DIR = XDG_DATA_HOME / "wallpapers"
+ARCHIVE_DIR = TARGET_DIR / "archive"
+CURRENT_LINK = TARGET_DIR / "current"
 
-  stem="$(printf '%s' "$stem" | tr -cs 'A-Za-z0-9._-' '-')"
-  stem="${stem#-}"
-  stem="${stem%-}"
-  if [[ -z "$stem" ]]; then
-    stem="wallpaper"
-  fi
+# Fallback location read by `wallpaper current` only (legacy compat).
+FALLBACK_CURRENT = XDG_CONFIG_HOME / "wallpapers" / "current"
 
-  printf '%s\t%s\n' "$stem" "$ext"
-}
 
-archive_existing_current() {
-  local resolved_current current_stem current_ext archived_current
-  wallpaper_paths
+# ----------------------------------------------------------------------
+# Helpers
+# ----------------------------------------------------------------------
 
-  if [[ ! -e "$current_link" ]]; then
+_STEM_KEEP = set(string.ascii_letters + string.digits + "._-")
+
+
+def die(msg: str, code: int = 1) -> "subprocess.NoReturn":  # type: ignore[name-defined]
+    print(f"wallpaper: {msg}", file=sys.stderr)
+    raise SystemExit(code)
+
+
+def sanitize_stem(name: str) -> tuple[str, str]:
+    """Split a basename into (sanitized_stem, ext_with_dot).
+
+    Mirrors the bash version: keep ASCII letters, digits, dot, underscore,
+    hyphen; replace everything else with '-' and squash repeats; strip
+    leading/trailing '-'; fall back to 'wallpaper' if the result is empty.
+    A leading dot makes the whole thing a stem with no extension.
+    """
+    if "." in name and not name.startswith("."):
+        stem, _, ext = name.rpartition(".")
+        ext = "." + ext
+    else:
+        stem, ext = name, ""
+
+    out: list[str] = []
+    last_dash = False
+    for ch in stem:
+        if ch in _STEM_KEEP:
+            out.append(ch)
+            last_dash = False
+        elif not last_dash:
+            out.append("-")
+            last_dash = True
+    sanitized = "".join(out).strip("-") or "wallpaper"
+    return sanitized, ext
+
+
+def basename_from_url_or_path(src: str) -> str:
+    """Strip URL query string before taking basename, leave file paths alone."""
+    parsed = urlparse(src)
+    if parsed.scheme in ("http", "https", "ftp", "file"):
+        return Path(parsed.path).name or "wallpaper"
+    return Path(src).name
+
+
+def make_archive_path(stem: str, ext: str, timestamp: str | None = None) -> Path:
+    """Allocate a unique filename under ARCHIVE_DIR using mkstemp.
+
+    Format: <YYYYMMDD-HHMMSS>-<stem>.<6 random chars><ext>
+    Matches the bash mktemp template format. mkstemp guarantees uniqueness
+    even under racing callers and creates the file with mode 0600.
+    """
+    ts = timestamp or datetime.now().strftime("%Y%m%d-%H%M%S")
+    fd, path = tempfile.mkstemp(
+        prefix=f"{ts}-{stem}.",
+        suffix=ext,
+        dir=str(ARCHIVE_DIR),
+    )
+    os.close(fd)
+    return Path(path)
+
+
+def ensure_dirs() -> None:
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def require_systemctl() -> None:
+    if shutil.which("systemctl") is None:
+        die("systemctl is unavailable")
+
+
+def restart_swaybg() -> None:
+    require_systemctl()
+    if subprocess.run(["systemctl", "--user", "restart", "swaybg.service"]).returncode != 0:
+        die("failed to restart swaybg.service")
+
+
+# ----------------------------------------------------------------------
+# Activate (shared by `set` and `use`)
+# ----------------------------------------------------------------------
+
+
+def archive_existing_current() -> None:
+    """Snapshot the current wallpaper into the archive, unless it already
+    lives there.
+
+    Same dance as the bash version: if `current` is a symlink, copy the
+    target into the archive (preserving the source for whoever else might
+    point at it). If `current` is a plain file, move it. If `current` is
+    already inside ARCHIVE_DIR, no-op.
+    """
+    if not CURRENT_LINK.exists() and not CURRENT_LINK.is_symlink():
+        return
+
+    try:
+        resolved = CURRENT_LINK.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return
+
+    if not resolved.is_file():
+        return
+
+    try:
+        resolved.relative_to(ARCHIVE_DIR.resolve())
+        return  # already in archive; nothing to snapshot
+    except ValueError:
+        pass
+
+    stem, ext = sanitize_stem(resolved.name)
+    archived = make_archive_path(stem, ext)
+    if CURRENT_LINK.is_symlink():
+        shutil.copy2(resolved, archived)
+    else:
+        shutil.move(str(CURRENT_LINK), archived)
+
+
+def activate(archive_path: Path) -> None:
+    if not archive_path.is_file():
+        die(f"archive file not found: {archive_path}")
+
+    archive_existing_current()
+    if CURRENT_LINK.exists() or CURRENT_LINK.is_symlink():
+        CURRENT_LINK.unlink()
+    CURRENT_LINK.symlink_to(archive_path)
+    restart_swaybg()
+
+
+# ----------------------------------------------------------------------
+# Subcommands
+# ----------------------------------------------------------------------
+
+
+def cmd_set(args: argparse.Namespace) -> int:
+    src: str = args.source
+    ensure_dirs()
+
+    source_name = basename_from_url_or_path(src)
+    stem, ext = sanitize_stem(source_name)
+
+    incoming_fd, incoming_path_str = tempfile.mkstemp(
+        prefix=".incoming.", dir=str(ARCHIVE_DIR)
+    )
+    os.close(incoming_fd)
+    incoming_path = Path(incoming_path_str)
+
+    try:
+        if Path(src).is_file():
+            shutil.copy2(src, incoming_path)
+        else:
+            if shutil.which("curl") is None:
+                die("curl is required for URL downloads")
+            result = subprocess.run(["curl", "-fL", src, "-o", str(incoming_path)])
+            if result.returncode != 0:
+                die(f"download failed (curl exit {result.returncode})")
+
+        install_path = make_archive_path(stem, ext)
+        # mkstemp created install_path empty; replace it with the download.
+        shutil.move(str(incoming_path), install_path)
+        incoming_path = None  # don't try to rm in the finally
+    finally:
+        if incoming_path is not None and incoming_path.exists():
+            try:
+                incoming_path.unlink()
+            except OSError:
+                pass
+
+    activate(install_path)
+    print(f"Set wallpaper to {install_path}")
     return 0
-  fi
 
-  if command -v readlink >/dev/null 2>&1; then
-    resolved_current="$(readlink -f "$current_link")"
-  else
-    resolved_current="$current_link"
-  fi
 
-  if [[ -z "$resolved_current" || ! -f "$resolved_current" ]]; then
+def cmd_use(args: argparse.Namespace) -> int:
+    ensure_dirs()
+    archive_path: Path
+    if args.archive_file is None:
+        picked = pick_with_fzf()
+        if picked is None:
+            return 0  # user aborted
+        archive_path = picked
+    else:
+        candidate = Path(args.archive_file)
+        if candidate.is_file():
+            archive_path = candidate
+        elif (ARCHIVE_DIR / args.archive_file).is_file():
+            archive_path = ARCHIVE_DIR / args.archive_file
+        else:
+            die(f"archive file not found: {args.archive_file}")
+
+    activate(archive_path)
+    print(f"Using wallpaper {archive_path}")
     return 0
-  fi
 
-  case "$resolved_current" in
-    "$archive_dir"/*)
-      return 0
-      ;;
-  esac
 
-  IFS=$'\t' read -r current_stem current_ext <<< "$(archive_name_for_path "$resolved_current")"
-  archived_current="$(mktemp "$archive_dir/$(date +%Y%m%d-%H%M%S)-${current_stem}.XXXXXX${current_ext}")"
+def cmd_current(_args: argparse.Namespace) -> int:
+    for candidate in (CURRENT_LINK, FALLBACK_CURRENT):
+        if candidate.is_file():
+            try:
+                print(candidate.resolve(strict=True))
+            except OSError:
+                print(candidate)
+            return 0
+    return 1
 
-  if [[ -L "$current_link" ]]; then
-    cp "$resolved_current" "$archived_current"
-  else
-    mv "$current_link" "$archived_current"
-  fi
-}
 
-activate_wallpaper() {
-  local archive_path current_link
-  archive_path="$1"
-  wallpaper_paths
+def cmd_restart(_args: argparse.Namespace) -> int:
+    restart_swaybg()
+    return 0
 
-  if [[ ! -f "$archive_path" ]]; then
-    echo "wallpaper: archive file not found: $archive_path" >&2
-    exit 1
-  fi
 
-  archive_existing_current
-  ln -sfn "$archive_path" "$current_link"
-  restart_wallpaper
-}
+def cmd_preview(args: argparse.Namespace) -> int:
+    candidate = Path(args.archive_file)
+    if not candidate.is_file():
+        candidate = ARCHIVE_DIR / args.archive_file
+        if not candidate.is_file():
+            return 0
 
-print_current() {
-  local config_home data_home candidate
-  config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
-  data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+    if shutil.which("chafa") is not None:
+        cols = os.environ.get("FZF_PREVIEW_COLUMNS", "80")
+        lines = os.environ.get("FZF_PREVIEW_LINES", "24")
+        result = subprocess.run(
+            [
+                "chafa",
+                "--animate=off",
+                f"--size={cols}x{lines}",
+                str(candidate),
+            ]
+        )
+        if result.returncode == 0:
+            return 0
 
-  for candidate in \
-    "$data_home/wallpapers/current" \
-    "$config_home/wallpapers/current"; do
-    if [[ -f "$candidate" ]]; then
-      if command -v readlink >/dev/null 2>&1; then
-        readlink -f "$candidate"
-      else
-        printf '%s\n' "$candidate"
-      fi
-      return 0
-    fi
-  done
+    print(candidate)
+    return 0
 
-  return 1
-}
 
-set_wallpaper() {
-  local src source_name stem ext tmp_path install_path
+# ----------------------------------------------------------------------
+# fzf picker
+# ----------------------------------------------------------------------
 
-  if [[ $# -ne 1 ]]; then
-    usage
-  fi
 
-  src="$1"
-  wallpaper_paths
+def pick_with_fzf() -> Path | None:
+    if shutil.which("fzf") is None:
+        die("fzf is required for interactive selection")
 
-  mkdir -p "$target_dir" "$archive_dir"
+    if not ARCHIVE_DIR.is_dir():
+        return None
 
-  source_name="$(basename "${src%%\?*}")"
-  if [[ "$source_name" == "$src" && -f "$src" ]]; then
-    source_name="$(basename "$src")"
-  fi
-  IFS=$'\t' read -r stem ext <<< "$(archive_name_for_path "$source_name")"
+    entries = sorted(
+        (p.name for p in ARCHIVE_DIR.iterdir() if p.is_file()),
+        reverse=True,
+    )
+    if not entries:
+        return None
 
-  tmp_path="$(mktemp "$archive_dir/.incoming.XXXXXX")"
-  cleanup() {
-    rm -f "$tmp_path"
-  }
-  trap cleanup EXIT
+    self_path = Path(__file__).resolve()
+    fzf = subprocess.run(
+        [
+            "fzf",
+            "--prompt=wallpaper> ",
+            "--border-label= wallpapers ",
+            "--no-multi",
+            "--preview-window=up:60%",
+            "--preview",
+            f"{self_path} preview {{}} 2>/dev/null",
+        ],
+        input="\n".join(entries),
+        text=True,
+        capture_output=True,
+    )
+    if fzf.returncode != 0:
+        return None
+    choice = fzf.stdout.strip()
+    if not choice:
+        return None
+    return ARCHIVE_DIR / choice
 
-  if [[ -f "$src" ]]; then
-    cp "$src" "$tmp_path"
-  else
-    if ! command -v curl >/dev/null 2>&1; then
-      echo "wallpaper: curl is required for URL downloads" >&2
-      exit 1
-    fi
 
-    curl -fL "$src" -o "$tmp_path"
-  fi
+# ----------------------------------------------------------------------
+# CLI
+# ----------------------------------------------------------------------
 
-  install_path="$(mktemp "$archive_dir/$(date +%Y%m%d-%H%M%S)-${stem}.XXXXXX${ext}")"
-  mv "$tmp_path" "$install_path"
-  trap - EXIT
 
-  activate_wallpaper "$install_path"
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="wallpaper",
+        description="Manage swaybg wallpapers under ~/.local/share/wallpapers/.",
+    )
+    sub = parser.add_subparsers(dest="cmd", required=True)
 
-  printf 'Set wallpaper to %s\n' "$install_path"
-}
+    p_set = sub.add_parser("set", help="download or copy a wallpaper, then activate")
+    p_set.add_argument("source", help="URL or local file path")
+    p_set.set_defaults(func=cmd_set)
 
-pick_wallpaper() {
-  local choice
-  wallpaper_paths
+    p_use = sub.add_parser("use", help="activate an existing archive entry (fzf if no arg)")
+    p_use.add_argument("archive_file", nargs="?", default=None,
+                       help="archive entry (basename or path); fzf picker if omitted")
+    p_use.set_defaults(func=cmd_use)
 
-  mkdir -p "$archive_dir"
+    p_current = sub.add_parser("current", help="print the active wallpaper path")
+    p_current.set_defaults(func=cmd_current)
 
-  if ! command -v fzf >/dev/null 2>&1; then
-    echo "wallpaper: fzf is required for interactive selection" >&2
-    exit 1
-  fi
+    p_restart = sub.add_parser("restart", help="restart swaybg.service")
+    p_restart.set_defaults(func=cmd_restart)
 
-  choice="$(
-    find "$archive_dir" -maxdepth 1 -type f -printf '%f\n' | sort -r | \
-      fzf \
-        --prompt='wallpaper> ' \
-        --border-label=' wallpapers ' \
-        --no-multi \
-        --preview-window='up:60%' \
-        --preview "$HOME/.local/bin/wallpaper preview {} 2>/dev/null"
-  )" || exit 0
+    p_preview = sub.add_parser("preview", help="chafa render for fzf preview pane")
+    p_preview.add_argument("archive_file")
+    p_preview.set_defaults(func=cmd_preview)
 
-  [[ -n "$choice" ]] || exit 0
-  printf '%s\n' "$archive_dir/$choice"
-}
+    return parser
 
-use_wallpaper() {
-  local archive_path selected
 
-  wallpaper_paths
-  archive_path="${1:-}"
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    return args.func(args)
 
-  if [[ $# -gt 1 ]]; then
-    usage
-  fi
 
-  if [[ -z "$archive_path" ]]; then
-    selected="$(pick_wallpaper)"
-    [[ -n "$selected" ]] || exit 0
-    archive_path="$selected"
-  elif [[ ! -f "$archive_path" ]]; then
-    if [[ -f "$archive_dir/$archive_path" ]]; then
-      archive_path="$archive_dir/$archive_path"
-    else
-      echo "wallpaper: archive file not found: $archive_path" >&2
-      exit 1
-    fi
-  fi
-
-  activate_wallpaper "$archive_path"
-  printf 'Using wallpaper %s\n' "$archive_path"
-}
-
-preview_wallpaper() {
-  local archive_path
-
-  if [[ $# -ne 1 ]]; then
-    usage
-  fi
-
-  wallpaper_paths
-  archive_path="$1"
-
-  if [[ ! -f "$archive_path" ]]; then
-    if [[ -f "$archive_dir/$archive_path" ]]; then
-      archive_path="$archive_dir/$archive_path"
-    else
-      exit 0
-    fi
-  fi
-
-  if command -v chafa >/dev/null 2>&1; then
-    if chafa \
-      --animate=off \
-      --size="${FZF_PREVIEW_COLUMNS:-80}x${FZF_PREVIEW_LINES:-24}" \
-      "$archive_path"; then
-      exit 0
-    fi
-  fi
-
-  printf '%s\n' "$archive_path"
-}
-
-if [[ $# -lt 1 ]]; then
-  usage
-fi
-
-subcommand="$1"
-shift
-
-case "$subcommand" in
-  set)
-    set_wallpaper "$@"
-    ;;
-  use)
-    use_wallpaper "$@"
-    ;;
-  current)
-    if [[ $# -ne 0 ]]; then
-      usage
-    fi
-    print_current
-    ;;
-  restart)
-    if [[ $# -ne 0 ]]; then
-      usage
-    fi
-    restart_wallpaper
-    ;;
-  preview)
-    preview_wallpaper "$@"
-    ;;
-  *)
-    usage
-    ;;
-esac
+if __name__ == "__main__":
+    raise SystemExit(main())
