@@ -28,5 +28,3 @@ base_packages=(
   # Preferred interactive shell.
   zsh
 )
-
-workstation_extra_packages=()
