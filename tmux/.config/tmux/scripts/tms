@@ -161,6 +161,32 @@ class Entry:
         return dict(zip(FZF_ROW_FIELDS, parts))
 
 
+@dataclass(frozen=True)
+class EntryPayload:
+    """Typed view of the fields that survive an Entry's fzf round-trip.
+
+    ``Entry`` carries display-only fields (icon, attention_count, is_running,
+    rendered text) that aren't worth re-deriving on selection. Anything the
+    ``connect_*`` path actually needs lives here, so consumers don't have
+    to reach into the dict-shaped output of :meth:`Entry.from_fzf_row`.
+    """
+
+    session_name: str
+    path: str | None = None
+    startup: str | None = None
+    split: str = DEFAULT_SPLIT
+
+    @classmethod
+    def from_fzf_row(cls, row: str) -> "EntryPayload":
+        fields = Entry.from_fzf_row(row)
+        return cls(
+            session_name=fields["session_name"],
+            path=fields["path"] or None,
+            startup=fields["startup"] or None,
+            split=fields["split"] or DEFAULT_SPLIT,
+        )
+
+
 def truncate(text: str, width: int) -> str:
     if len(text) <= width:
         return text
@@ -760,24 +786,16 @@ def connect(target: str) -> int:
     return connect_resolved(name, path, None, DEFAULT_SPLIT)
 
 
-def parse_selection(choice: str) -> tuple[str, str | None, str | None, str]:
-    fields = Entry.from_fzf_row(choice)
-    return (
-        fields["session_name"],
-        fields["path"] or None,
-        fields["startup"] or None,
-        fields["split"] or DEFAULT_SPLIT,
-    )
-
-
 def connect_selection() -> int:
     choice = os.environ.get("TMS_SELECTION")
     if choice is None:
         choice = sys.stdin.read().rstrip("\n")
     if not choice:
         return 1
-    session_name, path, startup, split = parse_selection(choice)
-    return connect_resolved(session_name, path, startup, split)
+    payload = EntryPayload.from_fzf_row(choice)
+    return connect_resolved(
+        payload.session_name, payload.path, payload.startup, payload.split
+    )
 
 
 def last() -> int:

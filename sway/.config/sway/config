@@ -4,7 +4,6 @@ set $mod Mod4
 set $term alacritty
 set $menu fuzzel --prompt 'Run '
 set $browser sh -lc "$HOME/.config/sway/scripts/open-browser"
-set $browser_profile sh -lc "$HOME/.config/sway/scripts/open-browser-profile"
 set $lock ~/.config/sway/scripts/lock-screen
 set $quit ~/.config/sway/scripts/session-quit
 
@@ -76,7 +75,6 @@ bindsym $mod+Shift+slash exec ~/.config/fuzzel/scripts/hotkeys
 bindsym $mod+t exec $term
 bindsym $mod+space exec $menu
 bindsym $mod+b exec $browser
-bindsym $mod+Shift+b exec $browser_profile
 # mod+y / mod+Shift+y: files in TUI (yazi) vs GUI (thunar).
 bindsym $mod+y exec sh -lc "$HOME/.config/sway/scripts/open-yazi"
 bindsym $mod+Shift+y exec thunar

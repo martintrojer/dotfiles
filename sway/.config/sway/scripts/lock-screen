@@ -14,10 +14,12 @@ import colorsys
 import hashlib
 import os
 import re
+import shlex
 import shutil
 import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 WALLPAPER_HELPER = Path.home() / ".local/bin/wallpaper"
@@ -237,8 +239,6 @@ def prune_cache(cache_dir: Path, days: int) -> None:
     if days <= 0 or not cache_dir.is_dir():
         return
     cutoff = days * 86400
-    import time
-
     now = time.time()
     for entry in cache_dir.iterdir():
         try:
@@ -252,8 +252,6 @@ def exec_swaylock(cmd: list[str], *, dry_run: bool) -> "int | None":
     """exec into swaylock, or just print the command in dry-run mode."""
     if dry_run:
         # Quote args minimally so the printed line is copy-pasteable.
-        import shlex
-
         print(shlex.join(cmd))
         return 0
     try:
@@ -299,31 +297,40 @@ def main(argv: list[str]) -> int:
             ):
                 lock_image = img_path
 
-            # Plucked accent color.
+            # Plucked accent color. ``--no-color-pick`` is a hard kill
+            # switch: don't read the cache, don't pluck a new value, lock
+            # without a tinted ring this run. Otherwise: read the cache
+            # if present; on miss pluck fresh and try to persist (but if
+            # the persist fails, keep the in-memory value rather than
+            # re-reading from a missing file).
+            accent = ""
             if not args.no_color_pick:
-                if not (color_path.is_file() and color_path.stat().st_size > 0):
-                    accent = pick_accent_color(
-                        wallpaper,
-                        saturation_scale=args.saturation_scale,
+                if color_path.is_file() and color_path.stat().st_size > 0:
+                    try:
+                        accent = color_path.read_text().strip()
+                    except OSError:
+                        accent = ""
+                else:
+                    accent = (
+                        pick_accent_color(
+                            wallpaper, saturation_scale=args.saturation_scale
+                        )
+                        or ""
                     )
                     if accent:
                         try:
                             color_path.write_text(accent + "\n")
                         except OSError:
                             pass
-                if color_path.is_file() and color_path.stat().st_size > 0:
-                    try:
-                        accent = color_path.read_text().strip()
-                    except OSError:
-                        accent = ""
-                    if re.fullmatch(r"[0-9a-fA-F]{6}", accent):
-                        touch(color_path)
-                        accent_args = [
-                            "--ring-color",
-                            f"{accent}ff",
-                            "--key-hl-color",
-                            f"{accent}ff",
-                        ]
+
+            if re.fullmatch(r"[0-9a-fA-F]{6}", accent):
+                touch(color_path)
+                accent_args = [
+                    "--ring-color",
+                    f"{accent}ff",
+                    "--key-hl-color",
+                    f"{accent}ff",
+                ]
 
         # If preprocessing failed, fall back to the raw wallpaper.
         if lock_image is None:

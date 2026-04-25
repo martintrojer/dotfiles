@@ -8,6 +8,7 @@ Usage:
   wallpaper use [archive-file]
   wallpaper current
   wallpaper restart
+  wallpaper preview <archive-file>
 
 Subcommands:
   set      Download or copy a wallpaper into ~/.local/share/wallpapers/archive/,
@@ -16,6 +17,7 @@ Subcommands:
            archive file is provided
   current  Print the active wallpaper path if one is installed
   restart  Restart swaybg.service to re-apply the current wallpaper
+  preview  Render an archived wallpaper into the fzf preview pane (used by `use`)
 EOF
   exit 2
 }
@@ -36,11 +38,15 @@ restart_wallpaper() {
   fi
 }
 
+# Sets the four globals consumed by every subcommand: $data_home,
+# $target_dir, $archive_dir, $current_link. `declare -g` makes the
+# contract explicit so callers don't accidentally `local` one of these
+# names and shadow the global value.
 wallpaper_paths() {
-  data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
-  target_dir="$data_home/wallpapers"
-  archive_dir="$target_dir/archive"
-  current_link="$target_dir/current"
+  declare -g data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+  declare -g target_dir="$data_home/wallpapers"
+  declare -g archive_dir="$target_dir/archive"
+  declare -g current_link="$target_dir/current"
 }
 
 archive_name_for_path() {
@@ -180,7 +186,7 @@ set_wallpaper() {
 }
 
 pick_wallpaper() {
-  local archive_dir choice
+  local choice
   wallpaper_paths
 
   mkdir -p "$archive_dir"
@@ -205,7 +211,7 @@ pick_wallpaper() {
 }
 
 use_wallpaper() {
-  local archive_path archive_dir selected
+  local archive_path selected
 
   wallpaper_paths
   archive_path="${1:-}"

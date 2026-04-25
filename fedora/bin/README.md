@@ -12,3 +12,4 @@ Wallpaper helpers:
 - `wallpaper use [archive-file]` switches to an archived wallpaper; without an argument it opens an `fzf` picker and uses `chafa` for previews when available
 - `wallpaper current` prints the active wallpaper path if one is installed
 - `wallpaper restart` restarts `swaybg.service` to re-apply the current wallpaper
+- `wallpaper preview <archive-file>` renders a wallpaper into the `fzf` preview pane via `chafa` (used internally by `wallpaper use`)

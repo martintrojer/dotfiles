@@ -119,7 +119,6 @@ end, { desc = "Edit Vale rejected words" })
 
 util.buf_map("n", "<leader>tc", function()
 	ts.disable_counter()
-	print("counter disabled")
 end, { desc = "Disable timestamp counter" })
 
 util.buf_map("n", "<leader>ti", function()

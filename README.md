@@ -78,9 +78,8 @@ Fedora-specific setup lives under `fedora/`, with shared package definitions in:
 - `fedora/sway-packages.sh`
 
 Other notable shared packages:
-- `tmux/` for tmux config, local picker scripts, and status helpers
-- `zsh/` for shell config and the `tm` helper that launches the local tmux session picker
 - `tmux/` for tmux config, local session picker/launcher scripts, and status helpers
+- `zsh/` for shell config and the `tm` helper that launches the local tmux session picker
 - `local-bin/` for shared `~/.local/bin` commands across macOS and Linux
 
 Fedora-only command wrappers live in `fedora/bin/`.

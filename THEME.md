@@ -61,14 +61,7 @@ All configs are now unified around **Catppuccin Mocha**.
 
 ## Chrome/Chromium Custom Color
 
-Run the script to set the theme color (Chrome must be closed):
-
-```bash
-chrome/set-chrome-theme "#1e1e2e"          # Dry-run (preview changes)
-chrome/set-chrome-theme --apply "#1e1e2e"  # Apply changes
-```
-
-Or set manually: Settings → Appearance → Theme → Custom color
+Settings → Appearance → Theme → Custom color
 
 RGB: `30, 30, 46` (from base #1e1e2e)
 

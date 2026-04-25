@@ -341,8 +341,6 @@ local function bindToggle(key, unitA, unitB, helpText)
 		withFocusedWindow(function(win)
 			if isAtUnit(win, unitA) then
 				moveToUnit(win, unitB)
-			elseif isAtUnit(win, unitB) then
-				moveToUnit(win, unitA)
 			else
 				moveToUnit(win, unitA)
 			end
@@ -448,33 +446,18 @@ end)
 addHelp("Apps", "Return: New Ghostty window")
 
 -- Focus window by direction
-hs.hotkey.bind(HYPER, "right", function()
-	local win = hs.window.focusedWindow()
-	if win then
-		win:focusWindowEast(hs.window.orderedWindows(), false, false)
+local function focusDir(method)
+	return function()
+		withFocusedWindow(function(win)
+			win[method](win, hs.window.orderedWindows(), false, false)
+		end)
 	end
-end)
+end
 
-hs.hotkey.bind(HYPER, "left", function()
-	local win = hs.window.focusedWindow()
-	if win then
-		win:focusWindowWest(hs.window.orderedWindows(), false, false)
-	end
-end)
-
-hs.hotkey.bind(HYPER, "up", function()
-	local win = hs.window.focusedWindow()
-	if win then
-		win:focusWindowNorth(hs.window.orderedWindows(), false, false)
-	end
-end)
-
-hs.hotkey.bind(HYPER, "down", function()
-	local win = hs.window.focusedWindow()
-	if win then
-		win:focusWindowSouth(hs.window.orderedWindows(), false, false)
-	end
-end)
+hs.hotkey.bind(HYPER, "right", focusDir("focusWindowEast"))
+hs.hotkey.bind(HYPER, "left", focusDir("focusWindowWest"))
+hs.hotkey.bind(HYPER, "up", focusDir("focusWindowNorth"))
+hs.hotkey.bind(HYPER, "down", focusDir("focusWindowSouth"))
 
 -- Help
 hs.hotkey.bind(HYPER, "/", toggleHelp)

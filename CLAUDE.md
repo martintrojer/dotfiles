@@ -27,7 +27,7 @@ Many nested folders start with `.`. Most default searches skip these, so use hid
 ## Editing Notes
 
 - Keep config-specific documentation in the relevant package folder (e.g. `tmux/README.md`), not in the root `README.md`
-- Add or update `.stow-local-ignore` in each package to keep `README.md` from being stowed into `$HOME`
+- README.md / LICENSE at a package root are ignored by stow's built-in defaults; no `.stow-local-ignore` needed for the common case. Only add a local ignore file when a package has *nested* files that should not be stowed (current example: `yazi/.stow-local-ignore` for the Catppuccin flavor tree). Note: a local ignore file fully **replaces** the built-in defaults rather than augmenting them, so include the root-level rules when you add nested ones.
 - Preserve path shapes that mirror `$HOME` (e.g. `.config/...`, `.ssh/...`); these are intended for stow
 - Avoid adding secrets or private keys. `ssh/.ssh/config` should stay non-sensitive
 - Keep changes minimal and consistent with existing formats (Lua, Python, shell, TOML, JSON, INI)
@@ -50,6 +50,7 @@ Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 - `tmux/.config/tmux/scripts/status-ai` - Renders the boxed `AI <count>` segment for the right-hand status
 - `tmux/.config/tmux/scripts/status-ram` - Cross-platform RAM usage percentage for the status bar
 - `tmux/.config/tmux/scripts/status-uptime` - Cross-platform short uptime string for the status bar
+- `tmux/.config/tmux/scripts/_status_common.py` - Shared helpers (throttled error log + `EXPECTED_ERRORS` tuple) consumed by every `status-*` script
 - `tmux/.config/tmux/scripts/status-window-label` - Active-pane derived window label, prefers the real running agent over stale titles
 - `tmux/.config/tmux/scripts/tms` - local Python tmux session launcher (pinned sessions + tmux sessions + zoxide + finder)
 - `tmux/.config/tmux/tms.toml` - pinned session config plus finder/preview knobs and optional per-session split mode (`vertical` / `horizontal`)
@@ -58,7 +59,7 @@ Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 - `tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts` - Pi Agent extension for agent-attention
 - `tmux/.config/tmux/scripts/opencode-plugin/notify.ts` - OpenCode plugin for agent-attention
 - `tmux/.config/tmux/scripts/cheatsheet` - fzf cheatsheet popup
-- `tmux/.config/tmux/scripts/test-status-tools` - Smoke tests for `agent-attention` and `status-window-label` against an isolated tmux server
+- `tmux/.config/tmux/scripts/test-status-tools` - Smoke tests for `agent-attention`, `status-window-label`, and `cheatsheet` against an isolated tmux server
 
 #### Running the tmux status tool tests
 
@@ -76,7 +77,7 @@ When `--keep` is set, attach to the test server with:
 tmux -L test-status-tools attach
 ```
 
-The script honors `TMUX_SOCKET_NAME` / `TMUX_SOCKET_PATH` to pin `agent-attention` to a non-default tmux server, which is what makes the tests possible. Real tmux subprocesses inherit `TMUX` from their pane and ignore these env vars.
+Both `agent-attention` and `cheatsheet` honor `TMUX_SOCKET_NAME` / `TMUX_SOCKET_PATH` so the test harness can pin them to a non-default tmux server, which is what makes the tests possible. Real tmux subprocesses inherit `TMUX` from their pane and ignore these env vars.
 
 ## Package Docs
 

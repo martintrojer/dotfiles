@@ -51,7 +51,9 @@ function M.with_lcd(dir, fn)
 	end
 
 	if not ok then
-		error(result)
+		-- level=0 suppresses the file:line prefix Lua would otherwise prepend
+		-- here; the xpcall traceback already carries the real location.
+		error(result, 0)
 	end
 	return result
 end

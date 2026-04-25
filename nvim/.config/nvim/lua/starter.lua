@@ -33,7 +33,7 @@ local function notes_section()
 end
 
 local function starter_header()
-	local hour = tonumber(os.date("!%H"))  -- UTC (UK)
+	local hour = tonumber(os.date("!%H")) -- UTC (UK)
 	local greeting
 	if hour < 6 then
 		greeting = "🌙 Good night"
@@ -78,10 +78,10 @@ starter.setup({
 		end),
 		action_item("Work", "Semantic search", "VecgrepLive"),
 		action_item(notes_header, "Notes", function()
-			vim.cmd("ZkNotes { notebook_path = '" .. vim.g.notes_path .. "', sort = { 'modified' } }")
+			require("zk.commands").get("ZkNotes")({ notebook_path = vim.g.notes_path, sort = { "modified" } })
 		end),
 		action_item(notes_header, "Journal", function()
-			vim.cmd("ZkNew { notebook_path = '" .. vim.g.notes_path .. "', group = 'journal' }")
+			require("zk.commands").get("ZkNew")({ notebook_path = vim.g.notes_path, group = "journal" })
 		end),
 		action_item(notes_header, "TODOs", function()
 			require("todos").grep({ cwd = vim.g.notes_path })

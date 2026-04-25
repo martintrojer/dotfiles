@@ -48,16 +48,21 @@ return function(map)
 	end, { desc = "Search & replace (grep → quickfix)" })
 	map("n", "<leader>sR", quickfix_replace, { desc = "Replace in quickfix files" })
 
+	-- Call vecgrep.search() directly: the :Vecgrep Ex command splits its
+	-- args on `|` and `<bar>`, which breaks user input containing pipes or
+	-- newlines (especially visual selections).
 	map("n", "<leader>sv", function()
 		vim.ui.input({ prompt = "Vecgrep: " }, function(query)
-			if query then
-				vim.cmd("Vecgrep " .. query)
+			if query and query ~= "" then
+				require("vecgrep").search(query)
 			end
 		end)
 	end, { desc = "Semantic search" })
 	map("v", "<leader>sv", function()
 		local text = table.concat(vim.fn.getregion(vim.fn.getpos("v"), vim.fn.getpos(".")), " ")
-		vim.cmd("Vecgrep " .. text)
+		if text ~= "" then
+			require("vecgrep").search(text)
+		end
 	end, { desc = "Semantic search selection" })
 	map("n", "<leader>sV", "<Cmd>VecgrepLive<CR>", { desc = "Live semantic search" })
 	map("n", "<leader>sX", "<Cmd>VecgrepReindex<CR>", { desc = "Reindex vecgrep" })

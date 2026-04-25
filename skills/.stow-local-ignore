@@ -1,2 +1,0 @@
-# Do not stow docs into $HOME
-^README\.md$

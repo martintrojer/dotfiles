@@ -130,7 +130,6 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
 
 IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
     "__pycache__",
-    "chrome",
     "claude",
     "fedora",
     "pi",
@@ -282,7 +281,10 @@ def ensure_stow_available() -> None:
 def meaningful_output(output: str) -> str:
     lines = []
     for line in output.splitlines():
-        if line == "WARNING: in simulation mode so not modifying filesystem.":
+        # Suppress any stow WARNING: line. Currently only the simulation
+        # banner exists; matching the prefix keeps us robust to phrasing
+        # changes between stow point releases.
+        if line.startswith("WARNING:"):
             continue
         if line.startswith("UNLINK: "):
             continue
@@ -630,6 +632,29 @@ def describe_skill_link_state(dest_dir: Path, source: Path) -> str | None:
     return None
 
 
+def diff_expected_links(
+    dest_dir: Path,
+    sources: Sequence[Path],
+    *,
+    extra_issues: list[str] | None = None,
+) -> list[str]:
+    """Compare the symlinks in ``dest_dir`` against ``sources``.
+
+    Returns a flat ``list[str]`` of human-readable issue lines. ``extra_issues``
+    is appended verbatim to allow callers to feed in their own pre-computed
+    "unmanaged extras / stale backlinks" detection without re-implementing
+    the per-source check.
+    """
+    issues: list[str] = []
+    for source in sources:
+        problem = describe_skill_link_state(dest_dir, source)
+        if problem is not None:
+            issues.append(f"{source.name}: {problem}")
+    if extra_issues:
+        issues.extend(extra_issues)
+    return issues
+
+
 def replace_path(path: Path) -> None:
     if path.is_symlink() or path.is_file():
         path.unlink()
@@ -885,14 +910,13 @@ def _check_skill_links(target: Path, *, verbose: bool, ignore: set[str]) -> bool
                 log_issue_summary(conflicts)
             continue
 
-        issues: list[str] = []
-        expected_names = {source.name for source in shared_skill_entries()}
-        for source in shared_skill_entries():
-            problem = describe_skill_link_state(path, source)
-            if problem is None:
-                continue
-            issues.append(f"{source.name}: {problem}")
-        issues.extend(_shared_skill_extra_issues(path, expected_names))
+        sources = shared_skill_entries()
+        expected_names = {source.name for source in sources}
+        issues = diff_expected_links(
+            path,
+            sources,
+            extra_issues=_shared_skill_extra_issues(path, expected_names),
+        )
 
         if issues:
             has_issues = True
@@ -1001,20 +1025,11 @@ def _check_pi_extensions(target: Path, *, verbose: bool, ignore: set[str]) -> bo
     expected_names = {source.name for source in entries}
     if not entries and not dest_dir.exists():
         return False
-    issues: list[str] = []
-    for source in entries:
-        link_path = dest_dir / source.name
-        desired = source.resolve(strict=False)
-        if not link_path.exists() and not link_path.is_symlink():
-            issues.append(f"{source.name}: missing")
-        elif not link_path.is_symlink():
-            issues.append(f"{source.name}: expected symlink, found file")
-        elif link_path.resolve(strict=False) != desired:
-            issues.append(
-                f"{source.name}: wrong target "
-                f"(points to {link_path.resolve(strict=False)}, expected {desired})"
-            )
-    issues.extend(_pi_extension_extra_issues(dest_dir, expected_names))
+    issues = diff_expected_links(
+        dest_dir,
+        entries,
+        extra_issues=_pi_extension_extra_issues(dest_dir, expected_names),
+    )
     if issues:
         LOGGER.warning(
             f"ISSUE: pi extensions: {len(issues)} links out of sync"

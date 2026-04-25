@@ -9,18 +9,3 @@ Shared skill installation, update order, and verification steps live in the repo
 ## Contents
 
 This plugin includes agents, commands, hooks, and skills packaged from the shared repo-root [`skills/`](../skills) directory.
-
-## Statusline
-
-`statusline-command.sh` - Custom statusline showing git branch, jj bookmark, and model info.
-
-This requires a manual entry in `~/.claude/settings.json` (not managed by stow):
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "/bin/bash $HOME/dotfiles/claude/statusline-command.sh"
-  }
-}
-```
