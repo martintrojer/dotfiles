@@ -113,7 +113,6 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
             "sway",
             "swaylock",
             "waybar",
-            "wallpapers",
         ],
     ),
     (

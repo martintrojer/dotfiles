@@ -39,7 +39,7 @@ after/ftplugin/
   markdown.lua                  — markdown-specific keymaps (nabla, zk link, cards, todos)
 ```
 
-## Plugins (14 vim.pack entries)
+## Plugins (13 vim.pack entries)
 
 ### mini.nvim (17 modules from one repo)
 
@@ -68,7 +68,6 @@ after/ftplugin/
 | Plugin | Purpose | Why not builtin? |
 |--------|---------|-----------------|
 | catppuccin | Catppuccin Mocha theme | Unified theme across terminal, eza, bat, tmux, waybar |
-| nvim-web-devicons | Legacy icon interface | Oil dependency (some plugins still use this API) |
 | fzf-lua | Fuzzy finder + LSP actions | No builtin picker. Uses fzf binary. Also handles `vim.ui.select` |
 | oil.nvim | File explorer as editable buffer | Nothing like it builtin — rename/move/delete by editing text |
 | vim-tmux-navigator | Tmux pane navigation | Requires matching tmux config. No builtin tmux awareness |
@@ -156,7 +155,7 @@ Then run `:TSSync` in nvim to install treesitter parsers.
 
 ## Key mappings
 
-See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`, `notes`, `lsp`, `meta`). Highlights:
+See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`, `notes`, `lsp`). Highlights:
 
 | Key | Action |
 |-----|--------|

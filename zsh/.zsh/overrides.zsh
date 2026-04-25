@@ -12,5 +12,5 @@ if [[ -f /run/.toolboxenv ]]; then
 fi
 
 tm() {
-    "$HOME/.config/tmux/scripts/session-picker"
+    "$HOME/.config/tmux/scripts/tms" pick-and-connect
 }

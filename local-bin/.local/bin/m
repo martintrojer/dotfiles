@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+"""Render a Markdown file with glow, paged through less.
+
+Why this exists
+---------------
+Two glow quirks make the obvious one-liner not work:
+
+1. **Pager regression in glow 2.x.** `glow -p` (its built-in pager) is
+   sluggish on long files. We render once and page with `less -R` for
+   instant scroll and proper `/` search.
+
+2. **Truecolor downgrade when stdout is a pipe.** glow uses charm/termenv,
+   which switches to bold-only ANSI when it detects a non-TTY stdout. To
+   force truecolor we have to fool termenv by running glow under a
+   pseudo-tty. `script(1)` and `unbuffer(1)` could also do this, but
+   neither ships in the Sway atomic base, so we use Python's `pty.fork`.
+
+3. **TERM = `xterm-*` / `alacritty` / `ghostty` / `kitty` deadlock.** Those
+   terminfo entries are on termenv's "supports color queries" list, so
+   termenv emits OSC 10/11 background-color queries on startup and waits
+   for a response. The pty slave has nobody to answer, so glow hangs.
+   `tmux-256color` and `screen-256color` are not on that list \u2014 termenv
+   skips the query but still emits truecolor. So we override TERM here.
+
+The previous incarnation of this lived as an inline `python3 -c` blob
+inside zsh's `m()` function. Same code, but inline-in-shell violates
+"every line is understood" pillar; here it has a docstring.
+"""
+from __future__ import annotations
+
+import os
+import pty
+import shutil
+import signal
+import subprocess
+import sys
+from pathlib import Path
+
+
+GLOW_STYLE = Path.home() / ".config" / "glow" / "catppuccin-mocha.json"
+
+
+def terminal_width(default: int = 100) -> int:
+    """Return current terminal columns minus a small margin, like the old function."""
+    try:
+        cols = shutil.get_terminal_size((default, 24)).columns
+    except OSError:
+        cols = default
+    return max(20, cols - 6)
+
+
+def render_with_pty(argv: list[str]) -> int:
+    """Run `glow ...` under a pty so termenv keeps emitting truecolor."""
+    pid, fd = pty.fork()
+    if pid == 0:
+        # Child: exec glow.
+        os.execvp(argv[0], argv)
+
+    # Parent: read pty output and forward to stdout (which is piped to less).
+    while True:
+        try:
+            chunk = os.read(fd, 4096)
+        except OSError:
+            break
+        if not chunk:
+            break
+        sys.stdout.buffer.write(chunk)
+        sys.stdout.flush()
+
+    _, status = os.waitpid(pid, 0)
+    if os.WIFEXITED(status):
+        return os.WEXITSTATUS(status)
+    if os.WIFSIGNALED(status):
+        return 128 + os.WTERMSIG(status)
+    return 1
+
+
+def main(argv: list[str]) -> int:
+    # Inherit SIGPIPE default so closing `less` early doesn't print a traceback.
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+
+    if not argv:
+        print("usage: m <file.md> [glow-args...]", file=sys.stderr)
+        return 2
+
+    glow_cmd = [
+        "glow",
+        "-s",
+        str(GLOW_STYLE),
+        "-w",
+        str(terminal_width()),
+        *argv,
+    ]
+
+    # See module docstring for the TERM override rationale.
+    os.environ["TERM"] = "tmux-256color"
+
+    # Pipe rendered output to `less -R`. We spawn less first so we can hand
+    # its stdin to the pty reader.
+    less = subprocess.Popen(["less", "-R"], stdin=subprocess.PIPE)
+    assert less.stdin is not None
+
+    # Redirect our stdout to less's stdin for the duration of the render.
+    saved_stdout_fd = os.dup(1)
+    try:
+        os.dup2(less.stdin.fileno(), 1)
+        less.stdin.close()
+        rc = render_with_pty(glow_cmd)
+    finally:
+        os.dup2(saved_stdout_fd, 1)
+        os.close(saved_stdout_fd)
+
+    less.wait()
+    return rc
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

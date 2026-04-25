@@ -1,6 +1,25 @@
 # Dotfiles
 Intended to be used with [GNU Stow](https://www.gnu.org/software/stow/)
 
+## Zen Of This Setup
+
+The pillars below are the same ones that already govern `nvim/`, `tmux/`, and `fedora/`. They exist so future-me can resist the urge to chase the next shiny compositor release, plugin framework, or distro flavor and instead keep editing actual files.
+
+When tempted, re-read this section before touching anything.
+
+1. **Boring infra is good infra.** Fedora rpm-ostree, Sway, tmux, Neovim, zsh. None of these are exciting in 2026. That is the point. The desktop should be the substrate, not the hobby.
+2. **Builtins first, plugins last.** Neovim 0.12 builtins (LSP, completion, comments, snippets, `vim.pack`) before any plugin. Native tmux status formatting, `choose-tree`, popups, and menus before TPM plugins. Standard Fedora repos before COPRs. A plugin or external tool only lands when a builtin genuinely cannot do the job.
+3. **Every line is understood.** No framework magic, no hidden keymaps, no "distro" config layers. If a line of config is here, future-me can explain why. If it cannot be explained, it gets deleted.
+4. **Each piece earns its place.** Plugins, packages, scripts, services — they all justify themselves with a one-line "why not builtin?" answer. The `nvim/README.md` plugin table is the template for how to think about every other tool too.
+5. **Local scripts over upstream plugins.** `tms`, `agent-attention`, `status-*`, `cheatsheet`, `lock-screen`, the fuzzel pickers, `stow-all.py` — small Python scripts in this repo are preferred over adding a third-party dependency. They are easy to read, easy to fix, and they do not break on upgrade.
+6. **Recreate, do not restore.** No tmux resurrect. No session snapshots. No magic state restoration. The workflow is rebuilt on demand: `tms` recreates project sessions in two keystrokes, `mini.starter` and `<leader>fo` re-enter files, agents keep their own state. Disposable sessions force the setup to stay cheap to spin up.
+7. **Thin wrappers around shared lists.** `fedora/setup-*.sh` are wrappers around `base-packages.sh` / `sway-packages.sh`. `stow-all.py` is a wrapper around stow + skill links + Claude plugin bundle. Decisions live in data, not in scripts.
+8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway. macOS is Hammerspoon + Ghostty. The shared layer is the CLI/editor baseline; the desktop stack is allowed to diverge per platform. No effort is spent making the WM/compositor portable.
+9. **One palette, everywhere.** Catppuccin Mocha across nvim, tmux, eza, bat, waybar, fuzzel, mako, swaylock. See `THEME.md`. New tools adopt the palette or do not get added.
+10. **Config lives next to the thing it configures.** Tool-specific docs go in the package folder (`nvim/README.md`, `tmux/README.md`, `fedora/README.md`, `fuzzel/README.md`, ...). This root README only describes the repo shape and the rules above.
+
+If a new toy violates more than one of these, it does not belong here — no matter how cool the blur effect is.
+
 ## Repository Shape
 
 - Portable core: shell, editor, git, terminal tooling
@@ -71,7 +90,8 @@ Key Linux packages now include:
 - `kanshi`
 - `mako`
 - `swaylock`
-- `wallpapers`
+
+Wallpapers themselves are not stowed; the `wallpaper` helper in `fedora/bin/.local/bin/` manages them per machine under `~/.local/share/wallpapers/`.
 
 Fedora-specific setup lives under `fedora/`, with shared package definitions in:
 - `fedora/base-packages.sh`

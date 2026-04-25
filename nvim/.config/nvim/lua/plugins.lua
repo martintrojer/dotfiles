@@ -26,7 +26,6 @@ vim.api.nvim_create_autocmd("User", {
 vim.pack.add({
 	{ src = gh("catppuccin/nvim"), name = "catppuccin" },
 	{ src = gh("echasnovski/mini.nvim"), name = "mini.nvim" },
-	gh("nvim-tree/nvim-web-devicons"),
 	gh("ibhagwan/fzf-lua"),
 	gh("stevearc/oil.nvim"),
 	gh("christoomey/vim-tmux-navigator"),
