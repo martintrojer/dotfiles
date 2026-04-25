@@ -30,6 +30,7 @@ class Args:
     verbose: bool
     target: str
     ignore: set[str]
+    install_agents: bool
 
 
 SCRIPT_DIR: Final[Path] = Path(__file__).resolve().parent
@@ -207,6 +208,17 @@ def parse_args() -> Args:
         metavar="ID",
         help="Suppress a specific check failure by ID (repeatable)",
     )
+    parser.add_argument(
+        "--install-agents",
+        action="store_true",
+        help=(
+            "After --apply, also install the agent-side packages: "
+            "Claude plugin, npx skills, pi package. Each is skipped if the "
+            "required CLI is not on PATH or if the package is already installed. "
+            "Idempotent. Codex's notify hook stays a manual ~/.codex/config.toml "
+            "edit (printed as a hint)."
+        ),
+    )
     namespace = parser.parse_args()
     return Args(
         action=namespace.action,
@@ -215,6 +227,7 @@ def parse_args() -> Args:
         verbose=namespace.verbose,
         target=namespace.target,
         ignore=set(namespace.ignore),
+        install_agents=namespace.install_agents,
     )
 
 
@@ -802,7 +815,10 @@ def main() -> int:
 
     apply_zsh_plugins(target, verbose=args.verbose)
     print("\nDone.")
-    print_publish_reminder()
+    if args.install_agents:
+        install_agents()
+    else:
+        print_publish_reminder()
     return 0
 
 
@@ -822,10 +838,11 @@ def print_publish_reminder() -> None:
                         paths and registers them at runtime; no copy needed.
 
     The local-path equivalents work for development; the github URLs
-    are for everyone else.
+    are for everyone else. Pass --install-agents to have stow-all run
+    them for you (idempotent).
     """
     print()
-    print("To install the agent-side packages:")
+    print("To install the agent-side packages (or re-run with --install-agents):")
     print()
     print("  # Claude Code plugin (skills + agents + commands + hooks):")
     print(
@@ -846,8 +863,129 @@ def print_publish_reminder() -> None:
         f"  # or: pi install {SCRIPT_DIR}"
     )
     print()
-    print("  # Codex notify hook (still manual; one TOML line in ~/.codex/config.toml):")
-    print('  notify = ["/bin/sh", "-lc", "python3 \\"$HOME/.config/tmux/scripts/agent-attention\\" notify --source codex --event-type notify --title Codex"]')
+    print("  # Codex notify hook (manual; one TOML line in ~/.codex/config.toml):")
+    print(
+        '  notify = ["/bin/sh", "-lc", "python3 \\"$HOME/.config/tmux/scripts/'
+        'agent-attention\\" notify --source codex --event-type notify --title Codex"]'
+    )
+    print()
+
+
+def _run_install(label: str, cmd: list[str]) -> bool:
+    """Run an install command, log it, and return True on success.
+
+    We want output streamed live (these commands can be slow + interactive),
+    so no capture_output. Errors are logged but not fatal — a missing CLI
+    on one agent shouldn't block the other installs.
+    """
+    LOGGER.warning(f"\n[install: {label}]")
+    LOGGER.warning(f"  $ {' '.join(cmd)}")
+    try:
+        result = subprocess.run(cmd)
+    except FileNotFoundError:
+        LOGGER.warning(f"  SKIPPED: {cmd[0]} not on PATH")
+        return False
+    if result.returncode != 0:
+        LOGGER.warning(f"  FAILED: {label} (exit {result.returncode})")
+        return False
+    return True
+
+
+def install_claude_plugin() -> None:
+    """Idempotent install of the dotfiles Claude plugin.
+
+    Skips if `claude` isn't on PATH. Skips per-step if the marketplace
+    is already registered or the plugin is already installed.
+    """
+    if shutil.which("claude") is None:
+        LOGGER.warning("\n[install: claude] SKIPPED: claude CLI not on PATH")
+        return
+
+    # Check existing marketplaces. `claude plugin marketplace list` prints
+    # "  ❯ dotfiles" for each registered marketplace; we look for our name.
+    list_out = subprocess.run(
+        ["claude", "plugin", "marketplace", "list"],
+        capture_output=True,
+        text=True,
+    )
+    if "dotfiles" not in list_out.stdout:
+        # Local-path install. Works on the machine that just ran --apply,
+        # avoids a network round-trip, and tests pre-push changes.
+        _run_install(
+            "claude marketplace",
+            ["claude", "plugin", "marketplace", "add", str(SCRIPT_DIR)],
+        )
+    else:
+        LOGGER.warning("\n[install: claude marketplace] already registered (dotfiles)")
+
+    plugins_out = subprocess.run(
+        ["claude", "plugin", "list"], capture_output=True, text=True
+    )
+    if "mtrojer@dotfiles" not in plugins_out.stdout:
+        _run_install(
+            "claude plugin",
+            ["claude", "plugin", "install", "mtrojer@dotfiles"],
+        )
+    else:
+        LOGGER.warning("[install: claude plugin] already installed (mtrojer@dotfiles)")
+
+
+def install_skills_via_npx() -> None:
+    """Install/refresh the dotfiles skills suite into the universal
+    ~/.agents/skills/ paths via `npx skills`.
+
+    `npx skills add` is itself idempotent: existing per-skill symlinks are
+    detected and not re-created. -g writes to global, -y skips the
+    interactive prompt.
+    """
+    if shutil.which("npx") is None:
+        LOGGER.warning("\n[install: npx skills] SKIPPED: npx not on PATH")
+        return
+    _run_install(
+        "npx skills",
+        ["npx", "-y", "skills", "add", "-g", "-y", str(SCRIPT_DIR)],
+    )
+
+
+def install_pi_package() -> None:
+    """Idempotent install of the dotfiles pi package.
+
+    Skips if `pi` isn't on PATH. Skips if our path is already in the
+    `pi list` output.
+    """
+    if shutil.which("pi") is None:
+        LOGGER.warning("\n[install: pi] SKIPPED: pi not on PATH")
+        return
+
+    list_out = subprocess.run(
+        ["pi", "list"], capture_output=True, text=True
+    )
+    if str(SCRIPT_DIR) in list_out.stdout:
+        LOGGER.warning(
+            f"\n[install: pi] already installed ({SCRIPT_DIR})"
+        )
+        return
+    _run_install("pi", ["pi", "install", str(SCRIPT_DIR)])
+
+
+def install_agents() -> None:
+    """Run all three idempotent install commands.
+
+    Each step is independent: missing CLI or install failure on one agent
+    doesn't block the others. Codex's notify hook stays manual (it requires
+    editing ~/.codex/config.toml; not worth the schema-rewriting risk for
+    a single TOML line).
+    """
+    install_claude_plugin()
+    install_skills_via_npx()
+    install_pi_package()
+    LOGGER.warning(
+        "\n[install: codex] still manual. Add this single line to "
+        "~/.codex/config.toml:\n\n"
+        '    notify = ["/bin/sh", "-lc", "python3 \\"$HOME/.config/tmux/'
+        'scripts/agent-attention\\" notify --source codex --event-type '
+        'notify --title Codex"]'
+    )
 
 
 if __name__ == "__main__":

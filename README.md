@@ -44,24 +44,23 @@ The whole repo doubles as a multi-target agent plugin:
 
 ### Install on a fresh machine
 
-After `git clone` and `./stow-all.py --apply`, run the three install commands (also printed by `--apply`):
+One command does everything:
 
 ```bash
-# Claude Code plugin (skills + agents + commands + hooks):
-claude plugin marketplace add martintrojer/dotfiles
-claude plugin install mtrojer@dotfiles
-
-# Skills for everyone else (Codex / OpenCode / Cursor / OpenClaw / generic):
-npx skills add -g martintrojer/dotfiles
-
-# Pi extensions + skills (one command, both):
-pi install git:github.com/martintrojer/dotfiles
-
-# Codex notify hook (still manual; one TOML line in ~/.codex/config.toml):
-# notify = ["/bin/sh", "-lc", "python3 \"$HOME/.config/tmux/scripts/agent-attention\" notify --source codex --event-type notify --title Codex"]
+./stow-all.py --apply --install-agents
 ```
 
-Local-path equivalents work for development:
+This stows the dotfiles, clones the pinned zsh plugins, **and** runs the three agent-side installs:
+
+- `claude plugin marketplace add` + `claude plugin install mtrojer@dotfiles`
+- `npx skills add -g` (universal Agent Skills install into `~/.agents/skills/`)
+- `pi install` (registers this repo as a pi package; pi reads extensions and skills at runtime)
+
+Each step is idempotent and skipped if the corresponding CLI is missing. Codex's `notify` hook stays a one-line manual edit of `~/.codex/config.toml` (the exact TOML line is printed at the end of the run).
+
+If you'd rather review the install commands first, omit `--install-agents`; `--apply` will print them as a reminder for you to run by hand. Both forms work; the flag just automates the manual ones.
+
+Local-path equivalents (used by `--install-agents`; useful for testing pre-push changes):
 
 - `claude plugin marketplace add /path/to/dotfiles`
 - `npx skills add -g /path/to/dotfiles`
@@ -72,9 +71,9 @@ Local-path equivalents work for development:
 When skills, agents, commands, hooks, or pi extensions change in this repo:
 
 1. Push to `origin`.
-2. On each consumer machine, re-run the upstream tool's update command (`claude plugin install mtrojer@dotfiles` re-fetches, `npx skills update`, `pi install` re-pulls).
+2. On each consumer machine, re-run `./stow-all.py --apply --install-agents` — idempotent and re-fetches each agent package. Or run the upstream commands by hand: `claude plugin install mtrojer@dotfiles`, `npx skills update`, `pi install ...`.
 
-No `stow-all.py` orchestration involved — the agents handle their own install/update lifecycle.
+The agents own the install/update lifecycle; `stow-all.py --install-agents` is just a thin orchestrator over the standard commands.
 
 ### Why this layout
 
