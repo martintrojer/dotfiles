@@ -1,47 +1,63 @@
 #!/usr/bin/env python3
-"""Wallpaper helper for sway/swaybg.
+"""Wallpaper helper for sway/swaybg + lock-screen.
 
-Stores wallpapers under ~/.local/share/wallpapers/archive/ keyed by a
-sanitized stem + timestamp + 6 random chars, points
-~/.local/share/wallpapers/current at the active one, and restarts
-swaybg.service so the new image takes effect.
+Owns everything to do with wallpapers: storage, the `current` symlink
+that swaybg consumes, and the rendered "lock" image (blurred + banner-
+stamped + accent-colored) that lock-screen consumes via the JSON
+emitted by `wallpaper status`.
 
 Subcommands
 -----------
   set <url-or-file>     Download (curl) or copy a wallpaper into the
                         archive, snapshot the previous current if it
-                        wasn't already an archive entry, activate, and
-                        restart swaybg.service.
+                        wasn't already an archive entry, activate,
+                        restart swaybg.service, and pre-render the
+                        lock image so the next lock is instant.
   use [archive-file]    Activate an existing archive entry. Without an
                         argument: open an fzf picker. Argument can be a
-                        bare basename or a full path.
+                        bare basename or a full path. Also pre-renders
+                        the lock image.
   current               Print the resolved path of the active wallpaper
-                        (checks ~/.local/share/wallpapers/current first,
-                        then ~/.config/wallpapers/current as fallback).
+                        as plain text. Used by swaybg / scripts that
+                        only want the source path. Fast (pure symlink
+                        read).
+  status                Print JSON describing the active wallpaper plus
+                        derived state for the lock screen:
+                          { "path": ..., "lock_image": ..., "accent": ... }
+                        Returns exit 1 with empty JSON if no wallpaper.
+                        Pure cache read; doesn't render on demand. Used
+                        by lock-screen.
   restart               Restart swaybg.service.
   preview <file>        Render via chafa for fzf's preview pane.
+  rebuild-cache         Force-rebuild the lock image + accent for the
+                        current wallpaper. Useful after editing the
+                        render constants in this file.
 
 Why this is Python
 ------------------
 Was 305 lines of bash with `declare -g` global contracts, `set -u`
 tripping on `local`-shadowed-globals, tab-separated `mktemp` templates
 parsed by `read`, and quoted-eval gymnastics for filename sanitization.
-Per AGENTS.md "Shell vs Python rule": got moved to Python. Behavior
-should be drop-in compatible with the bash version (consumers:
-sway/scripts/lock-screen and sway/scripts/session-wallpaper, both of
-which call `wallpaper current`; plus fzf invokes `wallpaper preview`
-internally).
+Per AGENTS.md "Shell vs Python rule": got moved to Python. Then absorbed
+the lock-image rendering + accent-color picking from sway/scripts/
+lock-screen so all ImageMagick code lives here — lock-screen just calls
+`wallpaper status` and execs swaylock with the result.
 """
 from __future__ import annotations
 
 import argparse
+import colorsys
+import hashlib
+import json
 import os
 import re
 import shutil
+import socket
 import string
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
@@ -52,14 +68,45 @@ from urllib.parse import urlparse
 # ----------------------------------------------------------------------
 
 XDG_DATA_HOME = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+XDG_CACHE_HOME = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
 XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
 
 TARGET_DIR = XDG_DATA_HOME / "wallpapers"
 ARCHIVE_DIR = TARGET_DIR / "archive"
 CURRENT_LINK = TARGET_DIR / "current"
+CACHE_DIR = XDG_CACHE_HOME / "wallpaper"
 
 # Fallback location read by `wallpaper current` only (legacy compat).
 FALLBACK_CURRENT = XDG_CONFIG_HOME / "wallpapers" / "current"
+
+
+# ----------------------------------------------------------------------
+# Lock-image render recipe (was previously flags on lock-screen).
+#
+# Bake-in instead of expose because pillar #4 — the flags weren't
+# earning their keep, the values stabilized months ago, and tweaking
+# requires editing this file (which invalidates the cache via
+# RENDER_VERSION below).
+# ----------------------------------------------------------------------
+
+BLUR_SIGMA = 18.0
+# Multiply plucked-color saturation by this so the accent reads as
+# wallpaper-derived rather than neon. 1.0 = take what the wallpaper
+# gives you; 0.85 takes the edge off without losing identity.
+SATURATION_SCALE = 0.85
+FONT = "JetBrainsMono-NF-Bold"
+# Bump when changing anything that affects the rendered PNG (font,
+# pointsizes, blur recipe, banner geometry). The cache key folds this
+# in, so changes invalidate cached images automatically.
+RENDER_VERSION = 2
+# Catppuccin Mocha 'text' — banner fallback when accent pluck fails.
+FALLBACK_TEXT_COLOR = "cdd6f4"
+# Cache eviction horizon. Entries untouched for this long get pruned
+# on the next cache-touching invocation.
+CACHE_PRUNE_DAYS = 30
+
+# Match lines like:  "  1962: (92,37,12) #5C250C srgb(...)"
+_HIST_RE = re.compile(r"^\s*(\d+):.*#([0-9A-Fa-f]{6})")
 
 
 # ----------------------------------------------------------------------
@@ -142,6 +189,198 @@ def restart_swaybg() -> None:
 
 
 # ----------------------------------------------------------------------
+# Lock-image cache: blurred + banner-stamped PNG + plucked accent color
+#
+# Files live at $XDG_CACHE_HOME/wallpaper/<sha>.{png,color}. Key is
+# wallpaper path + mtime + RENDER_VERSION; bumping the version (or
+# editing the source wallpaper) invalidates the entry automatically.
+#
+# Lock-screen reads these via `wallpaper status`. Wallpaper set/use
+# pre-render so the next lock is instant.
+# ----------------------------------------------------------------------
+
+
+def _cache_key(wallpaper: Path) -> str | None:
+    """Stable key derived from absolute path + mtime + RENDER_VERSION."""
+    try:
+        mtime = wallpaper.stat().st_mtime_ns
+    except OSError:
+        return None
+    raw = f"{wallpaper}\0{mtime}\0v={RENDER_VERSION}".encode()
+    return hashlib.sha1(raw).hexdigest()[:16]
+
+
+def _cache_paths(wallpaper: Path) -> tuple[Path, Path] | None:
+    key = _cache_key(wallpaper)
+    if key is None:
+        return None
+    return CACHE_DIR / f"{key}.png", CACHE_DIR / f"{key}.color"
+
+
+def _touch(path: Path) -> None:
+    """Best-effort mtime bump so the prune step keeps active entries warm."""
+    try:
+        path.touch()
+    except OSError:
+        pass
+
+
+def _prune_cache() -> None:
+    """Drop cache entries untouched for more than CACHE_PRUNE_DAYS."""
+    if CACHE_PRUNE_DAYS <= 0 or not CACHE_DIR.is_dir():
+        return
+    cutoff = CACHE_PRUNE_DAYS * 86400
+    now = time.time()
+    for entry in CACHE_DIR.iterdir():
+        try:
+            if entry.is_file() and (now - entry.stat().st_mtime) > cutoff:
+                entry.unlink()
+        except OSError:
+            pass
+
+
+def _pick_accent(src: Path) -> str | None:
+    """Quantize wallpaper to 16 colors; pick the most-prominent vivid one.
+
+    Score = count * saturation^1.5 * brightness-near-mid. Winner is then
+    desaturated by SATURATION_SCALE so it reads as an accent rather than
+    a neon stripe. Returns 6-char hex (no #) or None on failure.
+    """
+    if not shutil.which("magick"):
+        return None
+    try:
+        res = subprocess.run(
+            [
+                "magick", str(src),
+                "-resize", "200x200",
+                "-colors", "16",
+                "-depth", "8",
+                "-format", "%c",
+                "histogram:info:-",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if res.returncode != 0:
+        return None
+
+    best: tuple[float, float, float, float] | None = None  # (score, h, l, s)
+    for line in res.stdout.splitlines():
+        m = _HIST_RE.match(line)
+        if not m:
+            continue
+        count = int(m.group(1))
+        hexv = m.group(2).lower()
+        r, g, b = (int(hexv[i : i + 2], 16) / 255 for i in (0, 2, 4))
+        hue, lightness, sat = colorsys.rgb_to_hls(r, g, b)
+        bright = max(0.0, 1 - abs(lightness - 0.55) * 1.4)
+        score = count * (sat**1.5) * bright
+        if score <= 0:
+            continue
+        if best is None or score > best[0]:
+            best = (score, hue, lightness, sat)
+
+    if best is None:
+        return None
+    _, hue, lightness, sat = best
+    r, g, b = colorsys.hls_to_rgb(hue, lightness, sat * SATURATION_SCALE)
+    return "{:02x}{:02x}{:02x}".format(round(r * 255), round(g * 255), round(b * 255))
+
+
+def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
+    """Render blurred + banner-stamped wallpaper to dst.
+
+    Blur is applied first so the banner stays sharp. Banner is two
+    centered stacked lines (LOCKED / user@host) with a 2px dark drop-
+    shadow underneath each line so the text stays legible against light
+    wallpapers. Banner fill is the plucked accent (falls back to
+    Catppuccin text color).
+    """
+    if not shutil.which("magick"):
+        return False
+    line1 = "LOCKED"
+    line2 = (
+        f"{os.environ.get('USER', 'user')}@"
+        f"{socket.gethostname().split('.')[0]}"
+    )
+    # y-offsets are from the bottom edge (gravity south); larger y =
+    # higher up. ~52pt + ~14pt gap puts LOCKED above user@host with
+    # breathing room.
+    line1_y, line2_y = 152, 100
+    line1_pt, line2_pt = "42", "30"
+    if accent and re.fullmatch(r"[0-9a-fA-F]{6}", accent):
+        fill = f"#{accent}ff"
+    else:
+        fill = f"#{FALLBACK_TEXT_COLOR}ff"
+    shadow = "#00000099"
+    cmd: list[str] = ["magick", str(src), "-blur", f"0x{BLUR_SIGMA}"]
+    cmd += ["-gravity", "south", "-font", FONT]
+    for text, y, pt in ((line1, line1_y, line1_pt), (line2, line2_y, line2_pt)):
+        cmd += [
+            "-pointsize", pt,
+            "-fill", shadow, "-annotate", f"+2+{y - 2}", text,
+            "-fill", fill, "-annotate", f"+0+{y}", text,
+        ]
+    cmd.append(str(dst))
+    try:
+        res = subprocess.run(cmd, capture_output=True, timeout=30, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return res.returncode == 0 and dst.is_file() and dst.stat().st_size > 0
+
+
+def build_lock_cache(wallpaper: Path, *, force: bool = False) -> tuple[Path | None, str | None]:
+    """Pluck accent + render lock image for `wallpaper`. Idempotent.
+
+    Returns (image_path, accent_hex). Either may be None if the
+    corresponding step failed (no `magick` on PATH, etc.). Lock-screen
+    handles those Nones via its solid-color fallback.
+    """
+    paths = _cache_paths(wallpaper)
+    if paths is None:
+        return None, None
+    img_path, color_path = paths
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    _prune_cache()
+
+    # Accent first — the rendered image bakes it into the banner, so a
+    # cached image without the accent stored is meaningless.
+    accent: str | None = None
+    if force:
+        for p in (img_path, color_path):
+            p.unlink(missing_ok=True)
+    if color_path.is_file() and color_path.stat().st_size > 0:
+        try:
+            cached = color_path.read_text().strip()
+            if re.fullmatch(r"[0-9a-fA-F]{6}", cached):
+                accent = cached
+        except OSError:
+            pass
+    if accent is None:
+        accent = _pick_accent(wallpaper)
+        if accent:
+            try:
+                color_path.write_text(accent + "\n")
+            except OSError:
+                pass
+    if accent:
+        _touch(color_path)
+
+    image: Path | None = None
+    if img_path.is_file() and img_path.stat().st_size > 0:
+        image = img_path
+        _touch(img_path)
+    elif _build_lock_image(wallpaper, img_path, accent=accent):
+        image = img_path
+
+    return image, accent
+
+
+# ----------------------------------------------------------------------
 # Activate (shared by `set` and `use`)
 # ----------------------------------------------------------------------
 
@@ -189,6 +428,10 @@ def activate(archive_path: Path) -> None:
         CURRENT_LINK.unlink()
     CURRENT_LINK.symlink_to(archive_path)
     restart_swaybg()
+    # Pre-render the lock image so the next lock is instant. Best-effort
+    # — a render failure here doesn't fail the activate; lock-screen
+    # falls back to a solid-color lock when the cache is missing.
+    build_lock_cache(archive_path)
 
 
 # ----------------------------------------------------------------------
@@ -258,14 +501,75 @@ def cmd_use(args: argparse.Namespace) -> int:
 
 
 def cmd_current(_args: argparse.Namespace) -> int:
+    path = _resolve_current()
+    if path is None:
+        return 1
+    print(path)
+    return 0
+
+
+def _resolve_current() -> Path | None:
+    """Return the active wallpaper's resolved path, or None if not set."""
     for candidate in (CURRENT_LINK, FALLBACK_CURRENT):
         if candidate.is_file():
             try:
-                print(candidate.resolve(strict=True))
+                return candidate.resolve(strict=True)
             except OSError:
-                print(candidate)
-            return 0
-    return 1
+                return candidate
+    return None
+
+
+def cmd_status(_args: argparse.Namespace) -> int:
+    """Print JSON describing the active wallpaper plus lock-cache state.
+
+    Pure cache read — doesn't render on demand. Returns exit 1 with
+    `null` when no wallpaper is set; lock-screen treats that as the
+    'fall back to solid color' signal.
+    """
+    path = _resolve_current()
+    if path is None:
+        print("null")
+        return 1
+
+    lock_image: str | None = None
+    accent: str | None = None
+    paths = _cache_paths(path)
+    if paths is not None:
+        img_path, color_path = paths
+        if img_path.is_file() and img_path.stat().st_size > 0:
+            lock_image = str(img_path)
+            _touch(img_path)
+        if color_path.is_file() and color_path.stat().st_size > 0:
+            try:
+                cached = color_path.read_text().strip()
+                if re.fullmatch(r"[0-9a-fA-F]{6}", cached):
+                    accent = cached
+                    _touch(color_path)
+            except OSError:
+                pass
+
+    print(json.dumps({
+        "path": str(path),
+        "lock_image": lock_image,
+        "accent": accent,
+    }))
+    return 0
+
+
+def cmd_rebuild_cache(_args: argparse.Namespace) -> int:
+    """Force-rebuild the lock image + accent for the current wallpaper."""
+    path = _resolve_current()
+    if path is None:
+        die("no current wallpaper to rebuild cache for")
+    image, accent = build_lock_cache(path, force=True)
+    if image is None and accent is None:
+        die("rebuild failed (is `magick` on PATH?)")
+    print(json.dumps({
+        "path": str(path),
+        "lock_image": str(image) if image else None,
+        "accent": accent,
+    }))
+    return 0
 
 
 def cmd_restart(_args: argparse.Namespace) -> int:
@@ -303,17 +607,21 @@ def cmd_preview(args: argparse.Namespace) -> int:
 # ----------------------------------------------------------------------
 
 
+def _list_archive_basenames() -> list[str]:
+    """Sorted (newest first) basenames of every archive entry."""
+    if not ARCHIVE_DIR.is_dir():
+        return []
+    return sorted(
+        (p.name for p in ARCHIVE_DIR.iterdir() if p.is_file()),
+        reverse=True,
+    )
+
+
 def pick_with_fzf() -> Path | None:
     if shutil.which("fzf") is None:
         die("fzf is required for interactive selection")
 
-    if not ARCHIVE_DIR.is_dir():
-        return None
-
-    entries = sorted(
-        (p.name for p in ARCHIVE_DIR.iterdir() if p.is_file()),
-        reverse=True,
-    )
+    entries = _list_archive_basenames()
     if not entries:
         return None
 
@@ -323,10 +631,23 @@ def pick_with_fzf() -> Path | None:
             "fzf",
             "--prompt=wallpaper> ",
             "--border-label= wallpapers ",
+            "--header=enter: use   ctrl-shift-d: delete   esc: cancel",
             "--no-multi",
             "--preview-window=up:60%",
             "--preview",
             f"{self_path} preview {{}} 2>/dev/null",
+            # Ctrl-Shift-D triggers immediate delete via _delete-archive,
+            # then reload re-emits the archive listing. The shortcut is
+            # deliberate enough that no extra confirmation is needed; the
+            # entry under cursor is shown in the picker. _delete-archive
+            # refuses to delete the currently-active wallpaper (would
+            # leave a dangling `current` symlink) and opportunistically
+            # cleans the lock-screen cache for the deleted entry.
+            "--bind",
+            (
+                f"ctrl-D:execute-silent({self_path} _delete-archive {{}})"
+                f"+reload({self_path} _list-archive)"
+            ),
         ],
         input="\n".join(entries),
         text=True,
@@ -338,6 +659,67 @@ def pick_with_fzf() -> Path | None:
     if not choice:
         return None
     return ARCHIVE_DIR / choice
+
+
+# ----------------------------------------------------------------------
+# Internal subcommands used by the fzf picker (not part of the public CLI)
+# ----------------------------------------------------------------------
+
+
+def cmd__list_archive(_args: argparse.Namespace) -> int:
+    """Print archive entries (basenames, newest first), one per line.
+
+    Used as both the initial input and the reload source for the fzf
+    picker. Lives as a subcommand rather than inline shell so the
+    picker stays declarative.
+    """
+    for name in _list_archive_basenames():
+        print(name)
+    return 0
+
+
+def cmd__delete_archive(args: argparse.Namespace) -> int:
+    """Delete an archive entry + opportunistically nuke its lock cache.
+
+    Refuses to delete the currently-active wallpaper (would leave a
+    dangling `current` symlink). Errors are printed to stderr but the
+    return code is intentionally always 0 — fzf's reload path doesn't
+    care, and a non-zero exit would surface as a confusing fzf error
+    line. The user just sees the entry vanish (or not, if it's the
+    active one).
+    """
+    name = args.basename
+    target = ARCHIVE_DIR / name
+    if not target.is_file():
+        print(f"wallpaper: not in archive: {name}", file=sys.stderr)
+        return 0
+
+    active = _resolve_current()
+    if active is not None and active.resolve() == target.resolve():
+        print(
+            f"wallpaper: refusing to delete currently-active wallpaper "
+            f"({name}); switch to another first",
+            file=sys.stderr,
+        )
+        return 0
+
+    # Find any cache entries derived from this wallpaper. The cache key
+    # folds in the wallpaper's mtime, so we look up before unlinking.
+    paths = _cache_paths(target)
+
+    try:
+        target.unlink()
+    except OSError as exc:
+        print(f"wallpaper: failed to delete {name}: {exc}", file=sys.stderr)
+        return 0
+
+    if paths is not None:
+        for cache_file in paths:
+            try:
+                cache_file.unlink(missing_ok=True)
+            except OSError:
+                pass
+    return 0
 
 
 # ----------------------------------------------------------------------
@@ -364,12 +746,36 @@ def build_parser() -> argparse.ArgumentParser:
     p_current = sub.add_parser("current", help="print the active wallpaper path")
     p_current.set_defaults(func=cmd_current)
 
+    p_status = sub.add_parser(
+        "status",
+        help="print JSON {path, lock_image, accent} for the active wallpaper",
+    )
+    p_status.set_defaults(func=cmd_status)
+
+    p_rebuild = sub.add_parser(
+        "rebuild-cache",
+        help="force-rebuild the lock image + accent for the current wallpaper",
+    )
+    p_rebuild.set_defaults(func=cmd_rebuild_cache)
+
     p_restart = sub.add_parser("restart", help="restart swaybg.service")
     p_restart.set_defaults(func=cmd_restart)
 
     p_preview = sub.add_parser("preview", help="chafa render for fzf preview pane")
     p_preview.add_argument("archive_file")
     p_preview.set_defaults(func=cmd_preview)
+
+    # Internal subcommands used by the fzf picker via --bind. The
+    # leading underscore + the lack of `help=` keeps them out of the
+    # per-line descriptions in --help; they still appear in the
+    # {a,b,c,...} choice list (argparse limitation), which is fine for
+    # signalling "internal but technically callable".
+    p_list = sub.add_parser("_list-archive")
+    p_list.set_defaults(func=cmd__list_archive)
+
+    p_del = sub.add_parser("_delete-archive")
+    p_del.add_argument("basename")
+    p_del.set_defaults(func=cmd__delete_archive)
 
     return parser
 
