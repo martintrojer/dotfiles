@@ -1,63 +1,88 @@
 # Zsh
 
+Slim, framework-free zsh config. No oh-my-zsh, no plugin manager. Native compinit, native keybindings, two third-party plugins sourced directly. Mirrors the philosophy of `nvim/` (no framework, every line understood).
+
 ## Setup
-Install Oh My Zsh and the plugins used by this config:
 
-1. `sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"`
-2. `git clone --depth 1 https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions`
-3. `git clone --depth 1 https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting`
+`./stow-all.py --apply` from the repo root does everything:
 
-If you want the `tm` helper and tmux session launcher flow to work, install `tmux`, `fzf`, `zoxide`, `fd`, and `eza`.
+1. Stows `zsh/.zshrc` and `zsh/.zsh/` to `~/`.
+2. Clones `zsh-autosuggestions` and `zsh-syntax-highlighting` into `~/.local/share/zsh-plugins/<name>/` at pinned versions (see `ZSH_PLUGINS` in `stow-all.py`).
 
-## Plugin Highlights
+If you want the `tm` tmux helper, install `tmux`, `fzf`, `zoxide`, `fd`, and `eza` (the Fedora `base-packages.sh` covers these).
 
-- `git`: Git aliases and completions.
-  - Examples: `gco` for `git checkout`, `gst` for `git status`, `gl` for pull, `gp` for push.
-- `jj`: Jujutsu aliases and completions.
-  - Examples: `jj st`, `jj log`, `jj diff`.
-- Diff review wrappers in `.zsh/aliases.zsh`.
-  - `gvd` runs `git difftool --dir-diff --no-prompt --extcmd=nvdiff`.
-  - `jvd` runs `jj --no-pager diff --tool nvdiff`.
-  - `nvdiff` launches normal Neovim startup and opens a `:DiffTool` session.
-- `fzf`: fuzzy finder integration for shell workflows.
-  - Example: use your local `F` global alias to turn `history F` or `rg foo F` into an interactive picker.
-- `zoxide`: smarter directory jumping.
-  - Examples: `z dotfiles`, `zi` for interactive jump selection.
-- `zsh-autosuggestions`: suggests commands from history as you type.
-  - Example: press Right Arrow in this config to accept the suggestion.
-- `zsh-syntax-highlighting`: colors valid and invalid command syntax while typing.
-- `eza`: modern file-listing aliases, with final alias overrides kept in `.zsh/overrides.zsh`.
-  - Examples: `ls`, `ll`, `la`, `lt`, `l`.
-- `sudo`: quick "fix the last command with sudo" workflow.
-  - Example: `Esc Esc` prepends `sudo` to the current command line.
-- `podman`: Podman aliases and completions.
-  - Examples: `pc` for `podman container`, `pi` for `podman image`, `pp` for `podman pod`.
-- `toolbox`: toolbox shortcuts.
-  - Examples: `tbe dev` for `toolbox enter dev`, `tbr dev command` for `toolbox run dev command`.
-- `ssh`: host-aware completion from `~/.ssh/config` for SSH-family commands, plus helpers like `ssh_rmhkey` for removing a host key entry.
-- `systemd`: short aliases for `systemctl` and `systemctl --user`.
-  - Examples: `sc-status sshd`, `sc-restart foo`, `scu-status waybar`, `scu-restart mako`.
-- `tmux`: tmux aliases and completions for terminal workflow.
-  - Examples: `ta` to attach, `tl` to list sessions, `tkss name` to kill a session by name.
-- `rust`: Rust and Cargo completions/aliases.
-  - Examples: `cb` for `cargo build`, `ct` for `cargo test`, `cr` for `cargo run`.
-- `alias-finder`: helps discover existing aliases for a command.
-  - Example: run `alias-finder git checkout` to see whether a shorter alias already exists.
+## Layout
 
-## Tmux Helper
+```
+.zshrc                 — slim interactive shell config (~110 lines)
+.zsh/
+  exports.zsh          — PATH, EDITOR, HISTCONTROL, PAGER/LESS
+  tools.zsh            — mise activation + hand-rolled prompt (Catppuccin)
+  aliases.zsh          — global aliases (F, H, T, G, L), serve, gvd, jvd
+  git-aliases.zsh      — 12 cherry-picked git aliases (g, ga, gst, glg, gp, …)
+  jj-aliases.zsh       — 10 cherry-picked jj aliases (jjla, jjst, jjgp, jjsq, …)
+  functions.zsh        — zknew, nv, mvln, y, rmhist
+  overrides.zsh        — eza-backed ls/ll/la/lt/l + tm() tmux helper
+  homebrew.zsh         — macOS Homebrew PATH bootstrap (sourced first on Darwin)
+  os-darwin.zsh        — macOS-only shell tweaks
+```
 
-This config adds a small `tm` shell helper in `.zsh/overrides.zsh`.
+## Highlights
 
-- `tm` runs `$HOME/.config/tmux/scripts/tms pick-and-connect`
-- the picker shows the selection UI; on `<Enter>` `tms` attaches or creates the tmux session in one step
+### Aliases (cherry-picked from oh-my-zsh git/jj plugins)
 
-## Startup Layout
+The full lists live in `git-aliases.zsh` and `jj-aliases.zsh`. The keepers:
 
-- `.zshrc`: interactive shell config, prompt, aliases, functions, Oh My Zsh, and early macOS Homebrew PATH bootstrap before plugin loading.
-- `.zsh/homebrew.zsh`: cheap macOS Homebrew PATH bootstrap used by `.zshrc` so Homebrew-installed tools are visible to Oh My Zsh plugins without relying on login shells or `brew shellenv`.
+- **git**: `g`, `ga`, `gb`, `gc`, `gco`, `gd`, `gf`, `gl`, `glg`, `gp`, `grb`, `gst`
+- **jj**: `jjb`, `jjd`, `jjdmsg`, `jje`, `jjgp`, `jjla`, `jjn`, `jjrb`, `jjsq`, `jjst`
+
+Selection criterion: ≥5 hits in `~/.zsh_history`. Everything else from the OMZ git (~190) and jj (~25) plugins was dropped.
+
+### Diff review wrappers (in `aliases.zsh`)
+
+- `gvd` → `git difftool --dir-diff --no-prompt --extcmd=nvdiff`
+- `jvd` → `jj --no-pager diff --tool nvdiff`
+- `nvdiff` is a `fedora/bin/` script that opens Neovim's `:DiffTool`
+
+### Plugins sourced directly
+
+- **zsh-autosuggestions** — ghost-text history suggestions; `^[[C` (Right Arrow) accepts.
+- **zsh-syntax-highlighting** — live coloring of the command line (sourced last per upstream docs).
+- **fzf** — `eval "$(fzf --zsh)"` provides:
+  - `Ctrl-T` file picker
+  - `Ctrl-R` history search
+  - `Esc-c` cd picker
+  - `**` completion trigger: `kill **<TAB>`, `ssh **<TAB>`, `cd **<TAB>`, `vim **<TAB>`, etc.
+- **zoxide** — `eval "$(zoxide init zsh)"` provides `z <pat>` (jump) and `zi` (interactive).
+
+### Keybindings (native)
+
+- `↑` / `↓` — `up-line-or-beginning-search` / `down-line-or-beginning-search` (type a prefix then ↑ to history-search by that prefix)
+- `^E` — `end-of-line`
+- `Ctrl-X Ctrl-E` — `edit-command-line` (open `$EDITOR` to compose the current line)
+
+### Dir aliases
+
+- `...` → `cd ../..`
+- `....` → `cd ../../..`
+- `-` → `cd -`
+- `md` → `mkdir -p`
+
+### `tm` tmux helper
+
+In `overrides.zsh`. Runs `$HOME/.config/tmux/scripts/tms pick-and-connect` — the picker shows the selection UI; on `<Enter>` `tms` attaches or creates the tmux session in one step.
+
+## Plugin update story
+
+Bump the version string in `stow-all.py`'s `ZSH_PLUGINS` constant, then run `./stow-all.py --apply`. The script:
+
+- Fetches if the pinned ref isn't in the local clone
+- Checks out the new ref only if HEAD doesn't already match
+- Logs `CLONING` / `FETCHING` / `PINNED` for visible operations; silent if everything's already correct
+- `./stow-all.py --check` reports `MISSING`, `UNKNOWN-REF`, or `DRIFT` issues
+
+Same model as `nvim/lua/plugins.lua` + `nvim-pack-lock.json`.
 
 ## Boundary
 
-Keep cross-platform shell behavior in shared files.
-Use small OS checks for narrow environment differences.
-Move larger platform-specific workflows into dedicated sourced files before the shared layer becomes noisy.
+Cross-platform behavior in shared files. OS checks for narrow differences (`os-darwin.zsh`, `homebrew.zsh`). Larger Linux-specific behavior would live in `os-linux.zsh` (deleted as unused 2026-04-25; revive if needed).

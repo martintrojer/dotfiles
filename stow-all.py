@@ -55,7 +55,11 @@ ZSH_PLUGINS: Final[tuple[tuple[str, str, str], ...]] = (
         "0.8.0",
     ),
 )
-ZSH_PLUGINS_DEST: Final[Path] = Path(".zsh/plugins")
+# ~/.local/share/zsh-plugins/ rather than ~/.zsh/plugins/ specifically because
+# ~/.zsh is a stow-folded symlink into the dotfiles repo source tree; cloning
+# under it would dump the plugin contents into the repo. XDG_DATA_HOME-style
+# placement keeps third-party clones out of the source tree entirely.
+ZSH_PLUGINS_DEST: Final[Path] = Path(".local/share/zsh-plugins")
 
 # (scope, stow_dir, package_names)
 PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
@@ -71,6 +75,7 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
             "jj",
             "local-bin",
             "nvim",
+            "opencode",
             "ssh",
             "summarize",
             "tmux",

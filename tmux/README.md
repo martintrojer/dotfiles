@@ -181,31 +181,11 @@ Runtime state is stored in:
 
 ## Hook Setup
 
-Each agent harness calls `agent-attention notify --source <name>` when it needs attention. The script resolves the current tmux target from `--pane`, then `TMUX_PANE`, then the controlling TTY, which makes hook subprocesses more reliable. `stow-all.py` checks all four hooks and auto-creates symlinks for Pi and OpenCode. Claude Code and Codex require manual config.
+Each agent harness calls `agent-attention notify --source <name>` when it needs attention. The script resolves the current tmux target from `--pane`, then `TMUX_PANE`, then the controlling TTY, which makes hook subprocesses more reliable.
 
-Run `stow-all.py -c -v` to see which hooks are configured and which are missing.
+### Claude Code (auto — ships in the repo's Claude plugin)
 
-### Claude Code (manual — `$HOME/.claude/settings.json`)
-
-Add to the `hooks` key:
-
-```json
-{
-  "hooks": {
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 $HOME/.config/tmux/scripts/agent-attention notify --source claude --event-type notification --title Claude"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+The `Notification` hook lives in [`hooks/hooks.json`](../hooks/hooks.json) at the repo root, alongside the existing post-action `Stop` quality-reminder hook. When users install the Claude plugin (`claude plugin install mtrojer@dotfiles`), Claude wires the hook up automatically.
 
 ### Codex CLI (manual — `$HOME/.codex/config.toml`)
 
@@ -215,17 +195,17 @@ Add to the top level:
 notify = ["/bin/sh", "-lc", "python3 \"$HOME/.config/tmux/scripts/agent-attention\" notify --source codex --event-type notify --title Codex"]
 ```
 
-The `/bin/sh -lc` wrapper is important here because Codex's TOML array form does not expand `$HOME` by itself.
+The `/bin/sh -lc` wrapper is important here because Codex's TOML array form does not expand `$HOME` by itself. Codex has no plugin marketplace yet, so this stays manual.
 
-### OpenCode (auto — `stow-all.py --apply`)
+### OpenCode (auto — `./stow-all.py --apply`)
 
-Symlinked by `stow-all.py` from `tmux/.config/tmux/scripts/opencode-plugin/notify.ts` to `~/.config/opencode/plugin/notify.ts`.
+Lives in the [`opencode/`](../../opencode) stow package. `stow-all.py --apply` symlinks `opencode/.config/opencode/plugin/notify.ts` to `~/.config/opencode/plugin/notify.ts`.
 
 Subscribes to `session.idle` and `permission.asked` events.
 
-### Pi Agent (auto — `stow-all.py --apply`)
+### Pi Agent (auto — part of the dotfiles pi package)
 
-Symlinked by `stow-all.py` from `tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts` to `~/.pi/agent/extensions/agent-attention.ts`.
+Lives in [`pi/extensions/agent-attention.ts`](../../pi/extensions/agent-attention.ts). When users install the dotfiles pi package (`pi install git:github.com/martintrojer/dotfiles`), Pi loads the extension automatically.
 
 Subscribes to Pi's `agent_end` event so attention only fires once the prompt is actually finished.
 
