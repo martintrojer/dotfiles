@@ -19,6 +19,7 @@ import os
 import shutil
 import subprocess
 import sys
+from typing import Iterable
 
 # Section ordering when rendering. "Plugins" and "No prefix" are static
 # footers (see PLUGIN_EXTRAS / NO_PREFIX_EXTRAS) and not produced from
@@ -180,10 +181,24 @@ def render_extras() -> list[str]:
     return out
 
 
+def _tmux_socket_args() -> Iterable[str]:
+    """Honor TMUX_SOCKET_NAME / TMUX_SOCKET_PATH so tests can pin to an
+    isolated server. Real interactive use leaves both unset and falls
+    back to tmux's default socket.
+    """
+    socket_path = os.environ.get("TMUX_SOCKET_PATH")
+    if socket_path:
+        return ("-S", socket_path)
+    socket_name = os.environ.get("TMUX_SOCKET_NAME")
+    if socket_name:
+        return ("-L", socket_name)
+    return ()
+
+
 def fetch_keys() -> str:
     """Run ``tmux list-keys -T prefix -N`` and return its raw stdout."""
     result = subprocess.run(
-        ["tmux", "list-keys", "-T", "prefix", "-N"],
+        ["tmux", *_tmux_socket_args(), "list-keys", "-T", "prefix", "-N"],
         capture_output=True,
         text=True,
         check=False,

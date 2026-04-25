@@ -13,6 +13,7 @@ import urllib.request
 
 from _common import (
     ScriptError,
+    cli_main,
     fuzzel_dmenu,
     list_sway_windows,
     notify,
@@ -26,8 +27,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--ports",
-        default=os.environ.get("CDP_PORTS", "9222 9223"),
-        help="Space-separated CDP ports",
+        default=os.environ.get("CDP_PORTS", "9222"),
+        help="Space-separated CDP ports (override with CDP_PORTS env var)",
     )
     parser.add_argument("--prompt", default="Chrome  ")
     parser.add_argument("--width", type=int, default=85)
@@ -116,12 +117,19 @@ def main() -> int:
     try:
         idx = display.index(selected)
     except ValueError:
+        # Fuzzel may return free-text typed by the user. Activate only on
+        # an *unambiguous* prefix match — silently picking "any tab whose
+        # title starts the same" is worse than telling the user nothing
+        # matched.
         prefix = selected[:40]
-        idx = next(
-            (i for i, value in enumerate(display) if value.startswith(prefix)), -1
-        )
-        if idx < 0:
+        candidates = [i for i, value in enumerate(display) if value.startswith(prefix)]
+        if len(candidates) != 1:
+            notify(
+                "Chrome Tabs",
+                f"selection not recognised ({len(candidates)} matches)",
+            )
             return 0
+        idx = candidates[0]
 
     tab = tabs[idx]
     tab_id = tab.get("id")
@@ -163,8 +171,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except ScriptError as exc:
-        print(f"chrome-tabs: {exc}")
-        raise SystemExit(1)
+    cli_main("chrome-tabs", main)

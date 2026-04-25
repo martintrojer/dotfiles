@@ -2,6 +2,12 @@
 -- State
 ----------------------------------------------------------------------
 local seen = {}
+-- Cache of pre-existing globally-mapped lhs per mode. Built lazily on
+-- first lookup. Precondition: this module is required *after* all
+-- plugins have registered their keymaps (see init.lua load order); a
+-- plugin that registers later will not appear here and so will not
+-- trigger the duplicate-keymap error.
+local existing_by_mode = {}
 
 ----------------------------------------------------------------------
 -- Helpers
@@ -10,13 +16,21 @@ local function modes_list(mode)
 	return type(mode) == "table" and mode or { mode }
 end
 
-local function has_existing_global_map(mode, lhs)
-	for _, existing in ipairs(vim.api.nvim_get_keymap(mode)) do
-		if existing.lhs == lhs then
-			return true
-		end
+local function existing_lhs_set(mode)
+	local cached = existing_by_mode[mode]
+	if cached then
+		return cached
 	end
-	return false
+	cached = {}
+	for _, m in ipairs(vim.api.nvim_get_keymap(mode)) do
+		cached[m.lhs] = true
+	end
+	existing_by_mode[mode] = cached
+	return cached
+end
+
+local function has_existing_global_map(mode, lhs)
+	return existing_lhs_set(mode)[lhs] == true
 end
 
 local function register_global(mode, lhs)

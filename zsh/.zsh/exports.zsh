@@ -6,7 +6,7 @@ export PATH="$PATH:$HOME/.opencode/bin:$HOME/.pixi/bin:$HOME/.modular/bin"
 # Terminal and display
 # Let the terminal emulator set TERM so tmux can detect real capabilities.
 # Fall back to xterm-256color when the host terminfo is missing (e.g. SSH).
-if [[ -z "$TMUX" ]] && ! infocmp "$TERM" &>/dev/null 2>&1; then
+if [[ -z "$TMUX" ]] && ! infocmp "$TERM" &>/dev/null; then
   export TERM=xterm-256color
 fi
 export CLICOLOR=1

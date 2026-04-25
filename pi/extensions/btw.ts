@@ -84,7 +84,10 @@ function stripDynamicSystemPromptFooter(systemPrompt: string): string {
 		.trim();
 }
 
-function createBtwResourceLoader(ctx: ExtensionContext, appendSystemPrompt: string[] = [BTW_SYSTEM_PROMPT]): ResourceLoader {
+function createBtwResourceLoader(
+	ctx: ExtensionContext,
+	appendSystemPrompt: string[] = [BTW_SYSTEM_PROMPT],
+): ResourceLoader {
 	const extensionsResult = { extensions: [], errors: [], runtime: createExtensionRuntime() };
 	const systemPrompt = stripDynamicSystemPromptFooter(ctx.getSystemPrompt());
 
@@ -141,7 +144,10 @@ function buildSeedMessages(ctx: ExtensionContext, thread: BtwDetails[]): Message
 	const seed: Message[] = [];
 
 	try {
-		const contextMessages = buildSessionContext(ctx.sessionManager.getEntries(), ctx.sessionManager.getLeafId()).messages;
+		const contextMessages = buildSessionContext(
+			ctx.sessionManager.getEntries(),
+			ctx.sessionManager.getLeafId(),
+		).messages;
 		seed.push(...contextMessages);
 	} catch {
 		// Ignore context seed failures and continue with an empty side thread.
@@ -160,16 +166,14 @@ function buildSeedMessages(ctx: ExtensionContext, thread: BtwDetails[]): Message
 				provider: item.provider,
 				model: item.model,
 				api: ctx.model?.api ?? "openai-responses",
-				usage:
-					item.usage ??
-					{
-						input: 0,
-						output: 0,
-						cacheRead: 0,
-						cacheWrite: 0,
-						totalTokens: 0,
-						cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-					},
+				usage: item.usage ?? {
+					input: 0,
+					output: 0,
+					cacheRead: 0,
+					cacheWrite: 0,
+					totalTokens: 0,
+					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+				},
 				stopReason: "stop",
 				timestamp: item.timestamp,
 			},
@@ -180,17 +184,18 @@ function buildSeedMessages(ctx: ExtensionContext, thread: BtwDetails[]): Message
 }
 
 function formatThread(thread: BtwDetails[]): string {
-	return thread
-		.map((item) => `User: ${item.question.trim()}\nAssistant: ${item.answer.trim()}`)
-		.join("\n\n---\n\n");
+	return thread.map((item) => `User: ${item.question.trim()}\nAssistant: ${item.answer.trim()}`).join("\n\n---\n\n");
 }
 
-function notify(ctx: ExtensionContext | ExtensionCommandContext, message: string, level: "info" | "warning" | "error"): void {
+function notify(
+	ctx: ExtensionContext | ExtensionCommandContext,
+	message: string,
+	level: "info" | "warning" | "error",
+): void {
 	if (ctx.hasUI) {
 		ctx.ui.notify(message, level);
 	}
 }
-
 
 class BtwOverlay extends Container implements Focusable {
 	private readonly input: Input;
@@ -305,9 +310,7 @@ class BtwOverlay extends Container implements Focusable {
 
 		lines.push(this.theme.fg("borderMuted", `├${"─".repeat(innerWidth)}┤`));
 		lines.push(this.frameLine(this.theme.fg("warning", status), innerWidth));
-		lines.push(
-			`${this.theme.fg("borderMuted", "│")}${inputLine}${this.theme.fg("borderMuted", "│")}`,
-		);
+		lines.push(`${this.theme.fg("borderMuted", "│")}${inputLine}${this.theme.fg("borderMuted", "│")}`);
 		lines.push(this.frameLine(this.theme.fg("dim", "Enter submit · Esc close"), innerWidth));
 		lines.push(this.borderLine(innerWidth, "bottom"));
 
@@ -369,7 +372,11 @@ export default function (pi: ExtensionAPI) {
 		}
 	}
 
-	function renderToolCallLines(toolCalls: ToolCallInfo[], theme: ExtensionContext["ui"]["theme"], width: number): string[] {
+	function renderToolCallLines(
+		toolCalls: ToolCallInfo[],
+		theme: ExtensionContext["ui"]["theme"],
+		width: number,
+	): string[] {
 		const lines: string[] = [];
 		for (const tc of toolCalls) {
 			const icon = tc.status === "running" ? "⚙" : tc.status === "error" ? "✗" : "✓";
@@ -583,7 +590,10 @@ export default function (pi: ExtensionAPI) {
 						pendingAnswer = streamed;
 						pendingError = null;
 					}
-					setOverlayStatus(event.type === "message_end" ? "Finalizing side response..." : "Streaming side response...", true);
+					setOverlayStatus(
+						event.type === "message_end" ? "Finalizing side response..." : "Streaming side response...",
+						true,
+					);
 					return;
 				}
 				case "tool_execution_start": {
@@ -603,9 +613,7 @@ export default function (pi: ExtensionAPI) {
 				}
 				case "tool_execution_end": {
 					const endToolName = (event as { toolName?: string }).toolName ?? "unknown";
-					const tc = pendingToolCalls.find(
-						(t) => t.toolName === endToolName && t.status === "running",
-					);
+					const tc = pendingToolCalls.find((t) => t.toolName === endToolName && t.status === "running");
 					if (tc) {
 						tc.status = (event as { isError?: boolean }).isError ? "error" : "done";
 					}
@@ -916,10 +924,7 @@ export default function (pi: ExtensionAPI) {
 
 			if (!question) {
 				if (thread.length > 0 && ctx.hasUI) {
-					const choice = await ctx.ui.select("BTW side chat:", [
-						"Continue previous conversation",
-						"Start fresh",
-					]);
+					const choice = await ctx.ui.select("BTW side chat:", ["Continue previous conversation", "Start fresh"]);
 					if (choice === "Continue previous conversation") {
 						// Dispose session so it's recreated with fresh main context on next submit
 						await disposeSideSession();

@@ -3,35 +3,13 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
-import time
 from pathlib import Path
 
+from _status_common import EXPECTED_ERRORS, log_error
 
 SCRIPT = Path(__file__).with_name("agent-attention")
-STATE_DIR = (
-    Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
-    / "tmux-agent-attention"
-)
-ERROR_LOG = STATE_DIR / "status-ai.log"
-ERROR_LOG_THROTTLE_SECONDS = 60 * 60  # one breadcrumb per hour
-
-
-def log_error(message: str) -> None:
-    """Append a throttled error breadcrumb so silent failures stay debuggable."""
-    try:
-        STATE_DIR.mkdir(parents=True, exist_ok=True)
-        now = time.time()
-        if ERROR_LOG.is_file():
-            mtime = ERROR_LOG.stat().st_mtime
-            if now - mtime < ERROR_LOG_THROTTLE_SECONDS:
-                return
-        with ERROR_LOG.open("a", encoding="utf-8") as handle:
-            handle.write(f"{int(now)}\t{message}\n")
-    except OSError:
-        return
 
 
 def agent_attention_count() -> str:
@@ -39,8 +17,8 @@ def agent_attention_count() -> str:
         return subprocess.check_output(
             [str(SCRIPT), "status"], text=True, stderr=subprocess.DEVNULL
         ).strip()
-    except (OSError, subprocess.CalledProcessError) as exc:
-        log_error(f"agent-attention status failed: {exc}")
+    except EXPECTED_ERRORS as exc:
+        log_error("status-ai", f"agent-attention status failed: {exc}")
         return ""
 
 

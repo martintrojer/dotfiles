@@ -7,13 +7,29 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
-from typing import Iterable, Mapping, Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
 
 class ScriptError(RuntimeError):
     """Raised for expected user-facing script errors."""
+
+
+def cli_main(name: str, main_fn: Callable[[], int]) -> None:
+    """Standard entrypoint wrapper for fuzzel scripts.
+
+    Catches ``ScriptError``, prints ``name: message`` to stderr, exits 1.
+    Anything else propagates so unexpected bugs aren't hidden behind a
+    user-facing error message.
+    """
+    try:
+        rc = main_fn()
+    except ScriptError as exc:
+        print(f"{name}: {exc}", file=sys.stderr)
+        raise SystemExit(1)
+    raise SystemExit(rc)
 
 
 def command_exists(name: str) -> bool:
@@ -130,7 +146,7 @@ def _collect_dfs(node: dict) -> list[dict]:
     out: list[dict] = []
     if _is_window(node):
         out.append(_window_dict(node))
-    for child in node.get("nodes", []) + node.get("floating_nodes", []):
+    for child in (*node.get("nodes", []), *node.get("floating_nodes", [])):
         if isinstance(child, dict):
             out.extend(_collect_dfs(child))
     return out

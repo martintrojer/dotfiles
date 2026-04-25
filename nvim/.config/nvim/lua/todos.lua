@@ -54,14 +54,20 @@ end
 
 function M.toggle(opts)
 	opts = opts or {}
-	local startline, endline = vim.api.nvim_win_get_cursor(0)[1], vim.api.nvim_win_get_cursor(0)[1]
+	local cur = vim.api.nvim_win_get_cursor(0)[1]
+	local startline, endline = cur, cur
 	if opts.v then
+		-- Read + clear the visual marks. Clearing matters: the keymap is
+		-- bound in normal mode and always passes `v = true`, so a second
+		-- press without a fresh visual selection would re-toggle the
+		-- previous range. Clearing forces the next press without a new
+		-- selection to fall through to the cursor line below.
 		startline = vim.api.nvim_buf_get_mark(0, "<")[1]
 		endline = vim.api.nvim_buf_get_mark(0, ">")[1]
 		vim.api.nvim_buf_set_mark(0, "<", 0, 0, {})
 		vim.api.nvim_buf_set_mark(0, ">", 0, 0, {})
 		if startline <= 0 or endline <= 0 then
-			startline, endline = vim.api.nvim_win_get_cursor(0)[1], vim.api.nvim_win_get_cursor(0)[1]
+			startline, endline = cur, cur
 		end
 	end
 	for lnum = startline, endline do

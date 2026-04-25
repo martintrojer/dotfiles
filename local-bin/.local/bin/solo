@@ -3,6 +3,7 @@ import argparse
 import fcntl
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -11,7 +12,7 @@ from pathlib import Path
 def find_project_root() -> Path:
     cwd = Path.cwd().resolve()
 
-    if shutil_which("git") is not None:
+    if shutil.which("git") is not None:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
             stdout=subprocess.PIPE,
@@ -32,15 +33,6 @@ def find_project_root() -> Path:
         if current.parent == current:
             return cwd
         current = current.parent
-
-
-def shutil_which(cmd: str) -> str | None:
-    path = os.environ.get("PATH", "")
-    for entry in path.split(os.pathsep):
-        candidate = Path(entry) / cmd
-        if candidate.is_file() and os.access(candidate, os.X_OK):
-            return str(candidate)
-    return None
 
 
 def parse_args() -> argparse.Namespace:
@@ -100,6 +92,7 @@ def main() -> int:
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
+        os.close(fd)  # don't leak the fd on contention
         print(f"❌ [{args.name}] lock active at [{project_root}]", file=sys.stderr)
         return 100
 
@@ -111,6 +104,14 @@ def main() -> int:
     except KeyboardInterrupt:
         return 130
     finally:
+        # Best-effort cleanup of the lock file. Releasing the flock alone
+        # would leave one stale .lock per --name forever; another `solo`
+        # racing in between unlink and close still can't overlap because
+        # flock guards on the inode.
+        try:
+            os.unlink(lock_path)
+        except OSError:
+            pass
         os.close(fd)
 
     return completed.returncode

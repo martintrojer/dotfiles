@@ -28,7 +28,7 @@ All fuzzel scripts are Python 3 (`#!/usr/bin/env python3`) and follow this conve
 #!/usr/bin/env python3
 import argparse
 
-from _common import fuzzel_dmenu
+from _common import ScriptError, cli_main, fuzzel_dmenu
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -36,12 +36,22 @@ def parse_args():
     parser.add_argument("--width", type=int, default=40)
     return parser.parse_args()
 
-def main():
+def main() -> int:
     args = parse_args()
     selected = fuzzel_dmenu(prompt=args.prompt, width=args.width, options=[...])
-    if selected:
-        ...
+    if not selected:
+        return 0
+    ...
+    return 0
+
+if __name__ == "__main__":
+    cli_main("yourname", main)
 ```
+
+`cli_main` (in `_common.py`) catches `ScriptError`, prints `name: message`
+to stderr, and exits 1. Anything else propagates so unexpected bugs aren't
+hidden behind a user-facing error message. Raise `ScriptError("...")` for
+expected user-facing failures (missing dep, no matching window, etc.).
 
 ### Common Parameters
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from _common import ScriptError, fuzzel_dmenu, picker_cache_path, require_commands, run
+from _common import cli_main, fuzzel_dmenu, picker_cache_path, require_commands, run
 
 
 def parse_args() -> argparse.Namespace:
@@ -59,8 +59,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except ScriptError as exc:
-        print(f"powermenu: {exc}")
-        raise SystemExit(1)
+    cli_main("powermenu", main)

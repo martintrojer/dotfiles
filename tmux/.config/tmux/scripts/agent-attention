@@ -71,10 +71,12 @@ def sanitize(value: str) -> str:
 
 
 def to_int(value: object, default: int = 0) -> int:
-    try:
-        return int(str(value))
-    except (TypeError, ValueError):
-        return default
+    if isinstance(value, (int, str, bytes, bytearray)):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            pass
+    return default
 
 
 # ---------- pane resolution ----------
@@ -87,12 +89,15 @@ def find_tty() -> Optional[str]:
     the script is run interactively or from a tmux pane that inherited a
     TTY on at least one standard fd.
 
-    Slow path: walk up the process tree via ``ps``, used for hook
-    subprocesses (systemd, agent harnesses) where none of fd0/1/2 is a TTY.
-    Each ``ps`` invocation is two forks; we cap the walk at 8 levels.
+    Slow path: walk up the process tree from a single ``ps`` snapshot,
+    used for hook subprocesses (systemd, agent harnesses) where none of
+    fd0/1/2 is a TTY. We cap the walk at 8 ancestor levels. The previous
+    implementation forked ``ps`` twice per level (up to 16 forks); one
+    snapshot indexed by pid is one fork total.
 
-    On macOS ``ps -o tty=`` outputs ``??`` for processes with no controlling
-    tty (Linux uses ``?``). Treat any all-``?`` value as no-tty.
+    On macOS ``ps -o tty=`` outputs ``??`` for processes with no
+    controlling tty (Linux uses ``?``). Treat any all-``?`` value as
+    no-tty.
     """
     for fd in (0, 1, 2):
         try:
@@ -100,22 +105,30 @@ def find_tty() -> Optional[str]:
         except OSError:
             continue
 
+    try:
+        rows = subprocess.run(
+            ["ps", "-axo", "pid=,ppid=,tty="],
+            capture_output=True,
+            text=True,
+        ).stdout
+    except OSError:
+        return None
+
+    by_pid: dict[str, tuple[str, str]] = {}
+    for line in rows.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) == 3:
+            by_pid[parts[0]] = (parts[1], parts[2])
+
     pid = str(os.getpid())
     for _ in range(8):
-        try:
-            ppid = subprocess.run(
-                ["ps", "-p", pid, "-o", "ppid="], capture_output=True, text=True
-            ).stdout.strip()
-            if not ppid:
-                return None
-            tty = subprocess.run(
-                ["ps", "-p", ppid, "-o", "tty="], capture_output=True, text=True
-            ).stdout.strip()
-            if tty and tty.strip("?"):
-                return f"/dev/{tty}"
-            pid = ppid
-        except OSError:
+        info = by_pid.get(pid)
+        if info is None:
             return None
+        ppid, tty = info
+        if tty and tty.strip("?"):
+            return f"/dev/{tty}"
+        pid = ppid
     return None
 
 
@@ -471,6 +484,7 @@ def cmd_status(_: argparse.Namespace) -> int:
     windows = {
         (str(e.get("session_id", "")), str(e.get("window_id", ""))) for e in events
     }
+    # tmux status segment: no trailing newline so the badge sits flush.
     print(len(windows), end="")
     return 0
 

@@ -3,45 +3,12 @@
 
 from __future__ import annotations
 
-import os
 import platform
 import re
 import subprocess
 import time
-from pathlib import Path
 
-STATE_DIR = (
-    Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
-    / "tmux-status"
-)
-ERROR_LOG = STATE_DIR / "status-uptime.log"
-ERROR_LOG_THROTTLE_SECONDS = 60 * 60  # one breadcrumb per hour
-
-# Exceptions the rendering path can plausibly raise from OS / parsing /
-# arithmetic. Anything outside this set is a programmer error and should
-# crash loudly so the bug surfaces in normal development instead of
-# silently turning into a `?` glyph in the tmux status bar.
-EXPECTED_ERRORS = (
-    OSError,
-    subprocess.SubprocessError,
-    RuntimeError,
-    ValueError,
-)
-
-
-def log_error(message: str) -> None:
-    """Append a throttled error breadcrumb so silent failures stay debuggable."""
-    try:
-        STATE_DIR.mkdir(parents=True, exist_ok=True)
-        now = time.time()
-        if ERROR_LOG.is_file():
-            mtime = ERROR_LOG.stat().st_mtime
-            if now - mtime < ERROR_LOG_THROTTLE_SECONDS:
-                return
-        with ERROR_LOG.open("a", encoding="utf-8") as handle:
-            handle.write(f"{int(now)}\t{message}\n")
-    except OSError:
-        return
+from _status_common import EXPECTED_ERRORS, log_error
 
 
 def uptime_seconds() -> int:
@@ -76,7 +43,7 @@ def main() -> None:
     try:
         print(format_uptime(uptime_seconds()))
     except EXPECTED_ERRORS as exc:
-        log_error(f"uptime render failed: {exc!r}")
+        log_error("status-uptime", f"uptime render failed: {exc!r}")
         print("up ?")
 
 

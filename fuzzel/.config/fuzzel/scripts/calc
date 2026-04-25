@@ -7,6 +7,7 @@ import argparse
 
 from _common import (
     ScriptError,
+    cli_main,
     command_exists,
     fuzzel_dmenu,
     notify,
@@ -59,8 +60,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except ScriptError as exc:
-        print(f"calc: {exc}")
-        raise SystemExit(1)
+    cli_main("calc", main)

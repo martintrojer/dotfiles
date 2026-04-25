@@ -6,7 +6,14 @@ from __future__ import annotations
 import argparse
 import re
 
-from _common import ScriptError, list_sway_windows, notify, require_commands, run
+from _common import (
+    ScriptError,
+    cli_main,
+    list_sway_windows,
+    notify,
+    require_commands,
+    run,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -85,8 +92,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except ScriptError as exc:
-        print(f"raise-window: {exc}")
-        raise SystemExit(1)
+    cli_main("raise-window", main)

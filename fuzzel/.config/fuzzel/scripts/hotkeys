@@ -17,6 +17,7 @@ from pathlib import Path
 
 from _common import (
     ScriptError,
+    cli_main,
     fuzzel_dmenu,
     notify,
     picker_cache_path,
@@ -124,8 +125,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except ScriptError as exc:
-        print(f"hotkeys: {exc}")
-        raise SystemExit(1)
+    cli_main("hotkeys", main)
