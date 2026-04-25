@@ -39,6 +39,24 @@ LOGGER: Final[logging.Logger] = logging.getLogger("stow-all")
 # Local-path equivalents work too; see the install hints in main().
 GITHUB_SLUG: Final[str] = "martintrojer/dotfiles"
 
+# Zsh plugins managed by clone-on-apply. Same model as nvim's vim.pack:
+# pinned commit refs in this script, plugins live at ~/.zsh/plugins/<name>/,
+# .zshrc sources them directly. Updates: bump the ref, re-run --apply.
+# (name, git URL, ref to checkout)
+ZSH_PLUGINS: Final[tuple[tuple[str, str, str], ...]] = (
+    (
+        "zsh-autosuggestions",
+        "https://github.com/zsh-users/zsh-autosuggestions",
+        "v0.7.1",
+    ),
+    (
+        "zsh-syntax-highlighting",
+        "https://github.com/zsh-users/zsh-syntax-highlighting",
+        "0.8.0",
+    ),
+)
+ZSH_PLUGINS_DEST: Final[Path] = Path(".zsh/plugins")
+
 # (scope, stow_dir, package_names)
 PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
     (
@@ -580,6 +598,124 @@ def run_apply_group(
         raise SystemExit(result.returncode)
 
 
+def _zsh_plugin_head(dest: Path) -> str | None:
+    """Return the resolved object SHA at HEAD, or None if not a git repo."""
+    result = subprocess.run(
+        ["git", "-C", str(dest), "rev-parse", "--verify", "HEAD"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def _zsh_plugin_resolve(dest: Path, ref: str) -> str | None:
+    """Resolve the SHA of a ref inside an existing clone, or None if missing."""
+    result = subprocess.run(
+        ["git", "-C", str(dest), "rev-parse", "--verify", f"{ref}^{{commit}}"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def apply_zsh_plugins(target: Path, *, verbose: bool) -> None:
+    """Clone or update zsh plugins listed in ZSH_PLUGINS to the pinned refs.
+
+    Mirrors how nvim/lua/plugins.lua + nvim-pack-lock.json work: the source
+    of truth is the version string in this script. .zshrc just sources the
+    files at $HOME/.zsh/plugins/<name>/<name>.zsh and trusts they're there.
+    """
+    plugins_dir = target / ZSH_PLUGINS_DEST
+    plugins_dir.mkdir(parents=True, exist_ok=True)
+    header_printed = False
+
+    def _print_header() -> None:
+        nonlocal header_printed
+        if not header_printed:
+            LOGGER.warning("\n[zsh-plugins]")
+            header_printed = True
+
+    for name, url, ref in ZSH_PLUGINS:
+        dest = plugins_dir / name
+        if not dest.exists():
+            _print_header()
+            LOGGER.warning(f"CLONING: {name} @ {ref}")
+            subprocess.run(
+                ["git", "clone", "--quiet", "--depth", "50", url, str(dest)],
+                check=True,
+            )
+        else:
+            # Fetch in case the pinned ref isn't already in the local clone.
+            target_sha = _zsh_plugin_resolve(dest, ref)
+            if target_sha is None:
+                _print_header()
+                LOGGER.warning(f"FETCHING: {name} (ref {ref} not in clone)")
+                subprocess.run(
+                    ["git", "-C", str(dest), "fetch", "--tags", "--quiet"],
+                    check=True,
+                )
+                target_sha = _zsh_plugin_resolve(dest, ref)
+            current_sha = _zsh_plugin_head(dest)
+            if target_sha is not None and current_sha == target_sha:
+                if verbose:
+                    LOGGER.debug(f"OK: {name} @ {ref} ({target_sha[:12]})")
+                continue
+        subprocess.run(
+            ["git", "-C", str(dest), "checkout", "--quiet", ref],
+            check=True,
+        )
+        sha = _zsh_plugin_head(dest) or "unknown"
+        _print_header()
+        LOGGER.warning(f"PINNED: {name} @ {ref} ({sha[:12]})")
+
+
+def check_zsh_plugins(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    """Verify each ZSH_PLUGINS entry exists at $HOME/.zsh/plugins/<name>/
+    and HEAD matches the pinned ref. Used by --check.
+
+    Returns True if any issues were found.
+    """
+    plugins_dir = target / ZSH_PLUGINS_DEST
+    found_issue = False
+    for name, _url, ref in ZSH_PLUGINS:
+        issue_id = f"zsh-plugin:{name}"
+        if issue_id in ignore:
+            continue
+        dest = plugins_dir / name
+        if not dest.is_dir():
+            if not found_issue:
+                LOGGER.warning("\n[zsh-plugins]")
+            LOGGER.warning(f"MISSING: {name} (--ignore {issue_id})")
+            found_issue = True
+            continue
+        target_sha = _zsh_plugin_resolve(dest, ref)
+        current_sha = _zsh_plugin_head(dest)
+        if target_sha is None:
+            if not found_issue:
+                LOGGER.warning("\n[zsh-plugins]")
+            LOGGER.warning(
+                f"UNKNOWN-REF: {name} ({ref} not in local clone; "
+                f"--ignore {issue_id})"
+            )
+            found_issue = True
+            continue
+        if current_sha != target_sha:
+            if not found_issue:
+                LOGGER.warning("\n[zsh-plugins]")
+            LOGGER.warning(
+                f"DRIFT: {name} HEAD={current_sha[:12] if current_sha else '?'} "
+                f"want={target_sha[:12]} (--ignore {issue_id})"
+            )
+            found_issue = True
+        elif verbose:
+            LOGGER.debug(f"OK: {name} @ {ref} ({target_sha[:12]})")
+    return found_issue
+
+
 def main() -> int:
     args = parse_args()
     ensure_stow_available()
@@ -642,6 +778,9 @@ def main() -> int:
 
     if args.action == "check":
         has_issues |= check_package_coverage(specs, ignore=args.ignore)
+        has_issues |= check_zsh_plugins(
+            target, verbose=args.verbose, ignore=args.ignore
+        )
         LOGGER.info("\n[repo-backlinks]")
         LOGGER.info("Scanning for stale or invalid repo backlinks...")
         backlink_scan_started = monotonic()
@@ -656,7 +795,8 @@ def main() -> int:
         print("No missing stows or conflicts found.")
         return 0
 
-    print("Done.")
+    apply_zsh_plugins(target, verbose=args.verbose)
+    print("\nDone.")
     print_publish_reminder()
     return 0
 
