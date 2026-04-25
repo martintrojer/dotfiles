@@ -32,6 +32,7 @@ Many nested folders start with `.`. Most default searches skip these, so use hid
 - Avoid adding secrets or private keys. `ssh/.ssh/config` should stay non-sensitive
 - Keep changes minimal and consistent with existing formats (Lua, Python, shell, TOML, JSON, INI)
 - Keep Lua files formatted with `stylua` and lint-clean with `luacheck`
+- **Shell vs Python rule:** if a shell script starts to smell non-trivial, rewrite it in Python. Smell signals: needing `declare -g` or `set -u`, multi-level local/global scope juggling, tab-separated `mktemp` templates being parsed by `read`, more than ~50 lines of logic, anything that wants real data structures, or workarounds for portability between bash/zsh/sh. The repo already has good Python references: `local-bin/.local/bin/m`, `local-bin/.local/bin/solo`, `tmux/.config/tmux/scripts/tms`, `tmux/.config/tmux/scripts/agent-attention`, `fuzzel/.config/fuzzel/scripts/*`. Bash stays for thin wrappers (a single `exec`, an OS dispatch, sourcing env), not for logic.
 - See `THEME.md` for shared theme and palette references across tools
 
 ## Script Locations

@@ -11,7 +11,5 @@ alias serve='python3 -m http.server 8081'
 alias gvd='git difftool --dir-diff --no-prompt --extcmd=nvdiff'
 alias jvd='jj --no-pager diff --tool nvdiff'
 
-# Common `less` misspellings
-alias lees='less'
+# Common `less` misspelling (the only one with history hits).
 alias elss='less'
-alias sless='less'
