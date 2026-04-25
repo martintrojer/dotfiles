@@ -33,6 +33,8 @@ Many nested folders start with `.`. Most default searches skip these, so use hid
 - Keep changes minimal and consistent with existing formats (Lua, Python, shell, TOML, JSON, INI)
 - Keep Lua files formatted with `stylua` and lint-clean with `luacheck`
 - **Shell vs Python rule:** if a shell script starts to smell non-trivial, rewrite it in Python. Smell signals: needing `declare -g` or `set -u`, multi-level local/global scope juggling, tab-separated `mktemp` templates being parsed by `read`, more than ~50 lines of logic, anything that wants real data structures, or workarounds for portability between bash/zsh/sh. The repo already has good Python references: `local-bin/.local/bin/m`, `local-bin/.local/bin/solo`, `tmux/.config/tmux/scripts/tms`, `tmux/.config/tmux/scripts/agent-attention`, `fuzzel/.config/fuzzel/scripts/*`. Bash stays for thin wrappers (a single `exec`, an OS dispatch, sourcing env), not for logic.
+- **No two aliases (or scripts) doing the same thing.** Before adding a new alias / wrapper / helper, check `grep -hE '^alias ' zsh/.zsh/*.zsh | sed -E 's/^alias[ ]+([^=]+)=//' | sort | uniq -c | sort -rn` (or the moral equivalent for the file type). Two aliases expanding to the same string is dead weight.
+- **Audit usage with shell history before keeping/cherry-picking.** When deciding whether something earns its place — OMZ aliases to keep, plugins to vendor, etc. — grep `~/.zsh_history` (or the macOS equivalent) for actual call counts. "I might use it someday" is not evidence; "used 5+ times in 1660 commands" is.
 - See `THEME.md` for shared theme and palette references across tools
 
 ## Script Locations
