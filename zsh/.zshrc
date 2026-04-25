@@ -1,89 +1,116 @@
-export ZSH="$HOME/.oh-my-zsh"
+# Slim zshrc, no framework. Pillar #2 (builtins first), #3 (every line
+# understood), #4 (each piece earns its place). The only third-party
+# code is zsh-autosuggestions and zsh-syntax-highlighting, cloned into
+# ~/.zsh/plugins/<name>/ at pinned versions by stow-all.py --apply.
+#
+# Replaces oh-my-zsh + 15 plugins; see TODO.md item #1 for the audit.
 
-# Keep inherited completion paths from compounding across nested shells.
-typeset +x FPATH
+# ----------------------------------------------------------------------
+# Path / fpath hygiene
+# ----------------------------------------------------------------------
 typeset -U path fpath
 
-# See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-# ZSH_THEME="minimal"
+# Plugin completion dirs need to be on fpath BEFORE compinit runs.
+fpath=(
+  $HOME/.zsh/plugins/zsh-autosuggestions
+  $HOME/.zsh/plugins/zsh-syntax-highlighting
+  $fpath
+)
 
-zstyle ':omz:update' mode reminder
-zstyle ':omz:update' frequency 30
+# ----------------------------------------------------------------------
+# OS-specific bootstrap (must precede compinit so PATH is final)
+# ----------------------------------------------------------------------
+[[ "$OSTYPE" == darwin* ]] && [[ -f "$HOME/.zsh/homebrew.zsh" ]] && source "$HOME/.zsh/homebrew.zsh"
+[[ "$OSTYPE" == darwin* ]] && [[ -f "$HOME/.zsh/os-darwin.zsh" ]] && source "$HOME/.zsh/os-darwin.zsh"
 
-# ENABLE_CORRECTION="true"
-# COMPLETION_WAITING_DOTS="true"
+# ----------------------------------------------------------------------
+# History
+# ----------------------------------------------------------------------
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE=1048576
+SAVEHIST=1048576
+setopt extended_history hist_expire_dups_first hist_ignore_dups \
+       hist_ignore_space hist_verify share_history
 
-DISABLE_UNTRACKED_FILES_DIRTY="true"
-ZSH_DISABLE_COMPFIX=true
+# ----------------------------------------------------------------------
+# Directory navigation
+# ----------------------------------------------------------------------
+setopt auto_cd auto_pushd pushd_ignore_dups pushdminus
 
-# Base plugins (OS-agnostic)
-plugins=(
-         alias-finder
-         eza
-         fzf
-         git
-         jj
-         podman
-         rust
-         ssh
-         sudo
-         systemd
-         toolbox
-         tmux
-         zsh-autosuggestions
-         zsh-syntax-highlighting
-         zoxide
-        )
+# Dir aliases worth keeping from omz lib/directories.zsh.
+alias -g ...='../..'
+alias -g ....='../../..'
+alias -- -='cd -'
+alias md='mkdir -p'
 
-# macOS-specific plugins
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  plugins+=(brew macos)
-fi
+# ----------------------------------------------------------------------
+# Misc shell behaviour
+# ----------------------------------------------------------------------
+setopt multios long_list_jobs interactivecomments
 
-# ======================================================
-# User configuration
-# ======================================================
+# ----------------------------------------------------------------------
+# Completion (compinit)
+# ----------------------------------------------------------------------
+mkdir -p "$HOME/.cache/zsh"
+autoload -Uz compinit
+compinit -i -d "$HOME/.cache/zsh/zcompdump"
 
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{[:lower:][:upper:]}={[:upper:][:lower:]}'
+zstyle ':completion:*' use-cache yes
+zstyle ':completion:*' cache-path "$HOME/.cache/zsh"
+zstyle ':completion:*:cd:*' tag-order local-directories directory-stack path-directories
+zstyle ':completion:*' list-colors ''
+
+# ----------------------------------------------------------------------
+# Keybindings (emacs mode + history prefix search + edit-command-line)
+# ----------------------------------------------------------------------
+bindkey -e
 bindkey '^E' end-of-line
 bindkey '^[[C' autosuggest-accept
 
-zstyle ':omz:plugins:eza' 'icons' yes
-zstyle ':omz:plugins:eza' 'color-scale' all
-zstyle ':omz:plugins:eza' 'size-prefix' si
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey '\C-x\C-e' edit-command-line
 
-zstyle ':omz:plugins:alias-finder' autoload yes
-zstyle ':omz:plugins:alias-finder' cheaper yes
+# Type a prefix + ↑ to history-search by that prefix. The omz
+# killer-feature most users notice when it's gone.
+autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
+zle -N up-line-or-beginning-search
+zle -N down-line-or-beginning-search
+bindkey '^[[A' up-line-or-beginning-search
+bindkey '^[[B' down-line-or-beginning-search
 
-# ======================================================
-# Modular config (sourced before omz)
-# ======================================================
-
-# Homebrew-backed tools must be on PATH before OMZ plugins load.
-[[ "$OSTYPE" == darwin* ]] && [[ -f "$HOME/.zsh/homebrew.zsh" ]] && source "$HOME/.zsh/homebrew.zsh"
-
-if [[ "$OSTYPE" == darwin* ]] && [[ -f "$HOME/.zsh/os-darwin.zsh" ]]; then
-  source "$HOME/.zsh/os-darwin.zsh"
-fi
-
-for file in $HOME/.zsh/*.zsh; do
+# ----------------------------------------------------------------------
+# Modular config files (~/.zsh/*.zsh)
+#
+# Loaded in lexical order. OS-specific files were already sourced above.
+# ----------------------------------------------------------------------
+for file in "$HOME"/.zsh/*.zsh; do
   case "${file:t}" in
-    homebrew.zsh|os-darwin.zsh)
-      continue
-      ;;
+    homebrew.zsh|os-darwin.zsh) continue ;;
   esac
   source "$file"
 done
 
-# ======================================================
+# ----------------------------------------------------------------------
+# Third-party plugins (cloned by stow-all.py --apply at pinned refs)
+# ----------------------------------------------------------------------
+[[ -f "$HOME/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] \
+  && source "$HOME/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
 
-source $ZSH/oh-my-zsh.sh
+# fzf shell integration: Ctrl-T file picker, Ctrl-R history, Esc-c cd
+# picker, ** completion trigger (kill **<TAB>, ssh **<TAB>, etc.).
+command -v fzf >/dev/null && eval "$(fzf --zsh)"
 
-# ======================================================
-# Aliases (override OMZ defaults)
-# ======================================================
+# zoxide: z <pat> jumps to scored dir, zi opens an interactive picker.
+command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
 
-# Source overrides after omz
-source $HOME/.zsh/overrides.zsh
+# Syntax highlighting must be sourced LAST per upstream docs (it wraps zle widgets).
+[[ -f "$HOME/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] \
+  && source "$HOME/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 
-# Don't leak OMZ/plugin completion paths into child shell environments.
-typeset +x FPATH
+# ----------------------------------------------------------------------
+# Overrides (user-specific aliases that should win over everything else)
+# ----------------------------------------------------------------------
+source "$HOME/.zsh/overrides.zsh"
