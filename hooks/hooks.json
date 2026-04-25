@@ -1,5 +1,5 @@
 {
-  "description": "Personal hooks for code quality checks",
+  "description": "Personal hooks: post-action quality reminder + agent-attention tmux notification.",
   "hooks": {
     "Stop": [
       {
@@ -7,6 +7,17 @@
           {
             "type": "prompt",
             "prompt": "If you modified any files during this session, ensure you have run: (1) format, (2) lint, (3) tests. If any of these haven't been run and are applicable to the changes made, run them now and fix any problems they flag. If no files were changed, ignore this."
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $HOME/.config/tmux/scripts/agent-attention notify --source claude --event-type notification --title Claude"
           }
         ]
       }
