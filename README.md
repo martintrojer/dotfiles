@@ -13,7 +13,7 @@ When tempted, re-read this section before touching anything.
 4. **Each piece earns its place.** Plugins, packages, scripts, services — they all justify themselves with a one-line "why not builtin?" answer. The `nvim/README.md` plugin table is the template for how to think about every other tool too.
 5. **Local scripts over upstream plugins.** `tms`, `agent-attention`, `status-*`, `cheatsheet`, `lock-screen`, the fuzzel pickers, `stow-all.py` — small Python scripts in this repo are preferred over adding a third-party dependency. They are easy to read, easy to fix, and they do not break on upgrade.
 6. **Recreate, do not restore.** No tmux resurrect. No session snapshots. No magic state restoration. The workflow is rebuilt on demand: `tms` recreates project sessions in two keystrokes, `mini.starter` and `<leader>fo` re-enter files, agents keep their own state. Disposable sessions force the setup to stay cheap to spin up.
-7. **Thin wrappers around shared lists.** `fedora/setup-*.sh` are wrappers around `base-packages.sh` / `sway-packages.sh`. `stow-all.py` is a wrapper around stow + skill links + Claude plugin bundle. Decisions live in data, not in scripts.
+7. **Thin wrappers around shared lists.** `fedora/setup-*.sh` are wrappers around `base-packages.sh` / `sway-packages.sh`. `stow-all.py` is a wrapper around stow + clone-on-apply for the two zsh plugins. Agent-side payloads (skills, Pi extensions, Claude plugin) are published via standard upstream tools (`npx skills`, `pi install`, `claude plugin marketplace`), not orchestrated by `stow-all.py`. Decisions live in data, not in scripts.
 8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway. macOS is Hammerspoon + Ghostty. The shared layer is the CLI/editor baseline; the desktop stack is allowed to diverge per platform. No effort is spent making the WM/compositor portable.
 9. **One palette, everywhere.** Catppuccin Mocha across nvim, tmux, eza, bat, waybar, fuzzel, mako, swaylock. See `THEME.md`. New tools adopt the palette or do not get added.
 10. **Config lives next to the thing it configures.** Tool-specific docs go in the package folder (`nvim/README.md`, `tmux/README.md`, `fedora/README.md`, `fuzzel/README.md`, ...). This root README only describes the repo shape and the rules above.
@@ -32,56 +32,53 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behavior is a
 
 Use `./stow-all.py` to stow the packages that match the current OS and distro.
 
-Not everything at the repo root is a stow package. In particular, [`skills/`](./skills) is the shared source of truth for agent skills and is managed directly by `stow-all.py`, not by GNU Stow.
+Not everything at the repo root is a stow package. In particular, [`skills/`](./skills), [`agents/`](./agents), [`commands/`](./commands), [`hooks/`](./hooks), [`pi/extensions/`](./pi/extensions), and [`.claude-plugin/`](./.claude-plugin) are agent-side payloads consumed by `claude plugin`, `npx skills`, and `pi install` rather than stowed into `~/`.
 
-## Agent Skills
+## Agent Plugin (skills, extensions, commands, hooks)
 
-Repo-root [`skills/`](./skills) is the source of truth.
+The whole repo doubles as a multi-target agent plugin:
 
-`./stow-all.py --apply` does best-effort setup for that shared skill tree:
+- **Claude Code**: `.claude-plugin/marketplace.json` + `agents/`, `commands/`, `hooks/`, `skills/` at the repo root.
+- **Pi**: `package.json` declares the `pi` manifest pointing at `pi/extensions/` and `skills/`.
+- **Codex / OpenCode / Cursor / OpenClaw / generic**: `npx skills add` reads `skills/` directly per the [Agent Skills standard](https://agentskills.io).
 
-- Creates or repairs per-skill links in `~/.codex/skills/`
-- Creates or repairs per-skill links in `~/.agents/skills/` for OpenCode and pi-agent
-- Generates [`claude/mtrojer-plugin/skills/`](./claude/mtrojer-plugin) by copying the shared `skills/` tree into the Claude plugin bundle
+### Install on a fresh machine
 
-Claude then installs that generated plugin bundle into its own cache under `~/.claude/plugins/cache/...`.
-That installed Claude copy is a snapshot. If skills are edited or new skills are added, it becomes stale until you reinstall the local plugin.
+After `git clone` and `./stow-all.py --apply`, run the three install commands (also printed by `--apply`):
 
-`./stow-all.py --check` verifies all of these locations:
+```bash
+# Claude Code plugin (skills + agents + commands + hooks):
+claude plugin marketplace add martintrojer/dotfiles
+claude plugin install mtrojer@dotfiles
 
-- `~/.codex/skills/`
-- `~/.agents/skills/`
-- generated plugin bundle at `~/dotfiles/claude/mtrojer-plugin/skills/`
-- installed Claude plugin bundle under `~/.claude/plugins/cache/local/mtrojer/...`
+# Skills for everyone else (Codex / OpenCode / Cursor / OpenClaw / generic):
+npx skills add -g martintrojer/dotfiles
 
-If the Claude plugin is missing, `--check` prints the manual install commands.
+# Pi extensions + skills (one command, both):
+pi install git:github.com/martintrojer/dotfiles
 
-## Agent Skill Flow
+# Codex notify hook (still manual; one TOML line in ~/.codex/config.toml):
+# notify = ["/bin/sh", "-lc", "python3 \"$HOME/.config/tmux/scripts/agent-attention\" notify --source codex --event-type notify --title Codex"]
+```
 
-Run the steps in this order:
+Local-path equivalents work for development:
 
-1. Populate links and generate the Claude plugin bundle:
-   ```bash
-   ./stow-all.py --apply
-   ```
-2. Install or update the Claude Code plugin from that generated bundle:
-   ```text
-   /plugin marketplace add ~/dotfiles/claude/mtrojer-plugin
-   /plugin install mtrojer@local
-   ```
-3. Verify everything:
-   ```bash
-   ./stow-all.py --check
-   ```
+- `claude plugin marketplace add /path/to/dotfiles`
+- `npx skills add -g /path/to/dotfiles`
+- `pi install /path/to/dotfiles`
 
-When shared skills change, repeat the same order:
+### Update flow
 
-1. `./stow-all.py --apply`
-2. `/plugin install mtrojer@local`
-3. `./stow-all.py --check`
+When skills, agents, commands, hooks, or pi extensions change in this repo:
 
-`stow-all.py` does not run Claude’s `/plugin ...` commands for you. It only prepares the bundle and verifies the installed copy.
-If Claude's installed copy is stale, `./stow-all.py --check` tells you to run `/plugin install mtrojer@local`.
+1. Push to `origin`.
+2. On each consumer machine, re-run the upstream tool's update command (`claude plugin install mtrojer@dotfiles` re-fetches, `npx skills update`, `pi install` re-pulls).
+
+No `stow-all.py` orchestration involved — the agents handle their own install/update lifecycle.
+
+### Why this layout
+
+Previous incarnations of `stow-all.py` carried ~600 lines of code to fan-out skills into 4 different agent dirs, copy a Claude plugin bundle, symlink Pi extensions, and verify Claude/Codex notification hooks. All of that is now delegated to the upstream tools that exist for exactly this purpose. See [`TODO.md`](./TODO.md) item #6 for the audit and decision.
 
 Key Linux packages now include:
 - `sway`

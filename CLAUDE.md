@@ -14,9 +14,10 @@ This repository uses **GNU Stow** for dotfile management. Each top-level directo
 - `local-bin/.local/bin`: shared cross-platform user commands on `$PATH`
 - `fedora/`: setup scripts plus `containers/` and `systemd/` configs
 - `fedora/bin/.local/bin`: Fedora-only user commands on `$PATH`
-- `claude/`: Claude-related configs and a local plugin (`claude/mtrojer-plugin`)
-- `pi/extensions/`: Pi coding agent extensions
-- `skills/`: shared agent skills (symlinked into `~/.agents/skills/`)
+- `.claude-plugin/`, `agents/`, `commands/`, `hooks/`: Claude Code plugin assets at repo root, distributed via `claude plugin marketplace add martintrojer/dotfiles`
+- `pi/extensions/`: Pi coding agent extensions, distributed via `pi install git:github.com/martintrojer/dotfiles`
+- `skills/`: shared agent skills following the Agent Skills standard, distributed via `npx skills add martintrojer/dotfiles`
+- `package.json`: pi manifest (extensions + skills paths)
 
 ## Search Tips
 
@@ -56,8 +57,8 @@ Scripts are stored in tool-specific directories under `.config/*/scripts/`:
 - `tmux/.config/tmux/tms.toml` - pinned session config plus finder/preview knobs and optional per-session split mode (`vertical` / `horizontal`)
 - `tms pick-and-connect` - opens the picker and attaches to the selection (bound to `prefix + s` and the `tm` zsh function)
 - `tmux/.config/tmux/scripts/move-pane-picker` - `choose-tree` driven helper for `prefix + M` (move pane into another window/pane)
-- `tmux/.config/tmux/scripts/pi-extensions/agent-attention.ts` - Pi Agent extension for agent-attention
-- `tmux/.config/tmux/scripts/opencode-plugin/notify.ts` - OpenCode plugin for agent-attention
+- `pi/extensions/agent-attention.ts` - Pi Agent extension for agent-attention (distributed via the dotfiles pi package)
+- `opencode/.config/opencode/plugin/notify.ts` - OpenCode plugin for agent-attention (stowed)
 - `tmux/.config/tmux/scripts/cheatsheet` - fzf cheatsheet popup
 - `tmux/.config/tmux/scripts/test-status-tools` - Smoke tests for `agent-attention`, `status-window-label`, and `cheatsheet` against an isolated tmux server
 
@@ -91,7 +92,7 @@ Both `agent-attention` and `cheatsheet` honor `TMUX_SOCKET_NAME` / `TMUX_SOCKET_
 
 ## Pi Extensions
 
-Pi coding agent extensions live in `pi/extensions/` and are symlinked into `~/.pi/agent/extensions/`.
+Pi coding agent extensions live in `pi/extensions/`. Distribution: `pi install git:github.com/martintrojer/dotfiles` (or local: `pi install /path/to/dotfiles`). Pi reads them via the `pi` manifest in `package.json`; no copy or symlink, pi loads from the package source path at runtime.
 
 - `answer` — Extract questions from assistant responses into interactive Q&A TUI
 - `btw` — Side-chat popover for tangential questions
@@ -100,7 +101,7 @@ See `pi/README.md` for details.
 
 ## Skills
 
-Generic agent skills live in `skills/` and are symlinked into `~/.agents/skills/`. See `skills/README.md` for full reference.
+Generic agent skills live in `skills/`. Distribution: `npx skills add martintrojer/dotfiles` (per-skill symlinks into `~/.agents/skills/` and per-agent paths). The same `skills/` tree is also exposed by the Claude plugin (`claude plugin install mtrojer@dotfiles`) and the pi package. See `skills/README.md` for full reference.
 
 - `brainstorm` — Refine ideas into technical specs via dialogue
 - `write-plan` / `execute-plan` — Create and execute implementation plans

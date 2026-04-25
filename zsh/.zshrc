@@ -11,9 +11,11 @@
 typeset -U path fpath
 
 # Plugin completion dirs need to be on fpath BEFORE compinit runs.
+# ZSH_PLUGINS_DIR mirrors stow-all.py's ZSH_PLUGINS_DEST.
+ZSH_PLUGINS_DIR="$HOME/.local/share/zsh-plugins"
 fpath=(
-  $HOME/.zsh/plugins/zsh-autosuggestions
-  $HOME/.zsh/plugins/zsh-syntax-highlighting
+  $ZSH_PLUGINS_DIR/zsh-autosuggestions
+  $ZSH_PLUGINS_DIR/zsh-syntax-highlighting
   $fpath
 )
 
@@ -94,10 +96,11 @@ for file in "$HOME"/.zsh/*.zsh; do
 done
 
 # ----------------------------------------------------------------------
-# Third-party plugins (cloned by stow-all.py --apply at pinned refs)
+# Third-party plugins (cloned by stow-all.py --apply at pinned refs to
+# ~/.local/share/zsh-plugins/<name>/; see ZSH_PLUGINS_DIR above)
 # ----------------------------------------------------------------------
-[[ -f "$HOME/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] \
-  && source "$HOME/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+[[ -f "$ZSH_PLUGINS_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] \
+  && source "$ZSH_PLUGINS_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh"
 
 # fzf shell integration: Ctrl-T file picker, Ctrl-R history, Esc-c cd
 # picker, ** completion trigger (kill **<TAB>, ssh **<TAB>, etc.).
@@ -107,8 +110,8 @@ command -v fzf >/dev/null && eval "$(fzf --zsh)"
 command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
 
 # Syntax highlighting must be sourced LAST per upstream docs (it wraps zle widgets).
-[[ -f "$HOME/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] \
-  && source "$HOME/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+[[ -f "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] \
+  && source "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 
 # ----------------------------------------------------------------------
 # Overrides (user-specific aliases that should win over everything else)
