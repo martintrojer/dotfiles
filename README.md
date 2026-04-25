@@ -34,6 +34,54 @@ Use `./stow-all.py` to stow the packages that match the current OS and distro.
 
 Not everything at the repo root is a stow package. In particular, [`skills/`](./skills), [`agents/`](./agents), [`commands/`](./commands), [`hooks/`](./hooks), [`pi/extensions/`](./pi/extensions), and [`.claude-plugin/`](./.claude-plugin) are agent-side payloads consumed by `claude plugin` and the universal `~/.agents/skills/` / `~/.pi/agent/extensions/` paths rather than stowed into `~/` directly.
 
+## Testing the bootstrap (without clobbering your real `$HOME`)
+
+Two recipes for dry-running the install path before pushing or before bootstrapping a real new machine.
+
+### Quick: `--target` against a tmpfs path (5 seconds)
+
+```bash
+rm -rf /tmp/fresh-home && mkdir /tmp/fresh-home
+./stow-all.py --target=/tmp/fresh-home --apply
+# Inspect:
+ls -la /tmp/fresh-home/
+ls /tmp/fresh-home/.agents/skills/
+ls /tmp/fresh-home/.local/share/zsh-plugins/
+```
+
+Validates everything `--apply` does (stow, zsh plugin clones, skill + pi-extension symlinks). Doesn't exercise `--install-agents` because `claude` / `pi` / `npx` resolve home-relative paths internally and would still touch your real `~/.claude/`, `~/.pi/` etc.
+
+### Full: throwaway container with a fake `$HOME`
+
+When you want to verify the actual fresh-user experience end-to-end — including the interactive zsh, fzf bindings, agent-attention hooks, etc. — spin up a podman container with `HOME` pointed at a tmpfs path inside the container. Toolbox itself bind-mounts your real `$HOME`, so it's not the right tool here; use plain `podman run`:
+
+```bash
+LOCAL_REPO="$(pwd)"   # if testing pre-push changes; otherwise omit -v below
+
+podman run --rm -it \
+  --userns=keep-id \
+  --hostname dotfiles-fresh \
+  -e "HOME=/home/test" \
+  -w /home/test \
+  -v "$LOCAL_REPO:/src/dotfiles:ro" \
+  registry.fedoraproject.org/fedora-toolbox:latest \
+  bash -lc '
+    set -euxo pipefail
+    sudo dnf install -y --quiet git stow zsh python3 fzf zoxide eza ripgrep fd-find tmux curl
+    cp -a /src/dotfiles ~/dotfiles    # or: git clone https://github.com/martintrojer/dotfiles ~/dotfiles
+    cd ~/dotfiles
+    ./stow-all.py --apply --install-agents
+    exec zsh -l
+  '
+```
+
+Drop the `-v ...:/src/dotfiles:ro` and replace `cp -a ...` with the `git clone` line to test the real github fresh-bootstrap path. The container is auto-removed on exit (`--rm`).
+
+Notes:
+- `claude`, `pi`, and `npx` aren't in the base toolbox image, so `--install-agents` will print SKIP messages for each. That's also a useful test (verifies the SKIP-on-missing-CLI behavior actually fires).
+- If you want to test the agent installs too, install them in the container first (`mise install` etc.) before running `--apply`.
+- Container is not part of the daily flow — use this only before pushing a stow-all change or before bootstrapping a new physical machine.
+
 ## Agent Plugin (skills, extensions, commands, hooks)
 
 The whole repo doubles as a multi-target agent plugin. The distribution model splits into two halves:
