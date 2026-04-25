@@ -1,16 +1,12 @@
 # Pi Extensions
 
-Extensions for [Pi coding agent](https://buildwithpi.ai/). Distributed as part of the dotfiles pi package via the `pi` manifest in the repo-root `package.json`.
+Extensions for [Pi coding agent](https://buildwithpi.ai/).
 
 ## Install
 
-```bash
-pi install git:github.com/martintrojer/dotfiles
-# or for development:
-pi install /path/to/dotfiles
-```
+`./stow-all.py --apply` symlinks each `*.ts` from this directory into `~/.pi/agent/extensions/`. Pi auto-discovers extensions there (with `/reload` support) — no `pi install`, no `package.json` manifest. Edits propagate live.
 
-Pi reads `pi.extensions: ["./pi/extensions"]` and `pi.skills: ["./skills"]` from the package's `package.json` and loads both at runtime. No copy or symlink — pi reads from the package source path. `pi config` (TUI) lets you toggle individual extensions and skills on/off.
+Skills (in the repo-root `skills/` directory) are similarly symlinked into `~/.agents/skills/` and read by pi from there.
 
 Source: cherry-picked from [mitsuhiko/agent-stuff](https://github.com/mitsuhiko/agent-stuff).
 

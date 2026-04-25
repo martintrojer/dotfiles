@@ -13,7 +13,7 @@ When tempted, re-read this section before touching anything.
 4. **Each piece earns its place.** Plugins, packages, scripts, services — they all justify themselves with a one-line "why not builtin?" answer. The `nvim/README.md` plugin table is the template for how to think about every other tool too.
 5. **Local scripts over upstream plugins.** `tms`, `agent-attention`, `status-*`, `cheatsheet`, `lock-screen`, the fuzzel pickers, `stow-all.py` — small Python scripts in this repo are preferred over adding a third-party dependency. They are easy to read, easy to fix, and they do not break on upgrade.
 6. **Recreate, do not restore.** No tmux resurrect. No session snapshots. No magic state restoration. The workflow is rebuilt on demand: `tms` recreates project sessions in two keystrokes, `mini.starter` and `<leader>fo` re-enter files, agents keep their own state. Disposable sessions force the setup to stay cheap to spin up.
-7. **Thin wrappers around shared lists.** `fedora/setup-*.sh` are wrappers around `base-packages.sh` / `sway-packages.sh`. `stow-all.py` is a wrapper around stow + clone-on-apply for the two zsh plugins. Agent-side payloads (skills, Pi extensions, Claude plugin) are published via standard upstream tools (`npx skills`, `pi install`, `claude plugin marketplace`), not orchestrated by `stow-all.py`. Decisions live in data, not in scripts.
+7. **Thin wrappers around shared lists.** `fedora/setup-*.sh` are wrappers around `base-packages.sh` / `sway-packages.sh`. `stow-all.py` is a wrapper around stow + clone-on-apply for the two zsh plugins + plain symlinks for agent skills (`~/.agents/skills/`) and pi extensions (`~/.pi/agent/extensions/`). The Claude plugin is the one outlier (it wants its own plugin cache, so we install via `claude plugin marketplace add martintrojer/dotfiles`). Decisions live in data, not in scripts.
 8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway. macOS is Hammerspoon + Ghostty. The shared layer is the CLI/editor baseline; the desktop stack is allowed to diverge per platform. No effort is spent making the WM/compositor portable.
 9. **One palette, everywhere.** Catppuccin Mocha across nvim, tmux, eza, bat, waybar, fuzzel, mako, swaylock. See `THEME.md`. New tools adopt the palette or do not get added.
 10. **Config lives next to the thing it configures.** Tool-specific docs go in the package folder (`nvim/README.md`, `tmux/README.md`, `fedora/README.md`, `fuzzel/README.md`, ...). This root README only describes the repo shape and the rules above.
@@ -32,52 +32,55 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behavior is a
 
 Use `./stow-all.py` to stow the packages that match the current OS and distro.
 
-Not everything at the repo root is a stow package. In particular, [`skills/`](./skills), [`agents/`](./agents), [`commands/`](./commands), [`hooks/`](./hooks), [`pi/extensions/`](./pi/extensions), and [`.claude-plugin/`](./.claude-plugin) are agent-side payloads consumed by `claude plugin`, `npx skills`, and `pi install` rather than stowed into `~/`.
+Not everything at the repo root is a stow package. In particular, [`skills/`](./skills), [`agents/`](./agents), [`commands/`](./commands), [`hooks/`](./hooks), [`pi/extensions/`](./pi/extensions), and [`.claude-plugin/`](./.claude-plugin) are agent-side payloads consumed by `claude plugin` and the universal `~/.agents/skills/` / `~/.pi/agent/extensions/` paths rather than stowed into `~/` directly.
 
 ## Agent Plugin (skills, extensions, commands, hooks)
 
-The whole repo doubles as a multi-target agent plugin:
+The whole repo doubles as a multi-target agent plugin. The distribution model splits into two halves:
 
-- **Claude Code**: `.claude-plugin/marketplace.json` + `agents/`, `commands/`, `hooks/`, `skills/` at the repo root.
-- **Pi**: `package.json` declares the `pi` manifest pointing at `pi/extensions/` and `skills/`.
-- **Codex / OpenCode / Cursor / OpenClaw / generic**: `npx skills add` reads `skills/` directly per the [Agent Skills standard](https://agentskills.io).
+**Universal (handled by `--apply`, no flag needed):** skills and pi extensions are plain symlinks into the repo.
+
+- `dotfiles/skills/<name>/` → `~/.agents/skills/<name>` (one symlink per skill). Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw and friends all read `~/.agents/skills/` natively. Edits in the repo show up live (no copy).
+- `dotfiles/pi/extensions/*.ts` → `~/.pi/agent/extensions/`. Pi auto-discovers TS files there and supports `/reload`.
+
+Stale links (skills you removed from the repo) are pruned automatically.
+
+**Claude Code (handled by `--install-agents`, opt-in):** Claude wants its own plugin cache, so it gets the github marketplace treatment.
+
+- `claude plugin marketplace add martintrojer/dotfiles`
+- `claude plugin install mtrojer@dotfiles`
 
 ### Install on a fresh machine
 
-One command does everything:
-
 ```bash
+git clone https://github.com/martintrojer/dotfiles ~/dotfiles
+cd ~/dotfiles
 ./stow-all.py --apply --install-agents
+# Then add the codex notify line to ~/.codex/config.toml (printed by --apply).
 ```
 
-This stows the dotfiles, clones the pinned zsh plugins, **and** runs the three agent-side installs:
+`--apply` always:
+- Stows the dotfile packages.
+- Clones the pinned zsh plugins.
+- Symlinks `dotfiles/skills/*` into `~/.agents/skills/` and `dotfiles/pi/extensions/*.ts` into `~/.pi/agent/extensions/`.
 
-- `claude plugin marketplace add` + `claude plugin install mtrojer@dotfiles`
-- `npx skills add -g` (universal Agent Skills install into `~/.agents/skills/`)
-- `pi install` (registers this repo as a pi package; pi reads extensions and skills at runtime)
+`--install-agents` adds:
+- Claude marketplace registration (one-time).
+- Claude plugin install/refresh (re-runs only when the repo's git HEAD has advanced past the cached snapshot SHA).
 
-Each step is idempotent and skipped if the corresponding CLI is missing. Codex's `notify` hook stays a one-line manual edit of `~/.codex/config.toml` (the exact TOML line is printed at the end of the run).
-
-If you'd rather review the install commands first, omit `--install-agents`; `--apply` will print them as a reminder for you to run by hand. Both forms work; the flag just automates the manual ones.
-
-Local-path equivalents (used by `--install-agents`; useful for testing pre-push changes):
-
-- `claude plugin marketplace add /path/to/dotfiles`
-- `npx skills add -g /path/to/dotfiles`
-- `pi install /path/to/dotfiles`
+Without `--install-agents`, `--apply` prints the exact two `claude` commands you'd need to run by hand.
 
 ### Update flow
 
-When skills, agents, commands, hooks, or pi extensions change in this repo:
+When any of the agent-side content changes in this repo:
 
-1. Push to `origin`.
-2. On each consumer machine, re-run `./stow-all.py --apply --install-agents` — idempotent and re-fetches each agent package. Or run the upstream commands by hand: `claude plugin install mtrojer@dotfiles`, `npx skills update`, `pi install ...`.
-
-The agents own the install/update lifecycle; `stow-all.py --install-agents` is just a thin orchestrator over the standard commands.
+- **For skills and pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` symlinks point straight at the repo source; edits propagate live.
+- **For new skills or removed skills:** re-run `./stow-all.py --apply` to create new symlinks or prune stale ones.
+- **For Claude (any change to `agents/`, `commands/`, `hooks/`, or `skills/`):** push to `origin`, then re-run `./stow-all.py --apply --install-agents` on each consumer machine. The plugin install only re-fetches when the repo HEAD has actually advanced past the cached snapshot.
 
 ### Why this layout
 
-Previous incarnations of `stow-all.py` carried ~600 lines of code to fan-out skills into 4 different agent dirs, copy a Claude plugin bundle, symlink Pi extensions, and verify Claude/Codex notification hooks. All of that is now delegated to the upstream tools that exist for exactly this purpose. See [`TODO.md`](./TODO.md) item #6 for the audit and decision.
+Previous incarnations of `stow-all.py` carried ~600 lines of code to fan-out skills into 4 different agent dirs, copy a Claude plugin bundle, symlink Pi extensions, and verify Claude/Codex notification hooks. The simplification: `~/.agents/skills/` is the universal path *all* the agents already read, so a plain symlink covers Codex/OpenCode/Pi/Cursor/Amp/Cline/Warp/OpenClaw at once. Same for `~/.pi/agent/extensions/`. Only Claude needed special treatment. See [`TODO.md`](./TODO.md) item #6 for the audit and decision.
 
 Key Linux packages now include:
 - `sway`

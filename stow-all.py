@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import platform
@@ -212,11 +213,12 @@ def parse_args() -> Args:
         "--install-agents",
         action="store_true",
         help=(
-            "After --apply, also install the agent-side packages: "
-            "Claude plugin, npx skills, pi package. Each is skipped if the "
-            "required CLI is not on PATH or if the package is already installed. "
-            "Idempotent. Codex's notify hook stays a manual ~/.codex/config.toml "
-            "edit (printed as a hint)."
+            "After --apply, install/refresh the Claude Code plugin from the "
+            f"github marketplace ({GITHUB_SLUG}). Idempotent: re-runs only "
+            "when the repo's git HEAD has advanced past the cached snapshot. "
+            "Skills and pi extensions are always symlinked into ~/.agents/skills/ "
+            "and ~/.pi/agent/extensions/ by --apply itself \u2014 no flag needed. "
+            "Codex's notify hook is the only remaining manual step (printed)."
         ),
     )
     namespace = parser.parse_args()
@@ -734,6 +736,133 @@ def check_zsh_plugins(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     return found_issue
 
 
+# ---------------------------------------------------------------------------
+# Agent skill / pi extension symlinks
+#
+# Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp etc. all read
+# ~/.agents/skills/ as the universal global skills location. Pi reads
+# ~/.pi/agent/extensions/ for auto-discovered extensions. Both are simple
+# symlink-into-the-repo destinations — no `npx skills`, no `pi install`
+# needed. Edits to repo sources are picked up live because the targets
+# are symlinks, not copies.
+#
+# The Claude plugin is the one outlier: Claude wants its own plugin cache
+# (it copies the marketplace's content into ~/.claude/plugins/cache/...).
+# That's handled by install_claude_plugin() behind the --install-agents
+# flag because it's slow and network-y.
+# ---------------------------------------------------------------------------
+
+
+def _agent_link_apply(
+    *,
+    label: str,
+    src_dir: Path,
+    dest_dir: Path,
+    expected_names: set[str],
+    verbose: bool,
+) -> None:
+    """Symlink each name in expected_names from src_dir into dest_dir, and
+    prune any of OUR own stale symlinks (links that point into src_dir but
+    no longer have a source).
+
+    Idempotent. Won't touch entries that aren't symlinks (third-party
+    skills/extensions in the same dir are left alone). Won't touch
+    symlinks that point outside src_dir.
+    """
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    header_printed = False
+
+    def _print_header() -> None:
+        nonlocal header_printed
+        if not header_printed:
+            LOGGER.warning(f"\n[{label}]")
+            header_printed = True
+
+    # Create or repair our links.
+    for name in sorted(expected_names):
+        source = src_dir / name
+        dest = dest_dir / name
+        relative = os.path.relpath(source, dest.parent)
+        if dest.is_symlink():
+            if os.readlink(dest) == relative:
+                if verbose:
+                    LOGGER.debug(f"OK: {dest} -> {relative}")
+                continue
+            dest.unlink()
+        elif dest.exists():
+            _print_header()
+            LOGGER.warning(
+                f"BLOCKED: {dest} exists and is not a symlink; leaving alone"
+            )
+            continue
+        dest.symlink_to(relative)
+        _print_header()
+        LOGGER.warning(f"LINKED: {dest.name}")
+
+    # Prune our stale links.
+    if not dest_dir.is_dir():
+        return
+    for entry in sorted(dest_dir.iterdir()):
+        if not entry.is_symlink() or entry.name in expected_names:
+            continue
+        target_str = os.readlink(entry)
+        target_path = (dest_dir / target_str).resolve()
+        try:
+            target_path.relative_to(src_dir.resolve())
+        except ValueError:
+            # Symlink points outside our source dir — not ours, leave alone.
+            continue
+        entry.unlink()
+        _print_header()
+        LOGGER.warning(f"PRUNED: {entry.name} (no source in {src_dir.name}/)")
+
+
+def apply_skills_symlinks(target: Path, *, verbose: bool) -> None:
+    """Symlink each dotfiles/skills/<name>/ into ~/.agents/skills/<name>.
+
+    All supported agents (Codex, OpenCode, Pi, Claude Code, Cursor, Amp,
+    Cline, Warp, OpenClaw, ...) read ~/.agents/skills/ as the universal
+    global location. We don't need per-agent fan-out (used to use
+    `npx skills add`); a plain symlink in the universal path is enough
+    and supports live editing.
+    """
+    src_dir = SCRIPT_DIR / "skills"
+    if not src_dir.is_dir():
+        return
+    expected_names = {
+        p.name for p in src_dir.iterdir() if p.is_dir() and not p.name.startswith(".")
+    }
+    _agent_link_apply(
+        label="agents-skills",
+        src_dir=src_dir,
+        dest_dir=target / ".agents" / "skills",
+        expected_names=expected_names,
+        verbose=verbose,
+    )
+
+
+def apply_pi_extensions_symlinks(target: Path, *, verbose: bool) -> None:
+    """Symlink each dotfiles/pi/extensions/*.ts into ~/.pi/agent/extensions/.
+
+    Pi auto-discovers extensions in ~/.pi/agent/extensions/ (and supports
+    /reload for hot-reloading). Plain symlinks work; no `pi install`
+    needed.
+    """
+    src_dir = SCRIPT_DIR / "pi" / "extensions"
+    if not src_dir.is_dir():
+        return
+    expected_names = {
+        p.name for p in src_dir.iterdir() if p.is_file() and p.suffix == ".ts"
+    }
+    _agent_link_apply(
+        label="pi-extensions",
+        src_dir=src_dir,
+        dest_dir=target / ".pi" / "agent" / "extensions",
+        expected_names=expected_names,
+        verbose=verbose,
+    )
+
+
 def main() -> int:
     args = parse_args()
     ensure_stow_available()
@@ -814,56 +943,49 @@ def main() -> int:
         return 0
 
     apply_zsh_plugins(target, verbose=args.verbose)
+    apply_skills_symlinks(target, verbose=args.verbose)
+    apply_pi_extensions_symlinks(target, verbose=args.verbose)
     print("\nDone.")
     if args.install_agents:
-        install_agents()
+        install_claude_plugin()
+        print_codex_hint()
     else:
         print_publish_reminder()
     return 0
 
 
 def print_publish_reminder() -> None:
-    """After --apply, remind the user to install the agent-side packages.
+    """After --apply (without --install-agents), tell the user what's left
+    to do for the Claude plugin and the Codex notify hook.
 
-    stow-all.py used to symlink shared `skills/` into ~/.codex/skills/ +
-    ~/.agents/skills/, copy them into a Claude plugin bundle, and symlink
-    pi/extensions/*.ts into ~/.pi/agent/extensions/. All of that is now
-    delegated to upstream tools that already understand this repo's layout:
+    Skills (~/.agents/skills/) and pi extensions (~/.pi/agent/extensions/)
+    have already been symlinked by --apply itself — those work for
+    Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw with no
+    further action.
 
-      - Claude Code   : reads .claude-plugin/marketplace.json + the top-level
-                        skills/, agents/, commands/, hooks/ dirs.
-      - npx skills    : reads skills/ for the universal Agent Skills standard,
-                        symlinks per-skill into ~/.agents/skills/ and beyond.
-      - pi            : reads package.json's `pi.extensions` and `pi.skills`
-                        paths and registers them at runtime; no copy needed.
-
-    The local-path equivalents work for development; the github URLs
-    are for everyone else. Pass --install-agents to have stow-all run
-    them for you (idempotent).
+    The two remaining concerns are:
+      - Claude Code: needs its own plugin install (handled by
+        --install-agents, or by the manual commands below).
+      - Codex: needs one TOML line in ~/.codex/config.toml for the
+        agent-attention notify hook.
     """
     print()
-    print("To install the agent-side packages (or re-run with --install-agents):")
-    print()
-    print("  # Claude Code plugin (skills + agents + commands + hooks):")
     print(
-        f"  claude plugin marketplace add {GITHUB_SLUG}"
-        f"   # or: {SCRIPT_DIR}"
+        "Skills and pi extensions are now symlinked at "
+        "~/.agents/skills/ and ~/.pi/agent/extensions/."
     )
-    print(f"  claude plugin install mtrojer@dotfiles")
-    print()
-    print("  # Skills for Codex / OpenCode / Cursor / OpenClaw / generic:")
     print(
-        f"  npx skills add -g {GITHUB_SLUG}"
-        f"            # or: npx skills add -g {SCRIPT_DIR}"
+        "Codex / OpenCode / Pi / Cursor / OpenClaw / etc. read those "
+        "paths automatically."
     )
     print()
-    print("  # Pi extensions + skills (one command, both):")
-    print(
-        f"  pi install git:github.com/{GITHUB_SLUG}"
-        f"  # or: pi install {SCRIPT_DIR}"
-    )
+    print("To finish the setup (or re-run with --install-agents):")
     print()
-    print("  # Codex notify hook (manual; one TOML line in ~/.codex/config.toml):")
+    print("  # Claude Code plugin (refresh after each push):")
+    print(f"  claude plugin marketplace add {GITHUB_SLUG}")
+    print("  claude plugin install mtrojer@dotfiles")
+    print()
+    print("  # Codex notify hook (manual; add to ~/.codex/config.toml):")
     print(
         '  notify = ["/bin/sh", "-lc", "python3 \\"$HOME/.config/tmux/scripts/'
         'agent-attention\\" notify --source codex --event-type notify --title Codex"]'
@@ -891,94 +1013,123 @@ def _run_install(label: str, cmd: list[str]) -> bool:
     return True
 
 
-def install_claude_plugin() -> None:
-    """Idempotent install of the dotfiles Claude plugin.
+def _current_repo_head() -> str | None:
+    """Return the full SHA of the repo's git HEAD, or None on failure.
 
-    Skips if `claude` isn't on PATH. Skips per-step if the marketplace
-    is already registered or the plugin is already installed.
+    Used to compare against the SHA Claude has cached for our plugin so
+    we only re-install when the repo has actually advanced. In jj+git
+    colocation, `git rev-parse HEAD` returns the last jj-committed
+    change — which is what `claude plugin install` (using the github
+    remote) will resolve to once we push.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(SCRIPT_DIR), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _claude_installed_sha() -> str | None:
+    """Return the gitCommitSha Claude has for mtrojer@dotfiles (user scope),
+    or None if not installed / state unreadable.
+    """
+    state = Path.home() / ".claude" / "plugins" / "installed_plugins.json"
+    if not state.is_file():
+        return None
+    try:
+        data = json.loads(state.read_text())
+    except (OSError, ValueError):
+        return None
+    entries = data.get("plugins", {}).get("mtrojer@dotfiles")
+    if not entries:
+        return None
+    for entry in entries:
+        if entry.get("scope") == "user":
+            return entry.get("gitCommitSha")
+    return None
+
+
+def install_claude_plugin() -> None:
+    """Idempotent install/refresh of the dotfiles Claude plugin.
+
+    Uses the github marketplace (`martintrojer/dotfiles`) rather than a
+    local-path install, so the canonical update loop is
+    'edit → commit → push → stow-all.py --apply --install-agents'. Local
+    iteration on the plugin itself can be done by running
+    `claude plugin marketplace add /path/to/dotfiles` manually.
+
+    Skips if `claude` isn't on PATH. Marketplace add is one-time. Plugin
+    install is re-run only when the repo's git HEAD has advanced past
+    the cached snapshot SHA — so edits to skills/agents/commands/hooks
+    propagate after a push.
     """
     if shutil.which("claude") is None:
         LOGGER.warning("\n[install: claude] SKIPPED: claude CLI not on PATH")
         return
 
-    # Check existing marketplaces. `claude plugin marketplace list` prints
-    # "  ❯ dotfiles" for each registered marketplace; we look for our name.
     list_out = subprocess.run(
         ["claude", "plugin", "marketplace", "list"],
         capture_output=True,
         text=True,
     )
     if "dotfiles" not in list_out.stdout:
-        # Local-path install. Works on the machine that just ran --apply,
-        # avoids a network round-trip, and tests pre-push changes.
-        _run_install(
+        ok = _run_install(
             "claude marketplace",
-            ["claude", "plugin", "marketplace", "add", str(SCRIPT_DIR)],
+            ["claude", "plugin", "marketplace", "add", GITHUB_SLUG],
         )
+        if not ok:
+            LOGGER.warning(
+                "[install: claude plugin] SKIPPED: marketplace add failed; "
+                "check that the github remote has the .claude-plugin/ "
+                "directory committed and pushed."
+            )
+            return
     else:
-        LOGGER.warning("\n[install: claude marketplace] already registered (dotfiles)")
+        LOGGER.warning(
+            "\n[install: claude marketplace] already registered (dotfiles)"
+        )
 
-    plugins_out = subprocess.run(
-        ["claude", "plugin", "list"], capture_output=True, text=True
-    )
-    if "mtrojer@dotfiles" not in plugins_out.stdout:
+    repo_head = _current_repo_head()
+    installed_sha = _claude_installed_sha()
+
+    if repo_head is None:
+        LOGGER.warning(
+            "[install: claude plugin] WARNING: could not read repo HEAD; "
+            "installing unconditionally"
+        )
+        needs_install = True
+    elif installed_sha is None:
+        needs_install = True
+    elif installed_sha == repo_head:
+        LOGGER.warning(
+            f"[install: claude plugin] already installed at "
+            f"{installed_sha[:12]} (matches repo HEAD)"
+        )
+        needs_install = False
+    else:
+        LOGGER.warning(
+            f"[install: claude plugin] cached={installed_sha[:12]} "
+            f"repo HEAD={repo_head[:12]} \u2014 reinstalling"
+        )
+        needs_install = True
+
+    if needs_install:
         _run_install(
             "claude plugin",
             ["claude", "plugin", "install", "mtrojer@dotfiles"],
         )
-    else:
-        LOGGER.warning("[install: claude plugin] already installed (mtrojer@dotfiles)")
 
 
-def install_skills_via_npx() -> None:
-    """Install/refresh the dotfiles skills suite into the universal
-    ~/.agents/skills/ paths via `npx skills`.
+def print_codex_hint() -> None:
+    """Codex's notify hook is the one thing that stays a manual edit.
 
-    `npx skills add` is itself idempotent: existing per-skill symlinks are
-    detected and not re-created. -g writes to global, -y skips the
-    interactive prompt.
+    Codex has no plugin marketplace, and editing ~/.codex/config.toml
+    in-place would require parsing/rewriting the user's TOML — not worth
+    the schema-rewriting risk for one line.
     """
-    if shutil.which("npx") is None:
-        LOGGER.warning("\n[install: npx skills] SKIPPED: npx not on PATH")
-        return
-    _run_install(
-        "npx skills",
-        ["npx", "-y", "skills", "add", "-g", "-y", str(SCRIPT_DIR)],
-    )
-
-
-def install_pi_package() -> None:
-    """Idempotent install of the dotfiles pi package.
-
-    Skips if `pi` isn't on PATH. Skips if our path is already in the
-    `pi list` output.
-    """
-    if shutil.which("pi") is None:
-        LOGGER.warning("\n[install: pi] SKIPPED: pi not on PATH")
-        return
-
-    list_out = subprocess.run(
-        ["pi", "list"], capture_output=True, text=True
-    )
-    if str(SCRIPT_DIR) in list_out.stdout:
-        LOGGER.warning(
-            f"\n[install: pi] already installed ({SCRIPT_DIR})"
-        )
-        return
-    _run_install("pi", ["pi", "install", str(SCRIPT_DIR)])
-
-
-def install_agents() -> None:
-    """Run all three idempotent install commands.
-
-    Each step is independent: missing CLI or install failure on one agent
-    doesn't block the others. Codex's notify hook stays manual (it requires
-    editing ~/.codex/config.toml; not worth the schema-rewriting risk for
-    a single TOML line).
-    """
-    install_claude_plugin()
-    install_skills_via_npx()
-    install_pi_package()
     LOGGER.warning(
         "\n[install: codex] still manual. Add this single line to "
         "~/.codex/config.toml:\n\n"

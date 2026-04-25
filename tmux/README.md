@@ -203,9 +203,9 @@ Lives in the [`opencode/`](../../opencode) stow package. `stow-all.py --apply` s
 
 Subscribes to `session.idle` and `permission.asked` events.
 
-### Pi Agent (auto — part of the dotfiles pi package)
+### Pi Agent (auto — `./stow-all.py --apply`)
 
-Lives in [`pi/extensions/agent-attention.ts`](../../pi/extensions/agent-attention.ts). When users install the dotfiles pi package (`pi install git:github.com/martintrojer/dotfiles`), Pi loads the extension automatically.
+Lives in [`pi/extensions/agent-attention.ts`](../../pi/extensions/agent-attention.ts). `stow-all.py --apply` symlinks it into `~/.pi/agent/extensions/agent-attention.ts`, where pi auto-discovers it.
 
 Subscribes to Pi's `agent_end` event so attention only fires once the prompt is actually finished.
 
