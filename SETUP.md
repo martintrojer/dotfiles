@@ -224,7 +224,7 @@ rm -rf ~/.cache/lock-screen
 
 ### 8. niri → sway (Linux only)
 
-If a Linux machine was running niri, this is a desktop-stack switch, not a config update — see [`DECISIONS.md` § niri](./DECISIONS.md) for the rationale and [`docs/sway-school.html`](./docs/sway-school.html) for a tree-first sway tutorial.
+If a Linux machine was running niri, this is a desktop-stack switch, not a config update — see [`DECISIONS.md` § niri](./DECISIONS.md) for the rationale and [Sway School](https://martintrojer.github.io/sway-school/) for a tree-first sway tutorial.
 
 Bringing the actual session up:
 

@@ -5,6 +5,11 @@ small, mainstream stack (sway + waybar + fuzzel + kanshi + mako + swayidle +
 swaylock) that stays close to upstream defaults so it can be reasoned about
 without surprises.
 
+> **New to sway?** [Sway School](https://martintrojer.github.io/sway-school/) is
+> a tree-first tutorial that explains the i3/sway layout model from the ground
+> up — the conceptual prerequisite for understanding why this config is shaped
+> the way it is.
+
 ## Files
 
 - `~/.config/sway/config` — main config (Mod4, Catppuccin colors, app launchers,
