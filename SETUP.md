@@ -1,0 +1,308 @@
+# Setup
+
+Everything about getting this repo onto a machine — fresh installs, upgrading machines that are running an older version, day-to-day updates, and recipes for testing changes without clobbering your real `$HOME`.
+
+Pick the section that matches your starting state:
+
+- **Fresh machine** → [Fresh install](#fresh-install).
+- **Existing machine on an older version of this repo** (OMZ-based zsh, manually-cloned TPM, per-agent skill copies, etc.) → [Upgrading from an older setup](#upgrading-from-an-older-setup).
+- **Already current, just want to pull and re-apply changes** → [Update flow](#update-flow).
+- **Hacking on `stow-all.py` itself** → [Testing the bootstrap](#testing-the-bootstrap).
+
+## Quick start
+
+```bash
+git clone https://github.com/martintrojer/dotfiles ~/dotfiles
+cd ~/dotfiles
+./stow-all.py --apply --install-agents
+```
+
+That covers the happy path on a fresh machine. The sections below expand each piece.
+
+## Fresh install
+
+`./stow-all.py --apply` always:
+
+- Stows the dotfile packages that match the current OS and distro.
+- Clones the pinned zsh plugins into `~/.local/share/zsh-plugins/`.
+- Clones TPM (tmux plugin manager) into `~/.tmux/plugins/tpm/` at the pinned ref. Tmux plugins listed in `.tmux.conf` still need a one-time `prefix + I` inside tmux to install — TPM owns that step.
+- Symlinks `dotfiles/skills/*` into `~/.agents/skills/` (the universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw).
+- Symlinks `dotfiles/pi/extensions/*.ts` into `~/.pi/agent/extensions/` (Pi auto-discovers these).
+- Prunes stale symlinks (skills you removed from the repo).
+
+`--install-agents` adds:
+
+- Claude marketplace registration (one-time): `claude plugin marketplace add martintrojer/dotfiles`.
+- Claude plugin install/refresh: `claude plugin install mtrojer@dotfiles`, re-run only when the repo's git HEAD has advanced past the cached snapshot SHA.
+
+Without `--install-agents`, `--apply` prints the exact two `claude` commands you'd need to run by hand.
+
+After `--apply` completes, follow the closing hint to add the codex notify line to `~/.codex/config.toml`.
+
+## Upgrading from an older setup
+
+For machines that have been running an older version of this repo (the OMZ-based zsh, the per-agent skill copies, the manually-cloned TPM, etc.). The doc is organized as **detect → action** per item. Run the detection commands; only do the action if the detection finds something. Items are independent — a partial-upgrade machine can run only the relevant sections.
+
+### Step 0: pull the latest, run apply
+
+```bash
+cd ~/dotfiles
+git pull
+./stow-all.py --check    # surface stow conflicts before they bite
+./stow-all.py --apply --install-agents
+```
+
+`--apply` is idempotent and handles most of the common cases automatically (stows the new packages, clones zsh-plugins + TPM, symlinks skills + pi extensions). The cleanup steps below cover the things `--apply` deliberately doesn't touch — vestigial files left by the old layout that aren't actively harmful but waste disk and confuse future-you.
+
+### 1. oh-my-zsh leftovers
+
+The repo dropped OMZ in favor of a slim native `.zshrc` (see [`DECISIONS.md` § oh-my-zsh](./DECISIONS.md)). The new `.zshrc` is already in place after `--apply`, but the old `~/.oh-my-zsh/` directory and any `~/.zshrc.pre-oh-my-zsh` backup file are now orphaned.
+
+Detect:
+
+```bash
+ls -d ~/.oh-my-zsh ~/.zshrc.pre-oh-my-zsh 2>/dev/null
+du -sh ~/.oh-my-zsh 2>/dev/null
+```
+
+Action:
+
+```bash
+rm -rf ~/.oh-my-zsh
+rm -f ~/.zshrc.pre-oh-my-zsh
+# Open a fresh shell to confirm the new .zshrc loads cleanly:
+zsh -l -c 'echo "ZSH_VERSION=$ZSH_VERSION; ZSH=${ZSH:-unset}"'
+# Expect: ZSH_VERSION=5.x.x; ZSH=unset
+```
+
+If `ZSH=` is still set to a path under `.oh-my-zsh`, something else (a sourced file outside this repo, an env var in `~/.zshenv`, or a system-level zsh init) is exporting it; grep your shell init for `oh-my-zsh` and remove.
+
+### 2. Old zsh-plugin location
+
+Older setups cloned `zsh-autosuggestions` and `zsh-syntax-highlighting` into `~/.zsh/plugins/<name>/`. The new path is `~/.local/share/zsh-plugins/<name>/` (what `stow-all.py --apply` populates; see `ZSH_PLUGINS_DEST` in `stow-all.py` for why).
+
+Detect:
+
+```bash
+ls -la ~/.zsh/plugins/ 2>/dev/null
+ls -la ~/.local/share/zsh-plugins/ 2>/dev/null
+```
+
+If both exist, only the new one is being sourced by the new `.zshrc`; the old one is dead weight.
+
+Action:
+
+```bash
+rm -rf ~/.zsh/plugins
+```
+
+### 3. Per-agent skill copies (the old fan-out)
+
+Older `stow-all.py` versions (~1370 lines, see commit `b29b3003`) copied each skill into per-agent locations: `~/.codex/skills/`, `~/.agents/skills/`, the Claude plugin bundle. The new model is a single set of symlinks at `~/.agents/skills/` that every agent reads natively. Old per-agent copies are now stale — they won't get updates from the repo, and they may shadow the canonical symlinks.
+
+Detect:
+
+```bash
+# These should be empty / nonexistent on a current machine:
+ls -la ~/.codex/skills 2>/dev/null
+ls -la ~/.cursor/skills 2>/dev/null
+ls -la ~/.amp/skills 2>/dev/null
+ls -la ~/.cline/skills 2>/dev/null
+
+# This should exist as symlinks, one per repo skill:
+ls -la ~/.agents/skills/
+```
+
+If `~/.agents/skills/` entries are *files or directories* rather than *symlinks pointing into your dotfiles repo*, you have an old copy-based layout.
+
+Action:
+
+```bash
+# Remove the old per-agent skill copies. Each agent will fall back to
+# the universal ~/.agents/skills/ path that --apply populated.
+rm -rf ~/.codex/skills ~/.cursor/skills ~/.amp/skills ~/.cline/skills
+
+# If ~/.agents/skills/ contains real directories instead of symlinks, blow it
+# away and let --apply rebuild as symlinks:
+rm -rf ~/.agents/skills
+cd ~/dotfiles && ./stow-all.py --apply
+
+# Verify symlinks now point into the repo:
+ls -la ~/.agents/skills/ | head
+# Expect each line to be: lrwxrwxrwx ... <name> -> /path/to/dotfiles/skills/<name>
+```
+
+### 4. Old Claude plugin install (local bundle)
+
+The Claude plugin used to be installed as a local bundle (filesystem path). The new model is the github marketplace (`claude plugin marketplace add martintrojer/dotfiles`).
+
+Detect:
+
+```bash
+claude plugin list 2>/dev/null
+# Look for any "mtrojer" or "dotfiles" plugin installed from a local path
+# rather than from the github marketplace.
+```
+
+Action:
+
+```bash
+# Remove the old local install (replace <name> with whatever `claude plugin list`
+# shows for the local install):
+claude plugin uninstall <name>
+
+# Install fresh from the github marketplace (this is what --install-agents does):
+claude plugin marketplace add martintrojer/dotfiles
+claude plugin install mtrojer@dotfiles
+```
+
+If `--install-agents` was run during step 0 above, the marketplace install is already done; only the *removal* of the old local install is needed here.
+
+### 5. Manual TPM clone
+
+Older instructions in `tmux/README.md` told you to `git clone .../tpm` manually. `stow-all.py --apply` now handles this and pins TPM to a known ref (currently `v3.1.0`).
+
+Detect:
+
+```bash
+cd ~/.tmux/plugins/tpm 2>/dev/null && git rev-parse HEAD && git describe --tags --exact-match HEAD 2>&1
+```
+
+If `git describe --tags --exact-match HEAD` reports `fatal: no tag exactly matches ...`, your TPM is at a non-pinned commit (probably master HEAD from when you originally cloned).
+
+Action:
+
+```bash
+cd ~/dotfiles && ./stow-all.py --apply
+# This will print "PINNED: tpm @ v3.1.0 (...)". Then verify:
+cd ~/.tmux/plugins/tpm && git describe --tags --exact-match HEAD
+# Expect: v3.1.0
+```
+
+The `~/.tmux/plugins/<other-plugins>/` directories (the actual @plugin entries listed in `.tmux.conf`) are still owned by TPM and updated via `prefix + U` inside tmux. Don't touch those.
+
+### 6. Codex notify hook (path drift)
+
+`~/.codex/config.toml` has a `[notifications]` block that points at the agent-attention dispatcher. Older versions pointed at `~/.config/tmux/scripts/agent-attention` directly; the current version of the script lives at the same path, so usually no change is needed — but verify.
+
+Detect:
+
+```bash
+grep -A2 '\[notifications\]' ~/.codex/config.toml 2>/dev/null
+```
+
+The `notify` line should match what `./stow-all.py --apply` prints in its closing hint. If they differ, update the file by hand to match the printed value.
+
+### 7. Wallpaper cache (Linux only)
+
+The lock-screen rendering moved from `~/.cache/lock-screen/` into the wallpaper helper at `~/.cache/wallpaper/`. The old cache is orphaned but harmless.
+
+Detect:
+
+```bash
+ls -la ~/.cache/lock-screen 2>/dev/null
+du -sh ~/.cache/lock-screen 2>/dev/null
+```
+
+Action:
+
+```bash
+rm -rf ~/.cache/lock-screen
+# The new cache at ~/.cache/wallpaper/ will be (re)populated next time
+# `wallpaper set/use` runs or on next `lock-screen` invocation.
+```
+
+### 8. niri → sway (Linux only)
+
+If a Linux machine was running niri, this is a desktop-stack switch, not a config update — see [`DECISIONS.md` § niri](./DECISIONS.md) for the rationale and [`docs/sway-school.html`](./docs/sway-school.html) for a tree-first sway tutorial.
+
+Bringing the actual session up:
+
+```bash
+# Install sway and friends if not already present:
+cd ~/dotfiles && ./fedora/setup-sway.sh    # Fedora
+# (No automated path on other distros — see fedora/sway-packages.sh for the list.)
+
+# Log out of niri, pick "Sway" at the display manager (or start sway from a TTY).
+# Verify the WM is sway:
+echo $XDG_CURRENT_DESKTOP    # expect: sway
+swaymsg -t get_version       # expect: a sway version string
+```
+
+Old niri config under `~/.config/niri/` is harmless to leave in place — sway doesn't read it. Remove it if you want a clean slate:
+
+```bash
+rm -rf ~/.config/niri
+```
+
+### 9. macOS-specific cleanup
+
+macOS machines should run items 1, 2, 3, 4 above. The Sway/wallpaper/niri items are Linux-only no-ops on macOS. After the above, the Mac is current.
+
+Verify:
+
+```bash
+cd ~/dotfiles && ./stow-all.py --check
+# Expect: no issues other than any --ignore-listed unclassified packages.
+```
+
+## Update flow
+
+When any of the agent-side content changes in this repo:
+
+- **Skills and pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` symlinks point straight at the repo source; edits propagate live.
+- **New / removed skills:** re-run `./stow-all.py --apply` to create new symlinks or prune stale ones.
+- **Claude (any change to `agents/`, `hooks/`, or `skills/`):** push to `origin`, then re-run `./stow-all.py --apply --install-agents` on each consumer machine. The plugin install only re-fetches when the repo HEAD has actually advanced past the cached snapshot.
+
+## Testing the bootstrap
+
+Two recipes for dry-running the install path before pushing or before bootstrapping a real new machine.
+
+### Quick: `--target` against a tmpfs path (5 seconds)
+
+```bash
+rm -rf /tmp/fresh-home && mkdir /tmp/fresh-home
+./stow-all.py --target=/tmp/fresh-home --apply
+# Inspect:
+ls -la /tmp/fresh-home/
+ls /tmp/fresh-home/.agents/skills/
+ls /tmp/fresh-home/.local/share/zsh-plugins/
+```
+
+Validates everything `--apply` does (stow, zsh plugin clones, skill + pi-extension symlinks). Doesn't exercise `--install-agents` because `claude` / `pi` / `npx` resolve home-relative paths internally and would still touch your real `~/.claude/`, `~/.pi/` etc.
+
+### Full: throwaway container with a fake `$HOME`
+
+When you want to verify the actual fresh-user experience end-to-end — including the interactive zsh, fzf bindings, agent-attention hooks, etc. — spin up a podman container with `HOME` pointed at a tmpfs path inside the container. Toolbox itself bind-mounts your real `$HOME`, so it's not the right tool here; use plain `podman run`:
+
+```bash
+LOCAL_REPO="$(pwd)"   # if testing pre-push changes; otherwise omit -v below
+
+podman run --rm -it \
+  --userns=keep-id \
+  --hostname dotfiles-fresh \
+  -e "HOME=/home/test" \
+  -w /home/test \
+  -v "$LOCAL_REPO:/src/dotfiles:ro" \
+  registry.fedoraproject.org/fedora-toolbox:latest \
+  bash -lc '
+    set -euxo pipefail
+    sudo dnf install -y --quiet git stow zsh python3 fzf zoxide eza ripgrep fd-find tmux curl
+    cp -a /src/dotfiles ~/dotfiles    # or: git clone https://github.com/martintrojer/dotfiles ~/dotfiles
+    cd ~/dotfiles
+    ./stow-all.py --apply --install-agents
+    exec zsh -l
+  '
+```
+
+Drop the `-v ...:/src/dotfiles:ro` and replace `cp -a ...` with the `git clone` line to test the real github fresh-bootstrap path. The container is auto-removed on exit (`--rm`).
+
+Notes:
+
+- `claude`, `pi`, and `npx` aren't in the base toolbox image, so `--install-agents` will print SKIP messages for each. That's also a useful test (verifies the SKIP-on-missing-CLI behavior actually fires).
+- If you want to test the agent installs too, install them in the container first (`mise install` etc.) before running `--apply`.
+- Container is not part of the daily flow — use this only before pushing a stow-all change or before bootstrapping a new physical machine.
+
+## When the upgrade section can be deleted
+
+The "Upgrading from an older setup" section above has a finite lifespan. When all your machines are current and you can't remember the last time anyone ran any of the steps in that section, delete it. The `DECISIONS.md` entries already capture *why* each thing changed; the upgrade section only exists to bridge the *how* for in-flight machines.

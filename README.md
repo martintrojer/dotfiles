@@ -29,7 +29,7 @@ cd ~/dotfiles
 ./stow-all.py --apply --install-agents
 ```
 
-Full install steps, the update flow, and recipes for testing changes without clobbering your real `$HOME` live in [`BOOTSTRAP.md`](./BOOTSTRAP.md).
+Full install steps, the update flow, recipes for testing changes without clobbering your real `$HOME`, and cleanup steps for machines running an older version of this repo all live in [`SETUP.md`](./SETUP.md).
 
 ## Repository shape
 
@@ -41,7 +41,7 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behaviour is 
 | Linux desktop stack | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaylock/`](./swaylock) |
 | macOS desktop stack | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) |
 | Fedora setup | [`fedora/`](./fedora) (shared package lists + setup wrappers) |
-| Agent payloads (not stowed) | [`skills/`](./skills), [`agents/`](./agents), [`commands/`](./commands), [`hooks/`](./hooks), [`pi/extensions/`](./pi/extensions), [`.claude-plugin/`](./.claude-plugin) |
+| Agent payloads (not stowed) | [`skills/`](./skills), [`agents/`](./agents), [`hooks/`](./hooks), [`pi/extensions/`](./pi/extensions), [`.claude-plugin/`](./.claude-plugin) |
 
 Each top-level directory is a Stow package with its own `README.md` covering the tool-specific story. Start in the package folder when debugging or extending that tool.
 
@@ -54,7 +54,7 @@ The repo doubles as a multi-target agent plugin. Distribution model:
 
 Why this split: `~/.agents/skills/` is the universal path *all* the agents already read, so a plain symlink covers everyone except Claude in one move. Only Claude wants its own plugin cache, so it gets the github marketplace treatment.
 
-See [`BOOTSTRAP.md`](./BOOTSTRAP.md) for the install + update flow.
+See [`SETUP.md`](./SETUP.md) for the install + update flow.
 
 ## Decisions and rejected alternatives
 
