@@ -1,3 +1,12 @@
+# eza-backed replacements for the standard ls family.
+alias ls='eza --icons=auto'
+alias ll='eza -l --icons=auto --group-directories-first'
+alias la='eza -a --icons=auto'
+alias lt='eza --tree'
+# Tree-list 3 levels deep, including dotfiles.
+alias ltt='eza -la --icons --tree -L 3'
+alias l='eza -lahG --icons=auto --no-permissions --no-user'
+
 # General aliases
 alias -g F='| fzf'
 alias -g H='| head'

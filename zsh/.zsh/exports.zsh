@@ -9,6 +9,12 @@ export PATH="$PATH:$HOME/.opencode/bin:$HOME/.pixi/bin:$HOME/.modular/bin"
 if [[ -z "$TMUX" ]] && ! infocmp "$TERM" &>/dev/null; then
   export TERM=xterm-256color
 fi
+
+# Toolbox containers often lack the host's terminfo entry (ghostty,
+# tmux-256color, ...). Force a known-good value inside toolbox.
+if [[ -f /run/.toolboxenv ]]; then
+  export TERM=xterm-256color
+fi
 export CLICOLOR=1
 
 # Editor configuration
