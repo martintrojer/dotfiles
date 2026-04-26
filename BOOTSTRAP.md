@@ -20,6 +20,7 @@ cd ~/dotfiles
 
 - Stows the dotfile packages that match the current OS and distro.
 - Clones the pinned zsh plugins into `~/.local/share/zsh-plugins/`.
+- Clones TPM (tmux plugin manager) into `~/.tmux/plugins/tpm/` at the pinned ref. Tmux plugins listed in `.tmux.conf` still need a one-time `prefix + I` inside tmux to install — TPM owns that step.
 - Symlinks `dotfiles/skills/*` into `~/.agents/skills/` (the universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw).
 - Symlinks `dotfiles/pi/extensions/*.ts` into `~/.pi/agent/extensions/` (Pi auto-discovers these).
 - Prunes stale symlinks (skills you removed from the repo).

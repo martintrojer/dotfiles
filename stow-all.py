@@ -63,6 +63,21 @@ ZSH_PLUGINS: Final[tuple[tuple[str, str, str], ...]] = (
 # placement keeps third-party clones out of the source tree entirely.
 ZSH_PLUGINS_DEST: Final[Path] = Path(".local/share/zsh-plugins")
 
+# TPM (tmux plugin manager). Cloned by --apply so a fresh install doesn't
+# need the manual `git clone https://github.com/tmux-plugins/tpm ...` step.
+# After apply, first-time bootstrap still needs `prefix + I` inside tmux to
+# install the @plugin entries listed in tmux/.tmux.conf -- TPM owns that
+# lifecycle, we just bootstrap TPM itself.
+#
+# Path is fixed at ~/.tmux/plugins/tpm/ because both TPM and tmux.conf
+# hardcode it; not configurable.
+TPM: Final[tuple[str, str, str]] = (
+    "tpm",
+    "https://github.com/tmux-plugins/tpm",
+    "v3.1.0",
+)
+TPM_DEST: Final[Path] = Path(".tmux/plugins/tpm")
+
 # (scope, stow_dir, package_names)
 PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
     (
@@ -618,6 +633,10 @@ def run_apply_group(
         raise SystemExit(result.returncode)
 
 
+# These two helpers are git operations, not zsh-specific. Reused by
+# apply_tmux_tpm / check_tmux_tpm below. Kept under the _zsh_plugin
+# name to avoid a churn-only rename; promote to _pinned_clone_* if a
+# third caller appears.
 def _zsh_plugin_head(dest: Path) -> str | None:
     """Return the resolved object SHA at HEAD, or None if not a git repo."""
     result = subprocess.run(
@@ -665,7 +684,12 @@ def apply_zsh_plugins(target: Path, *, verbose: bool) -> None:
             _print_header()
             LOGGER.warning(f"CLONING: {name} @ {ref}")
             subprocess.run(
-                ["git", "clone", "--quiet", "--depth", "50", url, str(dest)],
+                # Full clone (no --depth) so any pinned tag/SHA in the
+                # repo's history is reachable. The repos are small
+                # (single-MB range); the depth optimization saved
+                # nothing meaningful and silently broke when the pinned
+                # ref fell outside the shallow window.
+                ["git", "clone", "--quiet", url, str(dest)],
                 check=True,
             )
         else:
@@ -734,6 +758,89 @@ def check_zsh_plugins(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
         elif verbose:
             LOGGER.debug(f"OK: {name} @ {ref} ({target_sha[:12]})")
     return found_issue
+
+
+def apply_tmux_tpm(target: Path, *, verbose: bool) -> None:
+    """Clone or fast-forward TPM to its pinned ref under ~/.tmux/plugins/tpm.
+
+    TPM owns its own @plugin install/update lifecycle (the user runs
+    `prefix + I` / `prefix + U` inside tmux). This function only ensures
+    TPM itself exists at the right SHA so a fresh-machine bootstrap
+    doesn't need a manual git clone before tmux can start.
+    """
+    name, url, ref = TPM
+    dest = target / TPM_DEST
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    header_printed = False
+
+    def _print_header() -> None:
+        nonlocal header_printed
+        if not header_printed:
+            LOGGER.warning("\n[tmux-tpm]")
+            header_printed = True
+
+    if not dest.exists():
+        _print_header()
+        LOGGER.warning(f"CLONING: {name} @ {ref}")
+        # See apply_zsh_plugins for why this isn't a shallow clone.
+        subprocess.run(
+            ["git", "clone", "--quiet", url, str(dest)],
+            check=True,
+        )
+    else:
+        target_sha = _zsh_plugin_resolve(dest, ref)
+        if target_sha is None:
+            _print_header()
+            LOGGER.warning(f"FETCHING: {name} (ref {ref} not in clone)")
+            subprocess.run(
+                ["git", "-C", str(dest), "fetch", "--tags", "--quiet"],
+                check=True,
+            )
+            target_sha = _zsh_plugin_resolve(dest, ref)
+        current_sha = _zsh_plugin_head(dest)
+        if target_sha is not None and current_sha == target_sha:
+            if verbose:
+                LOGGER.debug(f"OK: {name} @ {ref} ({target_sha[:12]})")
+            return
+    subprocess.run(
+        ["git", "-C", str(dest), "checkout", "--quiet", ref],
+        check=True,
+    )
+    sha = _zsh_plugin_head(dest) or "unknown"
+    _print_header()
+    LOGGER.warning(f"PINNED: {name} @ {ref} ({sha[:12]})")
+
+
+def check_tmux_tpm(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    """Verify TPM is cloned at the pinned ref. Used by --check."""
+    name, _url, ref = TPM
+    issue_id = f"tmux-tpm:{name}"
+    if issue_id in ignore:
+        return False
+    dest = target / TPM_DEST
+    if not dest.is_dir():
+        LOGGER.warning("\n[tmux-tpm]")
+        LOGGER.warning(f"MISSING: {name} (--ignore {issue_id})")
+        return True
+    target_sha = _zsh_plugin_resolve(dest, ref)
+    current_sha = _zsh_plugin_head(dest)
+    if target_sha is None:
+        LOGGER.warning("\n[tmux-tpm]")
+        LOGGER.warning(
+            f"UNKNOWN-REF: {name} ({ref} not in local clone; "
+            f"--ignore {issue_id})"
+        )
+        return True
+    if current_sha != target_sha:
+        LOGGER.warning("\n[tmux-tpm]")
+        LOGGER.warning(
+            f"DRIFT: {name} HEAD={current_sha[:12] if current_sha else '?'} "
+            f"want={target_sha[:12]} (--ignore {issue_id})"
+        )
+        return True
+    if verbose:
+        LOGGER.debug(f"OK: {name} @ {ref} ({target_sha[:12]})")
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -939,6 +1046,9 @@ def main() -> int:
         has_issues |= check_zsh_plugins(
             target, verbose=args.verbose, ignore=args.ignore
         )
+        has_issues |= check_tmux_tpm(
+            target, verbose=args.verbose, ignore=args.ignore
+        )
         LOGGER.info("\n[repo-backlinks]")
         LOGGER.info("Scanning for stale or invalid repo backlinks...")
         backlink_scan_started = monotonic()
@@ -954,6 +1064,7 @@ def main() -> int:
         return 0
 
     apply_zsh_plugins(target, verbose=args.verbose)
+    apply_tmux_tpm(target, verbose=args.verbose)
     apply_skills_symlinks(target, verbose=args.verbose)
     apply_pi_extensions_symlinks(target, verbose=args.verbose)
     print("\nDone.")

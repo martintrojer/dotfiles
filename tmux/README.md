@@ -1,9 +1,20 @@
 # Tmux
 
-tmux needs a manual step to install plugins:
+TPM (the tmux plugin manager) is cloned automatically by
+`./stow-all.py --apply` into `$HOME/.tmux/plugins/tpm` at a pinned
+ref (currently `v3.1.0`; see `TPM` constant in `stow-all.py`). After
+the first apply on a fresh machine, install the @plugin entries
+listed in `.tmux.conf`:
 
-1. `git clone https://github.com/tmux-plugins/tpm $HOME/.tmux/plugins/tpm`
-2. [inside tmux] `<CTRL>b I`
+```
+[inside tmux]  prefix + I    # install all @plugin entries
+prefix + U    # update them later
+prefix + alt + u   # uninstall plugins removed from .tmux.conf
+```
+
+`stow-all.py` only bootstraps TPM itself; TPM owns the @plugin
+lifecycle from there. The trade-off is documented in
+[`DECISIONS.md` § Vendoring tmux plugins](../DECISIONS.md).
 
 This setup uses a local Python session launcher (`$HOME/.config/tmux/scripts/tms`) for the repo-defined session flows in `tmux/.tmux.conf`, such as `prefix + s`, `prefix + g`, and `prefix + T`.
 
