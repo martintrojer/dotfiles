@@ -43,9 +43,9 @@ Proposed: collect all 12 per-package READMEs into a `docs/` folder with topic-sh
 - **The root `README.md` is already the hub.** If discovery hurts, fix the index in root README, don't rebuild the layout.
 - **No external audience.** This isn't a public project where strangers browse `docs/`. Audience is future-me, who is already in the package directory because that's where the edit is happening.
 - **Pillar costs:** a `docs/` folder is a new structure to maintain (pillar #2 — boring infra; the existing layout is boring and works), with its own internal navigation discipline that drifts from code over time.
-- **The narrow real pain** — "the root README is bloated" — was a different problem and got the targeted fix it deserved (split into `BOOTSTRAP.md`, `DECISIONS.md`, leaving root README as Zen + pointers; see commit `476616e0`).
+- **The narrow real pain** — "the root README is bloated" — was a different problem and got the targeted fix it deserved (split into `SETUP.md` and `DECISIONS.md`, leaving root README as Zen + pointers).
 
-**Conclusion:** `find . -name README.md` already works. Per-package READMEs stay where they are. The cross-cutting docs at root (README, CLAUDE/AGENTS, THEME, BOOTSTRAP, DECISIONS) are conceptual peers and that flat layout is fine for ~5 files; promote to a folder only if the count crosses ~10.
+**Conclusion:** `find . -name README.md` already works. Per-package READMEs stay where they are. The cross-cutting docs at root (README, CLAUDE/AGENTS, THEME, SETUP, DECISIONS) are conceptual peers and that flat layout is fine for ~5 files; promote to a folder only if the count crosses ~10.
 
 **Reconsider only if:** I genuinely start writing tutorial-style or cross-cutting design docs that don't belong to any one package *and* there are 5+ of them. Today there are zero.
 

@@ -89,6 +89,7 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
             "eza",
             "gdu",
             "git",
+            "glow",
             "jj",
             "local-bin",
             "nvim",
@@ -139,7 +140,7 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
 IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
     "__pycache__",
     "agents",       # Claude plugin asset, consumed via /plugin install
-    "commands",     # Claude plugin asset
+    "docs",         # cross-cutting documentation hosted at repo root
     "fedora",       # contains its own stow packages, scope-driven
     "hooks",        # Claude plugin asset
     "pi",           # source for pi/extensions, consumed via pi install
@@ -1185,7 +1186,7 @@ def install_claude_plugin() -> None:
 
     Skips if `claude` isn't on PATH. Marketplace add is one-time. Plugin
     install is re-run only when the repo's git HEAD has advanced past
-    the cached snapshot SHA — so edits to skills/agents/commands/hooks
+    the cached snapshot SHA — so edits to skills/agents/hooks
     propagate after a push.
     """
     if shutil.which("claude") is None:

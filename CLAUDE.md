@@ -14,7 +14,7 @@ This repository uses **GNU Stow** for dotfile management. Each top-level directo
 - `local-bin/.local/bin`: shared cross-platform user commands on `$PATH`
 - `fedora/`: setup scripts plus `containers/` and `systemd/` configs
 - `fedora/bin/.local/bin`: Fedora-only user commands on `$PATH`
-- `.claude-plugin/`, `agents/`, `commands/`, `hooks/`: Claude Code plugin assets at repo root, distributed via `claude plugin marketplace add martintrojer/dotfiles`
+- `.claude-plugin/`, `agents/`, `hooks/`: Claude Code plugin assets at repo root, distributed via `claude plugin marketplace add martintrojer/dotfiles`
 - `pi/extensions/`: Pi coding agent extensions; `stow-all.py --apply` symlinks them into `~/.pi/agent/extensions/` (pi auto-discovers there)
 - `skills/`: shared agent skills following the Agent Skills standard; `stow-all.py --apply` symlinks each into `~/.agents/skills/<name>` (universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, Claude Code, ...)
 

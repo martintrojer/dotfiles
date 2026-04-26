@@ -1,6 +1,6 @@
 {
   "name": "mtrojer",
-  "description": "Personal Claude Code plugin: code-review agents, commit/brainstorm/plan workflows, agent-attention tmux integration, and the shared dotfiles skills suite.",
+  "description": "Personal Claude Code plugin: code-review agents, agent-attention tmux integration, and the shared dotfiles skills suite (commit, brainstorm, plan, council, caveman, summarize, tmux, and friends).",
   "author": {
     "name": "martintrojer"
   }
