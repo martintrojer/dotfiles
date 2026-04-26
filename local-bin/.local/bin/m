@@ -95,9 +95,29 @@ def main(argv: list[str]) -> int:
     # See module docstring for the TERM override rationale.
     os.environ["TERM"] = "tmux-256color"
 
-    # Pipe rendered output to `less -R`. We spawn less first so we can hand
-    # its stdin to the pty reader.
-    less = subprocess.Popen(["less", "-R"], stdin=subprocess.PIPE)
+    # Pipe rendered output to less. Flags:
+    #   -R   keep ANSI color sequences (truecolor passthrough).
+    #   -X   don't clear the screen on exit. Without this, the rendered
+    #        output vanishes from the pane (and from tmux's scrollback)
+    #        the moment you press `q`. With it, the content stays on
+    #        screen and you can keep scrolling tmux's pane buffer over it.
+    #
+    # Deliberately NOT passing `--mouse`. We want wheel events to go to
+    # *tmux* (which routes them to copy-mode for scrolling + drag-to-
+    # select-and-copy via tmux-yank), not to less. less without --mouse
+    # leaves mouse tracking off, so tmux sees the raw wheel events and
+    # handles them natively. Inside `m` then feels identical to any
+    # other tmux pane:
+    #   - wheel → tmux copy-mode scroll
+    #   - drag  → tmux selection → system clipboard via tmux-yank
+    #   - keys  → less (j/k/space/g/G/`/`/q etc.) until you scroll-back
+    #            via wheel, which lifts you into tmux copy-mode
+    # Outside tmux (raw terminal), wheel falls back to terminal scrollback,
+    # which is the right answer there too.
+    less = subprocess.Popen(
+        ["less", "-R", "-X"],
+        stdin=subprocess.PIPE,
+    )
     assert less.stdin is not None
 
     # Redirect our stdout to less's stdin for the duration of the render.
@@ -110,7 +130,17 @@ def main(argv: list[str]) -> int:
         os.dup2(saved_stdout_fd, 1)
         os.close(saved_stdout_fd)
 
-    less.wait()
+    # Wait for less to exit. less owns the terminal at this point and
+    # may receive SIGINT from the user (e.g. Ctrl-C to leave `Shift+F`
+    # follow-mode). less handles SIGINT itself and exits cleanly; we
+    # just need to stop our `wait()` from raising KeyboardInterrupt out
+    # of the script. Loop until less is actually gone.
+    while True:
+        try:
+            less.wait()
+            break
+        except KeyboardInterrupt:
+            continue
     return rc
 
 
