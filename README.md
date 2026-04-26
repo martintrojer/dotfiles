@@ -41,7 +41,7 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behaviour is 
 | Linux desktop stack | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaylock/`](./swaylock) |
 | macOS desktop stack | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) |
 | Fedora setup | [`fedora/`](./fedora) (shared package lists + setup wrappers) |
-| Agent payloads (not stowed) | [`skills/`](./skills), [`agents/`](./agents), [`hooks/`](./hooks), [`pi/extensions/`](./pi/extensions), [`.claude-plugin/`](./.claude-plugin) |
+| Agent payloads | [`skills/`](./skills), [`agents/`](./agents), [`hooks/`](./hooks), [`pi/extensions/`](./pi/extensions), [`.claude-plugin/`](./.claude-plugin) — see [Agent payloads](#agent-payloads) below for the deployment model |
 
 Each top-level directory is a Stow package with its own `README.md` covering the tool-specific story. Start in the package folder when debugging or extending that tool.
 
