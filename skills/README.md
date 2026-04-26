@@ -7,7 +7,7 @@ Shared agent skills following the [Agent Skills standard](https://agentskills.io
 Two paths:
 
 - **Universal path (Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, generic):** `./stow-all.py --apply` symlinks each `<name>/` into `~/.agents/skills/<name>`. All these agents read that path natively. Edits propagate live (symlink, not copy).
-- **Claude Code:** the same `skills/` tree is bundled into the dotfiles Claude plugin. Install via `claude plugin marketplace add martintrojer/dotfiles && claude plugin install mtrojer@dotfiles` (or use `./stow-all.py --apply --install-agents`).
+- **Claude Code:** the same `skills/` tree is bundled into the dotfiles Claude plugin. Install via `claude plugin marketplace add martintrojer/dotfiles && claude plugin install mtrojer@dotfiles`. Re-run `claude plugin install mtrojer@dotfiles` after each push to refresh — `./stow-all.py --apply` prints these commands as a closing hint.
 
 Skills are auto-discovered and can be invoked explicitly with `/skill:name` or loaded automatically when the agent detects a matching task.
 

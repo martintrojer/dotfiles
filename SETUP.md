@@ -14,7 +14,10 @@ Pick the section that matches your starting state:
 ```bash
 git clone https://github.com/martintrojer/dotfiles ~/dotfiles
 cd ~/dotfiles
-./stow-all.py --apply --install-agents
+./stow-all.py --apply
+# Then run the two manual commands the script prints:
+#   - Claude Code plugin install
+#   - Codex notify hook (one TOML line in ~/.codex/config.toml)
 ```
 
 That covers the happy path on a fresh machine. The sections below expand each piece.
@@ -30,14 +33,18 @@ That covers the happy path on a fresh machine. The sections below expand each pi
 - Symlinks `dotfiles/pi/extensions/*.ts` into `~/.pi/agent/extensions/` (Pi auto-discovers these).
 - Prunes stale symlinks (skills you removed from the repo).
 
-`--install-agents` adds:
+After `--apply` completes it prints two manual follow-ups, both of which `--apply` deliberately does **not** automate:
 
-- Claude marketplace registration (one-time): `claude plugin marketplace add martintrojer/dotfiles`.
-- Claude plugin install/refresh: `claude plugin install mtrojer@dotfiles`, re-run only when the repo's git HEAD has advanced past the cached snapshot SHA.
+1. **Claude Code plugin** — Claude wants its own plugin cache (it copies the marketplace content into `~/.claude/plugins/cache/...`); there is no symlink path in. Run once per machine:
 
-Without `--install-agents`, `--apply` prints the exact two `claude` commands you'd need to run by hand.
+   ```bash
+   claude plugin marketplace add martintrojer/dotfiles
+   claude plugin install mtrojer@dotfiles
+   ```
 
-After `--apply` completes, follow the closing hint to add the codex notify line to `~/.codex/config.toml`.
+   Re-run just the second command (`claude plugin install mtrojer@dotfiles`) after every push to refresh.
+
+2. **Codex notify hook** — add the single `notify = [...]` line the closing hint prints into `~/.codex/config.toml`. Editing the user's TOML in-place would mean parsing/rewriting their schema; not worth it for one line.
 
 ## Upgrading from an older setup
 
@@ -49,7 +56,10 @@ For machines that have been running an older version of this repo (the OMZ-based
 cd ~/dotfiles
 git pull
 ./stow-all.py --check    # surface stow conflicts before they bite
-./stow-all.py --apply --install-agents
+./stow-all.py --apply
+# Then re-run the Claude plugin install if you want the latest agents/hooks/skills
+# in Claude Code (skills + pi extensions are already live via symlink):
+#   claude plugin install mtrojer@dotfiles
 ```
 
 `--apply` is idempotent and handles most of the common cases automatically (stows the new packages, clones zsh-plugins + TPM, symlinks skills + pi extensions). The cleanup steps below cover the things `--apply` deliberately doesn't touch — vestigial files left by the old layout that aren't actively harmful but waste disk and confuse future-you.
@@ -151,12 +161,12 @@ Action:
 # shows for the local install):
 claude plugin uninstall <name>
 
-# Install fresh from the github marketplace (this is what --install-agents does):
+# Install fresh from the github marketplace:
 claude plugin marketplace add martintrojer/dotfiles
 claude plugin install mtrojer@dotfiles
 ```
 
-If `--install-agents` was run during step 0 above, the marketplace install is already done; only the *removal* of the old local install is needed here.
+If you already ran the marketplace add as part of step 0's post-apply hint, only the *removal* of the old local install is needed here.
 
 ### 5. Manual TPM clone
 
@@ -252,7 +262,7 @@ When any of the agent-side content changes in this repo:
 
 - **Skills and pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` symlinks point straight at the repo source; edits propagate live.
 - **New / removed skills:** re-run `./stow-all.py --apply` to create new symlinks or prune stale ones.
-- **Claude (any change to `agents/`, `hooks/`, or `skills/`):** push to `origin`, then re-run `./stow-all.py --apply --install-agents` on each consumer machine. The plugin install only re-fetches when the repo HEAD has actually advanced past the cached snapshot.
+- **Claude (any change to `agents/`, `hooks/`, or `skills/`):** push to `origin`, then run `claude plugin install mtrojer@dotfiles` on each consumer machine. (The marketplace add from the fresh-install step is one-time — only the `plugin install` needs to be re-run.)
 
 ## Testing and debugging the bootstrap
 
@@ -261,7 +271,7 @@ Two recipes. Different intents:
 - **Recipe 1** (`--target=` against tmpfs): a fast dry-run of the install path. No container, no shell, just inspect what `--apply` would write into a fake `$HOME`.
 - **Recipe 2** (podman with fake `$HOME`): an interactive debug shell with `--apply` already done. Use when something is broken and you want to poke at it on a clean machine.
 
-Neither recipe exercises `--install-agents`. The Claude/Pi/Codex CLIs resolve home-relative paths internally and would still touch your real `~/.claude/`, `~/.pi/`, etc. — plus they're not in the bare `fedora:latest` image. If you want to test that flow, install the CLIs first inside the container and re-run `--apply --install-agents` by hand.
+Neither recipe exercises the Claude plugin install. The Claude/Pi/Codex CLIs resolve home-relative paths internally and would still touch your real `~/.claude/`, `~/.pi/`, etc. — plus they're not in the bare `fedora:latest` image. If you want to test that flow, install the CLIs first inside the container and run the two `claude plugin ...` commands from the post-apply hint by hand.
 
 ### Recipe 1: `--target` against a tmpfs path (5 seconds)
 

@@ -26,7 +26,8 @@ If a new toy violates more than one of these, it does not belong here — no mat
 ```bash
 git clone https://github.com/martintrojer/dotfiles ~/dotfiles
 cd ~/dotfiles
-./stow-all.py --apply --install-agents
+./stow-all.py --apply
+# Then follow the two manual steps it prints (Claude plugin + Codex notify hook).
 ```
 
 Full install steps, the update flow, recipes for testing changes without clobbering your real `$HOME`, and cleanup steps for machines running an older version of this repo all live in [`SETUP.md`](./SETUP.md).
@@ -50,7 +51,7 @@ Each top-level directory is a Stow package with its own `README.md` covering the
 The repo doubles as a multi-target agent plugin. Distribution model:
 
 - **Universal (handled by `--apply`):** `skills/<name>/` and `pi/extensions/*.ts` are plain symlinks into `~/.agents/skills/` and `~/.pi/agent/extensions/` respectively. Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw all read these paths natively. Edits in the repo show up live.
-- **Claude (handled by `--install-agents`):** github marketplace + plugin install. Re-runs only when the repo HEAD has advanced past the cached snapshot SHA.
+- **Claude (manual):** `claude plugin marketplace add martintrojer/dotfiles && claude plugin install mtrojer@dotfiles`. Re-run `claude plugin install mtrojer@dotfiles` after each push to refresh. `--apply` prints these two commands at the end as a reminder.
 
 Why this split: `~/.agents/skills/` is the universal path *all* the agents already read, so a plain symlink covers everyone except Claude in one move. Only Claude wants its own plugin cache, so it gets the github marketplace treatment.
 
