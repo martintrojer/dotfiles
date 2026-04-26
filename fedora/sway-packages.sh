@@ -1,25 +1,7 @@
 #!/bin/bash
 
-sway_sericea_base_packages=(
-  # Fedora Sericea/Sway Atomic base packages.
-  #
-  # Keep these in the shared Sway list so mutable Fedora installs and
-  # non-Sericea rpm-ostree variants still get a complete desktop session.
-  # On Sericea they should show up as inactive requested packages if layered.
-  brightnessctl
-  grim
-  kanshi
-  playerctl
-  slurp
-  sway
-  swaybg
-  swayidle
-  swaylock
-  waybar
-  wl-clipboard
-)
-
-sway_extra_packages=(
+# Packages layered on top of Fedora Sway Atomic (Sericea) for this setup.
+sway_packages=(
   # Primary terminal used by the Sway setup.
   alacritty
   # Clipboard history backend used by the fuzzel picker and startup watcher.
@@ -46,9 +28,4 @@ sway_extra_packages=(
   wtype
   # Application launcher used across desktop scripts.
   fuzzel
-)
-
-sway_packages=(
-  "${sway_sericea_base_packages[@]}"
-  "${sway_extra_packages[@]}"
 )
