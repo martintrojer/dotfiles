@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import os
 import platform
@@ -31,14 +30,12 @@ class Args:
     verbose: bool
     target: str
     ignore: set[str]
-    install_agents: bool
 
 
 SCRIPT_DIR: Final[Path] = Path(__file__).resolve().parent
 LOGGER: Final[logging.Logger] = logging.getLogger("stow-all")
 
-# Repo URL used by the install commands printed at the end of --apply.
-# Local-path equivalents work too; see the install hints in main().
+# Repo slug used in the post-apply Claude plugin instructions.
 GITHUB_SLUG: Final[str] = "martintrojer/dotfiles"
 
 # Zsh plugins managed by clone-on-apply. Same model as nvim's vim.pack:
@@ -139,12 +136,12 @@ PACKAGE_GROUPS: Final[list[tuple[PackageScope, Path, list[str]]]] = [
 # listed here.
 IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
     "__pycache__",
-    "agents",       # Claude plugin asset, consumed via /plugin install
+    "agents",       # Claude plugin asset, consumed via `claude plugin install`
     "docs",         # cross-cutting documentation hosted at repo root
     "fedora",       # contains its own stow packages, scope-driven
-    "hooks",        # Claude plugin asset
-    "pi",           # source for pi/extensions, consumed via pi install
-    "skills",       # source for shared skills, consumed via npx skills add
+    "hooks",        # Claude plugin asset, consumed via `claude plugin install`
+    "pi",           # source for pi/extensions/, symlinked by --apply
+    "skills",       # source for shared skills, symlinked by --apply
     "vscode",       # vscode/podman-host symlink + settings, manual setup
 }
 
@@ -225,18 +222,6 @@ def parse_args() -> Args:
         metavar="ID",
         help="Suppress a specific check failure by ID (repeatable)",
     )
-    parser.add_argument(
-        "--install-agents",
-        action="store_true",
-        help=(
-            "After --apply, install/refresh the Claude Code plugin from the "
-            f"github marketplace ({GITHUB_SLUG}). Idempotent: re-runs only "
-            "when the repo's git HEAD has advanced past the cached snapshot. "
-            "Skills and pi extensions are always symlinked into ~/.agents/skills/ "
-            "and ~/.pi/agent/extensions/ by --apply itself \u2014 no flag needed. "
-            "Codex's notify hook is the only remaining manual step (printed)."
-        ),
-    )
     namespace = parser.parse_args()
     return Args(
         action=namespace.action,
@@ -245,7 +230,6 @@ def parse_args() -> Args:
         verbose=namespace.verbose,
         target=namespace.target,
         ignore=set(namespace.ignore),
-        install_agents=namespace.install_agents,
     )
 
 
@@ -918,8 +902,8 @@ def check_agent_notify(target: Path, *, verbose: bool, ignore: set[str]) -> bool
 #
 # The Claude plugin is the one outlier: Claude wants its own plugin cache
 # (it copies the marketplace's content into ~/.claude/plugins/cache/...).
-# That's handled by install_claude_plugin() behind the --install-agents
-# flag because it's slow and network-y.
+# That stays a manual step — the post-apply hint prints the exact two
+# `claude plugin ...` commands. See print_post_apply_hints() below.
 # ---------------------------------------------------------------------------
 
 
@@ -1124,17 +1108,12 @@ def main() -> int:
     apply_skills_symlinks(target, verbose=args.verbose)
     apply_pi_extensions_symlinks(target, verbose=args.verbose)
     print("\nDone.")
-    if args.install_agents:
-        install_claude_plugin()
-        print_codex_hint()
-    else:
-        print_publish_reminder()
+    print_post_apply_hints()
     return 0
 
 
-def print_publish_reminder() -> None:
-    """After --apply (without --install-agents), tell the user what's left
-    to do for the Claude plugin and the Codex notify hook.
+def print_post_apply_hints() -> None:
+    """Print the two manual steps `--apply` cannot do for you.
 
     Skills (~/.agents/skills/) and pi extensions (~/.pi/agent/extensions/)
     have already been symlinked by --apply itself — those work for
@@ -1142,8 +1121,9 @@ def print_publish_reminder() -> None:
     further action.
 
     The two remaining concerns are:
-      - Claude Code: needs its own plugin install (handled by
-        --install-agents, or by the manual commands below).
+      - Claude Code: needs its own plugin install (Claude copies the
+        marketplace content into ~/.claude/plugins/cache/...; there is
+        no symlink path in). Re-run after each push to refresh.
       - Codex: needs one TOML line in ~/.codex/config.toml for the
         agent-attention notify hook.
     """
@@ -1157,164 +1137,19 @@ def print_publish_reminder() -> None:
         "paths automatically."
     )
     print()
-    print("To finish the setup (or re-run with --install-agents):")
+    print("Two manual steps remain:")
     print()
-    print("  # Claude Code plugin (refresh after each push):")
+    print("  # 1. Claude Code plugin (one-time marketplace add, then")
+    print("  #    re-run `plugin install` after every push to refresh):")
     print(f"  claude plugin marketplace add {GITHUB_SLUG}")
     print("  claude plugin install mtrojer@dotfiles")
     print()
-    print("  # Codex notify hook (manual; add to ~/.codex/config.toml):")
+    print("  # 2. Codex notify hook — add this line to ~/.codex/config.toml:")
     print(
         '  notify = ["/bin/sh", "-lc", "python3 \\"$HOME/.config/tmux/scripts/'
         'agent-attention\\" notify --source codex --event-type notify --title Codex"]'
     )
     print()
-
-
-def _run_install(label: str, cmd: list[str]) -> bool:
-    """Run an install command, log it, and return True on success.
-
-    We want output streamed live (these commands can be slow + interactive),
-    so no capture_output. Errors are logged but not fatal — a missing CLI
-    on one agent shouldn't block the other installs.
-    """
-    LOGGER.warning(f"\n[install: {label}]")
-    LOGGER.warning(f"  $ {' '.join(cmd)}")
-    try:
-        result = subprocess.run(cmd)
-    except FileNotFoundError:
-        LOGGER.warning(f"  SKIPPED: {cmd[0]} not on PATH")
-        return False
-    if result.returncode != 0:
-        LOGGER.warning(f"  FAILED: {label} (exit {result.returncode})")
-        return False
-    return True
-
-
-def _current_repo_head() -> str | None:
-    """Return the full SHA of the repo's git HEAD, or None on failure.
-
-    Used to compare against the SHA Claude has cached for our plugin so
-    we only re-install when the repo has actually advanced. In jj+git
-    colocation, `git rev-parse HEAD` returns the last jj-committed
-    change — which is what `claude plugin install` (using the github
-    remote) will resolve to once we push.
-    """
-    result = subprocess.run(
-        ["git", "-C", str(SCRIPT_DIR), "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        return None
-    return result.stdout.strip() or None
-
-
-def _claude_installed_sha() -> str | None:
-    """Return the gitCommitSha Claude has for mtrojer@dotfiles (user scope),
-    or None if not installed / state unreadable.
-    """
-    state = Path.home() / ".claude" / "plugins" / "installed_plugins.json"
-    if not state.is_file():
-        return None
-    try:
-        data = json.loads(state.read_text())
-    except (OSError, ValueError):
-        return None
-    entries = data.get("plugins", {}).get("mtrojer@dotfiles")
-    if not entries:
-        return None
-    for entry in entries:
-        if entry.get("scope") == "user":
-            return entry.get("gitCommitSha")
-    return None
-
-
-def install_claude_plugin() -> None:
-    """Idempotent install/refresh of the dotfiles Claude plugin.
-
-    Uses the github marketplace (`martintrojer/dotfiles`) rather than a
-    local-path install, so the canonical update loop is
-    'edit → commit → push → stow-all.py --apply --install-agents'. Local
-    iteration on the plugin itself can be done by running
-    `claude plugin marketplace add /path/to/dotfiles` manually.
-
-    Skips if `claude` isn't on PATH. Marketplace add is one-time. Plugin
-    install is re-run only when the repo's git HEAD has advanced past
-    the cached snapshot SHA — so edits to skills/agents/hooks
-    propagate after a push.
-    """
-    if shutil.which("claude") is None:
-        LOGGER.warning("\n[install: claude] SKIPPED: claude CLI not on PATH")
-        return
-
-    list_out = subprocess.run(
-        ["claude", "plugin", "marketplace", "list"],
-        capture_output=True,
-        text=True,
-    )
-    if "dotfiles" not in list_out.stdout:
-        ok = _run_install(
-            "claude marketplace",
-            ["claude", "plugin", "marketplace", "add", GITHUB_SLUG],
-        )
-        if not ok:
-            LOGGER.warning(
-                "[install: claude plugin] SKIPPED: marketplace add failed; "
-                "check that the github remote has the .claude-plugin/ "
-                "directory committed and pushed."
-            )
-            return
-    else:
-        LOGGER.warning(
-            "\n[install: claude marketplace] already registered (dotfiles)"
-        )
-
-    repo_head = _current_repo_head()
-    installed_sha = _claude_installed_sha()
-
-    if repo_head is None:
-        LOGGER.warning(
-            "[install: claude plugin] WARNING: could not read repo HEAD; "
-            "installing unconditionally"
-        )
-        needs_install = True
-    elif installed_sha is None:
-        needs_install = True
-    elif installed_sha == repo_head:
-        LOGGER.warning(
-            f"[install: claude plugin] already installed at "
-            f"{installed_sha[:12]} (matches repo HEAD)"
-        )
-        needs_install = False
-    else:
-        LOGGER.warning(
-            f"[install: claude plugin] cached={installed_sha[:12]} "
-            f"repo HEAD={repo_head[:12]} \u2014 reinstalling"
-        )
-        needs_install = True
-
-    if needs_install:
-        _run_install(
-            "claude plugin",
-            ["claude", "plugin", "install", "mtrojer@dotfiles"],
-        )
-
-
-def print_codex_hint() -> None:
-    """Codex's notify hook is the one thing that stays a manual edit.
-
-    Codex has no plugin marketplace, and editing ~/.codex/config.toml
-    in-place would require parsing/rewriting the user's TOML — not worth
-    the schema-rewriting risk for one line.
-    """
-    LOGGER.warning(
-        "\n[install: codex] still manual. Add this single line to "
-        "~/.codex/config.toml:\n\n"
-        '    notify = ["/bin/sh", "-lc", "python3 \\"$HOME/.config/tmux/'
-        'scripts/agent-attention\\" notify --source codex --event-type '
-        'notify --title Codex"]'
-    )
 
 
 if __name__ == "__main__":
