@@ -95,6 +95,7 @@ for file in "$HOME"/.zsh/*.zsh; do
   source "$file"
 done
 
+
 # ----------------------------------------------------------------------
 # Third-party plugins (cloned by stow-all.py --apply at pinned refs to
 # ~/.local/share/zsh-plugins/<name>/; see ZSH_PLUGINS_DIR above)
@@ -112,8 +113,3 @@ command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
 # Syntax highlighting must be sourced LAST per upstream docs (it wraps zle widgets).
 [[ -f "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] \
   && source "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
-
-# ----------------------------------------------------------------------
-# Overrides (user-specific aliases that should win over everything else)
-# ----------------------------------------------------------------------
-source "$HOME/.zsh/overrides.zsh"
