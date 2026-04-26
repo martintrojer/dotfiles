@@ -328,7 +328,14 @@ def run_stow_command(
     simulate: bool,
     verbose: bool,
 ) -> subprocess.CompletedProcess[str]:
-    cmd = ["stow", "--restow"]
+    # --no-folding: always create per-leaf symlinks; never fold a
+    # directory into a single symlink. Folding was responsible for the
+    # "two scopes share a target dir" class of bugs (e.g. local-bin and
+    # fedora/bin both contributing to ~/.local/bin/, where the first
+    # scope's stow run folded .local/ into a symlink and the second
+    # refused to merge). Per-leaf is more verbose but predictable, and
+    # `ls -la ~/.config/foo/` always shows where each entry points.
+    cmd = ["stow", "--restow", "--no-folding"]
     if simulate:
         cmd.append("--no")
     if verbose:
@@ -844,6 +851,61 @@ def check_tmux_tpm(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     return False
 
 
+def check_agent_notify(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    """Best-effort: Codex's notify hook mentions `agent-attention`.
+
+    Codex is the only agent whose notify wiring isn't owned by `--apply`
+    or by the marketplace plugin install. The line in
+    `~/.codex/config.toml` is a manual edit (printed as a hint at the
+    end of `--apply`), and it's the one most likely to drift on a real
+    machine: file grew over time, partial copy from an old machine,
+    user forgot the line entirely.
+
+    Other agents are already covered:
+
+    - **Claude** — hook lives in `hooks/hooks.json` and ships via the
+      marketplace plugin; any breakage is committed-to-git and visible
+      at code-review time.
+    - **Pi** — `pi/extensions/agent-attention.ts` is a symlink that
+      `--apply` creates and the symlink + stow checks already verify.
+    - **OpenCode** — `opencode/.config/opencode/plugin/notify.ts` is
+      stowed; same story.
+
+    Deliberately fuzzy: just grep for `agent-attention`. If the user
+    has reworked the wiring (different script name, custom command
+    shape) the check will warn; that's an acceptable false positive
+    for the safety it gives on the common drift cases.
+    """
+    issue_id = "agent-notify:codex"
+    if issue_id in ignore:
+        return False
+    path = target / ".codex" / "config.toml"
+    if not path.is_file():
+        LOGGER.warning("\n[agent-notify]")
+        LOGGER.warning(
+            f"MISSING: codex config not found at {path} (--ignore {issue_id})"
+        )
+        return True
+    try:
+        content = path.read_text()
+    except OSError as exc:
+        LOGGER.warning("\n[agent-notify]")
+        LOGGER.warning(
+            f"UNREADABLE: codex config at {path}: {exc} (--ignore {issue_id})"
+        )
+        return True
+    if "agent-attention" not in content:
+        LOGGER.warning("\n[agent-notify]")
+        LOGGER.warning(
+            f"NO-NOTIFY: codex config at {path} doesn't mention "
+            f"`agent-attention` (--ignore {issue_id})"
+        )
+        return True
+    if verbose:
+        LOGGER.debug(f"OK: codex notify hook present in {path}")
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Agent skill / pi extension symlinks
 #
@@ -1000,16 +1062,6 @@ def main() -> int:
             f"{backup_root}"
         )
 
-    if args.action == "apply":
-        # Pre-create directories that are owned by more than one stow scope.
-        # Without this, the first scope's stow run folds the shared dir into
-        # a single symlink (e.g. .local -> local-bin/.local), and the second
-        # scope's run then refuses with "existing target is not owned by stow."
-        # Pre-creating forces stow to descend and link per-leaf in both scopes.
-        # Currently: ~/.local/bin is contributed by `local-bin` (common) and
-        # `fedora/bin` (fedora).
-        for shared in [target / ".local" / "bin"]:
-            shared.mkdir(parents=True, exist_ok=True)
 
     # Group active packages by stow_dir for batched stow calls.
     groups: dict[tuple[str, Path], list[str]] = {}
@@ -1048,6 +1100,9 @@ def main() -> int:
             target, verbose=args.verbose, ignore=args.ignore
         )
         has_issues |= check_tmux_tpm(
+            target, verbose=args.verbose, ignore=args.ignore
+        )
+        has_issues |= check_agent_notify(
             target, verbose=args.verbose, ignore=args.ignore
         )
         LOGGER.info("\n[repo-backlinks]")

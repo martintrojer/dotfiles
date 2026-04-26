@@ -254,11 +254,16 @@ When any of the agent-side content changes in this repo:
 - **New / removed skills:** re-run `./stow-all.py --apply` to create new symlinks or prune stale ones.
 - **Claude (any change to `agents/`, `hooks/`, or `skills/`):** push to `origin`, then re-run `./stow-all.py --apply --install-agents` on each consumer machine. The plugin install only re-fetches when the repo HEAD has actually advanced past the cached snapshot.
 
-## Testing the bootstrap
+## Testing and debugging the bootstrap
 
-Two recipes for dry-running the install path before pushing or before bootstrapping a real new machine.
+Two recipes. Different intents:
 
-### Quick: `--target` against a tmpfs path (5 seconds)
+- **Recipe 1** (`--target=` against tmpfs): a fast dry-run of the install path. No container, no shell, just inspect what `--apply` would write into a fake `$HOME`.
+- **Recipe 2** (podman with fake `$HOME`): an interactive debug shell with `--apply` already done. Use when something is broken and you want to poke at it on a clean machine.
+
+Neither recipe exercises `--install-agents`. The Claude/Pi/Codex CLIs resolve home-relative paths internally and would still touch your real `~/.claude/`, `~/.pi/`, etc. — plus they're not in the bare `fedora:latest` image. If you want to test that flow, install the CLIs first inside the container and re-run `--apply --install-agents` by hand.
+
+### Recipe 1: `--target` against a tmpfs path (5 seconds)
 
 ```bash
 rm -rf /tmp/fresh-home && mkdir /tmp/fresh-home
@@ -269,39 +274,31 @@ ls /tmp/fresh-home/.agents/skills/
 ls /tmp/fresh-home/.local/share/zsh-plugins/
 ```
 
-Validates everything `--apply` does (stow, zsh plugin clones, skill + pi-extension symlinks). Doesn't exercise `--install-agents` because `claude` / `pi` / `npx` resolve home-relative paths internally and would still touch your real `~/.claude/`, `~/.pi/` etc.
+Validates everything `--apply` does — stow output, zsh-plugin clones, TPM clone, skill + pi-extension symlinks — against a real path on disk. No container, no isolation: your shell still sees its real `$HOME` for everything else.
 
-### Full: throwaway container with a fake `$HOME`
+### Recipe 2: throwaway podman container with a fake `$HOME`
 
-When you want to verify the actual fresh-user experience end-to-end — including the interactive zsh, fzf bindings, agent-attention hooks, etc. — spin up a podman container with `HOME` pointed at a tmpfs path inside the container. Toolbox itself bind-mounts your real `$HOME`, so it's not the right tool here; use plain `podman run`:
+When recipe 1 isn't enough and you need a clean machine to reproduce a problem, drop into a podman container with `HOME` pointed at tmpfs:
 
 ```bash
-LOCAL_REPO="$(pwd)"   # if testing pre-push changes; otherwise omit -v below
-
 podman run --rm -it \
-  --userns=keep-id \
-  --hostname dotfiles-fresh \
-  -e "HOME=/home/test" \
+  --tmpfs /home/test:exec,mode=0755 \
   -w /home/test \
-  -v "$LOCAL_REPO:/src/dotfiles:ro" \
-  registry.fedoraproject.org/fedora-toolbox:latest \
-  bash -lc '
-    set -euxo pipefail
-    sudo dnf install -y --quiet git stow zsh python3 fzf zoxide eza ripgrep fd-find tmux curl
-    cp -a /src/dotfiles ~/dotfiles    # or: git clone https://github.com/martintrojer/dotfiles ~/dotfiles
-    cd ~/dotfiles
-    ./stow-all.py --apply --install-agents
-    exec zsh -l
-  '
+  -e HOME=/home/test -e USER=test \
+  --security-opt label=disable \
+  -v "$PWD":/dotfiles:ro \
+  fedora:latest \
+  bash -c 'dnf -y install stow python3 git zsh >/dev/null && cp -r /dotfiles ~/dotfiles && cd ~/dotfiles && exec bash'
 ```
 
-Drop the `-v ...:/src/dotfiles:ro` and replace `cp -a ...` with the `git clone` line to test the real github fresh-bootstrap path. The container is auto-removed on exit (`--rm`).
+What the flags do, and why:
 
-Notes:
+- `--tmpfs /home/test:exec,mode=0755` — fake `$HOME` lives in tmpfs, vanishes when container exits. `exec` is needed because `--apply` clones zsh plugins there and they include shell scripts that get sourced.
+- `--security-opt label=disable` — skip SELinux relabeling on the bind mount. Without this, Fedora hosts (rpm-ostree at `/var/home/...`) refuse to read the mount because the host's SELinux label doesn't match. Alternative is `:Z` on the volume, but that *relabels the host directory in place* — a real persistent change to your real `~/dotfiles`. `label=disable` confines the SELinux loss to the throwaway container.
+- `-v "$PWD":/dotfiles:ro` — your repo, read-only. We `cp -r` it to `~/dotfiles` inside the container so `--apply` can write symlinks freely without touching the host.
+- `dnf -y install stow python3 git zsh` — the bare minimum: stow + python3 for `--apply`, git for the zsh-plugin clones, zsh so you can `exec zsh -l` afterwards and verify the rendered `.zshrc` actually loads. Add more (`fzf zoxide eza ripgrep fd-find tmux curl mise`) if you want to test more of the daily user experience.
 
-- `claude`, `pi`, and `npx` aren't in the base toolbox image, so `--install-agents` will print SKIP messages for each. That's also a useful test (verifies the SKIP-on-missing-CLI behavior actually fires).
-- If you want to test the agent installs too, install them in the container first (`mise install` etc.) before running `--apply`.
-- Container is not part of the daily flow — use this only before pushing a stow-all change or before bootstrapping a new physical machine.
+From the container shell, run `./stow-all.py --apply` to do the actual stow work, then `exec zsh -l` to drop into the rendered shell.
 
 ## When the upgrade section can be deleted
 
