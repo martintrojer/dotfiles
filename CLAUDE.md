@@ -90,7 +90,7 @@ Both `agent-attention` and `cheatsheet` honor `TMUX_SOCKET_NAME` / `TMUX_SOCKET_
 ## Fedora Setup
 
 - Shared Fedora package lists live in `fedora/base-packages.sh` and `fedora/sway-packages.sh`
-- `fedora/setup-base.sh`, `fedora/setup-sway.sh`, and `fedora/setup-toolbox.sh` are thin wrappers around those shared lists (rpm-ostree only; mutable workstation variants are no longer supported)
+- `fedora/setup-base.sh`, `fedora/setup-sway.sh`, and `fedora/setup-toolbox.sh` are thin wrappers around those shared lists. The host target is **Fedora Sway Atomic (Sericea)**; `sway-packages.sh` only lists what gets layered on top of the Sericea base.
 - `fedora/setup-toolbox-ubuntu.sh` and `fedora/setup-toolbox-arch.sh` follow the same package intent, but keep distro-specific package names and bootstrap steps
 
 ## Pi Extensions
