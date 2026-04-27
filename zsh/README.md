@@ -45,7 +45,7 @@ Selection criterion: ≥5 hits in `~/.zsh_history`. Everything else from the OMZ
 
 ### Plugins sourced directly
 
-- **zsh-autosuggestions** — ghost-text history suggestions; `^[[C` (Right Arrow) accepts.
+- **zsh-autosuggestions** — ghost-text history suggestions; Right Arrow accepts via the default `forward-char` widget.
 - **zsh-syntax-highlighting** — live coloring of the command line (sourced last per upstream docs).
 - **fzf** — `eval "$(fzf --zsh)"` provides:
   - `Ctrl-T` file picker
