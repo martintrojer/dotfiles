@@ -57,7 +57,7 @@ The Fedora stow packages under this directory are:
 - `gtk-3.0`
 - `systemd`
 
-From the repo root, the helper script `./stow-all.py` handles Fedora-only stow logic automatically.
+From the repo root, the helper script `./dotfiles-sync` handles Fedora-only stow logic automatically.
 
 If you need to stow the Fedora packages directly:
 
@@ -89,7 +89,7 @@ The intended flow is:
 Typical commands:
 
 ```bash
-./stow-all.py --apply
+./dotfiles-sync --apply
 systemctl --user daemon-reload
 systemctl --user enable --now postgres.service
 systemctl --user enable --now toolbox-dev.service

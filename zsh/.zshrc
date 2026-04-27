@@ -1,9 +1,11 @@
 # Slim zshrc, no framework. Pillar #2 (builtins first), #3 (every line
 # understood), #4 (each piece earns its place). The only third-party
 # code is zsh-autosuggestions and zsh-syntax-highlighting, cloned into
-# ~/.zsh/plugins/<name>/ at pinned versions by stow-all.py --apply.
+# ~/.local/share/zsh-plugins/<name>/ at pinned versions by
+# dotfiles-sync --apply.
 #
-# Replaces oh-my-zsh + 15 plugins; see TODO.md item #1 for the audit.
+# Replaces oh-my-zsh + 15 plugins; see docs/DECISIONS.md § oh-my-zsh for the
+# audit.
 
 # ----------------------------------------------------------------------
 # Path / fpath hygiene
@@ -11,7 +13,7 @@
 typeset -U path fpath
 
 # Plugin completion dirs need to be on fpath BEFORE compinit runs.
-# ZSH_PLUGINS_DIR mirrors stow-all.py's ZSH_PLUGINS_DEST.
+# ZSH_PLUGINS_DIR mirrors _dotfiles_sync/pins.py's ZSH_PLUGINS_DEST.
 ZSH_PLUGINS_DIR="$HOME/.local/share/zsh-plugins"
 fpath=(
   $ZSH_PLUGINS_DIR/zsh-autosuggestions
@@ -100,8 +102,8 @@ done
 
 
 # ----------------------------------------------------------------------
-# Third-party plugins (cloned by stow-all.py --apply at pinned refs to
-# ~/.local/share/zsh-plugins/<name>/; see ZSH_PLUGINS_DIR above)
+# Third-party plugins (cloned by dotfiles-sync --apply at pinned refs to
+# ~/.local/share/zsh-plugins/<name>/; see _dotfiles_sync/pins.py)
 # ----------------------------------------------------------------------
 [[ -f "$ZSH_PLUGINS_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] \
   && source "$ZSH_PLUGINS_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh"

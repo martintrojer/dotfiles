@@ -1,8 +1,8 @@
 # Tmux
 
 TPM (the tmux plugin manager) is cloned automatically by
-`./stow-all.py --apply` into `$HOME/.tmux/plugins/tpm` at a pinned
-ref (currently `v3.1.0`; see `TPM` constant in `stow-all.py`). After
+`./dotfiles-sync --apply` into `$HOME/.tmux/plugins/tpm` at a pinned
+ref (currently `v3.1.0`; see `_dotfiles_sync/pins.py`). After
 the first apply on a fresh machine, install the @plugin entries
 listed in `.tmux.conf`:
 
@@ -12,9 +12,9 @@ prefix + U    # update them later
 prefix + alt + u   # uninstall plugins removed from .tmux.conf
 ```
 
-`stow-all.py` only bootstraps TPM itself; TPM owns the @plugin
+`dotfiles-sync` only bootstraps TPM itself; TPM owns the @plugin
 lifecycle from there. The trade-off is documented in
-[`DECISIONS.md` § Vendoring tmux plugins](../DECISIONS.md).
+[`docs/DECISIONS.md` § Vendoring tmux plugins](../docs/DECISIONS.md).
 
 This setup uses a local Python session launcher (`$HOME/.config/tmux/scripts/tms`) for the repo-defined session flows in `tmux/.tmux.conf`, such as `prefix + s`, `prefix + g`, and `prefix + T`.
 
@@ -217,15 +217,15 @@ notify = ["/bin/sh", "-lc", "python3 \"$HOME/.config/tmux/scripts/agent-attentio
 
 The `/bin/sh -lc` wrapper is important here because Codex's TOML array form does not expand `$HOME` by itself. Codex has no plugin marketplace yet, so this stays manual.
 
-### OpenCode (auto — `./stow-all.py --apply`)
+### OpenCode (auto — `./dotfiles-sync --apply`)
 
-Lives in the [`opencode/`](../../opencode) stow package. `stow-all.py --apply` symlinks `opencode/.config/opencode/plugin/notify.ts` to `~/.config/opencode/plugin/notify.ts`.
+Lives in the [`opencode/`](../../opencode) stow package. `dotfiles-sync --apply` symlinks `opencode/.config/opencode/plugin/notify.ts` to `~/.config/opencode/plugin/notify.ts`.
 
 Subscribes to `session.idle` and `permission.asked` events.
 
-### Pi Agent (auto — `./stow-all.py --apply`)
+### Pi Agent (auto — `./dotfiles-sync --apply`)
 
-Lives in [`pi/extensions/agent-attention.ts`](../../pi/extensions/agent-attention.ts). `stow-all.py --apply` symlinks it into `~/.pi/agent/extensions/agent-attention.ts`, where pi auto-discovers it.
+Lives in [`pi/extensions/agent-attention.ts`](../../pi/extensions/agent-attention.ts). `dotfiles-sync --apply` symlinks it into `~/.pi/agent/extensions/agent-attention.ts`, where pi auto-discovers it.
 
 Subscribes to Pi's `agent_end` event so attention only fires once the prompt is actually finished.
 

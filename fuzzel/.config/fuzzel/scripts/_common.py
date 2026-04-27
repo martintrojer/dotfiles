@@ -9,8 +9,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Callable, Iterable, Mapping, Sequence
 
 
 class ScriptError(RuntimeError):
@@ -28,7 +28,7 @@ def cli_main(name: str, main_fn: Callable[[], int]) -> None:
         rc = main_fn()
     except ScriptError as exc:
         print(f"{name}: {exc}", file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     raise SystemExit(rc)
 
 
@@ -74,10 +74,7 @@ def fuzzel_dmenu(
     if cache:
         cmd.extend(["--cache", cache])
 
-    if options is not None:
-        payload = "\n".join(options)
-    else:
-        payload = input_text or ""
+    payload = "\n".join(options) if options is not None else input_text or ""
 
     result = run(cmd, input_text=payload, check=False)
     if result.returncode != 0:
@@ -191,9 +188,7 @@ def _collect_mru(root: dict) -> list[dict]:
     merged: list[dict] = []
     max_len = max((len(ws) for ws in workspaces), default=0)
     for rank in range(max_len):
-        for ws in workspaces:
-            if rank < len(ws):
-                merged.append(ws[rank])
+        merged.extend(ws[rank] for ws in workspaces if rank < len(ws))
     return merged
 
 

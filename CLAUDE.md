@@ -1,6 +1,6 @@
 # Dotfiles Repository
 
-This repository uses **GNU Stow** for dotfile management. Each top-level directory is a stow package, and most config lives under hidden paths (`.config/`, `.ssh/`, `.claude/`).
+This repository uses **GNU Stow** for dotfile management. Most top-level directories are stow packages mirroring `$HOME`, but the repo also contains a few intentional non-package top-levels: Fedora bootstrap code, agent source trees, Claude marketplace assets, and the `dotfiles-sync` control plane under `_dotfiles_sync/`.
 
 ## Layout
 
@@ -9,14 +9,15 @@ This repository uses **GNU Stow** for dotfile management. Each top-level directo
 - `git/.gitconfig*`, `ssh/.ssh/config`: Git and SSH config
 - `sway/.config/sway`, `waybar/.config/waybar`, `fuzzel/.config/fuzzel`, `kanshi/.config/kanshi`, `mako/.config/mako`, `swaylock/.config/swaylock`: Wayland/WM and related tooling (wallpapers are not stowed; managed per machine by the `wallpaper` helper under `~/.local/share/wallpapers/`)
 - `eza/.config/eza`: eza theme (Catppuccin Mocha)
-- `vscode/settings.json`, `vale/.vale.ini`, `bat/.config/bat`, `btop/.config/btop`, `yazi/.config/yazi`: app configs
+- `docs/VSCODE.md`, `vale/.vale.ini`, `bat/.config/bat`, `btop/.config/btop`, `yazi/.config/yazi`: app config notes / configs
 - `ghostty/.config/ghostty`: macOS terminal config
 - `local-bin/.local/bin`: shared cross-platform user commands on `$PATH`
 - `fedora/`: setup scripts plus `containers/` and `systemd/` configs
 - `fedora/bin/.local/bin`: Fedora-only user commands on `$PATH`
-- `.claude-plugin/`, `agents/`, `hooks/`: Claude Code plugin assets at repo root, distributed via `claude plugin marketplace add martintrojer/dotfiles`
-- `pi/extensions/`: Pi coding agent extensions; `stow-all.py --apply` symlinks them into `~/.pi/agent/extensions/` (pi auto-discovers there)
-- `skills/`: shared agent skills following the Agent Skills standard; `stow-all.py --apply` symlinks each into `~/.agents/skills/<name>` (universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, Claude Code, ...)
+- `.claude-plugin/`, `agents/`, `hooks/`: Claude Code plugin assets kept at repo root because the marketplace integration consumes that published surface directly
+- `pi/`: Pi coding agent extensions plus package docs; `dotfiles-sync --apply` symlinks `pi/extensions/*.ts` into `~/.pi/agent/extensions/` (pi auto-discovers there)
+- `skills/`: shared agent skills following the Agent Skills standard; `dotfiles-sync --apply` symlinks each into `~/.agents/skills/<name>` (universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, Claude Code, ...)
+- `dotfiles-sync`, `_dotfiles_sync/`: repo control plane for Stow apply/check, pinned clones, and symlink fan-out
 
 ## Search Tips
 
@@ -35,8 +36,8 @@ Many nested folders start with `.`. Most default searches skip these, so use hid
 - **Shell vs Python rule:** if a shell script starts to smell non-trivial, rewrite it in Python. Smell signals: needing `declare -g` or `set -u`, multi-level local/global scope juggling, tab-separated `mktemp` templates being parsed by `read`, more than ~50 lines of logic, anything that wants real data structures, or workarounds for portability between bash/zsh/sh. The repo already has good Python references: `local-bin/.local/bin/m`, `local-bin/.local/bin/solo`, `tmux/.config/tmux/scripts/tms`, `tmux/.config/tmux/scripts/agent-attention`, `fuzzel/.config/fuzzel/scripts/*`. Bash stays for thin wrappers (a single `exec`, an OS dispatch, sourcing env), not for logic.
 - **No two aliases (or scripts) doing the same thing.** Before adding a new alias / wrapper / helper, check `grep -hE '^alias ' zsh/.zsh/*.zsh | sed -E 's/^alias[ ]+([^=]+)=//' | sort | uniq -c | sort -rn` (or the moral equivalent for the file type). Two aliases expanding to the same string is dead weight.
 - **Audit usage with shell history before keeping/cherry-picking.** When deciding whether something earns its place — OMZ aliases to keep, plugins to vendor, etc. — grep `~/.zsh_history` (or the macOS equivalent) for actual call counts. "I might use it someday" is not evidence; "used 5+ times in 1660 commands" is.
-- **OS conditionals at boundaries, not in shared config.** Keep OS detection at explicit boundaries: package selection (`fedora/base-packages.sh` etc.), bootstrap scripts (`stow-all.py` package gating), backend helpers (`status-ram` reading `/proc/meminfo` vs `vm_stat`). Avoid embedding `if [[ Linux ]]` branches directly in otherwise-shared user-facing config (zsh aliases, tmux.conf, nvim Lua); prefer a wrapper script or a sourced OS-specific file (e.g. `zsh/.zsh/os-darwin.zsh`) that the shared config calls into.
-- See `THEME.md` for shared theme and palette references across tools
+- **OS conditionals at boundaries, not in shared config.** Keep OS detection at explicit boundaries: package selection (`fedora/base-packages.sh` etc.), bootstrap scripts (`dotfiles-sync` package gating), backend helpers (`status-ram` reading `/proc/meminfo` vs `vm_stat`). Avoid embedding `if [[ Linux ]]` branches directly in otherwise-shared user-facing config (zsh aliases, tmux.conf, nvim Lua); prefer a wrapper script or a sourced OS-specific file (e.g. `zsh/.zsh/os-darwin.zsh`) that the shared config calls into.
+- See `docs/THEME.md` for shared theme and palette references across tools
 
 ## Script Locations
 
@@ -95,7 +96,7 @@ Both `agent-attention` and `cheatsheet` honor `TMUX_SOCKET_NAME` / `TMUX_SOCKET_
 
 ## Pi Extensions
 
-Pi coding agent extensions live in `pi/extensions/`. `stow-all.py --apply` symlinks each `*.ts` into `~/.pi/agent/extensions/`, where pi auto-discovers them (with `/reload` support). Edits propagate live.
+Pi coding agent extensions live in `pi/extensions/`. `dotfiles-sync --apply` symlinks each `*.ts` into `~/.pi/agent/extensions/`, where pi auto-discovers them (with `/reload` support). Edits propagate live.
 
 - `answer` — Extract questions from assistant responses into interactive Q&A TUI
 - `btw` — Side-chat popover for tangential questions
@@ -104,7 +105,7 @@ See `pi/README.md` for details.
 
 ## Skills
 
-Generic agent skills live in `skills/`. `stow-all.py --apply` symlinks each `<name>` into `~/.agents/skills/<name>`. All supported agents (Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, Claude Code via the plugin) read this universal path. Edits propagate live. The same `skills/` tree is also bundled into the Claude plugin (`claude plugin install mtrojer@dotfiles`). See `skills/README.md` for full reference.
+Generic agent skills live in `skills/`. `dotfiles-sync --apply` symlinks each `<name>` into `~/.agents/skills/<name>`. All supported agents (Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, Claude Code via the plugin) read this universal path. Edits propagate live. The same `skills/` tree is also bundled into the Claude plugin (`claude plugin install mtrojer@dotfiles`). See `skills/README.md` for full reference.
 
 - `brainstorm` — Refine ideas into technical specs via dialogue
 - `write-plan` / `execute-plan` — Create and execute implementation plans

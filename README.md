@@ -1,6 +1,6 @@
 # Dotfiles
 
-Personal dotfiles, deployed via [GNU Stow](https://www.gnu.org/software/stow/) and a thin Python driver (`stow-all.py`).
+Personal dotfiles, deployed via [GNU Stow](https://www.gnu.org/software/stow/) and a repo-specific sync tool (`dotfiles-sync`, implemented under [`_dotfiles_sync/`](./_dotfiles_sync)).
 
 ## Zen Of This Setup
 
@@ -14,9 +14,9 @@ When tempted, re-read this section before touching anything.
 4. **Each piece earns its place.** Every plugin, package, script, and service answers a one-line "why not builtin?" question. Inertia is not an answer.
 5. **Local scripts over upstream plugins.** A small Python script in this repo beats a third-party dependency. Easier to read, easier to fix, doesn't break on upgrade.
 6. **Recreate, do not restore.** No session snapshots. No magic state restoration. Disposable sessions force the setup to stay cheap to spin up.
-7. **Thin wrappers around shared lists.** Decisions live in data, not in scripts. `stow-all.py`, `setup-*.sh`, the package lists — all wrappers around plain data.
+7. **Thin wrappers around shared lists.** Decisions live in data, not in scripts. `dotfiles-sync`, `setup-*.sh`, the package lists — all wrappers around plain data.
 8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway. macOS is Hammerspoon + Ghostty. The shared layer is the CLI/editor baseline; the desktop stack is allowed to diverge per platform.
-9. **One palette, everywhere.** Catppuccin Mocha. See [`THEME.md`](./THEME.md). New tools adopt the palette or do not get added.
+9. **One palette, everywhere.** Catppuccin Mocha. See [`docs/THEME.md`](./docs/THEME.md). New tools adopt the palette or do not get added.
 10. **Config lives next to the thing it configures.** Tool-specific docs go in the package folder. This root README only describes the repo shape and the rules above.
 
 If a new toy violates more than one of these, it does not belong here — no matter how cool the blur effect is.
@@ -26,11 +26,11 @@ If a new toy violates more than one of these, it does not belong here — no mat
 ```bash
 git clone https://github.com/martintrojer/dotfiles ~/dotfiles
 cd ~/dotfiles
-./stow-all.py --apply
+./dotfiles-sync --apply
 # Then follow the two manual steps it prints (Claude plugin + Codex notify hook).
 ```
 
-Full install steps, the update flow, recipes for testing changes without clobbering your real `$HOME`, and cleanup steps for machines running an older version of this repo all live in [`SETUP.md`](./SETUP.md).
+Full install steps, the update flow, recipes for testing changes without clobbering your real `$HOME`, and cleanup steps for machines running an older version of this repo all live in [`docs/SETUP.md`](./docs/SETUP.md).
 
 ## Repository shape
 
@@ -38,13 +38,16 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behaviour is 
 
 | Where | What |
 |---|---|
-| Portable core | [`zsh/`](./zsh), [`nvim/`](./nvim), [`tmux/`](./tmux), [`git/`](./git), [`ssh/`](./ssh), [`local-bin/`](./local-bin) |
-| Linux desktop stack | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaylock/`](./swaylock) |
-| macOS desktop stack | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) |
-| Fedora setup | [`fedora/`](./fedora) (shared package lists + setup wrappers) |
-| Agent payloads | [`skills/`](./skills), [`agents/`](./agents), [`hooks/`](./hooks), [`pi/extensions/`](./pi/extensions), [`.claude-plugin/`](./.claude-plugin) — see [Agent payloads](#agent-payloads) below for the deployment model |
+| Portable core (stow packages) | [`zsh/`](./zsh), [`nvim/`](./nvim), [`tmux/`](./tmux), [`git/`](./git), [`ssh/`](./ssh), [`local-bin/`](./local-bin) |
+| Linux desktop stack (stow packages) | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaylock/`](./swaylock) |
+| macOS desktop stack (stow packages) | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) |
+| Fedora setup namespace | [`fedora/`](./fedora) (special case: nested stow packages + setup wrappers) |
+| Universal agent sources | [`skills/`](./skills), [`pi/`](./pi) |
+| Claude marketplace surface | [`agents/`](./agents), [`hooks/`](./hooks), [`.claude-plugin/`](./.claude-plugin) — ugly but intentional; this is the published plugin contract Claude consumes |
+| Repo control plane | [`dotfiles-sync`](./dotfiles-sync), [`_dotfiles_sync/`](./_dotfiles_sync), [`.stowrc`](./.stowrc) |
+| Cross-cutting docs/policy | [`docs/`](./docs) — [`SETUP.md`](./docs/SETUP.md), [`DECISIONS.md`](./docs/DECISIONS.md), [`THEME.md`](./docs/THEME.md), [`VSCODE.md`](./docs/VSCODE.md) |
 
-Each top-level directory is a Stow package with its own `README.md` covering the tool-specific story. Start in the package folder when debugging or extending that tool.
+Most top-level directories are Stow packages mirroring `$HOME`. The notable exceptions are the Fedora namespace, agent source trees, the Claude marketplace surface, and the repo control-plane files. `skills/` and `pi/` stay top-level because they are real source trees consumed directly by external tools, not bootstrap internals.
 
 ## Agent payloads
 
@@ -55,8 +58,8 @@ The repo doubles as a multi-target agent plugin. Distribution model:
 
 Why this split: `~/.agents/skills/` is the universal path *all* the agents already read, so a plain symlink covers everyone except Claude in one move. Only Claude wants its own plugin cache, so it gets the github marketplace treatment.
 
-See [`SETUP.md`](./SETUP.md) for the install + update flow.
+See [`docs/SETUP.md`](./docs/SETUP.md) for the install + update flow.
 
 ## Decisions and rejected alternatives
 
-Past audits — chezmoi, oh-my-zsh, niri→sway, the recurring TPM vendoring temptation, the centralized `docs/` folder — live in [`DECISIONS.md`](./DECISIONS.md). Read before relitigating.
+Past audits — chezmoi, oh-my-zsh, niri→sway, the recurring TPM vendoring temptation, the centralized `docs/` folder — live in [`docs/DECISIONS.md`](./docs/DECISIONS.md). Read before relitigating.

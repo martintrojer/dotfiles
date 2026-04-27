@@ -4,10 +4,10 @@ Slim, framework-free zsh config. No oh-my-zsh, no plugin manager. Native compini
 
 ## Setup
 
-`./stow-all.py --apply` from the repo root does everything:
+`./dotfiles-sync --apply` from the repo root does everything:
 
 1. Stows `zsh/.zshrc` and `zsh/.zsh/` to `~/`.
-2. Clones `zsh-autosuggestions` and `zsh-syntax-highlighting` into `~/.local/share/zsh-plugins/<name>/` at pinned versions (see `ZSH_PLUGINS` in `stow-all.py`).
+2. Clones `zsh-autosuggestions` and `zsh-syntax-highlighting` into `~/.local/share/zsh-plugins/<name>/` at pinned versions (see `_dotfiles_sync/pins.py`).
 
 If you want the `tm` tmux helper, install `tmux`, `fzf`, `zoxide`, `fd`, and `eza` (the Fedora `base-packages.sh` covers these).
 
@@ -76,12 +76,12 @@ In `functions.zsh`. Runs `$HOME/.config/tmux/scripts/tms pick-and-connect` — t
 
 ## Plugin update story
 
-Bump the version string in `stow-all.py`'s `ZSH_PLUGINS` constant, then run `./stow-all.py --apply`. The script:
+Bump the version string in `_dotfiles_sync/pins.py`'s `ZSH_PLUGINS` constant, then run `./dotfiles-sync --apply`. The script:
 
 - Fetches if the pinned ref isn't in the local clone
 - Checks out the new ref only if HEAD doesn't already match
 - Logs `CLONING` / `FETCHING` / `PINNED` for visible operations; silent if everything's already correct
-- `./stow-all.py --check` reports `MISSING`, `UNKNOWN-REF`, or `DRIFT` issues
+- `./dotfiles-sync --check` reports `MISSING`, `UNKNOWN-REF`, or `DRIFT` issues
 
 Same model as `nvim/lua/plugins.lua` + `nvim-pack-lock.json`.
 

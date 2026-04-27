@@ -4,7 +4,7 @@ Extensions for [Pi coding agent](https://buildwithpi.ai/).
 
 ## Install
 
-`./stow-all.py --apply` symlinks each `*.ts` from this directory into `~/.pi/agent/extensions/`. Pi auto-discovers extensions there (with `/reload` support) — no `pi install`, no `package.json` manifest. Edits propagate live.
+`./dotfiles-sync --apply` symlinks each `*.ts` from this directory into `~/.pi/agent/extensions/`. Pi auto-discovers extensions there (with `/reload` support) — no `pi install`, no `package.json` manifest. Edits propagate live.
 
 Skills (in the repo-root `skills/` directory) are similarly symlinked into `~/.agents/skills/` and read by pi from there.
 
