@@ -2,6 +2,10 @@
 
 Slim, framework-free zsh config. No oh-my-zsh, no plugin manager. Native compinit, native keybindings, two third-party plugins sourced directly. Mirrors the philosophy of `nvim/` (no framework, every line understood).
 
+## Interactive Guide
+
+For a browser-friendly walkthrough with quizzes, open [`../docs/ZSH_LEARNING_GUIDE.html`](../docs/ZSH_LEARNING_GUIDE.html) locally.
+
 ## Setup
 
 `./dotfiles-sync --apply` from the repo root does everything:
