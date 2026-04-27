@@ -1,9 +1,0 @@
-# A package-local ignore file fully *replaces* stow's built-in defaults
-# rather than augmenting them, so we restate the README/LICENSE roots
-# here in addition to the rules we actually need (the nested vendored
-# files under .config/yazi/flavors/).
-^/README.*
-^/LICENSE.*
-^/COPYING
-^.*/README\.md$
-^.*/LICENSE.*$

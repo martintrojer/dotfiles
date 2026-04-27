@@ -18,7 +18,7 @@ If you want the `tm` tmux helper, install `tmux`, `fzf`, `zoxide`, `fd`, and `ez
 .zsh/
   exports.zsh          — PATH, EDITOR, HISTCONTROL, PAGER/LESS, TERM fallbacks
   tools.zsh            — mise activation + hand-rolled prompt (Catppuccin)
-  aliases.zsh          — eza-backed ls/ll/la/lt/l, global pipes (F, H, T, G, L), serve, gvd, jvd
+  aliases.zsh          — eza-backed ls/ll/lla/la/lt/l, global pipes (F, H, T, G, L), serve, gvd, jvd, ff/fd
   git-aliases.zsh      — 12 cherry-picked git aliases (g, ga, gst, glg, gp, …)
   jj-aliases.zsh       — 10 cherry-picked jj aliases (jjla, jjst, jjgp, jjsq, …)
   functions.zsh        — zknew, nv, mvln, y, rmhist, tm
@@ -66,6 +66,9 @@ Selection criterion: ≥5 hits in `~/.zsh_history`. Everything else from the OMZ
 - `....` → `cd ../../..`
 - `-` → `cd -`
 - `md` → `mkdir -p`
+- `lla` → `ll` plus dotfiles (`eza -la -l --group-directories-first`)
+- `ff <pattern>` → `fd --hidden --exclude .git --exclude .jj --type f <pattern>`
+- `fd <pattern>` → `fd --hidden --exclude .git --exclude .jj --type d <pattern>`
 
 ### `tm` tmux helper
 

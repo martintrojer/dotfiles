@@ -1,6 +1,7 @@
 # eza-backed replacements for the standard ls family.
 alias ls='eza --icons=auto'
 alias ll='eza -l --icons=auto --group-directories-first'
+alias lla='eza -la -l --icons=auto --group-directories-first'
 alias la='eza -a --icons=auto'
 alias lt='eza --tree'
 # Tree-list 3 levels deep, including dotfiles.
@@ -19,6 +20,12 @@ alias -g NUL='> /dev/null 2>&1'
 alias serve='python3 -m http.server 8081'
 alias gvd='git difftool --dir-diff --no-prompt --extcmd=nvdiff'
 alias jvd='jj --no-pager diff --tool nvdiff'
+
+# fd-backed recursive find helpers from the old OMZ setup.
+if command -v fd >/dev/null 2>&1; then
+  alias ff='fd --hidden --exclude .git --exclude .jj --type f'
+  alias fd='command fd --hidden --exclude .git --exclude .jj --type d'
+fi
 
 # Common `less` misspelling (the only one with history hits).
 alias elss='less'
