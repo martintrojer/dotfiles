@@ -67,21 +67,24 @@ zstyle ':completion:*' list-colors ''
 # ----------------------------------------------------------------------
 # Keybindings (emacs mode + history prefix search + edit-command-line)
 # ----------------------------------------------------------------------
+# Keep Right Arrow on zsh's default forward-char widget; zsh-autosuggestions
+# wraps that widget so Right accepts a ghost suggestion when present and
+# otherwise just moves the cursor normally.
 bindkey -e
 bindkey '^E' end-of-line
-bindkey '^[[C' autosuggest-accept
 
 autoload -Uz edit-command-line
 zle -N edit-command-line
 bindkey '\C-x\C-e' edit-command-line
 
-# Type a prefix + ↑ to history-search by that prefix. The omz
-# killer-feature most users notice when it's gone.
+# Type a prefix + ↑ to history-search by that prefix.
 autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
 zle -N up-line-or-beginning-search
 zle -N down-line-or-beginning-search
 bindkey '^[[A' up-line-or-beginning-search
 bindkey '^[[B' down-line-or-beginning-search
+[[ -n "${terminfo[kcuu1]:-}" ]] && bindkey "${terminfo[kcuu1]}" up-line-or-beginning-search
+[[ -n "${terminfo[kcud1]:-}" ]] && bindkey "${terminfo[kcud1]}" down-line-or-beginning-search
 
 # ----------------------------------------------------------------------
 # Modular config files (~/.zsh/*.zsh)

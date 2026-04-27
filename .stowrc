@@ -1,0 +1,11 @@
+--ignore=__pycache__
+--ignore=.+\.pyc
+--ignore=\.ruff_cache
+--ignore=\.pytest_cache
+--ignore=\.mypy_cache
+--ignore=\.tox
+--ignore=\.nox
+--ignore=\.venv
+--ignore=\.direnv
+--ignore=\.DS_Store
+--ignore=CACHEDIR\.TAG
