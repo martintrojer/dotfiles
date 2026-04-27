@@ -7,11 +7,11 @@ import re
 import subprocess
 import sys
 import tomllib
+from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 from shlex import quote as sh_quote
-from typing import Iterable
 
 DISPLAY_NAME_WIDTH = 20
 DEFAULT_SPLIT = ""
@@ -158,7 +158,7 @@ class Entry:
                 f"Invalid picker row: expected {len(FZF_ROW_FIELDS)} "
                 f"tab-separated fields, got {len(parts)}"
             )
-        return dict(zip(FZF_ROW_FIELDS, parts))
+        return dict(zip(FZF_ROW_FIELDS, parts, strict=True))
 
 
 @dataclass(frozen=True)
@@ -177,7 +177,7 @@ class EntryPayload:
     split: str = DEFAULT_SPLIT
 
     @classmethod
-    def from_fzf_row(cls, row: str) -> "EntryPayload":
+    def from_fzf_row(cls, row: str) -> EntryPayload:
         fields = Entry.from_fzf_row(row)
         return cls(
             session_name=fields["session_name"],
@@ -235,7 +235,7 @@ def expand(path: str) -> str:
 def prompt_for_mode(mode: str) -> str:
     # "all" is a synthetic mode that doesn't appear in KIND_ICON; the rest
     # share their glyph with the per-entry kind icon for visual consistency.
-    glyph = "›" if mode == "all" else KIND_ICON[mode]
+    glyph = ">" if mode == "all" else KIND_ICON[mode]
     return f"{glyph}  "
 
 
@@ -456,19 +456,19 @@ def build_entries(mode: str) -> list[Entry]:
     entries: list[Entry] = []
 
     if mode in {"all", "default"}:
-        for session in configured_sessions:
-            entries.append(
-                Entry(
-                    kind="default",
-                    name=session.name,
-                    session_name=session.name,
-                    path=expand(session.path),
-                    startup=session.startup,
-                    split=session.split,
-                    attention_count=attention_by_session.get(session.name, 0),
-                    is_running=session.name in live_names,
-                )
+        entries.extend(
+            Entry(
+                kind="default",
+                name=session.name,
+                session_name=session.name,
+                path=expand(session.path),
+                startup=session.startup,
+                split=session.split,
+                attention_count=attention_by_session.get(session.name, 0),
+                is_running=session.name in live_names,
             )
+            for session in configured_sessions
+        )
 
     if mode in {"all", "tmux"}:
         configured_names = {session.name for session in configured_sessions}

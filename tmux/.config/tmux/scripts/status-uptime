@@ -14,7 +14,7 @@ from _status_common import EXPECTED_ERRORS, log_error
 def uptime_seconds() -> int:
     system = platform.system()
     if system == "Linux":
-        with open("/proc/uptime", "r", encoding="utf-8") as handle:
+        with open("/proc/uptime", encoding="utf-8") as handle:
             return int(float(handle.read().split()[0]))
 
     if system == "Darwin":

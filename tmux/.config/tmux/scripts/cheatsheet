@@ -19,7 +19,7 @@ import os
 import shutil
 import subprocess
 import sys
-from typing import Iterable
+from collections.abc import Iterable
 
 # Section ordering when rendering. "Plugins" and "No prefix" are static
 # footers (see PLUGIN_EXTRAS / NO_PREFIX_EXTRAS) and not produced from

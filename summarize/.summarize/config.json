@@ -1,34 +1,31 @@
 {
-  "model": "cli-only",
-  "models": {
-    "cli-only": {
-      "mode": "auto",
-      "rules": [
-        {
-          "candidates": [
-            "cli/codex/gpt-5.4-mini",
-            "cli/opencode/opencode/big-pickle"
-          ]
-        }
-      ]
-    }
-  },
-  "cli": {
-    "enabled": ["codex", "opencode"],
-    "autoFallback": {
-      "enabled": true,
-      "onlyWhenNoApiKeys": true,
-      "order": ["codex", "opencode"]
-    },
-    "codex": {
-      "model": "gpt-5.4-mini"
-    },
-    "opencode": {
-      "model": "opencode/big-pickle"
-    }
-  },
-  "output": {
-    "language": "auto",
-    "length": "long"
-  }
+	"model": "cli-only",
+	"models": {
+		"cli-only": {
+			"mode": "auto",
+			"rules": [
+				{
+					"candidates": ["cli/codex/gpt-5.4-mini", "cli/opencode/opencode/big-pickle"]
+				}
+			]
+		}
+	},
+	"cli": {
+		"enabled": ["codex", "opencode"],
+		"autoFallback": {
+			"enabled": true,
+			"onlyWhenNoApiKeys": true,
+			"order": ["codex", "opencode"]
+		},
+		"codex": {
+			"model": "gpt-5.4-mini"
+		},
+		"opencode": {
+			"model": "opencode/big-pickle"
+		}
+	},
+	"output": {
+		"language": "auto",
+		"length": "long"
+	}
 }

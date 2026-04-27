@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import contextlib
 import fcntl
 import hashlib
 import os
@@ -108,10 +109,8 @@ def main() -> int:
         # would leave one stale .lock per --name forever; another `solo`
         # racing in between unlink and close still can't overlap because
         # flock guards on the inode.
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(lock_path)
-        except OSError:
-            pass
         os.close(fd)
 
     return completed.returncode

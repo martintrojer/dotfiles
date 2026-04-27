@@ -31,7 +31,7 @@ That covers the happy path on a fresh machine. The sections below expand each pi
 - Clones TPM (tmux plugin manager) into `~/.tmux/plugins/tpm/` at the pinned ref. Tmux plugins listed in `.tmux.conf` still need a one-time `prefix + I` inside tmux to install — TPM owns that step.
 - Symlinks `dotfiles/skills/*` into `~/.agents/skills/` (the universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw).
 - Symlinks `dotfiles/pi/extensions/*.ts` into `~/.pi/agent/extensions/` (Pi auto-discovers these).
-- Prunes stale symlinks (skills you removed from the repo).
+- Prunes stale symlinks when you remove a skill or Pi extension from the repo.
 
 After `--apply` completes it prints two manual follow-ups, both of which `--apply` deliberately does **not** automate:
 
@@ -57,12 +57,14 @@ cd ~/dotfiles
 git pull
 ./dotfiles-sync --check    # surface stow conflicts before they bite
 ./dotfiles-sync --apply
-# Then re-run the Claude plugin install if you want the latest agents/hooks/skills
-# in Claude Code (skills + pi extensions are already live via symlink):
+# Then re-run the Claude plugin install if you want the latest marketplace
+# payload on this machine:
 #   claude plugin install mtrojer@dotfiles
+# (The universal ~/.agents/skills and ~/.pi/agent/extensions symlinks are
+# already live after --apply.)
 ```
 
-`--apply` is idempotent and handles most of the common cases automatically (stows the new packages, clones zsh-plugins + TPM, symlinks skills + pi extensions). The cleanup steps below cover the things `--apply` deliberately doesn't touch — vestigial files left by the old layout that aren't actively harmful but waste disk and confuse future-you.
+`--apply` is idempotent and handles most of the common cases automatically (stows the new packages, clones zsh-plugins + TPM, symlinks skills + Pi extensions). The cleanup steps below cover the things `--apply` deliberately doesn't touch — vestigial files left by the old layout that aren't actively harmful but waste disk and confuse future-you.
 
 ### 1. oh-my-zsh leftovers
 
@@ -108,7 +110,7 @@ rm -rf ~/.zsh/plugins
 
 ### 3. Per-agent skill copies (the old fan-out)
 
-Older versions of the repo bootstrap (~1370 lines before the `_dotfiles_sync/` split, see commit `b29b3003`) copied each skill into per-agent locations: `~/.codex/skills/`, `~/.agents/skills/`, the Claude plugin bundle. The new model is a single set of symlinks at `~/.agents/skills/` that every agent reads natively. Old per-agent copies are now stale — they won't get updates from the repo, and they may shadow the canonical symlinks.
+Older versions of the repo bootstrap (~1370 lines before the `_dotfiles_sync/` split, see commit `b29b3003`) copied each skill into per-agent locations: `~/.codex/skills/`, `~/.agents/skills/`, the Claude plugin bundle. The new model is a single set of symlinks at `~/.agents/skills/` that the supported non-Claude agents read natively. Old per-agent copies are now stale — they won't get updates from the repo, and they may shadow the canonical symlinks.
 
 Detect:
 
@@ -144,14 +146,14 @@ ls -la ~/.agents/skills/ | head
 
 ### 4. Old Claude plugin install (local bundle)
 
-The Claude plugin used to be installed as a local bundle (filesystem path). The new model is the github marketplace (`claude plugin marketplace add martintrojer/dotfiles`).
+The Claude plugin used to be installed as a local bundle (filesystem path). The new model is the GitHub marketplace (`claude plugin marketplace add martintrojer/dotfiles`).
 
 Detect:
 
 ```bash
 claude plugin list 2>/dev/null
 # Look for any "mtrojer" or "dotfiles" plugin installed from a local path
-# rather than from the github marketplace.
+# rather than from the GitHub marketplace.
 ```
 
 Action:
@@ -161,7 +163,7 @@ Action:
 # shows for the local install):
 claude plugin uninstall <name>
 
-# Install fresh from the github marketplace:
+# Install fresh from the GitHub marketplace:
 claude plugin marketplace add martintrojer/dotfiles
 claude plugin install mtrojer@dotfiles
 ```
@@ -191,17 +193,23 @@ cd ~/.tmux/plugins/tpm && git describe --tags --exact-match HEAD
 
 The `~/.tmux/plugins/<other-plugins>/` directories (the actual @plugin entries listed in `.tmux.conf`) are still owned by TPM and updated via `prefix + U` inside tmux. Don't touch those.
 
-### 6. Codex notify hook (path drift)
+### 6. Codex notify hook
 
-`~/.codex/config.toml` has a `[notifications]` block that points at the agent-attention dispatcher. Older versions pointed at `~/.config/tmux/scripts/agent-attention` directly; the current version of the script lives at the same path, so usually no change is needed — but verify.
+`~/.codex/config.toml` should contain the top-level `notify = [...]` line that `./dotfiles-sync --apply` prints in its closing hint (same line as the Codex example in [`tmux/README.md` § Hook Setup](../tmux/README.md#hook-setup)). What matters is that the line is present and still invokes `agent-attention`.
 
 Detect:
 
 ```bash
-grep -A2 '\[notifications\]' ~/.codex/config.toml 2>/dev/null
+grep -n 'notify = .*agent-attention' ~/.codex/config.toml 2>/dev/null
 ```
 
-The `notify` line should match what `./dotfiles-sync --apply` prints in its closing hint. If they differ, update the file by hand to match the printed value.
+Action:
+
+If nothing prints, or the line differs from the closing hint, replace it with:
+
+```toml
+notify = ["/bin/sh", "-lc", "python3 \"$HOME/.config/tmux/scripts/agent-attention\" notify --source codex --event-type notify --title Codex"]
+```
 
 ### 7. Wallpaper cache (Linux only)
 
@@ -247,7 +255,7 @@ rm -rf ~/.config/niri
 
 ### 9. macOS-specific cleanup
 
-macOS machines should run items 1, 2, 3, 4 above. The Sway/wallpaper/niri items are Linux-only no-ops on macOS. After the above, the Mac is current.
+macOS machines should run items 1 through 6 above as relevant. Only the wallpaper/niri items are Linux-only no-ops on macOS. After the above, the Mac is current.
 
 Verify:
 
@@ -260,20 +268,20 @@ cd ~/dotfiles && ./dotfiles-sync --check
 
 When any of the agent-side content changes in this repo:
 
-- **Skills and pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` symlinks point straight at the repo source; edits propagate live.
-- **New / removed skills:** re-run `./dotfiles-sync --apply` to create new symlinks or prune stale ones.
-- **Claude (any change to `agents/`, `hooks/`, or `skills/`):** push to `origin`, then run `claude plugin install mtrojer@dotfiles` on each consumer machine. (The marketplace add from the fresh-install step is one-time — only the `plugin install` needs to be re-run.)
+- **Skills and Pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` symlinks point straight at the repo source; edits propagate live.
+- **New / removed skills or Pi extensions:** re-run `./dotfiles-sync --apply` to create new symlinks or prune stale ones.
+- **Claude (any change to `agents/`, `hooks/`, `skills/`, or `.claude-plugin/`):** push to `origin`, then run `claude plugin install mtrojer@dotfiles` on each consumer machine. (The marketplace add from the fresh-install step is one-time — only the `plugin install` needs to be re-run.)
 
 ## Testing and debugging the bootstrap
 
 Two recipes. Different intents:
 
-- **Recipe 1** (`--target=` against tmpfs): a fast dry-run of the install path. No container, no shell, just inspect what `--apply` would write into a fake `$HOME`.
+- **Recipe 1** (`--target=` against a temporary path): a fast dry-run of the install path. No container, no shell, just inspect what `--apply` would write into a fake `$HOME`.
 - **Recipe 2** (podman with fake `$HOME`): an interactive debug shell with `--apply` already done. Use when something is broken and you want to poke at it on a clean machine.
 
-Neither recipe exercises the Claude plugin install. The Claude/Pi/Codex CLIs resolve home-relative paths internally and would still touch your real `~/.claude/`, `~/.pi/`, etc. — plus they're not in the bare `fedora:latest` image. If you want to test that flow, install the CLIs first inside the container and run the two `claude plugin ...` commands from the post-apply hint by hand.
+Neither recipe exercises the manual Claude/Codex follow-ups. The Claude/Pi/Codex CLIs resolve home-relative paths internally and would still touch your real `~/.claude/`, `~/.pi/`, etc. — plus they're not in the bare `fedora:latest` image. If you want to test that flow, install the CLIs first inside the container, run the two `claude plugin ...` commands from the post-apply hint, and add the Codex `notify = [...]` line by hand inside the container.
 
-### Recipe 1: `--target` against a tmpfs path (5 seconds)
+### Recipe 1: `--target` against a temporary path (5 seconds)
 
 ```bash
 rm -rf /tmp/fresh-home && mkdir /tmp/fresh-home
@@ -281,10 +289,11 @@ rm -rf /tmp/fresh-home && mkdir /tmp/fresh-home
 # Inspect:
 ls -la /tmp/fresh-home/
 ls /tmp/fresh-home/.agents/skills/
+ls /tmp/fresh-home/.pi/agent/extensions/
 ls /tmp/fresh-home/.local/share/zsh-plugins/
 ```
 
-Validates everything `--apply` does — stow output, zsh-plugin clones, TPM clone, skill + pi-extension symlinks — against a real path on disk. No container, no isolation: your shell still sees its real `$HOME` for everything else.
+Validates everything `--apply` does — stow output, zsh-plugin clones, TPM clone, skill + Pi-extension symlinks — against a real path on disk. No container, no isolation: your shell still sees its real `$HOME` for everything else.
 
 ### Recipe 2: throwaway podman container with a fake `$HOME`
 

@@ -43,10 +43,12 @@ the lock-image rendering + accent-color picking from sway/scripts/
 lock-screen so all ImageMagick code lives here — lock-screen just calls
 `wallpaper status` and execs swaylock with the result.
 """
+
 from __future__ import annotations
 
 import argparse
 import colorsys
+import contextlib
 import hashlib
 import json
 import os
@@ -60,14 +62,16 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import NoReturn
 from urllib.parse import urlparse
-
 
 # ----------------------------------------------------------------------
 # Paths (single source of truth; no global-shadowing footguns)
 # ----------------------------------------------------------------------
 
-XDG_DATA_HOME = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+XDG_DATA_HOME = Path(
+    os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
+)
 XDG_CACHE_HOME = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
 XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
 
@@ -116,7 +120,7 @@ _HIST_RE = re.compile(r"^\s*(\d+):.*#([0-9A-Fa-f]{6})")
 _STEM_KEEP = set(string.ascii_letters + string.digits + "._-")
 
 
-def die(msg: str, code: int = 1) -> "subprocess.NoReturn":  # type: ignore[name-defined]
+def die(msg: str, code: int = 1) -> NoReturn:
     print(f"wallpaper: {msg}", file=sys.stderr)
     raise SystemExit(code)
 
@@ -184,7 +188,10 @@ def require_systemctl() -> None:
 
 def restart_swaybg() -> None:
     require_systemctl()
-    if subprocess.run(["systemctl", "--user", "restart", "swaybg.service"]).returncode != 0:
+    if (
+        subprocess.run(["systemctl", "--user", "restart", "swaybg.service"]).returncode
+        != 0
+    ):
         die("failed to restart swaybg.service")
 
 
@@ -219,10 +226,8 @@ def _cache_paths(wallpaper: Path) -> tuple[Path, Path] | None:
 
 def _touch(path: Path) -> None:
     """Best-effort mtime bump so the prune step keeps active entries warm."""
-    try:
+    with contextlib.suppress(OSError):
         path.touch()
-    except OSError:
-        pass
 
 
 def _prune_cache() -> None:
@@ -251,11 +256,16 @@ def _pick_accent(src: Path) -> str | None:
     try:
         res = subprocess.run(
             [
-                "magick", str(src),
-                "-resize", "200x200",
-                "-colors", "16",
-                "-depth", "8",
-                "-format", "%c",
+                "magick",
+                str(src),
+                "-resize",
+                "200x200",
+                "-colors",
+                "16",
+                "-depth",
+                "8",
+                "-format",
+                "%c",
                 "histogram:info:-",
             ],
             capture_output=True,
@@ -288,7 +298,7 @@ def _pick_accent(src: Path) -> str | None:
         return None
     _, hue, lightness, sat = best
     r, g, b = colorsys.hls_to_rgb(hue, lightness, sat * SATURATION_SCALE)
-    return "{:02x}{:02x}{:02x}".format(round(r * 255), round(g * 255), round(b * 255))
+    return f"{round(r * 255):02x}{round(g * 255):02x}{round(b * 255):02x}"
 
 
 def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
@@ -303,10 +313,7 @@ def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
     if not shutil.which("magick"):
         return False
     line1 = "LOCKED"
-    line2 = (
-        f"{os.environ.get('USER', 'user')}@"
-        f"{socket.gethostname().split('.')[0]}"
-    )
+    line2 = f"{os.environ.get('USER', 'user')}@{socket.gethostname().split('.')[0]}"
     # y-offsets are from the bottom edge (gravity south); larger y =
     # higher up. ~52pt + ~14pt gap puts LOCKED above user@host with
     # breathing room.
@@ -321,9 +328,18 @@ def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
     cmd += ["-gravity", "south", "-font", FONT]
     for text, y, pt in ((line1, line1_y, line1_pt), (line2, line2_y, line2_pt)):
         cmd += [
-            "-pointsize", pt,
-            "-fill", shadow, "-annotate", f"+2+{y - 2}", text,
-            "-fill", fill, "-annotate", f"+0+{y}", text,
+            "-pointsize",
+            pt,
+            "-fill",
+            shadow,
+            "-annotate",
+            f"+2+{y - 2}",
+            text,
+            "-fill",
+            fill,
+            "-annotate",
+            f"+0+{y}",
+            text,
         ]
     cmd.append(str(dst))
     try:
@@ -333,7 +349,9 @@ def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
     return res.returncode == 0 and dst.is_file() and dst.stat().st_size > 0
 
 
-def build_lock_cache(wallpaper: Path, *, force: bool = False) -> tuple[Path | None, str | None]:
+def build_lock_cache(
+    wallpaper: Path, *, force: bool = False
+) -> tuple[Path | None, str | None]:
     """Pluck accent + render lock image for `wallpaper`. Idempotent.
 
     Returns (image_path, accent_hex). Either may be None if the
@@ -363,10 +381,8 @@ def build_lock_cache(wallpaper: Path, *, force: bool = False) -> tuple[Path | No
     if accent is None:
         accent = _pick_accent(wallpaper)
         if accent:
-            try:
+            with contextlib.suppress(OSError):
                 color_path.write_text(accent + "\n")
-            except OSError:
-                pass
     if accent:
         _touch(color_path)
 
@@ -468,10 +484,8 @@ def cmd_set(args: argparse.Namespace) -> int:
         incoming_path = None  # don't try to rm in the finally
     finally:
         if incoming_path is not None and incoming_path.exists():
-            try:
+            with contextlib.suppress(OSError):
                 incoming_path.unlink()
-            except OSError:
-                pass
 
     activate(install_path)
     print(f"Set wallpaper to {install_path}")
@@ -548,11 +562,15 @@ def cmd_status(_args: argparse.Namespace) -> int:
             except OSError:
                 pass
 
-    print(json.dumps({
-        "path": str(path),
-        "lock_image": lock_image,
-        "accent": accent,
-    }))
+    print(
+        json.dumps(
+            {
+                "path": str(path),
+                "lock_image": lock_image,
+                "accent": accent,
+            }
+        )
+    )
     return 0
 
 
@@ -564,11 +582,15 @@ def cmd_rebuild_cache(_args: argparse.Namespace) -> int:
     image, accent = build_lock_cache(path, force=True)
     if image is None and accent is None:
         die("rebuild failed (is `magick` on PATH?)")
-    print(json.dumps({
-        "path": str(path),
-        "lock_image": str(image) if image else None,
-        "accent": accent,
-    }))
+    print(
+        json.dumps(
+            {
+                "path": str(path),
+                "lock_image": str(image) if image else None,
+                "accent": accent,
+            }
+        )
+    )
     return 0
 
 
@@ -715,10 +737,8 @@ def cmd__delete_archive(args: argparse.Namespace) -> int:
 
     if paths is not None:
         for cache_file in paths:
-            try:
+            with contextlib.suppress(OSError):
                 cache_file.unlink(missing_ok=True)
-            except OSError:
-                pass
     return 0
 
 
@@ -738,9 +758,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_set.add_argument("source", help="URL or local file path")
     p_set.set_defaults(func=cmd_set)
 
-    p_use = sub.add_parser("use", help="activate an existing archive entry (fzf if no arg)")
-    p_use.add_argument("archive_file", nargs="?", default=None,
-                       help="archive entry (basename or path); fzf picker if omitted")
+    p_use = sub.add_parser(
+        "use", help="activate an existing archive entry (fzf if no arg)"
+    )
+    p_use.add_argument(
+        "archive_file",
+        nargs="?",
+        default=None,
+        help="archive entry (basename or path); fzf picker if omitted",
+    )
     p_use.set_defaults(func=cmd_use)
 
     p_current = sub.add_parser("current", help="print the active wallpaper path")

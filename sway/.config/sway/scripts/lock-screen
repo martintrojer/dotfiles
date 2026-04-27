@@ -16,6 +16,7 @@ base color so the session is locked.
 Unknown flags pass through to swaylock verbatim (`parse_known_args`),
 so callers like `session-swayidle` can keep passing e.g. `--daemonize`.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,7 +27,6 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-
 
 WALLPAPER_HELPER = Path.home() / ".local" / "bin" / "wallpaper"
 FALLBACK_COLOR = "1e1e2e"  # Catppuccin Mocha base

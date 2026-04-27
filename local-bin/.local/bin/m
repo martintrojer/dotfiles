@@ -26,6 +26,7 @@ The previous incarnation of this lived as an inline `python3 -c` blob
 inside zsh's `m()` function. Same code, but inline-in-shell violates
 "every line is understood" pillar; here it has a docstring.
 """
+
 from __future__ import annotations
 
 import os
@@ -35,7 +36,6 @@ import signal
 import subprocess
 import sys
 from pathlib import Path
-
 
 GLOW_STYLE = Path.home() / ".config" / "glow" / "catppuccin-mocha.json"
 

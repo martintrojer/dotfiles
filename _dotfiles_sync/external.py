@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 from .config import SCRIPT_DIR
@@ -38,6 +39,52 @@ def _pinned_clone_resolve(dest: Path, ref: str) -> str | None:
     return result.stdout.strip()
 
 
+def _apply_pinned_clone(
+    *,
+    name: str,
+    url: str,
+    ref: str,
+    dest: Path,
+    verbose: bool,
+    print_header: Callable[[], None],
+) -> None:
+    if dest.exists() and not dest.is_dir():
+        print_header()
+        LOGGER.warning(f"BLOCKED: {dest} exists and is not a directory; leaving alone")
+        return
+
+    if not dest.exists():
+        print_header()
+        LOGGER.warning(f"CLONING: {name} @ {ref}")
+        subprocess.run(["git", "clone", "--quiet", url, str(dest)], check=True)
+    else:
+        current_sha = _pinned_clone_head(dest)
+        if current_sha is None:
+            print_header()
+            LOGGER.warning(
+                f"BLOCKED: {dest} exists but is not a git checkout; leaving alone"
+            )
+            return
+        target_sha = _pinned_clone_resolve(dest, ref)
+        if target_sha is None:
+            print_header()
+            LOGGER.warning(f"FETCHING: {name} (ref {ref} not in clone)")
+            subprocess.run(
+                ["git", "-C", str(dest), "fetch", "--tags", "--quiet"],
+                check=True,
+            )
+            target_sha = _pinned_clone_resolve(dest, ref)
+        if target_sha is not None and current_sha == target_sha:
+            if verbose:
+                LOGGER.debug(f"OK: {name} @ {ref} ({target_sha[:12]})")
+            return
+
+    subprocess.run(["git", "-C", str(dest), "checkout", "--quiet", ref], check=True)
+    sha = _pinned_clone_head(dest) or "unknown"
+    print_header()
+    LOGGER.warning(f"PINNED: {name} @ {ref} ({sha[:12]})")
+
+
 def apply_zsh_plugins(target: Path, *, verbose: bool) -> None:
     """Clone or update zsh plugins listed in ZSH_PLUGINS to the pinned refs."""
     plugins_dir = target / ZSH_PLUGINS_DEST
@@ -51,36 +98,14 @@ def apply_zsh_plugins(target: Path, *, verbose: bool) -> None:
             header_printed = True
 
     for name, url, ref in ZSH_PLUGINS:
-        dest = plugins_dir / name
-        if not dest.exists():
-            _print_header()
-            LOGGER.warning(f"CLONING: {name} @ {ref}")
-            subprocess.run(
-                ["git", "clone", "--quiet", url, str(dest)],
-                check=True,
-            )
-        else:
-            target_sha = _pinned_clone_resolve(dest, ref)
-            if target_sha is None:
-                _print_header()
-                LOGGER.warning(f"FETCHING: {name} (ref {ref} not in clone)")
-                subprocess.run(
-                    ["git", "-C", str(dest), "fetch", "--tags", "--quiet"],
-                    check=True,
-                )
-                target_sha = _pinned_clone_resolve(dest, ref)
-            current_sha = _pinned_clone_head(dest)
-            if target_sha is not None and current_sha == target_sha:
-                if verbose:
-                    LOGGER.debug(f"OK: {name} @ {ref} ({target_sha[:12]})")
-                continue
-        subprocess.run(
-            ["git", "-C", str(dest), "checkout", "--quiet", ref],
-            check=True,
+        _apply_pinned_clone(
+            name=name,
+            url=url,
+            ref=ref,
+            dest=plugins_dir / name,
+            verbose=verbose,
+            print_header=_print_header,
         )
-        sha = _pinned_clone_head(dest) or "unknown"
-        _print_header()
-        LOGGER.warning(f"PINNED: {name} @ {ref} ({sha[:12]})")
 
 
 def apply_tmux_tpm(target: Path, *, verbose: bool) -> None:
@@ -96,32 +121,14 @@ def apply_tmux_tpm(target: Path, *, verbose: bool) -> None:
             LOGGER.warning("\n[tmux-tpm]")
             header_printed = True
 
-    if not dest.exists():
-        _print_header()
-        LOGGER.warning(f"CLONING: {name} @ {ref}")
-        subprocess.run(["git", "clone", "--quiet", url, str(dest)], check=True)
-    else:
-        target_sha = _pinned_clone_resolve(dest, ref)
-        if target_sha is None:
-            _print_header()
-            LOGGER.warning(f"FETCHING: {name} (ref {ref} not in clone)")
-            subprocess.run(
-                ["git", "-C", str(dest), "fetch", "--tags", "--quiet"],
-                check=True,
-            )
-            target_sha = _pinned_clone_resolve(dest, ref)
-        current_sha = _pinned_clone_head(dest)
-        if target_sha is not None and current_sha == target_sha:
-            if verbose:
-                LOGGER.debug(f"OK: {name} @ {ref} ({target_sha[:12]})")
-            return
-    subprocess.run(
-        ["git", "-C", str(dest), "checkout", "--quiet", ref],
-        check=True,
+    _apply_pinned_clone(
+        name=name,
+        url=url,
+        ref=ref,
+        dest=dest,
+        verbose=verbose,
+        print_header=_print_header,
     )
-    sha = _pinned_clone_head(dest) or "unknown"
-    _print_header()
-    LOGGER.warning(f"PINNED: {name} @ {ref} ({sha[:12]})")
 
 
 def _agent_link_apply(

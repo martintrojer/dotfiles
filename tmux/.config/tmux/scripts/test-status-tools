@@ -21,7 +21,6 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 AGENT_ATTENTION = SCRIPT_DIR / "agent-attention"
@@ -94,7 +93,7 @@ def tmux(env: dict[str, str], args: list[str], check: bool = True) -> str:
     return result.stdout.strip()
 
 
-def attention(env: dict[str, str], args: list[str], pane: Optional[str] = None) -> str:
+def attention(env: dict[str, str], args: list[str], pane: str | None = None) -> str:
     """Run agent-attention with TMUX_PANE inherited the way real hooks would."""
     sub_env = env.copy()
     if pane is not None:
