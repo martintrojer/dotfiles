@@ -25,7 +25,7 @@ This config uses TPM plus a mix of quality-of-life, persistence, navigation, and
 - `tmux-plugins/tpm`: tmux plugin manager. It installs, updates, and loads the rest of the plugins from `.tmux.conf`.
 - `tmux-plugins/tmux-yank`: copies from tmux into the system clipboard. Most useful in copy mode and for pushing text out of tmux into the desktop clipboard.
 - `tmux-plugins/tmux-cpu`: provides the `#{cpu_percentage}` format used by the native status bar's CPU segment.
-- `Morantron/tmux-fingers`: hint-based picking inside visible pane content, similar to Vimium-style jump labels for paths, URLs, SHAs, numbers, and other matches.
+- `martintrojer/tmux-fingers-rs`: hint-based picking inside visible pane content, similar to Vimium-style jump labels for paths, URLs, SHAs, numbers, and other matches. This is a Rust port of `Morantron/tmux-fingers`; configuration is the same (`@fingers-*` options), the binary is `tmux-fingers-rs`.
 - `sainnhe/tmux-fzf`: fzf-powered tmux management for sessions, windows, panes, bindings, clipboard history, and process actions.
 - `christoomey/vim-tmux-navigator`: seamless navigation between Neovim splits and tmux panes with the same control-key motions.
 
@@ -65,7 +65,7 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `R`: reload `~/.tmux.conf` (mirrors sway `mod+Shift+r`)
 - `prefix` + `r`: cycle active pane width 1/3 → 1/2 → 2/3 (mirrors sway `mod+r`)
 - `prefix` + `v`: clipboard history picker (mirrors sway `mod+v`)
-- `prefix` + `Tab` / `Shift-Tab`: tmux-fingers pick / jump-pick visible matches
+- `prefix` + `Tab` / `Shift-Tab`: tmux-fingers-rs pick / jump-pick visible matches
 - `prefix` + `!`: break the current pane out into a new window
 - `prefix` + `M`: move the current pane into the selected window or pane as a split
 - `prefix` + `w`: built-in tmux session-window tree picker
@@ -128,16 +128,25 @@ Notes:
 - `Ctrl-c` filters the picker down to configured sessions only.
 - `Ctrl-t` shows live tmux sessions, `Ctrl-x` shows `zoxide`, and `Ctrl-f` runs the fallback `fd` scan.
 
-## Using tmux-fingers
+## Using tmux-fingers-rs
 
-`tmux-fingers` is a fast hint picker for useful text visible in the current tmux pane, such as URLs, paths, SHAs, numbers, and other tokens.
+`tmux-fingers-rs` is a fast hint picker for useful text visible in the current tmux pane, such as URLs, paths, SHAs, numbers, and other tokens. It is a Rust port of [Morantron/tmux-fingers](https://github.com/Morantron/tmux-fingers); behavior and `@fingers-*` configuration options are unchanged, the binary is named `tmux-fingers-rs` so it can coexist with the upstream Crystal `tmux-fingers`.
 
 Configured flow:
 
-- `prefix` + `Tab`: start `tmux-fingers`
-- `prefix` + `Shift-Tab`: start `tmux-fingers` in jump mode, which moves the cursor to the selected match
+- `prefix` + `Tab`: start `tmux-fingers-rs`
+- `prefix` + `Shift-Tab`: start `tmux-fingers-rs` in jump mode, which moves the cursor to the selected match
 - type the shown hint to copy the match to the clipboard and tmux buffer
 - type `Shift` + the final hint character to copy and paste immediately into the active pane
+
+First-time install: after TPM clones the plugin (`prefix` + `I`), the wizard pops up. Pick one of:
+
+- **Download prebuilt binary** — fastest, no Rust toolchain needed (Linux x86_64 and Apple Silicon macOS).
+- **Install from crates.io** — `cargo install tmux-fingers-rs`.
+- **Build locally into `./bin`** — builds in place, the plugin script picks it up.
+- **Install from this checkout** — `cargo install --path .`.
+
+If you upgrade the plugin and the installed binary's version no longer matches `Cargo.toml`, the wizard pops up again. Set `@fingers-skip-wizard 1` to suppress this.
 
 Custom patterns carried over from the previous setup:
 
@@ -168,7 +177,7 @@ Notes:
 - `prefix` + `g` keeps last-session switching on an easy key without colliding with your existing tmux binds.
 - `prefix` + `w` remains tmux's standard session-window tree picker.
 - `prefix` + `Ctrl-g` moves the cheatsheet off a prime lowercase key.
-- This is complementary to `tmux-fingers`: `tmux-fzf` is for tmux state and management, while `tmux-fingers` is for picking text from pane content.
+- This is complementary to `tmux-fingers-rs`: `tmux-fzf` is for tmux state and management, while `tmux-fingers-rs` is for picking text from pane content.
 - Your config makes the popup larger than the plugin default with `TMUX_FZF_OPTIONS="-p -w 80% -h 75% -m"`.
 - The `-m` flag enables multi-select in pickers that support it.
 
@@ -229,4 +238,4 @@ The script is Python (`tmux/.config/tmux/scripts/cheatsheet`). Section membershi
 - `--all` dumps every binding in the prefix table; uncategorised keys go to a trailing `Other` section.
 - `--no-picker` prints the rendered cheatsheet to stdout instead of opening fzf, used by `tmux/.config/tmux/scripts/test-status-tools` to assert formatting.
 
-A small static block in the script lists plugin binds (tmux-fingers, tmux-fzf, TPM) and no-prefix keys (`C-q`, `C-h/j/k/l` via vim-tmux-navigator) since those don't show up as annotated `bind -N` entries. Update `PLUGIN_EXTRAS` / `NO_PREFIX_EXTRAS` when adding or removing plugins.
+A small static block in the script lists plugin binds (tmux-fingers-rs, tmux-fzf, TPM) and no-prefix keys (`C-q`, `C-h/j/k/l` via vim-tmux-navigator) since those don't show up as annotated `bind -N` entries. Update `PLUGIN_EXTRAS` / `NO_PREFIX_EXTRAS` when adding or removing plugins.

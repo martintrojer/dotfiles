@@ -86,8 +86,8 @@ SECTION_KEYS: dict[str, set[str]] = {
 # Static footer: plugin binds and no-prefix keys that don't surface as
 # annotated `bind -N ...` entries in list-keys. Update when adding plugins.
 PLUGIN_EXTRAS: list[tuple[str, str]] = [
-    ("Tab", "tmux-fingers: pick visible token"),
-    ("BTab", "tmux-fingers: pick + jump to token"),
+    ("Tab", "tmux-fingers-rs: pick visible token"),
+    ("BTab", "tmux-fingers-rs: pick + jump to token"),
     ("F", "tmux-fzf menu (sessions / windows / panes / clipboard / ...)"),
     ("I", "TPM: install plugins"),
     ("U", "TPM: update plugins"),
