@@ -78,11 +78,7 @@ def main() -> int:
             url = str(tab.get("url", ""))
             if tab_type != "page":
                 continue
-            if (
-                url.startswith("chrome://")
-                or url.startswith("chrome-extension://")
-                or url.startswith("devtools://")
-            ):
+            if url.startswith(("chrome://", "chrome-extension://", "devtools://")):
                 continue
             tabs.append(
                 {

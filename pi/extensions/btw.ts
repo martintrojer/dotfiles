@@ -66,7 +66,6 @@ type OverlayRuntime = {
 
 type SideSessionRuntime = {
 	session: AgentSession;
-	modelKey: string;
 	unsubscribe: () => void;
 };
 
@@ -333,11 +332,6 @@ export default function (pi: ExtensionAPI) {
 
 	const mdTheme = getMarkdownTheme();
 
-	function getModelKey(ctx: ExtensionContext): string {
-		const model = ctx.model;
-		return model ? `${model.provider}/${model.id}` : "none";
-	}
-
 	function renderMarkdownLines(text: string, width: number): string[] {
 		if (!text) return [];
 		try {
@@ -370,6 +364,18 @@ export default function (pi: ExtensionAPI) {
 				return typeof first === "string" ? truncateToWidth(first.split("\n")[0], 40, "…") : "";
 			}
 		}
+	}
+
+	function findPendingToolCall(toolCallId: string, toolName: string): ToolCallInfo | undefined {
+		return pendingToolCalls.find((toolCall) => {
+			if (toolCall.status !== "running") {
+				return false;
+			}
+			if (toolCallId && toolCall.toolCallId) {
+				return toolCall.toolCallId === toolCallId;
+			}
+			return toolCall.toolName === toolName;
+		});
 	}
 
 	function renderToolCallLines(
@@ -612,8 +618,9 @@ export default function (pi: ExtensionAPI) {
 					return;
 				}
 				case "tool_execution_end": {
+					const endToolCallId = (event as { toolCallId?: string }).toolCallId ?? "";
 					const endToolName = (event as { toolName?: string }).toolName ?? "unknown";
-					const tc = pendingToolCalls.find((t) => t.toolName === endToolName && t.status === "running");
+					const tc = findPendingToolCall(endToolCallId, endToolName);
 					if (tc) {
 						tc.status = (event as { isError?: boolean }).isError ? "error" : "done";
 					}
@@ -631,7 +638,6 @@ export default function (pi: ExtensionAPI) {
 
 		return {
 			session,
-			modelKey: getModelKey(ctx),
 			unsubscribe,
 		};
 	}
@@ -641,11 +647,8 @@ export default function (pi: ExtensionAPI) {
 			return null;
 		}
 
-		const expectedModelKey = getModelKey(ctx);
-		if (activeSideSession && activeSideSession.modelKey === expectedModelKey) {
-			return activeSideSession;
-		}
-
+		// Rebuild every time so the side session always sees the latest main-thread
+		// context before the next BTW prompt.
 		await disposeSideSession();
 		activeSideSession = await createSideSession(ctx);
 		return activeSideSession;

@@ -35,6 +35,11 @@ interface ExtractionResult {
 	questions: ExtractedQuestion[];
 }
 
+type ExtractionOutcome =
+	| { kind: "ok"; result: ExtractionResult }
+	| { kind: "cancelled" }
+	| { kind: "error"; message: string };
+
 const SYSTEM_PROMPT = `You are a question extractor. Given text from a conversation, extract any questions that need answering.
 
 Output a JSON object with this structure:
@@ -89,6 +94,10 @@ function parseExtractionResult(text: string): ExtractionResult | null {
 	} catch {
 		return null;
 	}
+}
+
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 // ANSI color helpers — module-level so we don't allocate one closure per
@@ -375,7 +384,7 @@ class QnAComponent implements Component {
 export default function (pi: ExtensionAPI) {
 	const answerHandler = async (ctx: ExtensionContext) => {
 		if (!ctx.hasUI) {
-			ctx.ui.notify("answer requires interactive mode", "error");
+			console.error("[answer] command requires interactive mode");
 			return;
 		}
 
@@ -416,9 +425,15 @@ export default function (pi: ExtensionAPI) {
 		const model = ctx.model;
 
 		// Run extraction with loader UI
-		const extractionResult = await ctx.ui.custom<ExtractionResult | null>((tui, theme, _kb, done) => {
+		const extractionOutcome = await ctx.ui.custom<ExtractionOutcome>((tui, theme, _kb, done) => {
 			const loader = new BorderedLoader(tui, theme, `Extracting questions using ${model.id}...`);
-			loader.onAbort = () => done(null);
+			let settled = false;
+			const finish = (outcome: ExtractionOutcome) => {
+				if (settled) return;
+				settled = true;
+				done(outcome);
+			};
+			loader.onAbort = () => finish({ kind: "cancelled" });
 
 			const doExtract = async () => {
 				const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
@@ -438,31 +453,42 @@ export default function (pi: ExtensionAPI) {
 				);
 
 				if (response.stopReason === "aborted") {
-					return null;
+					finish({ kind: "cancelled" });
+					return;
 				}
 
 				const responseText = response.content
 					.filter((c): c is { type: "text"; text: string } => c.type === "text")
 					.map((c) => c.text)
 					.join("\n");
-
-				return parseExtractionResult(responseText);
+				const parsed = parseExtractionResult(responseText);
+				if (!parsed) {
+					finish({
+						kind: "error",
+						message: "Question extraction returned invalid JSON.",
+					});
+					return;
+				}
+				finish({ kind: "ok", result: parsed });
 			};
 
-			doExtract()
-				.then(done)
-				.catch((e) => {
-					console.error("[answer] extraction failed:", e);
-					done(null);
-				});
+			void doExtract().catch((e) => {
+				console.error("[answer] extraction failed:", e);
+				finish({ kind: "error", message: errorMessage(e) });
+			});
 
 			return loader;
 		});
 
-		if (extractionResult === null) {
+		if (extractionOutcome.kind === "cancelled") {
 			ctx.ui.notify("Cancelled", "info");
 			return;
 		}
+		if (extractionOutcome.kind === "error") {
+			ctx.ui.notify(extractionOutcome.message, "error");
+			return;
+		}
+		const extractionResult = extractionOutcome.result;
 
 		if (extractionResult.questions.length === 0) {
 			ctx.ui.notify("No questions found in the last message", "info");

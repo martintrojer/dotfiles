@@ -75,9 +75,22 @@ def parse_memory_pressure() -> dict[str, int]:
 
 def load_darwin_state() -> dict[str, float] | None:
     try:
-        return json.loads(DARWIN_STATE.read_text(encoding="utf-8"))
+        parsed = json.loads(DARWIN_STATE.read_text(encoding="utf-8"))
     except (FileNotFoundError, OSError, json.JSONDecodeError):
         return None
+    if not isinstance(parsed, dict):
+        return None
+
+    state: dict[str, float] = {}
+    for key in ("ts", "compressions", "pageouts", "swapouts"):
+        value = parsed.get(key)
+        if value is None:
+            continue
+        try:
+            state[key] = float(value)
+        except (TypeError, ValueError):
+            continue
+    return state
 
 
 def save_darwin_state(payload: dict[str, float]) -> None:
@@ -178,7 +191,7 @@ def ram_percentage() -> int:
     system = platform.system()
     if system == "Linux":
         info: dict[str, int] = {}
-        with open("/proc/meminfo", "r", encoding="utf-8") as handle:
+        with open("/proc/meminfo", encoding="utf-8") as handle:
             for line in handle:
                 key, value = line.split(":", 1)
                 match = re.search(r"(\d+)", value)

@@ -28,6 +28,8 @@ Many nested folders start with `.`. Most default searches skip these, so use hid
 ## Editing Notes
 
 - Keep config-specific documentation in the relevant package folder (e.g. `tmux/README.md`), not in the root `README.md`
+- Prefer the repo `Makefile` for routine validation/formatting: `make check-all`, `make check-python`, `make check-lua`, `make check-prettier`, `make format-all`, etc.
+- The Python make targets explicitly read `ruff.toml` and `ty.toml` and discover both `*.py` files and extensionless Python shebang scripts via `fd`; the Prettier targets explicitly read `.prettierrc.json`
 - README.md / LICENSE at a package root are ignored by stow's built-in defaults; repo-wide extra ignore rules live in `.stowrc` (preferred over package-local ignore files). Note: a package-local `.stow-local-ignore` fully **replaces** the built-in defaults rather than augmenting them, so avoid it unless a package truly needs package-specific rules that should not apply repo-wide.
 - Preserve path shapes that mirror `$HOME` (e.g. `.config/...`, `.ssh/...`); these are intended for stow
 - Avoid adding secrets or private keys. `ssh/.ssh/config` should stay non-sensitive

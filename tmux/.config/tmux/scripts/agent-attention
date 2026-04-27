@@ -14,8 +14,8 @@ import sys
 import tempfile
 import time
 from collections import Counter, defaultdict
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, Optional
 
 STATE_DIR = (
     Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
@@ -52,7 +52,7 @@ def tmux(args: list[str], check: bool = True) -> str:
     return result.stdout.strip()
 
 
-def tmux_query(target: Optional[str], fields: list[str]) -> Optional[list[str]]:
+def tmux_query(target: str | None, fields: list[str]) -> list[str] | None:
     """Run display-message with a list of #{...} fields, return parts or None."""
     fmt = "\t".join(fields)
     args = ["display-message", "-p"]
@@ -82,7 +82,7 @@ def to_int(value: object, default: int = 0) -> int:
 # ---------- pane resolution ----------
 
 
-def find_tty() -> Optional[str]:
+def find_tty() -> str | None:
     """Resolve the controlling TTY for the current process.
 
     Fast path: ``os.ttyname(fd)`` for stdin/stdout/stderr — zero forks when
@@ -132,7 +132,7 @@ def find_tty() -> Optional[str]:
     return None
 
 
-def pane_from_tty() -> Optional[str]:
+def pane_from_tty() -> str | None:
     """Map controlling TTY → tmux pane id (first match wins)."""
     tty = find_tty()
     if not tty:
@@ -169,12 +169,12 @@ CONTEXT_KEYS = [
 ]
 
 
-def current_context(pane: Optional[str]) -> Optional[dict[str, str]]:
+def current_context(pane: str | None) -> dict[str, str] | None:
     target = pane or os.environ.get("TMUX_PANE") or pane_from_tty()
     if not target:
         return None
     parts = tmux_query(target, CONTEXT_FIELDS)
-    return dict(zip(CONTEXT_KEYS, parts)) if parts else None
+    return dict(zip(CONTEXT_KEYS, parts, strict=True)) if parts else None
 
 
 def is_focused_pane(ctx: dict[str, str]) -> bool:
@@ -280,12 +280,6 @@ def _rewrite_events_locked(events: list[dict[str, object]]) -> None:
         raise
 
 
-def save_events(events: list[dict[str, object]]) -> None:
-    """Replace the entire store with ``events``. Locks; safe under contention."""
-    with _events_lock():
-        _rewrite_events_locked(events)
-
-
 def list_existing_targets() -> set[tuple[str, str]]:
     out = tmux(["list-windows", "-a", "-F", "#{session_id}\t#{window_id}"], check=False)
     targets: set[tuple[str, str]] = set()
@@ -315,7 +309,7 @@ def prune_stale_events() -> list[dict[str, object]]:
         return filtered
 
 
-def clear_events_for_target(session_id: Optional[str], window_id: str) -> None:
+def clear_events_for_target(session_id: str | None, window_id: str) -> None:
     with _events_lock():
         events = load_events()
         filtered = [
@@ -428,13 +422,13 @@ def set_attention_flag(window_id: str, on: bool) -> None:
         )
 
 
-def clear_target(session_id: Optional[str], window_id: str) -> None:
+def clear_target(session_id: str | None, window_id: str) -> None:
     set_attention_flag(window_id, False)
     clear_events_for_target(session_id, window_id)
     tmux(["refresh-client", "-S"], check=False)
 
 
-def resolve_target(target: str) -> Optional[tuple[Optional[str], str]]:
+def resolve_target(target: str) -> tuple[str | None, str] | None:
     target = target.strip()
     if not target:
         return None

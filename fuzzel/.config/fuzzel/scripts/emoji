@@ -94,7 +94,7 @@ def main() -> int:
     db_path = Path(args.db).expanduser() if args.db else default_db_path()
     try:
         ensure_db(db_path)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise ScriptError(f"Could not prepare emoji database: {exc}") from exc
 
     entries = read_entries(db_path)
