@@ -9,3 +9,6 @@
 --ignore=\.direnv
 --ignore=\.DS_Store
 --ignore=CACHEDIR\.TAG
+--ignore=^.*/README\.md$
+--ignore=^.*/LICENSE.*$
+--ignore=^.*/COPYING$

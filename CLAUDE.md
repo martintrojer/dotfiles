@@ -27,7 +27,7 @@ Many nested folders start with `.`. Most default searches skip these, so use hid
 ## Editing Notes
 
 - Keep config-specific documentation in the relevant package folder (e.g. `tmux/README.md`), not in the root `README.md`
-- README.md / LICENSE at a package root are ignored by stow's built-in defaults; no `.stow-local-ignore` needed for the common case. Only add a local ignore file when a package has *nested* files that should not be stowed (current example: `yazi/.stow-local-ignore` for the Catppuccin flavor tree). Note: a local ignore file fully **replaces** the built-in defaults rather than augmenting them, so include the root-level rules when you add nested ones.
+- README.md / LICENSE at a package root are ignored by stow's built-in defaults; repo-wide extra ignore rules live in `.stowrc` (preferred over package-local ignore files). Note: a package-local `.stow-local-ignore` fully **replaces** the built-in defaults rather than augmenting them, so avoid it unless a package truly needs package-specific rules that should not apply repo-wide.
 - Preserve path shapes that mirror `$HOME` (e.g. `.config/...`, `.ssh/...`); these are intended for stow
 - Avoid adding secrets or private keys. `ssh/.ssh/config` should stay non-sensitive
 - Keep changes minimal and consistent with existing formats (Lua, Python, shell, TOML, JSON, INI)
