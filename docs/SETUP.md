@@ -7,14 +7,14 @@ Pick the section that matches your starting state:
 - **Fresh machine** → [Fresh install](#fresh-install).
 - **Existing machine on an older version of this repo** (OMZ-based zsh, manually-cloned TPM, per-agent skill copies, etc.) → [Upgrading from an older setup](#upgrading-from-an-older-setup).
 - **Already current, just want to pull and re-apply changes** → [Update flow](#update-flow).
-- **Hacking on `stow-all.py` itself** → [Testing the bootstrap](#testing-the-bootstrap).
+- **Hacking on `dotfiles-sync` itself** → [Testing the bootstrap](#testing-the-bootstrap).
 
 ## Quick start
 
 ```bash
 git clone https://github.com/martintrojer/dotfiles ~/dotfiles
 cd ~/dotfiles
-./stow-all.py --apply
+./dotfiles-sync --apply
 # Then run the two manual commands the script prints:
 #   - Claude Code plugin install
 #   - Codex notify hook (one TOML line in ~/.codex/config.toml)
@@ -24,7 +24,7 @@ That covers the happy path on a fresh machine. The sections below expand each pi
 
 ## Fresh install
 
-`./stow-all.py --apply` always:
+`./dotfiles-sync --apply` always:
 
 - Stows the dotfile packages that match the current OS and distro.
 - Clones the pinned zsh plugins into `~/.local/share/zsh-plugins/`.
@@ -55,8 +55,8 @@ For machines that have been running an older version of this repo (the OMZ-based
 ```bash
 cd ~/dotfiles
 git pull
-./stow-all.py --check    # surface stow conflicts before they bite
-./stow-all.py --apply
+./dotfiles-sync --check    # surface stow conflicts before they bite
+./dotfiles-sync --apply
 # Then re-run the Claude plugin install if you want the latest agents/hooks/skills
 # in Claude Code (skills + pi extensions are already live via symlink):
 #   claude plugin install mtrojer@dotfiles
@@ -89,7 +89,7 @@ If `ZSH=` is still set to a path under `.oh-my-zsh`, something else (a sourced f
 
 ### 2. Old zsh-plugin location
 
-Older setups cloned `zsh-autosuggestions` and `zsh-syntax-highlighting` into `~/.zsh/plugins/<name>/`. The new path is `~/.local/share/zsh-plugins/<name>/` (what `stow-all.py --apply` populates; see `ZSH_PLUGINS_DEST` in `stow-all.py` for why).
+Older setups cloned `zsh-autosuggestions` and `zsh-syntax-highlighting` into `~/.zsh/plugins/<name>/`. The new path is `~/.local/share/zsh-plugins/<name>/` (what `dotfiles-sync --apply` populates; see `_dotfiles_sync/pins.py` for the pinned plugin definitions and destination path).
 
 Detect:
 
@@ -108,7 +108,7 @@ rm -rf ~/.zsh/plugins
 
 ### 3. Per-agent skill copies (the old fan-out)
 
-Older `stow-all.py` versions (~1370 lines, see commit `b29b3003`) copied each skill into per-agent locations: `~/.codex/skills/`, `~/.agents/skills/`, the Claude plugin bundle. The new model is a single set of symlinks at `~/.agents/skills/` that every agent reads natively. Old per-agent copies are now stale — they won't get updates from the repo, and they may shadow the canonical symlinks.
+Older versions of the repo bootstrap (~1370 lines before the `_dotfiles_sync/` split, see commit `b29b3003`) copied each skill into per-agent locations: `~/.codex/skills/`, `~/.agents/skills/`, the Claude plugin bundle. The new model is a single set of symlinks at `~/.agents/skills/` that every agent reads natively. Old per-agent copies are now stale — they won't get updates from the repo, and they may shadow the canonical symlinks.
 
 Detect:
 
@@ -135,7 +135,7 @@ rm -rf ~/.codex/skills ~/.cursor/skills ~/.amp/skills ~/.cline/skills
 # If ~/.agents/skills/ contains real directories instead of symlinks, blow it
 # away and let --apply rebuild as symlinks:
 rm -rf ~/.agents/skills
-cd ~/dotfiles && ./stow-all.py --apply
+cd ~/dotfiles && ./dotfiles-sync --apply
 
 # Verify symlinks now point into the repo:
 ls -la ~/.agents/skills/ | head
@@ -170,7 +170,7 @@ If you already ran the marketplace add as part of step 0's post-apply hint, only
 
 ### 5. Manual TPM clone
 
-Older instructions in `tmux/README.md` told you to `git clone .../tpm` manually. `stow-all.py --apply` now handles this and pins TPM to a known ref (currently `v3.1.0`).
+Older instructions in `tmux/README.md` told you to `git clone .../tpm` manually. `dotfiles-sync --apply` now handles this and pins TPM to a known ref (currently `v3.1.0`).
 
 Detect:
 
@@ -183,7 +183,7 @@ If `git describe --tags --exact-match HEAD` reports `fatal: no tag exactly match
 Action:
 
 ```bash
-cd ~/dotfiles && ./stow-all.py --apply
+cd ~/dotfiles && ./dotfiles-sync --apply
 # This will print "PINNED: tpm @ v3.1.0 (...)". Then verify:
 cd ~/.tmux/plugins/tpm && git describe --tags --exact-match HEAD
 # Expect: v3.1.0
@@ -201,7 +201,7 @@ Detect:
 grep -A2 '\[notifications\]' ~/.codex/config.toml 2>/dev/null
 ```
 
-The `notify` line should match what `./stow-all.py --apply` prints in its closing hint. If they differ, update the file by hand to match the printed value.
+The `notify` line should match what `./dotfiles-sync --apply` prints in its closing hint. If they differ, update the file by hand to match the printed value.
 
 ### 7. Wallpaper cache (Linux only)
 
@@ -252,7 +252,7 @@ macOS machines should run items 1, 2, 3, 4 above. The Sway/wallpaper/niri items 
 Verify:
 
 ```bash
-cd ~/dotfiles && ./stow-all.py --check
+cd ~/dotfiles && ./dotfiles-sync --check
 # Expect: no issues other than any --ignore-listed unclassified packages.
 ```
 
@@ -261,7 +261,7 @@ cd ~/dotfiles && ./stow-all.py --check
 When any of the agent-side content changes in this repo:
 
 - **Skills and pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` symlinks point straight at the repo source; edits propagate live.
-- **New / removed skills:** re-run `./stow-all.py --apply` to create new symlinks or prune stale ones.
+- **New / removed skills:** re-run `./dotfiles-sync --apply` to create new symlinks or prune stale ones.
 - **Claude (any change to `agents/`, `hooks/`, or `skills/`):** push to `origin`, then run `claude plugin install mtrojer@dotfiles` on each consumer machine. (The marketplace add from the fresh-install step is one-time — only the `plugin install` needs to be re-run.)
 
 ## Testing and debugging the bootstrap
@@ -277,7 +277,7 @@ Neither recipe exercises the Claude plugin install. The Claude/Pi/Codex CLIs res
 
 ```bash
 rm -rf /tmp/fresh-home && mkdir /tmp/fresh-home
-./stow-all.py --target=/tmp/fresh-home --apply
+./dotfiles-sync --target=/tmp/fresh-home --apply
 # Inspect:
 ls -la /tmp/fresh-home/
 ls /tmp/fresh-home/.agents/skills/
@@ -308,7 +308,7 @@ What the flags do, and why:
 - `-v "$PWD":/dotfiles:ro` — your repo, read-only. We `cp -r` it to `~/dotfiles` inside the container so `--apply` can write symlinks freely without touching the host.
 - `dnf -y install stow python3 git zsh` — the bare minimum: stow + python3 for `--apply`, git for the zsh-plugin clones, zsh so you can `exec zsh -l` afterwards and verify the rendered `.zshrc` actually loads. Add more (`fzf zoxide eza ripgrep fd-find tmux curl mise`) if you want to test more of the daily user experience.
 
-From the container shell, run `./stow-all.py --apply` to do the actual stow work, then `exec zsh -l` to drop into the rendered shell.
+From the container shell, run `./dotfiles-sync --apply` to do the actual stow work, then `exec zsh -l` to drop into the rendered shell.
 
 ## When the upgrade section can be deleted
 

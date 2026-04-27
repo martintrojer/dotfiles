@@ -6,8 +6,8 @@ Each entry is dated and structured the same way: what was audited, what was foun
 
 Sources of truth:
 
-- Pillars: [`README.md` § Zen Of This Setup](./README.md#zen-of-this-setup).
-- Daily editing rules: [`CLAUDE.md`](./CLAUDE.md) (also symlinked as `AGENTS.md`).
+- Pillars: [`README.md` § Zen Of This Setup](../README.md#zen-of-this-setup).
+- Daily editing rules: [`CLAUDE.md`](../CLAUDE.md) (also symlinked as `AGENTS.md`).
 
 ---
 
@@ -32,9 +32,9 @@ Recurring temptation: tmux config currently loads 5 third-party plugins via TPM 
 
 ---
 
-### Centralized `docs/` folder (rejected 2026-04-26)
+### Centralized `docs/` folder (rejected for package docs, reconsidered 2026-04-27)
 
-Proposed: collect all 12 per-package READMEs into a `docs/` folder with topic-shaped names (`docs/lock-screen.md`, `docs/wallpaper.md`, etc.) and internal wiki-style links. Debated, rejected.
+Original proposal: collect all 12 per-package READMEs into a `docs/` folder with topic-shaped names (`docs/lock-screen.md`, `docs/wallpaper.md`, etc.) and internal wiki-style links. Debated, rejected.
 
 - **Argued for:** discoverability (one folder to browse), nicer cross-references, topic-shaped (some topics like lock-screen span 3 stow packages), better surface for an index.
 - **Argued against:**
@@ -43,11 +43,11 @@ Proposed: collect all 12 per-package READMEs into a `docs/` folder with topic-sh
 - **The root `README.md` is already the hub.** If discovery hurts, fix the index in root README, don't rebuild the layout.
 - **No external audience.** This isn't a public project where strangers browse `docs/`. Audience is future-me, who is already in the package directory because that's where the edit is happening.
 - **Pillar costs:** a `docs/` folder is a new structure to maintain (pillar #2 — boring infra; the existing layout is boring and works), with its own internal navigation discipline that drifts from code over time.
-- **The narrow real pain** — "the root README is bloated" — was a different problem and got the targeted fix it deserved (split into `SETUP.md` and `DECISIONS.md`, leaving root README as Zen + pointers).
+- **The narrow real pain** — root-level repo docs and control-plane files were starting to blur together. That is a different problem from moving package docs.
 
-**Conclusion:** `find . -name README.md` already works. Per-package READMEs stay where they are. The cross-cutting docs at root (README, CLAUDE/AGENTS, THEME, SETUP, DECISIONS) are conceptual peers and that flat layout is fine for ~5 files; promote to a folder only if the count crosses ~10.
+**Conclusion:** `find . -name README.md` already works. Per-package READMEs stay where they are. What changed on reconsideration is only the handling of *cross-cutting repo docs*: those now live under `docs/` (`SETUP.md`, `DECISIONS.md`, `THEME.md`, `VSCODE.md`) so the root can more clearly read as packages + contracts + control plane.
 
-**Reconsider only if:** I genuinely start writing tutorial-style or cross-cutting design docs that don't belong to any one package *and* there are 5+ of them. Today there are zero.
+**Reconsider only if:** I start wanting to move package-specific READMEs into `docs/` too. Today the answer is still no — co-location wins for package docs.
 
 ---
 
@@ -58,7 +58,7 @@ Used OMZ as a zsh framework for years. Audited what it was actually doing for me
 - **What OMZ was providing:** ~3 plugins loaded (`git`, `colored-man-pages`, fzf integration), `lib/directories.zsh` aliases (`..`, `...`, `cd -`), case-insensitive completion menu, history options, prompt theme. All small, native zsh primitives underneath.
 - **What OMZ was costing:** ~60ms of startup time (160ms → 100ms after removal), an `FPATH` leak workaround in `.zshrc` to undo OMZ's `fpath` mutation, hidden keymaps ("why does `^P` do that? oh, OMZ rebound it"), and a framework dependency for ~30 lines worth of actual config.
 - **Pillar costs:** violates pillar #2 (framework around builtins), pillar #3 (every line is understood — OMZ has thousands of lines I never read), pillar #5 (local scripts over upstream plugins), and was the canonical example of pillar #4 failure (it earned its place by inertia, not by audit).
-- **Replacement:** `zsh/.zshrc` rewritten to ~110 lines of native zsh: `compinit` with case-insensitive matcher, `setopt`s for history/dirs/glob, `bindkey -e` plus the prefix-history-search bind, direct sourcing of `zsh-autosuggestions` and `zsh-syntax-highlighting` from `~/.local/share/zsh-plugins/` (cloned by `stow-all.py --apply`), `eval "$(fzf --zsh)"` for Ctrl-T/Ctrl-R/Esc-c, `eval "$(zoxide init zsh)"` for `z`. Aliases live in `zsh/.zsh/{git,jj,hg}-aliases.zsh` cherry-picked from OMZ's `git.plugin.zsh` after grepping `~/.zsh_history` for actual usage counts (>=5 invocations earned a keep).
+- **Replacement:** `zsh/.zshrc` rewritten to ~110 lines of native zsh: `compinit` with case-insensitive matcher, `setopt`s for history/dirs/glob, `bindkey -e` plus the prefix-history-search bind, direct sourcing of `zsh-autosuggestions` and `zsh-syntax-highlighting` from `~/.local/share/zsh-plugins/` (cloned by `dotfiles-sync --apply`), `eval "$(fzf --zsh)"` for Ctrl-T/Ctrl-R/Esc-c, `eval "$(zoxide init zsh)"` for `z`. Aliases live in `zsh/.zsh/{git,jj,hg}-aliases.zsh` cherry-picked from OMZ's `git.plugin.zsh` after grepping `~/.zsh_history` for actual usage counts (>=5 invocations earned a keep).
 
 **Conclusion:** A framework is the right answer when you'd write >500 lines of equivalent config without it. ~110 lines of native zsh is well under that threshold; the framework was overhead, not leverage.
 
@@ -68,16 +68,16 @@ Used OMZ as a zsh framework for years. Audited what it was actually doing for me
 
 ### chezmoi (rejected 2026-04-25)
 
-Audited [chezmoi](https://www.chezmoi.io/) v2.70.2 against `stow-all.py`'s actual responsibilities. Findings:
+Audited [chezmoi](https://www.chezmoi.io/) v2.70.2 against `dotfiles-sync`'s actual responsibilities. Findings:
 
-- chezmoi cleanly replaces the boring half of `stow-all.py` (stow driver + conflict UX + OS scoping). `chezmoi diff` / `chezmoi apply --dry-run` are nicer than the custom `--check` flow.
+- chezmoi cleanly replaces the boring half of `dotfiles-sync` (stow driver + conflict UX + OS scoping). `chezmoi diff` / `chezmoi apply --dry-run` are nicer than the custom `--check` flow.
 - chezmoi does **not** solve the harder half:
 - Per-skill symlinks into `~/.agents/skills/` don't fit the static-target-state model. Either you duplicate symlink declarations or you drop into `run_onchange_*.sh` scripts — same Python code, just relocated under a different roof.
 - Files mutated by other tools (`~/.claude/settings.json`, `~/.codex/config.toml`) don't fit chezmoi's "chezmoi owns the target" model.
 - **Pillar costs:** violates pillar #2 (chezmoi is a heavier abstraction than stow + Python), pillar #3 (filename munging like `dot_`, `private_`, `executable_`, `symlink_`, `run_onchange_` plus Go template syntax = more concepts to hold in head, not fewer), pillar #10 (source tree no longer mirrors `$HOME` shape; today `nvim/.config/nvim/init.lua` is its own destination, under chezmoi it becomes `dot_config/nvim/init.lua` and the repo loses its self-documenting layout).
 - **Features not used today:** templating (no per-machine variation in `git/.gitconfig` etc.), encryption (secrets are intentionally out-of-repo per `CLAUDE.md`), the externals fetcher. chezmoi's most valuable features would sit unused on day one.
 
-**Conclusion:** chezmoi solves the *easy* half of the problem and ignores the *hard* half. The right response to "`stow-all.py` is sprawling" was to delete the agent-orchestration code in favor of upstream tools and `~/.agents/skills/` symlinks (already done), not to swap the underlying tool.
+**Conclusion:** chezmoi solves the *easy* half of the problem and ignores the *hard* half. The right response to "`dotfiles-sync` is sprawling" was to delete the agent-orchestration code in favor of upstream tools and `~/.agents/skills/` symlinks (already done), not to swap the underlying tool.
 
 **Reconsider only if:** chezmoi gains a real per-skill fan-out primitive (one source file → N symlink destinations), *or* you start needing per-machine templated configs and in-repo secrets at scale.
 
@@ -104,6 +104,34 @@ The quote is real but does niri a disservice. Sway didn't only win on maturity �
 **Reconsider only if:** niri ships a stable 1.0 with a frozen IPC/config schema, the i3-IPC ecosystem gains first-class niri support, *and* the scrollable-tiling primitive gains an addressable-layout escape hatch comparable to sway's tree. Today only the third would change my mind on the merits; the first two are necessary just to clear the maturity bar.
 
 ## Accepted (non-obvious)
+
+### Split the repo control plane into `dotfiles-sync` + `_dotfiles_sync/` (accepted 2026-04-27)
+
+Replaced the sprawling single-file bootstrap script with a tiny root entrypoint (`dotfiles-sync`) and a small repo-local Python package (`_dotfiles_sync/`). At the same time, moved cross-cutting repo docs into `docs/` and demoted the tiny `vscode/` pseudo-package to `docs/VSCODE.md`.
+
+**Driver:** the old bootstrap had turned into a merge-conflict magnet and a layout wart. It mixed generic Stow orchestration, repo package inventory, pinned clone management, agent symlink fan-out, and drift checks in one ~1300-line file. The problem was not that Stow was wrong; the problem was that the control plane no longer read like intentional software.
+
+**What changed:**
+
+- `dotfiles-sync` is now the only root command.
+- `_dotfiles_sync/` holds the implementation in a small set of focused modules (`cli`, `config`, `system`, `stow`, `checks`, `external`, `model`).
+- Cross-cutting repo docs live in `docs/` (`SETUP.md`, `DECISIONS.md`, `THEME.md`, `VSCODE.md`).
+- `vscode/` was deleted; the settings were too small to justify a fake top-level package.
+
+**What did *not* change:**
+
+- Top-level stow packages stay top-level and keep their own READMEs.
+- `fedora/` stays a special-case namespace (nested packages + setup wrappers).
+- `skills/` and `pi/` stay top-level source trees.
+- Claude marketplace baggage (`agents/`, `hooks/`, `.claude-plugin/`) stays ugly at repo root because that published layout is an external integration contract, not an accident.
+
+**Why this instead of chasing a more generic tool:** this keeps the boring parts boring (still Stow + Python, still source tree mirrors `$HOME`) while making the implementation legible. It solves the code-layout problem without inventing a framework, manifest DSL, or fake reusable abstraction.
+
+**Pillar fit:** improves pillar #1 (boring infra), #3 (every line is understood), and #10 (the repo root now more clearly reads as packages + contracts + control plane). The only real tax is one more directory (`_dotfiles_sync/`), which was worth it once the single file stopped being mentally local.
+
+**Reconsider only if:** the control plane shrinks back below ~300 lines and the module split starts to feel ceremonial, *or* it grows into a genuinely reusable tool used by multiple repos, in which case it should be promoted into a real standalone project rather than half-pretending inside this repo.
+
+---
 
 ### Switch to `martintrojer/tmux-fingers-rs` (accepted 2026-04-27)
 
