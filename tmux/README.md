@@ -18,6 +18,10 @@ lifecycle from there. The trade-off is documented in
 
 This setup uses a local Python session launcher (`$HOME/.config/tmux/scripts/tms`) for the repo-defined session flows in `tmux/.tmux.conf`, such as `prefix + s`, `prefix + g`, and `prefix + T`.
 
+## Interactive Guide
+
+For a browser-friendly walkthrough with quizzes, open [`../docs/TMUX_LEARNING_GUIDE.html`](../docs/TMUX_LEARNING_GUIDE.html) locally.
+
 ## Plugin Inventory
 
 This config uses TPM plus a mix of quality-of-life, persistence, navigation, and status-line plugins.
