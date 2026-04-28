@@ -14,3 +14,10 @@ For a browser-friendly walkthrough with quizzes, open [`../docs/YAZI_LEARNING_GU
 - `fd` / `ripgrep` search
 - `fzf` / `zoxide` jumps
 - Repo-local custom keymaps (`c i`, `g s`, `g t`, `g l`)
+
+## Shell overlap
+
+- `y` launches Yazi and adopts the directory you exit from.
+- `z` means zoxide in both zsh and Yazi; `Z` is the fzf jump inside Yazi.
+- `g l` reuses the shared pager-backed preview command (`m`) instead of shelling out to raw `glow`.
+- `c i` and `g t` reuse the shared `clipf` and `trashd` commands from `local-bin/.local/bin/`.

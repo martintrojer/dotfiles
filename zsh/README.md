@@ -22,7 +22,7 @@ If you want the `tm` tmux helper, install `tmux`, `fzf`, `zoxide`, `fd`, and `ez
 .zsh/
   exports.zsh          — PATH, EDITOR, HISTCONTROL, PAGER/LESS, TERM fallbacks
   tools.zsh            — mise activation + hand-rolled prompt (Catppuccin)
-  aliases.zsh          — eza-backed ls/ll/lla/la/lt/l, global pipes (F, H, T, G, L), serve, gvd, jvd, ff/fd
+  aliases.zsh          — eza-backed ls/tree families (ls, la, ll, lla, lt, llt, lt5, llt5, l), global pipes (F, H, T, G, L), serve, td, gvd, jvd, ff/ffd
   git-aliases.zsh      — 12 cherry-picked git aliases (g, ga, gst, glg, gp, …)
   jj-aliases.zsh       — 10 cherry-picked jj aliases (jjla, jjst, jjgp, jjsq, …)
   functions.zsh        — zknew, nv, mvln, y, rmhist, tm
@@ -70,9 +70,13 @@ Selection criterion: ≥5 hits in `~/.zsh_history`. Everything else from the OMZ
 - `....` → `cd ../../..`
 - `-` → `cd -`
 - `md` → `mkdir -p`
-- `lla` → `ll` plus dotfiles (`eza -la -l --group-directories-first`)
+- `lla` → `ll` plus dotfiles (`eza -la --group-directories-first`)
+- `la` → `ls` plus dotfiles (`eza -a --group-directories-first`)
+- `lt` / `llt` → tree view at depth 3, with / without long format
+- `lt5` / `llt5` → deeper tree view at depth 5, with / without long format
+- `td` → `cd "$(trashd)"`
 - `ff <pattern>` → `fd --hidden --exclude .git --exclude .jj --type f <pattern>`
-- `fd <pattern>` → `fd --hidden --exclude .git --exclude .jj --type d <pattern>`
+- `ffd <pattern>` → `fd --hidden --exclude .git --exclude .jj --type d <pattern>`
 
 ### `tm` tmux helper
 

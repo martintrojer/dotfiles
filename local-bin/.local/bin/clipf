@@ -1,8 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+  cat <<'EOF'
+Usage: clipf <path>
+
+Copy a file's contents to the system clipboard.
+Preserves MIME type for images/PDFs where supported.
+EOF
+}
+
+if [[ $# -eq 1 && ( "$1" == "-h" || "$1" == "--help" ) ]]; then
+  usage
+  exit 0
+fi
+
 if [[ $# -ne 1 ]]; then
-  echo "Usage: $(basename "$0") <path>" >&2
+  usage >&2
   exit 2
 fi
 
