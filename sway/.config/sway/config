@@ -33,7 +33,10 @@ input type:keyboard {
 focus_follows_mouse yes
 mouse_warping none
 focus_wrapping no
-workspace_auto_back_and_forth yes
+# `workspace_auto_back_and_forth no`: pressing $mod+N while already on N is a
+# no-op (idempotent). The toggle-to-last behaviour is reachable explicitly via
+# $mod+g (`workspace back_and_forth`), which mirrors tmux prefix+g.
+workspace_auto_back_and_forth no
 
 # Hold $mod and drag with the mouse to move/resize floating windows.
 # Left-click+drag = move; right-click+drag = resize.
