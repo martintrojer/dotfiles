@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: trashd
+
+Print the current platform's Trash directory path.
+EOF
+}
+
+if [[ $# -eq 1 && ( "$1" == "-h" || "$1" == "--help" ) ]]; then
+  usage
+  exit 0
+fi
+
+if [[ $# -ne 0 ]]; then
+  usage >&2
+  exit 2
+fi
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  printf '%s\n' "$HOME/.Trash"
+else
+  printf '%s\n' "$HOME/.local/share/Trash"
+fi

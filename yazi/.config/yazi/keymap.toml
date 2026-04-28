@@ -1,6 +1,16 @@
 [[mgr.prepend_keymap]]
+on   = [ "z" ]
+run  = "plugin zoxide"
+desc = "Jump to a directory via zoxide"
+
+[[mgr.prepend_keymap]]
+on   = [ "Z" ]
+run  = "plugin fzf"
+desc = "Jump to a file/directory via fzf"
+
+[[mgr.prepend_keymap]]
 on   = [ "c", "i" ]
-run  = "shell '$HOME/.config/yazi/scripts/copy-file-to-clipboard \"$0\"'"
+run  = "shell 'clipf \"$0\"'"
 desc = "Copy content to clipboard"
 
 [[mgr.prepend_keymap]]
@@ -10,10 +20,10 @@ desc = "Go to bubba"
 
 [[mgr.prepend_keymap]]
 on   = [ "g", "t" ]
-run  = "shell 'ya emit cd \"$($HOME/.config/yazi/scripts/open-trash-dir)\"'"
+run  = "shell 'ya emit cd \"$(trashd)\"'"
 desc = "Go to Trash"
 
 [[mgr.prepend_keymap]]
 on   = [ "g", "l" ]
-run  = "shell 'glow \"$0\" -p' --block"
-desc = "Preview with glow"
+run  = "shell 'm \"$0\"' --block"
+desc = "Preview in pager"
