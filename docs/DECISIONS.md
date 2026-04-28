@@ -103,6 +103,205 @@ The quote is real but does niri a disservice. Sway didn't only win on maturity �
 
 **Reconsider only if:** niri ships a stable 1.0 with a frozen IPC/config schema, the i3-IPC ecosystem gains first-class niri support, *and* the scrollable-tiling primitive gains an addressable-layout escape hatch comparable to sway's tree. Today only the third would change my mind on the merits; the first two are necessary just to clear the maturity bar.
 
+---
+
+### SwayFX (tried and reverted 2026-04-28)
+
+Swapped upstream sway for [SwayFX](https://github.com/WillPower3309/swayfx) for an afternoon to evaluate the visual-effects tax/benefit ratio. SwayFX is a sway fork that adds GLES2 effects (rounded corners, blur, shadows, inactive-window dim) on top of an otherwise config-compatible sway. Set up the full stack: `corner_radius 8`, 2-pass blur with `blur_ignore_transparent` on the waybar/mako/fuzzel/swaylock layer-shell surfaces, soft Catppuccin-base shadows, 10% inactive dim, plus the matching alpha tweaks in `mako/config`, `fuzzel.ini`, and `alacritty.toml` so the layer blur actually had something to show through. Reverted same day.
+
+- **What was nice:** rounded corners genuinely changed how the desktop *feels* — the only effect that registered as a real upgrade. Glass blur on fuzzel and mako looked good in screenshots.
+- **What didn't earn its keep:**
+  - Most of my screen-time is `alacritty` + `nvim` + `tmux`. None of them benefit from layer-shell effects (alacritty is a regular toplevel, the others render inside it). The aesthetic surface where blur/shadows actually show is small.
+  - Fuzzel and mako are visible for ~2 seconds at a time. Paying a permanent fork tax for sub-second eye candy is a bad trade.
+  - Tabbed-layout corners are broken upstream ([WillPower3309/swayfx#405](https://github.com/WillPower3309/swayfx/issues/405), [#400](https://github.com/WillPower3309/swayfx/issues/400)) — the outer container rounds, individual tab children don't. Not fixable from config.
+  - Configuration friction in one short session: layer-shell namespaces had to be probed by hand with `swaymsg -t get_outputs | jq`, mako alpha needed retuning twice (0.80 too solid through 2 blur passes, settled near 0.55), `outer-margin` had to shrink because it doubles as the layer-surface size and the blur halo grew with it.
+  - The two effects that would actually justify a fork — fade animations and window-movement animations — are still on the SwayFX roadmap, not shipped. Paying the fork tax without the headline features.
+- **Pillar costs:** violates pillar #1 (boring infra — a fork that lags upstream sway by weeks-to-months for bugfixes/features), pillar #2 (builtins first — upstream sway is the builtin), pillar #4 (each piece earns its place — corners alone don't justify the surface area), and adds a third-party copr/Terra repo on top of an atomic Fedora Sericea base where layering is intentionally minimised.
+- **Upstream stance is stable, not racing SwayFX:** upstream sway has explicitly and repeatedly declined to add effects ([swaywm/sway#3380](https://github.com/swaywm/sway/issues/3380), [#3583](https://github.com/swaywm/sway/issues/3583), [#3652](https://github.com/swaywm/sway/issues/3652), [#5998](https://github.com/swaywm/sway/issues/5998), [#7107](https://github.com/swaywm/sway/issues/7107) — all closed with "feel free to fork"). This is exactly why SwayFX exists. So SwayFX is *not* at risk of being obsoleted by upstream; if anything, it's the only effects-on-sway-IPC path and will remain so. That removes one objection (no "upstream will catch up" hope) but doesn't rescue the cost/benefit case below.
+
+**Conclusion:** the corner rounding is the only effect that meaningfully changed the feel of the desktop, and one effect doesn't clear the bar for adopting a fork. Stability over visual flare — same conclusion as the niri migration above, arrived at faster because the cost/benefit was more lopsided this time.
+
+**Reconsider only if:** SwayFX ships fade and window-movement animations *and* the tabbed-corner family of bugs is fixed. Rounded corners alone are not enough. (Don't wait for upstream sway to grow effects — the maintainers have made it clear that won't happen.)
+
+#### If you do retry: install + config recipe
+
+Kept here (rather than in `fedora/README.md` or as live config) so this file stays the single source of truth for the SwayFX decision. If you ever flip the call, copy the snippets out; don't re-derive them.
+
+**Install on Sericea (atomic Fedora).** SwayFX `Provides:`/`Conflicts:` `sway`, so plain `rpm-ostree install swayfx` fails with:
+
+```
+error: Could not depsolve transaction; 1 problem detected:
+ Problem: package swayfx-… conflicts with sway provided by sway-… from @System
+```
+
+The fix is to swap the base package and layer the replacement in **one** transaction — doing override-remove and install separately doesn't work, depsolve still sees `sway` provided by the other side.
+
+```bash
+# 1. Enable the SwayFX COPR (rpm-ostree doesn't grok `dnf copr enable`,
+#    so drop the .repo file in directly).
+sudo wget -O /etc/yum.repos.d/_copr_swayfx-swayfx.repo \
+  "https://copr.fedorainfracloud.org/coprs/swayfx/swayfx/repo/fedora-$(rpm -E %fedora)/swayfx-swayfx-fedora-$(rpm -E %fedora).repo"
+
+# 2. Remove base sway and install swayfx in ONE transaction.
+sudo rpm-ostree override remove sway --install swayfx
+
+# 3. Reboot into the new deployment.
+systemctl reboot
+```
+
+**Rollback.** Fastest path — boot back to the previous deployment (still has stock sway):
+
+```bash
+sudo rpm-ostree rollback
+systemctl reboot
+```
+
+Or undo the override on the current deployment without losing other layered changes:
+
+```bash
+sudo rpm-ostree uninstall swayfx
+sudo rpm-ostree override reset sway
+sudo rm /etc/yum.repos.d/_copr_swayfx-swayfx.repo  # optional
+systemctl reboot
+```
+
+Check state with `rpm-ostree status` — overrides show under `RemovedBasePackages:`, layered packages under `LayeredPackages:`.
+
+**Config layering that worked.** Five files touched. Sway already auto-includes nothing under `~/.config/sway/config.d/`, so the main config needs an explicit `include` line at the bottom:
+
+```
+# sway/.config/sway/config (last line)
+include ~/.config/sway/config.d/*
+```
+
+Drop all SwayFX-specific directives in `sway/.config/sway/config.d/swayfx.conf`. Vanilla sway will warn-and-continue on unknown directives, so this is safe to keep around even after a revert (though we deleted it). Recipe that worked:
+
+```
+corner_radius 8
+titlebar_separator enable
+
+shadows enable
+shadows_on_csd disable      # GTK apps double-shadow otherwise
+shadow_blur_radius 20
+shadow_offset 0 6
+shadow_color #1e1e2eaa      # Catppuccin base, ~67% alpha (soft, not pure black)
+shadow_inactive_color #18182566
+
+blur enable
+blur_xray disable
+blur_passes 2               # 2/4 is readable + cheap; bump for more drama
+blur_radius 4
+blur_noise 0.02             # hides banding on solid colors
+blur_brightness 1.0
+blur_contrast 1.0
+blur_saturation 1.1
+
+default_dim_inactive 0.1
+dim_inactive_colors.unfocused #000000FF
+dim_inactive_colors.urgent    #f38ba8FF
+for_window [title="^Picture in picture$"] dim_inactive 0.0
+for_window [title="^Picture-in-Picture$"] dim_inactive 0.0
+for_window [app_id="^Cider$"]              dim_inactive 0.0
+
+# Layer-shell effects. Verify namespaces on YOUR machine first:
+#   notify-send probe; sleep 0.3
+#   swaymsg -r -t get_outputs | jq -r '.[].layer_shell_surfaces[]?.namespace' | sort -u
+# On this box: "first" (waybar), "notifications" (mako), "launcher" (fuzzel),
+# "lockscreen" (swaylock), "wallpaper". GTK layer-shell apps usually
+# advertise "gtk-layer-shell".
+layer_effects "first" {            # waybar: bar background is rgba(.., 0.5)
+    blur enable
+    blur_ignore_transparent enable
+    shadows enable
+    # No corner_radius: full-width bar would only round at screen edges.
+}
+layer_effects "notifications" {     # mako
+    blur enable
+    blur_ignore_transparent enable
+    shadows enable
+    corner_radius 8
+}
+layer_effects "launcher" {          # fuzzel
+    blur enable
+    blur_ignore_transparent enable
+    shadows enable
+    corner_radius 8
+}
+layer_effects "lockscreen" {        # swaylock
+    blur enable
+    blur_ignore_transparent enable
+    shadows enable
+}
+```
+
+**Companion alpha tweaks.** Layer blur only shows through translucent surfaces. The alpha values that actually read as "glass" through 2 blur passes (the dark Catppuccin base dominates fast):
+
+| File | Field | Value | Notes |
+|---|---|---|---|
+| `fuzzel/.config/fuzzel/fuzzel.ini` | `[colors] background` | `1e1e2ecc` (~80%) | `ff` = fully opaque, no blur visible. |
+| `fuzzel/.config/fuzzel/fuzzel.ini` | `[border] radius` | `8` | Match `corner_radius` for visual consistency (set to `0` when reverting). |
+| `mako/.config/mako/config` | `background-color` (default + `[urgency=normal]`) | `#1e1e2e8c` (~55%) | Mako does **not** accept CSS `rgba()` — only `#RRGGBBAA` hex. |
+| `mako/.config/mako/config` | `background-color` (`[urgency=low]`) | `#1e1e2e80` (~50%) | |
+| `mako/.config/mako/config` | `background-color` (`[urgency=critical]`) | `#1e1e2ed9` (~85%) | Stay mostly opaque so urgent reads instantly. |
+| `mako/.config/mako/config` | `outer-margin` | `6` (was `20`) | Doubles as the layer-shell surface size; large value → large blur halo around each notification. Keep small (4-8) when SwayFX blur is on. |
+| `alacritty/.config/alacritty/alacritty.toml` | `[window] opacity` | `0.9` | Already this value pre-trial; just confirm. Lower than ~0.85 hurts readability. |
+| `waybar/.config/waybar/style.css` | (none) | — | Bar bg is already `rgba(30,30,46,0.5)`; no change needed. |
+
+**Known broken:** tabbed-layout corners ([WillPower3309/swayfx#405](https://github.com/WillPower3309/swayfx/issues/405), [#400](https://github.com/WillPower3309/swayfx/issues/400)) — outer container rounds, individual tab children don't. No config workaround.
+
+#### Lessons learned (the gotchas that cost time)
+
+In rough order of how badly each one bit during setup. Future-you will hit at least three of these again. Read first, debug second.
+
+1. **Layer-shell namespaces are app-defined and undocumented — you must probe.** The `layer_effects "<name>"` blocks only fire when `<name>` matches what the app advertises. Discover with:
+
+   ```bash
+   # Trigger surfaces to exist FIRST. Mako has no live surface until something
+   # is showing; an empty notification list means an empty namespace list.
+   notify-send probe; sleep 0.3
+   swaymsg -r -t get_outputs | jq -r '.[].layer_shell_surfaces[]?.namespace' | sort -u
+   ```
+
+   On this box that printed `first wallpaper notifications` (waybar advertises as `"first"` because of the `name` field in `waybar/config.jsonc`, not `"waybar"` — the obvious guess fails silently). GTK-based layer-shell apps usually advertise `"gtk-layer-shell"`. Wrong namespace = no error, no warning, just no effect. **First debugging step when an effect doesn't show: re-probe the namespace.**
+
+2. **Mako rejects CSS `rgba()`. It only takes `#RRGGBBAA` hex.** Fuzzel and waybar accept CSS-style colors; mako does not. Pasting `rgba(30, 30, 46, 0.80)` into `mako/config` makes the daemon fail to parse and exit — silently from the user's POV (no notifications appear, but nothing pops up to tell you mako is dead). **Always check `journalctl --user -u mako -n 20` after a mako config change**; it'll show `[config:N] Failed to parse option ...` immediately. Hex alpha cheat sheet: `40` ≈ 25%, `80` ≈ 50%, `8c` ≈ 55%, `bf` ≈ 75%, `cc` ≈ 80%, `d9` ≈ 85%, `f2` ≈ 95%, `ff` = 100%.
+
+3. **80% alpha looks fully opaque through 2 blur passes.** First instinct was "0.80 is plenty translucent." It is not. The dark Catppuccin base (#1e1e2e) plus the blur's color-averaging makes anything above ~0.65 read as solid. Calibration that worked: ~0.50–0.55 for normal-priority surfaces (fuzzel, mako-normal), ~0.85+ for surfaces that need to read instantly (mako-critical). To check whether you have an alpha problem vs. a layer-namespace problem vs. a renderer problem, **temporarily drop alpha to ~0.25 (`#1e1e2e40`)**: if it goes obviously glassy, you just had alpha too high; if it stays solid, the blur isn't reaching the surface (wrong namespace, missing `layer_effects`, or the daemon is painting over it).
+
+4. **Mako's `outer-margin` doubles as the layer-shell surface size.** The default `outer-margin=20` produces a 20px-wide "glass halo" around each notification because SwayFX paints blur across the full layer surface, not just the visible notification rectangle. Looks ridiculous. Drop to `outer-margin=6` (or smaller) when blur is enabled. This is invisible in vanilla sway because there's no halo to draw, but with effects on it's the most obvious visual artifact in the whole setup.
+
+5. **Fuzzel's default `background=1e1e2eff` is fully opaque — same trap as mako.** No blur shows through `ff`. Drop to `cc` or lower. Same family of problem; remember that *every* layer-shell app's background needs alpha audited, not just mako.
+
+6. **Alacritty isn't a layer-shell surface.** `layer_effects` does nothing for it. The *global* `blur enable` directive does cover regular toplevels, though, and any window with `[window] opacity < 1.0` automatically gets the blurred-desktop treatment. No alacritty-specific config needed on the sway side; just keep opacity in the 0.85–0.95 range (lower hurts readability for long terminal sessions).
+
+7. **`blur_ignore_transparent enable` is required on every layer block.** Without it, layer blur composites against the full surface as if it were opaque, and the translucent regions don't show the blurred content underneath. Set it on every `layer_effects` block, no exceptions.
+
+8. **`shadows_on_csd disable` or GTK apps double-shadow.** Client-side-decorated apps (most GTK/libadwaita) draw their own shadows; SwayFX adds another on top. Looks awful. Disable `shadows_on_csd`; xdg-toplevel apps without CSD still get the SwayFX shadow.
+
+9. **Pure-black shadows clash with Catppuccin.** `#000000aa` reads as a hard cutout against the lavender/mauve palette. Use the base color at moderate alpha instead: `shadow_color #1e1e2eaa` reads as soft darkening, not a black halo. Same logic for `shadow_inactive_color`.
+
+10. **Live-reload paths per app** — use these instead of restarting the session:
+    - sway: `swaymsg reload`
+    - mako: `systemctl --user restart mako` (then `systemctl --user is-active mako` + `journalctl --user -u mako -n 5` to confirm)
+    - waybar: `pkill -SIGUSR2 waybar` (style-only) or restart for config.jsonc changes
+    - fuzzel: re-reads on each invocation; just open it again
+    - alacritty: `live_config_reload = true` is already set; saves apply to running windows
+    - swaylock: re-reads on next lock
+
+11. **Test single layer effects without a config edit.** SwayIPC accepts one effect at a time:
+
+    ```bash
+    swaymsg layer_effects '"notifications"' '"blur enable"'
+    swaymsg layer_effects '"notifications"' '"corner_radius 12"'
+    swaymsg layer_effects '"notifications"' '"reset"'   # clear all effects on layer
+    ```
+
+    Iterate values live, then write the winner into `swayfx.conf`. Much faster than reload-and-eyeball.
+
+12. **`workspace_auto_back_and_forth yes` plus an explicit `$mod+g` toggle is one rule too many.** Unrelated to SwayFX, but caught during this session: with both on, mashing `$mod+1` ping-pongs between workspaces 1 and the previous one, which makes "go to workspace 1" non-idempotent. Pick one mechanism. We kept the explicit `$mod+g` (mirrors tmux `prefix+g`) and disabled the auto behavior.
+
+---
+
 ## Accepted (non-obvious)
 
 ### Split the repo control plane into `dotfiles-sync` + `_dotfiles_sync/` (accepted 2026-04-27)
