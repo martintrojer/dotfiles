@@ -13,6 +13,23 @@ Sources of truth:
 
 ## Rejected
 
+### `Hyper+G` / `Hyper+1..5` as desktop back-and-forth in Hammerspoon (rejected 2026-04-29)
+
+Recurring temptation: make Hammerspoon mirror sway's `$mod+g` (`workspace back_and_forth`) and direct workspace-number binds. Audited again after the Hammerspoon hotkey trim.
+
+- **What was tried, round 1:** synthetic `Cmd+Tab` behind `Hyper+G` as an approximation of "go back to the previous thing."
+- **What happened, round 1:** unreliable to non-functional. macOS treats `Cmd+Tab` as a privileged system-level app switcher, and synthetic key events from Hammerspoon do not behave like a real held `Cmd+Tab` gesture. In practice it either failed outright or acted unlike the desired muscle memory.
+- **Why that analogy was wrong anyway:** sway's `$mod+g` is not an app switcher UI — it is `workspace back_and_forth`, i.e. a direct toggle to the last workspace. `Cmd+Tab` is a different interaction model entirely.
+- **What was tried, round 2:** a real previous-desktop toggle. First via `hs.spaces.gotoSpace(previousSpaceId)`, then via tracked desktop numbers with synthetic `Ctrl+1..5` so `Hyper+G` and `Hyper+1..5` used the same Mission Control shortcuts that already worked directly.
+- **What happened, round 2:** semantically closer, but still too unpredictable behind the Hyper layer. `hs.spaces.gotoSpace` uses Mission Control accessibility plumbing and visibly zooms the desktop out. The synthetic `Ctrl+1..5` path was also unreliable when wrapped in Hyper, even though plain `Ctrl+1..5` worked directly. The result was an interaction that was slower, jankier, and less trustworthy than just using macOS's own bindings.
+- **Pillar costs:** violates pillar #1 (boring infra — fighting Mission Control and reserved shortcuts is not boring), pillar #3 (every line is understood — flaky synthetic event wrappers are the opposite), and pillar #4 (each piece earns its place — the binds did not earn their keep).
+
+**Conclusion:** don't bind `Hyper+G` as a desktop back-and-forth toggle, and don't wrap desktop `1..5` switching in Hyper. Hammerspoon is not a good place to fake reliable macOS desktop switching semantics. Keep desktop switching out of the Hyper layer; use the native macOS shortcuts directly when needed.
+
+**Reconsider only if:** Hammerspoon grows a robust native wrapper around previous-desktop behavior, or a future implementation proves reliable enough in real use to feel native rather than like a flaky Mission Control hack.
+
+---
+
 ### Vendoring tmux plugins instead of using TPM (rejected, ongoing)
 
 Recurring temptation: tmux config currently loads 5 third-party plugins via TPM (`tmux-yank`, `tmux-cpu`, `tmux-fingers`, `tmux-fzf`, `vim-tmux-navigator`). "Pillar #5 says local scripts over upstream plugins — should I vendor or rewrite these?" Audited each.
