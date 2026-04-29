@@ -10,34 +10,27 @@ local UNITS = {
 	full = hs.geometry.rect(0.0, 0.0, 1.0, 1.0),
 	center90 = hs.geometry.rect(0.05, 0.05, 0.9, 0.9),
 	tallCenter = hs.geometry.rect(0.15, 0.0, 0.7, 1.0),
-	topLeftQuarter = hs.geometry.rect(0.0, 0.0, 0.5, 0.5),
-	topRightQuarter = hs.geometry.rect(0.5, 0.0, 0.5, 0.5),
-	bottomLeftQuarter = hs.geometry.rect(0.0, 0.5, 0.5, 0.5),
-	bottomRightQuarter = hs.geometry.rect(0.5, 0.5, 0.5, 0.5),
-	topLeftTwoThirds = hs.geometry.rect(0.0, 0.0, 2 / 3, 2 / 3),
-	topRightTwoThirds = hs.geometry.rect(1 / 3, 0.0, 2 / 3, 2 / 3),
-	bottomLeftTwoThirds = hs.geometry.rect(0.0, 1 / 3, 2 / 3, 2 / 3),
-	bottomRightTwoThirds = hs.geometry.rect(1 / 3, 1 / 3, 2 / 3, 2 / 3),
 }
 
--- 3-state cycle units (1/3 -> 1/2 -> 2/3)
+-- Window layout cycles
 local CYCLE_UNITS = {
+	Q = {
+		hs.geometry.rect(0.0, 0.0, 1 / 3, 1.0),
+		hs.geometry.rect(0.0, 0.0, 0.5, 1.0),
+		hs.geometry.rect(0.0, 0.0, 2 / 3, 1.0),
+	},
+	R = { UNITS.full, UNITS.center90, UNITS.tallCenter },
+	W = {
+		hs.geometry.rect(2 / 3, 0.0, 1 / 3, 1.0),
+		hs.geometry.rect(0.5, 0.0, 0.5, 1.0),
+		hs.geometry.rect(1 / 3, 0.0, 2 / 3, 1.0),
+	},
 	E = {
 		hs.geometry.rect(0.0, 0.0, 1.0, 1 / 3),
 		hs.geometry.rect(0.0, 0.0, 1.0, 0.5),
 		hs.geometry.rect(0.0, 0.0, 1.0, 2 / 3),
 	},
-	S = {
-		hs.geometry.rect(0.0, 0.0, 1 / 3, 1.0),
-		hs.geometry.rect(0.0, 0.0, 0.5, 1.0),
-		hs.geometry.rect(0.0, 0.0, 2 / 3, 1.0),
-	},
-	F = {
-		hs.geometry.rect(2 / 3, 0.0, 1 / 3, 1.0),
-		hs.geometry.rect(0.5, 0.0, 0.5, 1.0),
-		hs.geometry.rect(1 / 3, 0.0, 2 / 3, 1.0),
-	},
-	C = {
+	X = {
 		hs.geometry.rect(0.0, 2 / 3, 1.0, 1 / 3),
 		hs.geometry.rect(0.0, 0.5, 1.0, 0.5),
 		hs.geometry.rect(0.0, 1 / 3, 1.0, 2 / 3),
@@ -58,7 +51,6 @@ local HELP_SECTIONS = {
 -- Electron apps where app:allWindows() is prohibitively slow
 local SKIP_FULL_ENUM = {
 	["Code"] = true,
-	["Codex"] = true,
 	["Cider"] = true,
 	["Slack"] = true,
 	["Discord"] = true,
@@ -82,7 +74,7 @@ end
 local function currentSpaceWindowIds()
 	local space = hs.spaces.focusedSpace()
 	local ok, ids = pcall(hs.spaces.windowsForSpace, space)
-	if not ok or not ids then
+	if not space or not ok or not ids then
 		return nil
 	end
 	local set = {}
@@ -175,17 +167,6 @@ local function cycleUnitsForKey(win, key, units)
 	moveToUnit(win, units[nextIndex])
 end
 
-local function getRunningApp(appNames)
-	for _, appName in ipairs(appNames) do
-		local app = hs.application.get(appName)
-		if app then
-			return app
-		end
-	end
-
-	return nil
-end
-
 -- Get all standard windows on the current space for the given app names, sorted by ID
 local function getWindowsOnCurrentSpace(appNames)
 	local onSpace = currentSpaceWindowIds()
@@ -209,14 +190,13 @@ local function getWindowsOnCurrentSpace(appNames)
 	return wins
 end
 
--- Cycle focus to the next window in the list; returns true if any window was focused
 local function cycleWindows(wins)
 	if #wins == 0 then
-		return false
+		return
 	end
 	if #wins == 1 then
 		wins[1]:focus()
-		return true
+		return
 	end
 	local focused = hs.window.focusedWindow()
 	local nextIdx = 1
@@ -227,11 +207,17 @@ local function cycleWindows(wins)
 		end
 	end
 	wins[nextIdx]:focus()
-	return true
 end
 
-local function launchOrFocusApp(appNames, fallback)
-	local app = getRunningApp(appNames)
+local function launchOrFocusApp(appNames)
+	local app = nil
+	for _, appName in ipairs(appNames) do
+		app = hs.application.get(appName)
+		if app then
+			break
+		end
+	end
+
 	if app then
 		-- Fast path for Electron apps: skip all AX queries
 		for _, name in ipairs(appNames) do
@@ -246,12 +232,10 @@ local function launchOrFocusApp(appNames, fallback)
 		end
 
 		local winsOnSpace = getAppWindowsOnCurrentSpace(app)
-
 		if app:isFrontmost() and #winsOnSpace > 0 then
 			cycleWindows(getWindowsOnCurrentSpace(appNames))
 			return
 		end
-
 		if #winsOnSpace > 0 then
 			winsOnSpace[1]:focus()
 			return
@@ -265,10 +249,6 @@ local function launchOrFocusApp(appNames, fallback)
 		if hs.application.launchOrFocus(appName) then
 			return
 		end
-	end
-
-	if fallback then
-		fallback()
 	end
 end
 
@@ -321,14 +301,15 @@ local function toggleHelp()
 		return
 	end
 
+	local target = hs.window.focusedWindow() or hs.screen.mainScreen()
 	helpAlertId = hs.alert.show(buildHelpText(), {
-		atScreenEdge = 2,
+		atScreenEdge = 1,
 		fadeInDuration = 0.1,
 		fadeOutDuration = 0.1,
 		radius = 8,
 		strokeWidth = 2,
 		textSize = 20,
-	}, nil, 12)
+	}, target, 12)
 end
 
 -- Binding helpers
@@ -341,31 +322,40 @@ local function bindCycle(key, helpText)
 	addHelp("Window", string.format("%s: %s", key, helpText))
 end
 
-local function bindToggle(key, unitA, unitB, helpText)
+local function bindApp(key, appNames, helpText)
 	hs.hotkey.bind(HYPER, key, function()
-		withFocusedWindow(function(win)
-			if isAtUnit(win, unitA) then
-				moveToUnit(win, unitB)
-			else
-				moveToUnit(win, unitA)
-			end
-		end)
-	end)
-	addHelp("Window", string.format("%s: %s", key, helpText))
-end
-
-local function bindApp(key, appNames, helpText, fallback)
-	hs.hotkey.bind(HYPER, key, function()
-		launchOrFocusApp(appNames, fallback)
+		launchOrFocusApp(appNames)
 	end)
 	addHelp("Apps", string.format("%s: %s", key, helpText))
 end
 
-local function bindDesktop(key, desktopNumber)
-	hs.hotkey.bind(HYPER, key, function()
-		hs.eventtap.keyStroke({ "ctrl" }, tostring(desktopNumber), 0)
+
+local function sendCmdN(app)
+	-- Delay so the synthetic Cmd+N isn't merged with physical HYPER modifiers.
+	hs.timer.doAfter(0.05, function()
+		hs.eventtap.keyStroke({ "cmd" }, "n", 0, app)
 	end)
-	addHelp("Desktops", string.format("%s: Go to Desktop %d (Ctrl+%d)", key, desktopNumber, desktopNumber))
+end
+
+local function openNewGhosttyWindow()
+	local app = hs.application.get("Ghostty")
+	if not app then
+		hs.application.launchOrFocus("Ghostty")
+		return
+	end
+
+	local function newWindow()
+		if not app:selectMenuItem({ "File", "New Window" }) then
+			sendCmdN(app)
+		end
+	end
+
+	if app:isFrontmost() then
+		newWindow()
+	else
+		app:activate()
+		hs.timer.doAfter(0.1, newWindow)
+	end
 end
 
 local function openOrNewFinderWindow()
@@ -373,7 +363,7 @@ local function openOrNewFinderWindow()
 	if app then
 		local winsOnSpace = getAppWindowsOnCurrentSpace(app)
 		if app:isFrontmost() and #winsOnSpace > 0 then
-			hs.eventtap.keyStroke({ "cmd" }, "n", 0, app)
+			sendCmdN(app)
 			return
 		end
 		if #winsOnSpace > 0 then
@@ -389,68 +379,23 @@ local function openOrNewFinderWindow()
 end
 
 -- Key bindings
-bindToggle("W", UNITS.topLeftQuarter, UNITS.topLeftTwoThirds, "Top-left toggle (1/2 <-> 2/3)")
-bindToggle("R", UNITS.topRightQuarter, UNITS.topRightTwoThirds, "Top-right toggle (1/2 <-> 2/3)")
-bindToggle("X", UNITS.bottomLeftQuarter, UNITS.bottomLeftTwoThirds, "Bottom-left toggle (1/2 <-> 2/3)")
-bindToggle("V", UNITS.bottomRightQuarter, UNITS.bottomRightTwoThirds, "Bottom-right toggle (1/2 <-> 2/3)")
-
+bindCycle("Q", "Left cycle (1/3, 1/2, 2/3)")
+bindCycle("R", "Cycle Full -> Center 90% -> Tall Center")
+bindCycle("W", "Right cycle (1/3, 1/2, 2/3)")
 bindCycle("E", "Top cycle (1/3, 1/2, 2/3)")
-bindCycle("S", "Left cycle (1/3, 1/2, 2/3)")
-bindCycle("F", "Right cycle (1/3, 1/2, 2/3)")
-bindCycle("C", "Bottom cycle (1/3, 1/2, 2/3)")
+bindCycle("X", "Bottom cycle (1/3, 1/2, 2/3)")
 
--- Cycle full -> centered 90% -> tall centered
-local D_CYCLE = { UNITS.full, UNITS.center90, UNITS.tallCenter }
-hs.hotkey.bind(HYPER, "D", function()
-	withFocusedWindow(function(win)
-		cycleUnitsForKey(win, "D", D_CYCLE)
-	end)
-end)
-addHelp("Window", "D: Cycle Full -> Center 90% -> Tall Center")
-
--- Desktop bindings (requires Mission Control shortcuts for Ctrl+1..5)
-bindDesktop("1", 1)
-bindDesktop("2", 2)
-bindDesktop("3", 3)
-bindDesktop("4", 4)
-bindDesktop("5", 5)
-
--- App bindings (HYPER + mnemonic letter)
-bindApp("A", BROWSER, "Browser") -- A = browser
-hs.hotkey.bind(HYPER, "B", function() -- B = tmux prefix (Ctrl+B)
-	-- Delay so the synthetic event isn't merged with physical HYPER modifiers
-	hs.timer.doAfter(0.05, function()
-		local app = hs.application.frontmostApplication()
-		hs.eventtap.event.newKeyEvent({ "ctrl" }, "b", true):post(app)
-		hs.eventtap.event.newKeyEvent({ "ctrl" }, "b", false):post(app)
-	end)
-end)
-addHelp("Apps", "B: Tmux prefix (Ctrl+B)")
-bindApp("U", { "Telegram" }, "Telegram") -- U = telegraUm
+-- App bindings (HYPER + mnemonic letter, aligned with sway where it makes sense)
+bindApp("B", BROWSER, "Browser") -- B = Browser
 bindApp("I", IDE, "IDE") -- I = IDE
-bindApp("O", { "Codex" }, "Codex") -- O = Open Codex
-bindApp("G", { "Google Chat" }, "Google Chat", function() -- G = Google Chat
-	hs.urlevent.openURLWithBundle("https://chat.google.com", "com.google.Chrome")
-end)
 bindApp("M", { "Music" }, "Music") -- M = Music
-hs.hotkey.bind(HYPER, "N", openOrNewFinderWindow) -- N = fiNder/new window
-addHelp("Apps", "N: Finder (new window if frontmost)")
-bindApp("Q", { "WhatsApp" }, "WhatsApp") -- Q = chat/quick message
+hs.hotkey.bind(HYPER, "Y", openOrNewFinderWindow) -- Y = files (yazi/Finder analogue)
+addHelp("Apps", "Y: Files/Finder (new window if frontmost)")
 bindApp("T", { "Ghostty" }, "Ghostty") -- T = Terminal
-bindApp("Y", { "Activity Monitor" }, "Activity Monitor") -- Y = activitY monitor
-bindApp("Z", { "zoom.us", "Zoom Workplace", "Zoom" }, "Zoom") -- Z = Zoom
-bindApp(",", { "System Settings", "System Preferences" }, "System Settings") -- , = settings
-hs.hotkey.bind(HYPER, "return", function() -- Return = new terminal window
-	local app = hs.application.get("Ghostty")
-	if app then
-		hs.eventtap.keyStroke({ "cmd" }, "n", 0, app)
-	else
-		hs.application.launchOrFocus("Ghostty")
-	end
-end)
-addHelp("Apps", "Return: New Ghostty window")
+hs.hotkey.bind(HYPER, "padenter", openNewGhosttyWindow)
+addHelp("Apps", "PadEnter: New Ghostty window")
 
--- Focus window by direction
+-- Focus window by direction (matches sway/yazi hjkl)
 local function focusDir(method)
 	return function()
 		withFocusedWindow(function(win)
@@ -459,10 +404,14 @@ local function focusDir(method)
 	end
 end
 
-hs.hotkey.bind(HYPER, "right", focusDir("focusWindowEast"))
-hs.hotkey.bind(HYPER, "left", focusDir("focusWindowWest"))
-hs.hotkey.bind(HYPER, "up", focusDir("focusWindowNorth"))
-hs.hotkey.bind(HYPER, "down", focusDir("focusWindowSouth"))
+hs.hotkey.bind(HYPER, "H", focusDir("focusWindowWest"))
+addHelp("Window", "H: Focus left")
+hs.hotkey.bind(HYPER, "J", focusDir("focusWindowSouth"))
+addHelp("Window", "J: Focus down")
+hs.hotkey.bind(HYPER, "K", focusDir("focusWindowNorth"))
+addHelp("Window", "K: Focus up")
+hs.hotkey.bind(HYPER, "L", focusDir("focusWindowEast"))
+addHelp("Window", "L: Focus right")
 
 -- Help
 hs.hotkey.bind(HYPER, "/", toggleHelp)

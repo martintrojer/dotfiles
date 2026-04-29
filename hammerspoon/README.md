@@ -8,8 +8,8 @@ For a browser-friendly walkthrough with quizzes, open [`../docs/HAMMERSPOON_LEAR
 
 ## What it covers
 
-- Hyper-key window placement and size cycles
-- Desktop switching
-- App launcher/focus mnemonics
-- Special actions like tmux prefix injection and new Ghostty windows
+- Hyper-key window size cycles centered on `Q/R/W` (with `E/X` for top/bottom)
+- H/J/K/L directional focus
+- A trimmed app launcher/focus set aligned with sway where it makes sense (`B/T/I/Y/M`)
+- Finder's current-Space-aware focus/new-window behavior, Ghostty's `PadEnter` new-window shortcut, and the `/` help overlay
 - The current-space-aware window cycling model
