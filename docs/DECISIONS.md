@@ -13,6 +13,24 @@ Sources of truth:
 
 ## Rejected
 
+### Ghostty (replaced by Alacritty 2026-04-30)
+
+Ran [Ghostty](https://ghostty.org/) as the daily-driver macOS terminal for ~a year. Switched to alacritty after a Ghostty memory leak grew the process to ~160 GB resident, OOM-killing the machine on 2026-04-30 and forcing a hard power reset — which also nuked years of `~/.zsh_history` via the `share_history` truncate-and-rewrite race (separate fix landed in `zsh/.zshrc` to snapshot the history file daily). The OOM was the trigger but the merit case stands on its own:
+
+- **Stability first.** Across ~a year of daily use, Ghostty leaked memory intermittently. The crash that triggered the swap grew the process to ~160 GB resident before the OS gave up — not a recoverable fault, a hard power reset, which is exactly the worst time to be running a terminal that's holding the only live copy of your shell history. Alacritty has been boring-stable on the same hardware.
+- **Real IPC for tooling.** `alacritty msg create-window` (over a per-process Unix socket) is the right primitive for "spawn a new terminal on the current Space without activating the existing one." Ghostty's CLI grew that ability later and via the macOS app bundle; it's less mature and less scriptable. The Hammerspoon launcher (`Hyper+T`, `Hyper+PadEnter`) is materially cleaner with alacritty's IPC than the synthetic `Cmd+N` trick we'd been using for Ghostty (which always swooshed to whichever Space already held a Ghostty window — pillar #8).
+- **Per-OS config without a custom layer.** Alacritty's `[general] import = ["~/.config/alacritty/os.toml"]` plus the dotfiles-sync stow-scope mechanism (one package per OS, only one ever stowed) lets the base config stay shared while OS overlays land at a stable path. No env-var hacks, no shell-driven generation. Mirrors the `fedora/` nested-package pattern.
+- **What Ghostty does better:** simpler config (flat `key = value`, no TOML import precedence trap — we tripped on this with `opacity` during migration), built-in tabs/splits, single-process model that reuses memory across windows. None are load-bearing: tmux owns tabs/splits already, and the single-process model is exactly the property that made the OOM eat *all* shell sessions at once.
+- **Both are equally hostile to macOS Spaces.** Both need IPC (or an equivalent escape hatch) to spawn a window on the current Space. The fix shape is identical; alacritty's IPC was just easier to reach for first.
+
+**Pillar costs of staying on Ghostty:** failed pillar #1 (boring infra — a terminal that occasionally consumes 160 GB of RAM and forces a hard reset isn't boring), pillar #4 (each piece earns its place — Ghostty stopped earning it the moment it ate the history file), and pillar #8 (lean into native primitives — the synthetic-`Cmd+N` launcher hack against macOS app activation was already a smell).
+
+**Conclusion:** Alacritty is the more boring, more stable, more scriptable terminal on macOS. The OOM was the trigger, but the merit case (IPC, per-OS config layering, no single-process blast radius) would justify the swap on its own now that the migration is done.
+
+**Reconsider only if:** Ghostty ships a stable release with no recurring memory leaks on macOS for ≥3 months, *and* it gains an IPC story comparable to `alacritty msg create-window`, *and* it offers something Alacritty can't (e.g. crash-surviving session restoration, or shared-state cross-window features that materially change the workflow). The first two would just clear the maturity bar; the third is what would move the needle.
+
+---
+
 ### `Hyper+G` / `Hyper+1..5` as desktop back-and-forth in Hammerspoon (rejected 2026-04-29)
 
 Recurring temptation: make Hammerspoon mirror sway's `$mod+g` (`workspace back_and_forth`) and direct workspace-number binds. Audited again after the Hammerspoon hotkey trim.

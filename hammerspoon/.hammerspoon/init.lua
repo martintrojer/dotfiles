@@ -329,7 +329,6 @@ local function bindApp(key, appNames, helpText)
 	addHelp("Apps", string.format("%s: %s", key, helpText))
 end
 
-
 local function sendCmdN(app)
 	-- Delay so the synthetic Cmd+N isn't merged with physical HYPER modifiers.
 	hs.timer.doAfter(0.05, function()
@@ -337,25 +336,46 @@ local function sendCmdN(app)
 	end)
 end
 
-local function openNewGhosttyWindow()
-	local app = hs.application.get("Ghostty")
+local function alacrittySocket()
+	local app = hs.application.get("Alacritty")
 	if not app then
-		hs.application.launchOrFocus("Ghostty")
+		return nil
+	end
+	local tmpdir = os.getenv("TMPDIR") or "/tmp"
+	return string.format("%s/Alacritty-%d.sock", tmpdir, app:pid())
+end
+
+-- Open a new Alacritty window on the CURRENT Space via IPC, without
+-- activating any existing Alacritty window (which would swoosh macOS to
+-- whichever Space already holds an Alacritty window).
+local function newAlacrittyWindowHere()
+	local sock = alacrittySocket()
+	if not sock then
+		hs.application.launchOrFocus("Alacritty")
 		return
 	end
+	hs.execute(string.format("alacritty msg --socket %q create-window", sock), true)
+end
 
-	local function newWindow()
-		if not app:selectMenuItem({ "File", "New Window" }) then
-			sendCmdN(app)
-		end
+-- Hyper+T: focus an Alacritty window on the current Space if one exists
+-- (cycling between them when frontmost), otherwise spawn a new window here
+-- instead of jumping Spaces to an existing window elsewhere.
+local function openOrNewAlacrittyWindow()
+	local app = hs.application.get("Alacritty")
+	if not app then
+		hs.application.launchOrFocus("Alacritty")
+		return
 	end
-
-	if app:isFrontmost() then
-		newWindow()
-	else
-		app:activate()
-		hs.timer.doAfter(0.1, newWindow)
+	local winsOnSpace = getAppWindowsOnCurrentSpace(app)
+	if app:isFrontmost() and #winsOnSpace > 0 then
+		cycleWindows(getWindowsOnCurrentSpace({ "Alacritty" }))
+		return
 	end
+	if #winsOnSpace > 0 then
+		winsOnSpace[1]:focus()
+		return
+	end
+	newAlacrittyWindowHere()
 end
 
 local function openOrNewFinderWindow()
@@ -391,9 +411,10 @@ bindApp("I", IDE, "IDE") -- I = IDE
 bindApp("M", { "Music" }, "Music") -- M = Music
 hs.hotkey.bind(HYPER, "Y", openOrNewFinderWindow) -- Y = files (yazi/Finder analogue)
 addHelp("Apps", "Y: Files/Finder (new window if frontmost)")
-bindApp("T", { "Ghostty" }, "Ghostty") -- T = Terminal
-hs.hotkey.bind(HYPER, "padenter", openNewGhosttyWindow)
-addHelp("Apps", "PadEnter: New Ghostty window")
+hs.hotkey.bind(HYPER, "T", openOrNewAlacrittyWindow) -- T = Terminal
+addHelp("Apps", "T: Alacritty (new window if none on current Space)")
+hs.hotkey.bind(HYPER, "padenter", newAlacrittyWindowHere)
+addHelp("Apps", "PadEnter: New Alacritty window on current Space")
 
 -- Focus window by direction (matches sway/yazi hjkl)
 local function focusDir(method)
