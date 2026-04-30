@@ -45,7 +45,7 @@ All configs are now unified around **Catppuccin Mocha**.
 | Btop | `btop/.config/btop/themes/current.theme` | Catppuccin Mocha colors |
 | Eza | `eza/.config/eza/theme.yml` | Catppuccin Mocha mauve accent |
 | Fuzzel | `fuzzel/.config/fuzzel/fuzzel.ini` | Catppuccin Mocha palette |
-| Ghostty | `ghostty/.config/ghostty/config` | `theme = Catppuccin Mocha` |
+| Alacritty | `alacritty/.config/alacritty/alacritty.toml` | Catppuccin Mocha hex values inlined |
 | Mako | `mako/.config/mako/config` | Catppuccin hex values |
 | Neovim | `nvim/.config/nvim/init.lua` (setup) + `nvim/.config/nvim/lua/plugins.lua` (spec) | catppuccin/nvim plugin |
 | Sway | `sway/.config/sway/config` | Catppuccin hex values |
