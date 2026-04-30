@@ -36,6 +36,27 @@ SAVEHIST=1048576
 setopt extended_history hist_expire_dups_first hist_ignore_dups \
        hist_ignore_space hist_verify share_history
 
+# Daily snapshot of HISTFILE — defends against the share_history
+# truncate-and-rewrite race that can wipe the live file on a hard reset
+# (April 2026 incident: lost years of history to one panic). Idempotent:
+# first shell of the day writes the snapshot, the rest no-op. Keeps the
+# 14 most recent snapshots — covers two weeks of daily use, or longer if
+# you go days between shell sessions on a given machine.
+() {
+  local dir=$HOME/.zsh_history.snapshots
+  local day=$dir/$(date +%F).gz
+  [[ -f $day || ! -f $HISTFILE ]] && return
+  mkdir -p $dir
+  local tmp=$day.tmp.$$
+  if gzip -c $HISTFILE > $tmp 2>/dev/null; then
+    mv -f $tmp $day
+    local snaps=( $dir/*.gz(N.om) )
+    (( ${#snaps} > 14 )) && rm -f -- "${snaps[15,-1]}"
+  else
+    rm -f $tmp
+  fi
+} 2>/dev/null
+
 # ----------------------------------------------------------------------
 # Directory navigation
 # ----------------------------------------------------------------------
