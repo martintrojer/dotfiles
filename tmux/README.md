@@ -20,7 +20,7 @@ This setup uses a local Python session launcher (`$HOME/.config/tmux/scripts/tms
 
 ## Interactive Guide
 
-For a browser-friendly walkthrough with quizzes, open [`../docs/TMUX_LEARNING_GUIDE.html`](../docs/TMUX_LEARNING_GUIDE.html) locally.
+For a browser-friendly walkthrough with quizzes, see [`../guides/TMUX.md`](../guides/TMUX.md) and run `make serve-guides` from the repo root.
 
 ## Plugin Inventory
 

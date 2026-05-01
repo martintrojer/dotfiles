@@ -265,4 +265,4 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 
 ## Learning Guide
 
-The walkthrough previously embedded here now lives in [`../docs/NVIM_LEARNING_GUIDE.html`](../docs/NVIM_LEARNING_GUIDE.html), a single self-contained HTML page with interactive quizzes. Open it in a browser locally for the intended experience.
+The walkthrough previously embedded here lives in [`../guides/NVIM.md`](../guides/NVIM.md). Run `make serve-guides` from the repo root to view it as an interactive HTML page with quizzes (rendered to the gitignored `guides/build/`).

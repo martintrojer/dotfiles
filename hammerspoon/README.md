@@ -4,7 +4,7 @@ macOS window/app automation lives in `hammerspoon/.hammerspoon/init.lua`.
 
 ## Interactive Guide
 
-For a browser-friendly walkthrough with quizzes, open [`../docs/HAMMERSPOON_LEARNING_GUIDE.html`](../docs/HAMMERSPOON_LEARNING_GUIDE.html) locally.
+For a browser-friendly walkthrough with quizzes, see [`../guides/HAMMERSPOON.md`](../guides/HAMMERSPOON.md) and run `make serve-guides` from the repo root.
 
 ## What it covers
 

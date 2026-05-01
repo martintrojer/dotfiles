@@ -26,7 +26,11 @@ TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
 	format-prettier \
 	check-ts \
 	format-ts \
-	check-tmux-tests
+	check-tmux-tests \
+	build-guides \
+	serve-guides \
+	check-guides \
+	clean-guides
 
 help:
 	printf '%s\n' \
@@ -41,9 +45,13 @@ help:
 	  '  make format-prettier   # prettier --write on ts/json/jsonc/css' \
 	  '  make check-tmux-tests  # isolated tmux smoke tests' \
 	  '  make check-ts          # alias for check-prettier' \
-	  '  make format-ts         # alias for format-prettier'
+	  '  make format-ts         # alias for format-prettier' \
+	  '  make build-guides      # render guides/*.md → guides/build/*.html' \
+	  '  make serve-guides      # build then http.server in guides/build' \
+	  '  make check-guides      # validate guide sources without writing output' \
+	  '  make clean-guides      # rm -rf guides/build'
 
-check-all: check-python check-lua check-prettier check-tmux-tests
+check-all: check-python check-lua check-prettier check-tmux-tests check-guides
 
 format-all: format-python format-lua format-prettier
 
@@ -75,3 +83,15 @@ format-ts: format-prettier
 
 check-tmux-tests:
 	$(TMUX_STATUS_TEST)
+
+build-guides:
+	python3 guides/build.py
+
+serve-guides: build-guides
+	python3 -m http.server --directory guides/build 8000
+
+check-guides:
+	python3 guides/build.py --check
+
+clean-guides:
+	rm -rf guides/build
