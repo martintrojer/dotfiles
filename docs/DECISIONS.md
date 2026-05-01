@@ -13,6 +13,20 @@ Sources of truth:
 
 ## Rejected
 
+### Arch and Ubuntu toolbox bootstrap scripts (removed 2026-05-01)
+
+`fedora/setup-toolbox-arch.sh` and `fedora/setup-toolbox-ubuntu.sh` were added in the initial commit and never invoked again. `git log` showed zero touches after `bcc3533`. Audited during a pillar pass and removed.
+
+- **Pillar costs of keeping them:** failed pillar #8 (opinionated, not agnostic — "Linux is Fedora + Wayland + Sway"; supporting Arch and Ubuntu toolbox bootstrap leaks a wider stance than the repo actually wants), and pillar #4 (each piece earns its place — zero recorded use across the lifetime of the repo).
+- `setup-toolbox-arch.sh` also tripped the AGENTS.md "shell vs Python" smell: 43 lines that did `getent passwd | awk` parsing for a non-root user, sudo-as-other-user, manual `git clone` + `chown` of yay. The right response to a script with that much non-trivial logic is either Python or deletion; deletion was cheaper.
+- The Fedora toolbox script (`setup-toolbox.sh`) stays. It is the only one that matches the stated stack and is actually used.
+
+**Conclusion:** delete both. If a future need arises for a one-off Arch or Ubuntu toolbox, installing `git`, `ripgrep`, `stow`, `tmux`, `zsh` by hand is shorter than maintaining a script for it.
+
+**Reconsider only if:** a daily-driver workflow develops that genuinely needs an Arch or Ubuntu toolbox, *and* that workflow is exercised more than once a quarter.
+
+---
+
 ### Ghostty (replaced by Alacritty 2026-04-30)
 
 Ran [Ghostty](https://ghostty.org/) as the daily-driver macOS terminal for ~a year. Switched to alacritty after a Ghostty memory leak grew the process to ~160 GB resident, OOM-killing the machine on 2026-04-30 and forcing a hard power reset — which also nuked years of `~/.zsh_history` via the `share_history` truncate-and-rewrite race (separate fix landed in `zsh/.zshrc` to snapshot the history file daily). The OOM was the trigger but the merit case stands on its own:
@@ -56,7 +70,7 @@ Recurring temptation: tmux config currently loads 5 third-party plugins via TPM 
 - **`tmux-fingers`:** hint-overlay copy-mode (think vimium for tmux panes). Implementation is hundreds of lines of Crystal + shell. Not feasible to rewrite, not worth vendoring (would just freeze upstream and miss bug fixes). *(See "Switch to tmux-fingers-rs" below — this changed.)*
 - **`tmux-fzf`:** session/window/pane pickers via fzf. Used primarily for the clipboard-history popup (`prefix + v`). Rest of fzf integration is bespoke (`tms`, `cheatsheet`, `agent-attention`). Could drop it if I rewrote the clipboard picker; haven't yet because it's ~5 lines of bind + works.
 - **`tmux-yank`:** clipboard integration that handles Wayland/macOS/Linux differences. Replicating the platform-detection + `wl-copy`/`pbcopy`/`xclip` fallback chain locally is exactly the kind of cross-platform busywork pillar #8 says to avoid in shared config.
-- **`tmux-cpu`:** status-line CPU% formatter. *Could* be replaced by a `status-cpu` script alongside the existing `status-ram` / `status-uptime` Python helpers. On the edge. Kept because the output format and color thresholds are already tuned and there's no specific complaint.
+- **`tmux-cpu`:** status-line CPU% formatter. *Could* be replaced by a `status-cpu` script alongside the existing `status-ram` / `status-uptime` Python helpers. **Kept (re-confirmed 2026-05-01):** TPM is already in active use for the other plugins on this list, so the marginal cost of one more plugin is zero, and rewriting locally would add code without removing the upstream-plugin dependency anyway. Pillar #5 fires when a *new* plugin is being added, not when a well-scoped existing plugin could in theory be replaced. The output format and color thresholds being already tuned is a tiebreaker, not the load-bearing reason.
 - **TPM itself:** ~200 lines of bash that clones, updates, and sources plugins. Boring infra (pillar #1), well-understood (pillar #3 — it's three commands: install, update, source), not blocking anything.
 
 **Pillar tension:** pillar #5 (local scripts over upstream plugins) vs pillar #2 (builtins first — TPM *is* the builtin idiom for tmux plugins) vs pillar #4 (each piece earns its place — each plugin above does, individually).
@@ -338,6 +352,78 @@ In rough order of how badly each one bit during setup. Future-you will hit at le
 ---
 
 ## Accepted (non-obvious)
+
+### Keep the per-tool HTML learning guides under `docs/` (accepted 2026-05-01)
+
+Audited the five `docs/{HAMMERSPOON,NVIM,TMUX,YAZI,ZSH}_LEARNING_GUIDE.html` files. They are tool-specific, which on its face violates pillar #10 (config next to the thing it configures). Considered moving them into the per-package folders or deleting them outright.
+
+- **Pillar tension:** #10 (config next to thing) versus the failure mode of any "learning notes" content that does not live next to the code it teaches.
+- **What they do:** browser-friendly walkthroughs with quizzes for the keyboard-heavy tools where forgetting a binding genuinely costs time. Each per-package README links to its matching guide explicitly, so the co-location pillar is partially honored — the guide is one click away from the package edit.
+- **Why kept:** the alternative is either inlining ~1,800 lines of HTML into the package READMEs (mixing reference docs with tutorials), or moving the guides into a separate "learning notes" repo where they would predictably go stale. Keeping them in this repo guarantees they get updated whenever the corresponding tool config is touched, and they are exactly the kind of content where staleness is the primary failure mode.
+- **Why under `docs/` rather than per-package:** the guides are HTML (browser-only), self-contained, and meant for human reading sessions, not for being parsed alongside `nvim/init.lua` or `tmux/.tmux.conf`. Putting them next to live config files would mix two very different audiences.
+
+**Pillar fit:** soft violation of #10 in exchange for hard avoidance of the "another repo, will go stale" failure mode. Net positive.
+
+**Reconsider only if:** any individual guide stops getting opened over a 12-month window (check browser history), in which case delete just that one.
+
+---
+
+### Keep `_dotfiles_sync/` split across small modules (accepted 2026-05-01)
+
+Audited the 12-file split inside `_dotfiles_sync/` (1,395 lines total; largest file 291 lines). Considered collapsing to ~8 files by merging `integration_checks.py` into `external.py`, inlining `model.py`, and inlining `pins.py`.
+
+- **Pillar tension:** #3 (every line understood — many small files might be ceremonial) versus everyday readability when navigating any single file.
+- **What was true:** the cross-import of private helpers (`_pinned_clone_head`/`_pinned_clone_resolve`) between `external.py` and `integration_checks.py` does smell like one module pretending to be two. `model.py` is a types-only module in the Java style.
+- **Why kept anyway:** smaller files win on readability when reading any one of them in isolation, and the directory listing already reads as a mental table of contents (`cli`, `config`, `inventory`, `pins`, `system`, `stow`, `repo_checks`, `integration_checks`, `external`, `model`). Collapsing would save a few cross-imports at the cost of producing 250-line modules with multiple unrelated concerns. The current shape pays off whenever any single concern is being changed in isolation.
+
+**Reconsider only if:** the module count crosses ~20, *or* the cross-imports start forming a real cycle, *or* a single function genuinely needs to span what are today three modules.
+
+---
+
+### Keep the `tuicr/` theme override (re-affirmed 2026-05-01 after a brief mis-deletion)
+
+The `tuicr/` stow package contains a single line: `theme = "catppuccin-mocha"`. During a pillar audit it was briefly classified as cosmetic and deleted, then immediately restored when `<leader>gt` (which opens tuicr as the code review UI inside nvim) rendered as white-on-dark and was unreadable.
+
+- **Why it earns its place:** tuicr's default theme is white, which is readable in a stand-alone light terminal but clashes inside the Catppuccin-Mocha alacritty + nvim stack the rest of this repo commits to (pillar #9, one palette everywhere). Without this override the tool is *functionally unusable* in the workflow that actually invokes it.
+- **Lesson for the cosmetic-vs-functional rule on one-file packages:** "theme = ..." looks cosmetic on its face but is functional whenever the default would render the tool unusable in the host context. The right test is not "does this file change colors?" but "would removing this file degrade the workflow that uses the tool?" For `vale/.vale.ini`, the answer is yes (alert-level config). For `tuicr/.config/tuicr/config.toml`, the answer is also yes (legibility inside nvim). Keep both.
+- **What would actually fail the rule:** a one-file package containing only an override that produces an *aesthetic* preference between two equally-readable defaults. None of the current one-file packages match that shape.
+
+**Reconsider only if:** tuicr ever ships a dark-respecting default, *or* the rest of the desktop palette changes such that the upstream default becomes legible in context.
+
+---
+
+### Keep the `summarize` naming triplet (accepted 2026-05-01)
+
+The repo contains three things named "summarize": the stow package `summarize/` (CLI config), the agent skill `skills/summarize/`, and the external `summarize` CLI binary itself. Audited as a potential pillar #3 (every line understood) smell because `git log` and `rg summarize` both return mixed results.
+
+- **Why kept as is:** the three are intentionally co-named because they are facets of the same workflow — the skill calls the CLI, which reads the config from the stow package. The naming clash is a feature, not noise; renaming any of them would obscure the relationship.
+- The cost is one second of disambiguation when reading `git log` for "summarize." That cost is acceptable and lower than the cost of inventing distinct names for three things that genuinely belong to one workflow.
+
+**Reconsider only if:** a fourth unrelated tool also called "summarize" enters the repo, at which point the existing three would need qualifying prefixes to stay unambiguous.
+
+---
+
+### No unit tests for the control-plane and helper scripts (accepted 2026-05-01)
+
+The only test runner in the repo is `tmux/.config/tmux/scripts/test-status-tools` (driven from `make check-tmux-tests`). The following code has no tests beyond `ruff` and `ty`:
+
+- `_dotfiles_sync/` — 1,395 lines, including symlink fan-out, pinned clone management, stow conflict parsing.
+- `fuzzel/.config/fuzzel/scripts/_common.py` — 256 lines of shared script-helper logic backing 10 fuzzel scripts.
+- `local-bin/.local/bin/solo` — 120 lines of file-locking with a documented `100` exit-code contract.
+- All other `local-bin/`, `sway/.config/sway/scripts/`, `fedora/bin/.local/bin/` Python scripts.
+
+Made explicit during a pillar audit so future-me doesn't relitigate it every time a script grows past 100 lines.
+
+**Why this is the deliberate choice:**
+
+- **Pillar #6 (recreate, don't restore).** The blast radius of any single bug is one shell session or one `--apply` run. Sessions are disposable; an `--apply` regression shows up immediately the next time it runs. Tests do not buy meaningfully more coverage than the next manual invocation does.
+- **Pillar #3 (every line understood).** All of these scripts are short enough to audit end-to-end on read. Tests would duplicate that audit in code, not extend it.
+- **Pillar #1 (boring).** Adding a unit-test runner (pytest, etc.) and matching CI is non-trivial infrastructure for a personal repo where the current loop is "edit, run, observe."
+- **The tmux exception.** `test-status-tools` exists because tmux status helpers run on every status refresh (every few seconds, headless), so silent breakage is invisible until the bar visibly changes. Smoke coverage there has obvious value; for code that runs interactively and prints to a terminal the operator is already looking at, the same value is not present.
+
+**Reconsider individual scripts if:** any of them grows past ~300 lines *and* ships a bug that costs more than 30 minutes to debug. In that case add a focused smoke test for the regression, not a generic suite.
+
+---
 
 ### Split the repo control plane into `dotfiles-sync` + `_dotfiles_sync/` (accepted 2026-04-27)
 
