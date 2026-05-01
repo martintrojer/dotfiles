@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Render the tmux hostname pill with a per-host accent background.
+
+Output is a tmux-format snippet (with embedded ``#[...]`` style codes)
+suitable for stashing in a user option and re-expanded with
+``#{E:@status_hostname}`` from .tmux.conf. The accent color is hashed
+from the short hostname so each box gets a stable, distinct corner color
+in peripheral vision (mirrors the per-window decoration trick VSCode uses
+for its title bar). Run once at config load — the value is host-pinned
+and never changes for a given machine.
+"""
+
+from __future__ import annotations
+
+import socket
+import zlib
+
+from _status_common import EXPECTED_ERRORS, log_error
+
+# Light catppuccin accents — all readable with a `crust` foreground.
+# Order is fixed so the hostname → color mapping stays stable as the
+# palette evolves; appending entries only reshuffles the few hosts that
+# happen to land on the new index, never the existing ones.
+COLORS = (
+    "#fab387",  # peach
+    "#89dceb",  # sky
+    "#cba6f7",  # mauve
+    "#a6e3a1",  # green
+    "#f9e2af",  # yellow
+    "#94e2d5",  # teal
+    "#f5c2e7",  # pink
+    "#eba0ac",  # maroon
+)
+CRUST = "#11111b"
+ICON = "󰒋"
+
+
+def short_hostname() -> str:
+    return socket.gethostname().split(".", 1)[0]
+
+
+def accent_for(host: str) -> str:
+    return COLORS[zlib.crc32(host.encode()) % len(COLORS)]
+
+
+def render() -> str:
+    host = short_hostname()
+    accent = accent_for(host)
+    return f"#[fg={CRUST}]#[bg={accent}]#[bold] {ICON} {host} #[default]"
+
+
+def main() -> None:
+    try:
+        print(render())
+    except EXPECTED_ERRORS as exc:
+        log_error("status-hostname", f"hostname render failed: {exc!r}")
+        # Fall back to the muted default style so the segment still draws.
+        print("#[fg=#a6adc8]#[bg=#313244] 󰒋 ? #[default]")
+
+
+if __name__ == "__main__":
+    main()
