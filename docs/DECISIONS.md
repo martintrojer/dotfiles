@@ -353,18 +353,23 @@ In rough order of how badly each one bit during setup. Future-you will hit at le
 
 ## Accepted (non-obvious)
 
-### Keep the per-tool HTML learning guides under `docs/` (accepted 2026-05-01)
+### Keep the per-tool learning guides, authored as Markdown under `guides/` (accepted 2026-05-01, format revised 2026-05-01)
 
-Audited the five `docs/{HAMMERSPOON,NVIM,TMUX,YAZI,ZSH}_LEARNING_GUIDE.html` files. They are tool-specific, which on its face violates pillar #10 (config next to the thing it configures). Considered moving them into the per-package folders or deleting them outright.
+Originally five hand-written `docs/{HAMMERSPOON,NVIM,TMUX,YAZI,ZSH}_LEARNING_GUIDE.html` files. Tool-specific, which on its face violates pillar #10 (config next to the thing it configures). Considered moving them into per-package folders or deleting them outright.
 
 - **Pillar tension:** #10 (config next to thing) versus the failure mode of any "learning notes" content that does not live next to the code it teaches.
 - **What they do:** browser-friendly walkthroughs with quizzes for the keyboard-heavy tools where forgetting a binding genuinely costs time. Each per-package README links to its matching guide explicitly, so the co-location pillar is partially honored — the guide is one click away from the package edit.
-- **Why kept:** the alternative is either inlining ~1,800 lines of HTML into the package READMEs (mixing reference docs with tutorials), or moving the guides into a separate "learning notes" repo where they would predictably go stale. Keeping them in this repo guarantees they get updated whenever the corresponding tool config is touched, and they are exactly the kind of content where staleness is the primary failure mode.
-- **Why under `docs/` rather than per-package:** the guides are HTML (browser-only), self-contained, and meant for human reading sessions, not for being parsed alongside `nvim/init.lua` or `tmux/.tmux.conf`. Putting them next to live config files would mix two very different audiences.
+- **Why kept:** the alternative is either inlining hundreds of lines of guide content into the package READMEs (mixing reference docs with tutorials), or moving the guides into a separate "learning notes" repo where they would predictably go stale. Keeping them in this repo guarantees they get updated whenever the corresponding tool config is touched, and they are exactly the kind of content where staleness is the primary failure mode.
 
-**Pillar fit:** soft violation of #10 in exchange for hard avoidance of the "another repo, will go stale" failure mode. Net positive.
+**Format revision (2026-05-01).** The original five files were hand-written HTML with the same Catppuccin CSS block and quiz JS engine inlined into each one (~85% duplicated boilerplate, ~188 KB committed, content authored as one minified line per section). Replaced with `guides/*.md` Markdown sources rendered by a stdlib-only `guides/build.py` to gitignored `guides/build/*.html`. One CSS file, one JS file, one wrapper template — changing the theme is now a one-file edit instead of five. `make build-guides` / `make serve-guides` / `make check-guides` (wired into `check-all`).
 
-**Reconsider only if:** any individual guide stops getting opened over a 12-month window (check browser history), in which case delete just that one.
+- **Why Markdown + tiny Python builder over Hugo / mdBook:** Hugo would add a system dependency (binary on every bootstrap path) for a 5-page site whose features (tabs, quizzes, sticky scoreboard) Hugo doesn't model natively anyway. Python is already required by `_dotfiles_sync` and `make check-python`; the builder is ~250 lines of stdlib code with full type hints. Pillars #2 (builtins first), #3 (every line understood), #5 (local scripts over upstream plugins) all point the same way.
+- **Why a Markdown subset rather than full CommonMark:** the format we need is tiny (`#`/`##`/`###` headings, `-` bullets, inline `` `code ``/`**bold**`/`*italic*`/links, ``` ```quiz ``` fenced blocks with TOML body). A constrained format means a constrained renderer (~80 lines), and zero third-party Markdown dependency. If we ever need footnotes, tables, etc., graduating to `markdown-it-py` is a 10-minute change with no source-file edits.
+- **Why `guides/` rather than `docs/`:** the source is Markdown and gets committed; the rendered HTML is a build artifact and lives in gitignored `guides/build/`. Keeping the source next to its build target (rather than dumping it in `docs/` which is for hand-curated long-form content like this file) honors pillar #10 once more. `guides/` does not appear in `_dotfiles_sync/inventory.py`'s `PACKAGE_GROUPS`, so it is invisible to stow.
+
+**Pillar fit:** #10 honored twice over (each guide one click from its package README; build artifact next to source). Plus #2, #3, #5 above. Net positive.
+
+**Reconsider only if:** any individual guide stops getting opened over a 12-month window (check browser history), in which case delete just that one. Or if the Markdown subset has to grow far enough that swapping in a real Markdown library is cheaper than maintaining the renderer.
 
 ---
 

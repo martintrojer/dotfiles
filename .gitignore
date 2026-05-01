@@ -6,6 +6,7 @@ lazy-lock.json
 nvim/.config/nvim/nvim-pack-lock.json
 nvim.log
 .vecgrep/
+guides/build/
 
 .DS_Store
 __pycache__

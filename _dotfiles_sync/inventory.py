@@ -88,6 +88,7 @@ IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
     "alacritty",  # contains nested base/darwin/linux stow packages
     "docs",  # cross-cutting documentation hosted at repo root
     "fedora",  # contains its own stow packages, scope-driven
+    "guides",  # interactive learning guides, rendered by guides/build.py
     "hooks",  # Claude plugin asset, consumed via `claude plugin install`
     "pi",  # source for pi/extensions/, symlinked by --apply
     "skills",  # source for shared skills, symlinked by --apply

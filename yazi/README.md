@@ -4,7 +4,7 @@ Terminal file manager config lives under `yazi/.config/yazi/`.
 
 ## Interactive Guide
 
-For a browser-friendly walkthrough with quizzes, open [`../docs/YAZI_LEARNING_GUIDE.html`](../docs/YAZI_LEARNING_GUIDE.html) locally.
+For a browser-friendly walkthrough with quizzes, see [`../guides/YAZI.md`](../guides/YAZI.md) and run `make serve-guides` from the repo root.
 
 ## What it covers
 
