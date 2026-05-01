@@ -1,6 +1,6 @@
 -- Settings
 hs.window.animationDuration = 0
-local GAP = 4 -- pixels: uniform gap between windows and screen edges
+local GAP = 4 -- pixels: gap between adjacent windows (no gap against screen edges)
 local HYPER = { "shift", "cmd", "alt", "ctrl" }
 local BROWSER = { "Safari" } -- or { "Google Chrome", "Chrome" }
 local IDE = { "Visual Studio Code" }
@@ -120,12 +120,13 @@ local function withFocusedWindow(action)
 end
 
 local function gappedFrame(sf, unit)
-	-- Screen-edge sides get full GAP; interior sides get half GAP
-	-- so two adjacent windows produce a full GAP between them
-	local padL = (unit.x < 0.01) and GAP or (GAP / 2)
-	local padT = (unit.y < 0.01) and GAP or (GAP / 2)
-	local padR = (unit.x + unit.w > 0.99) and GAP or (GAP / 2)
-	local padB = (unit.y + unit.h > 0.99) and GAP or (GAP / 2)
+	-- Inner gaps only: screen-edge sides get 0; interior sides get half GAP
+	-- so two adjacent windows produce a full GAP between them, while windows
+	-- touching the screen edge sit flush against it.
+	local padL = (unit.x < 0.01) and 0 or (GAP / 2)
+	local padT = (unit.y < 0.01) and 0 or (GAP / 2)
+	local padR = (unit.x + unit.w > 0.99) and 0 or (GAP / 2)
+	local padB = (unit.y + unit.h > 0.99) and 0 or (GAP / 2)
 
 	return hs.geometry.rect(
 		sf.x + unit.x * sf.w + padL,
