@@ -15,11 +15,6 @@ Typical order:
 
 If you want the tmux session workflow from this repo, make sure `tmux`, `fzf`, `zoxide`, `fd`, and `eza` are installed too.
 
-For non-Fedora toolboxes:
-
-- `fedora/setup-toolbox-ubuntu.sh`
-- `fedora/setup-toolbox-arch.sh`
-
 ## Package Lists
 
 The main Fedora setup scripts are intentionally thin wrappers around shared package lists:

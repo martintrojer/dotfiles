@@ -2,9 +2,7 @@
 
 Repo-specific control plane behind [`../dotfiles-sync`](../dotfiles-sync).
 
-This is intentionally **not** a generic dotfiles framework. It exists to keep
-the repo bootstrap code reading like real software without pretending the logic
-is reusable across arbitrary repos.
+Intentionally **not** a generic dotfiles framework. It exists so the repo bootstrap reads like real software without pretending the logic is reusable across arbitrary repos. Why this shape (split modules, plain Python, no DSL) is recorded in [`../docs/DECISIONS.md`](../docs/DECISIONS.md) — see "Split the repo control plane into `dotfiles-sync` + `_dotfiles_sync/`" and "Keep `_dotfiles_sync/` split across small modules."
 
 ## Scope
 
@@ -50,17 +48,12 @@ Does **not** own:
 From the repo root:
 
 ```bash
-./dotfiles-sync --check
-./dotfiles-sync --apply
-./dotfiles-sync --check zsh tmux
-./dotfiles-sync --apply nvim
-python3 -m _dotfiles_sync --check
+./dotfiles-sync --check                  # check everything for the active OS/distro
+./dotfiles-sync --apply                  # apply everything for the active OS/distro
+./dotfiles-sync --check zsh tmux         # check just these packages
+./dotfiles-sync --apply nvim             # apply just this package
 ```
 
 ## Quality bar
 
-```bash
-ty check _dotfiles_sync dotfiles-sync
-ruff check _dotfiles_sync dotfiles-sync
-ruff format --check _dotfiles_sync dotfiles-sync
-```
+From the repo root, `make check-python` runs `ruff` + `ty` + `py_compile` on every Python file in the repo (not just this module). Run it before sending any change here.
