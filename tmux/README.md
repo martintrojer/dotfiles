@@ -69,7 +69,7 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `R`: reload `~/.tmux.conf` (mirrors sway `mod+Shift+r`)
 - `prefix` + `r`: cycle active pane width 1/3 → 1/2 → 2/3 (mirrors sway `mod+r`)
 - `prefix` + `v`: clipboard history picker (mirrors sway `mod+v`)
-- `prefix` + `Tab` / `Shift-Tab`: tmux-fingers-rs pick / jump-pick visible matches
+- `prefix` + `Tab`: tmux-fingers-rs pick visible matches
 - `prefix` + `!`: break the current pane out into a new window
 - `prefix` + `M`: move the current pane into the selected window or pane as a split
 - `prefix` + `w`: built-in tmux session-window tree picker
@@ -139,7 +139,6 @@ Notes:
 Configured flow:
 
 - `prefix` + `Tab`: start `tmux-fingers-rs`
-- `prefix` + `Shift-Tab`: start `tmux-fingers-rs` in jump mode, which moves the cursor to the selected match
 - type the shown hint to copy the match to the clipboard and tmux buffer
 - type `Shift` + the final hint character to copy and paste immediately into the active pane
 

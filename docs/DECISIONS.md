@@ -353,6 +353,43 @@ In rough order of how badly each one bit during setup. Future-you will hit at le
 
 ## Accepted (non-obvious)
 
+### Tmux owns in-buffer text ops; alacritty owns only what the terminal layer structurally can (accepted 2026-05-02)
+
+Recurring temptation: alacritty has hints (regex-based, vimium-style picker) and a vi mode (full vi navigation over the viewport). tmux has copy-mode (vi nav over per-pane scrollback) and `tmux-fingers-rs` (hint picker over visible pane content). The two stacks visibly overlap. Audit triggered while adding `option_as_alt = "OnlyLeft"` and noticing the duplication.
+
+**The killer fact, given "always inside tmux":** alacritty's hints and vi mode operate on the alacritty *viewport* — the rendered frame tmux paints into the terminal. They cannot see tmux's per-pane scrollback. So in this workflow:
+
+- alacritty vi mode "scrollback" is mostly the current rendered frame; useless for "what scrolled past 5 minutes ago"
+- alacritty hints match only content visible in the current frame, not anything tmux is buffering above the viewport
+- alacritty has no way to paste a hint match back into the active tmux pane — best it can do is copy to the system clipboard for a manual paste
+
+Adopting alacritty's stack would be a strictly weaker duplicate of tmux's, with the only upside being "works the same way outside tmux" — irrelevant when the workflow is always inside tmux.
+
+**Where the split naturally lands:**
+
+| Use case | Owner | Why |
+|---|---|---|
+| Scrollback search / nav / copy / select | tmux copy-mode | sees per-pane history; alacritty cannot |
+| Pattern-pick + paste back into pane | `tmux-fingers-rs` (`prefix + Tab`) | one-keystroke `Shift`+hint paste-back; alacritty has no equivalent |
+| Click a URL → open in browser | alacritty hints (`Cmd`/`Ctrl`-click) | mouse-aware, knows pixel position; tmux structurally cannot |
+| RGB / undercurl rendering | alacritty (terminal duty) | already wired via `terminal-features` |
+
+Not really "two stacks fighting" — each tool owns the operations only it can do. Zero functional overlap once the split is enforced.
+
+**Pillar costs of the rejected "let alacritty do more" path:** failed pillar #4 (each piece earns its place — alacritty hints expanded beyond URL would be a dormant duplicate of tmux-fingers), pillar #2 (tmux copy-mode + tmux-fingers-rs are already the builtins for in-pane text ops), and pillar #8 (lean into native primitives — the discipline is to use each layer for what only it can do, not to make either one "do everything").
+
+**What this committed to in the same session:**
+
+- Added `Ctrl-v` rectangle-toggle and `Alt-Up` / `Alt-Down` shell-prompt jumping (OSC 133) to copy-mode-vi so the in-tmux text workspace is the strictly more capable one. Required `option_as_alt = "OnlyLeft"` on alacritty/macOS so left-Option sends Meta.
+- Dropped the unused `@fingers-jump-key BTab` after auditing actual usage. Kept the `Shift`+hint paste-back action — the load-bearing feature alacritty cannot replicate.
+- Kept alacritty hints scoped to URLs only. Not growing them to match fingers' patterns is a deliberate ceiling, not an oversight.
+- Did not learn alacritty vi mode. Strictly weaker than `prefix + [` copy-mode in this workflow.
+- Two non-obvious gotchas surfaced and are now documented in code comments: tmux 3.6a's OSC 133 parser only accepts the BEL terminator (not ST, despite the man page); and a precmd-emitted OSC 133;A marker gets stomped by zsh's prompt-redraw sequences, so the marker is embedded directly in `PROMPT` via `%{..%}` instead.
+
+**Reconsider only if:** the workflow stops being "always inside tmux" (e.g. running raw alacritty for some long-lived purpose), *or* alacritty gains structural access to tmux's per-pane scrollback (would require IPC tmux does not expose), *or* tmux's copy-mode regresses materially relative to alacritty's vi mode.
+
+---
+
 ### Keep the per-tool learning guides, authored as Markdown under `guides/` (accepted 2026-05-01, format revised 2026-05-01)
 
 Originally five hand-written `docs/{HAMMERSPOON,NVIM,TMUX,YAZI,ZSH}_LEARNING_GUIDE.html` files. Tool-specific, which on its face violates pillar #10 (config next to the thing it configures). Considered moving them into per-package folders or deleting them outright.

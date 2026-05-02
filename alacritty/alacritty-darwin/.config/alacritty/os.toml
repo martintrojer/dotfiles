@@ -7,6 +7,9 @@
 decorations = "Buttonless"
 blur = true
 opacity = 0.8
+# Left Option -> Meta/Alt for tmux bindings (M-Up etc). Right Option keeps
+# native macOS behaviour for typographical special chars (Option+e -> é).
+option_as_alt = "OnlyLeft"
 
 [font]
 size = 15
