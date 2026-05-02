@@ -119,9 +119,9 @@ objects, clipboard buffers, annotated keybindings, and the standard
 session/window tree.
 
 - `prefix`+`Tab` — `tmux-fingers-rs` hint picking on visible text
-- `prefix`+`Shift`+`Tab` — `tmux-fingers-rs` jump mode
 - typing the shown hint copies the match to clipboard and tmux buffer; `Shift`
-  on the final hint character copies *and* pastes immediately
+  on the final hint character copies *and* pastes immediately into the active
+  pane (the primary action this config is tuned for)
 - `prefix`+`F` — open `tmux-fzf`
 - `prefix`+`w` — native session-window tree picker
 - `prefix`+`v` — clipboard history
@@ -133,7 +133,7 @@ session/window tree.
 q = "Which binding starts `tmux-fingers-rs` on visible pane content?"
 options = ["`prefix`+`Tab`", "`prefix`+`F`", "`prefix`+`f`"]
 answer = 0
-why = "`Tab` launches `tmux-fingers-rs`; `Shift`+`Tab` switches it into jump mode."
+why = "`Tab` launches `tmux-fingers-rs`; type the hint to copy, or `Shift`+hint to copy and paste back into the active pane."
 
 [[questions]]
 q = "Which binding opens `tmux-fzf`?"
@@ -146,6 +146,53 @@ q = "Which binding opens the repo cheatsheet popup?"
 options = ["`prefix`+`Ctrl`+`g`", "`prefix`+`g`", "`prefix`+`?`"]
 answer = 0
 why = "The cheatsheet lives on `prefix`+`Ctrl`+`g` to avoid colliding with more common keys."
+```
+
+## Copy mode
+
+The in-tmux text workspace: scroll, search, select, copy. `mode-keys vi`
+is set, so vim muscle memory carries over.
+
+- mouse scroll up enters copy mode (because `mouse on`); `prefix`+`[` is the keyboard equivalent; `q` or `Escape` to exit
+- `h` `j` `k` `l` step; `w` `b` `e` word; `{` `}` paragraph
+- `Ctrl`+`u` / `Ctrl`+`d` half page; `Ctrl`+`b` / `Ctrl`+`f` full page
+- `g` / `G` top / bottom of scrollback; `H` `M` `L` top/middle/bottom of viewport
+- `/foo` forward search, `?foo` backward, `n` / `N` to repeat
+- `v` begin selection; `Ctrl`+`v` toggle rectangle; `y` copy and exit
+- `Alt`+`Up` / `Alt`+`Down` jump to previous / next shell prompt (needs OSC 133 markers; emitted by `zsh/.zsh/tools.zsh`)
+- copies land in the system clipboard via `tmux-yank` + `set-clipboard on`
+- inspect every binding with `tmux list-keys -T copy-mode-vi`
+
+```quiz
+[[questions]]
+q = "How do you enter copy mode?"
+options = [
+  "Only with `prefix`+`[`",
+  "Either `prefix`+`[` or scrolling up with the mouse",
+  "Only by binding it manually first",
+]
+answer = 1
+why = "`mouse on` makes scroll-up enter copy mode automatically; `prefix`+`[` is the keyboard equivalent."
+
+[[questions]]
+q = "What do `Ctrl`+`u` and `Ctrl`+`d` do in copy mode?"
+options = [
+  "Undo and redo the last selection",
+  "Half page up and half page down",
+  "Switch to the previous and next session",
+]
+answer = 1
+why = "They're the standard vi half-page motions, available because `mode-keys vi` is set."
+
+[[questions]]
+q = "What do `Alt`+`Up` and `Alt`+`Down` do in copy mode?"
+options = [
+  "Move the cursor one line up or down",
+  "Jump to the previous or next shell prompt (when OSC 133 markers are emitted)",
+  "Resize the current pane vertically",
+]
+answer = 1
+why = "They navigate scrollback by command boundary instead of by lines, complementing `Ctrl`+`u`/`Ctrl`+`d` scrolling."
 ```
 
 ## Status bar and agent attention

@@ -20,7 +20,11 @@ prompt_reset="%f"
 prompt_error_glyph="󰅚"
 prompt_context=""
 
-PROMPT="${prompt_dir_color}%3~${prompt_reset} ${prompt_accent_color}❯${prompt_reset} "
+# OSC 133 A marker for tmux previous-prompt/next-prompt. Embedded in PROMPT
+# (zero-width via %{..%}) rather than emitted from precmd: zsh's prompt-redraw
+# sequences stomp a precmd-emitted mark before tmux records it.
+prompt_osc133_a=$'%{\e]133;A\a%}'
+PROMPT="${prompt_osc133_a}${prompt_dir_color}%3~${prompt_reset} ${prompt_accent_color}❯${prompt_reset} "
 # Right-aligned prompt: show a failure marker plus subtle environment context.
 if [[ -f /run/.toolboxenv && -r /run/.containerenv ]]; then
   prompt_toolbox_name="$(grep -E '^name="' /run/.containerenv 2>/dev/null | cut -d '"' -f 2)"
@@ -35,3 +39,10 @@ RPROMPT="%(?..${prompt_error_color}${prompt_error_glyph}${prompt_reset})"
 if [[ -n "${prompt_context}" ]]; then
   RPROMPT="%(?..${prompt_error_color}${prompt_error_glyph}${prompt_reset} )${prompt_context}"
 fi
+
+# OSC 133 C marker (start of command output) from preexec, for previous-prompt -o.
+# Terminator is BEL (\a) not ST (\e\\): tmux 3.6a's OSC parser only accepts BEL
+# despite the man page documenting ST.
+autoload -Uz add-zsh-hook
+_osc133_preexec() { printf '\e]133;C\a' }
+add-zsh-hook preexec _osc133_preexec
