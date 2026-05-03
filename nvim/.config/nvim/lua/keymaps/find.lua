@@ -15,6 +15,13 @@ local function fzf_zoxide()
 			["--no-multi"] = true,
 			["--tiebreak"] = "end,index",
 			["--no-sort"] = true,
+			-- The default zoxide provider expects `zoxide query --list --score`
+			-- and inherits `--delimiter=[\t]` + `--nth=2..` so fzf only matches
+			-- the path field after the score. We use `--list` (no score), so
+			-- there is no field 2 — disable both inherited opts so fzf filters
+			-- against the whole entry.
+			["--nth"] = false,
+			["--delimiter"] = false,
 		},
 		actions = {
 			enter = function(selected)
