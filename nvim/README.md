@@ -181,9 +181,6 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `<leader>f.` | Resume last picker |
 | `<leader>ff` | Find files |
 | `<leader>fF` | VCS files |
-| `<leader>fg` | Live grep (rg) |
-| `<leader>f/` | Resume live grep |
-| `<leader>fG` | Git grep |
 | `<leader>fb` | Buffers |
 | `<leader>fB` | Tmux clipboard |
 | `<leader>fc` | Commands |
@@ -197,19 +194,23 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `<leader>f,` | Registers |
 | `<leader>fq` | Quickfix |
 | `<leader>fQ` | Location list |
-| `<leader>fw` | Grep word under cursor |
 | `<leader>fz` | Zoxide recent directories (open in Oil) |
 | `<leader>fd` | Document diagnostics |
 | `<leader>fD` | Workspace diagnostics |
 | `<leader>fs` | Document symbols |
 | `<leader>fS` | Workspace symbols |
-| `<leader>fr` | Search & replace (grep → quickfix) |
-| `<leader>fR` | Replace in quickfix files |
-| `<leader>ft` | Grep TODO/FIX (cwd) |
-| `<leader>fT` | Grep TODO/FIX (project root or buffer dir) |
-| `<leader>fv` | Semantic search (vecgrep) |
-| `<leader>fV` | Live semantic search |
-| `<leader>fX` | Reindex vecgrep |
+| **Search (`<leader>s`)** | |
+| `<leader>sg` | Live grep (rg) |
+| `<leader>s/` | Resume live grep |
+| `<leader>sG` | Git grep |
+| `<leader>sw` | Grep word under cursor |
+| `<leader>st` | Grep TODO/FIX (buffer dir) |
+| `<leader>sT` | Grep TODO/FIX (repo root) |
+| `<leader>sr` | Search & replace (grep → quickfix → `cfdo`) |
+| `<leader>sR` | Replace in quickfix files |
+| `<leader>sv` | Semantic search (vecgrep, normal+visual) |
+| `<leader>sV` | Live semantic search |
+| `<leader>sX` | Reindex vecgrep |
 | **Code (`<leader>c`)** | |
 | `<leader>ca` | Code actions |
 | `<leader>cr` | Rename |

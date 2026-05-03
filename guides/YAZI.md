@@ -198,6 +198,29 @@ experience, and named VFS services for `bubba` and `pizero2`.
 Mental model: Yazi is a fast async file-control plane. Navigate, select a set,
 run an operation, let it continue in the background, and keep moving.
 
+It also fills a deliberate gap in Neovim. There is *no* file tree plugin in
+nvim here — Yazi is the general-purpose file tree for the whole setup, and
+`oil.nvim` is the in-buffer file editor for the cases where Yazi's modal flow
+gets in the way. They complement each other rather than overlap:
+
+- **Yazi for navigation.** Tree-style browsing, jumping by zoxide (`z`), fzf
+  jump (`Z`), fd / ripgrep search (`s` / `S`), tabs, previews, and async copy /
+  move tasks all happen here. With `cd`-on-quit wired up via the shell
+  integration, exploring in Yazi and dropping back into the right cwd is
+  faster than any in-editor tree.
+- **`oil.nvim` for bulk edits.** When the operation is *rename a pile of files
+  by editing text*, oil wins: the directory is a normal buffer, so `:s///`,
+  visual-block edits, macros, and undo all just work. Save the buffer and oil
+  applies the renames / moves / deletes. Hit `-` in nvim to pop into oil for
+  the current directory.
+- **Shared zoxide glue.** `<leader>fz` in nvim is a zoxide picker that opens
+  the chosen directory in oil, mirroring Yazi's `z`. Same mental model ("jump
+  by frecency"), two surfaces depending on whether you want a full file
+  manager or an editable directory buffer.
+
+Rule of thumb: *navigate, preview, and run shell-y bulk ops in Yazi; rename
+or restructure by editing text in oil.*
+
 ```quiz
 [[questions]]
 q = "Which statement best matches Yazi's value in this setup?"
@@ -228,4 +251,24 @@ options = [
 ]
 answer = 0
 why = "That is exactly why the task manager and background worker model are worth learning."
+
+[[questions]]
+q = "Why is there no file tree plugin inside Neovim in this setup?"
+options = [
+  "Neovim doesn't support tree plugins",
+  "Yazi is the general-purpose file tree for the whole setup; nvim stays focused on buffers",
+  "The author dislikes file managers in general",
+]
+answer = 1
+why = "Yazi covers tree-style navigation with zoxide, fzf, search, tabs, and previews, so nvim doesn't need its own tree."
+
+[[questions]]
+q = "Which tool is the preferred home for bulk rename / move / delete by editing text?"
+options = [
+  "Yazi's `r` rename flow",
+  "`oil.nvim`, because the directory is an editable buffer with full Vim editing power",
+  "A separate shell script per operation",
+]
+answer = 1
+why = "Yazi can rename, but oil turns the directory into a buffer, so `:s///`, visual-block, macros, and undo apply directly to filenames."
 ```
