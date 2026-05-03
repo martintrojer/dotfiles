@@ -91,6 +91,7 @@ two dedicated binds cover the difference between *pulling* a pane out and
 - `prefix`+`r` — cycle pane width through 1/3 → 1/2 → 2/3
 - `prefix`+`!` — pull the current pane out into a new one-pane window
 - `prefix`+`M` — choose a target window/pane and insert this pane there as a split
+- `Ctrl`+`h` / `Ctrl`+`j` / `Ctrl`+`k` / `Ctrl`+`l` — focus the pane left / down / up / right (no prefix) via `christoomey/vim-tmux-navigator`. The same chord steps between Neovim splits *and* tmux panes seamlessly: hopping out of an `nvim` window into the next tmux pane (or back in) uses one motion, with no prefix and no mental mode-switch.
 
 ```quiz
 [[questions]]
@@ -110,6 +111,16 @@ q = "Which binding cycles pane width between 1/3, 1/2, and 2/3?"
 options = ["`prefix`+`R`", "`prefix`+`r`", "`prefix`+`|`"]
 answer = 1
 why = "Lowercase `r` is the resize-cycle binding."
+
+[[questions]]
+q = "How do you move focus between a Neovim split and the next tmux pane?"
+options = [
+  "`prefix`+arrow, then repeat from inside Neovim with `Ctrl`+`w` motions",
+  "`Ctrl`+`h/j/k/l` (no prefix) — `vim-tmux-navigator` makes one chord work across nvim splits and tmux panes",
+  "You have to leave Neovim first; tmux can't see nvim splits",
+]
+answer = 1
+why = "`christoomey/vim-tmux-navigator` bridges nvim and tmux so `Ctrl`+`h/j/k/l` flows seamlessly into and out of nvim panes without the prefix."
 ```
 
 ## Pickers and overlays
