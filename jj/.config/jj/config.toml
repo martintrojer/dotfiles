@@ -6,6 +6,7 @@ email = "martin.trojer@gmail.com"
 
 [ui]
 default-command = "log"
+diff-formatter = ":git"  # standard git unified diff for jj diff/jj show/etc.
 
 [aliases]
 # Moves the bookmark from its current head to the latest non-empty ancestor of @
