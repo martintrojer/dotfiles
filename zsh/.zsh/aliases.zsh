@@ -3,11 +3,19 @@ alias ls='eza --icons=auto'
 alias ll='eza -l --icons=auto --group-directories-first'
 alias lla='eza -la --icons=auto --group-directories-first'
 alias la='eza -a --icons=auto --group-directories-first'
-alias lt='eza -a --icons=auto --tree -L 3'
-alias llt='eza -la --icons=auto --tree -L 3'
+# Noise dirs to hide in `lt*` tree views.
+# VCS:    .git .hg .jj .svn
+# OS:     .DS_Store
+# Python: .venv venv __pycache__ *.egg-info .eggs .ruff_cache .mypy_cache .pytest_cache .tox htmlcov
+# Node:   node_modules .next .nuxt .svelte-kit .turbo .parcel-cache coverage
+# Rust:   target
+# Misc:   dist build .cache .direnv .idea
+_EZA_TREE_IGNORE='.git|.hg|.jj|.svn|.DS_Store|node_modules|__pycache__|.venv|venv|*.egg-info|.eggs|.ruff_cache|.mypy_cache|.pytest_cache|.tox|htmlcov|coverage|target|dist|build|.cache|.next|.nuxt|.svelte-kit|.turbo|.parcel-cache|.direnv|.idea'
+alias lt='eza -a --icons=auto --tree -L 3 -I $_EZA_TREE_IGNORE'
+alias llt='eza -la --icons=auto --tree -L 3 -I $_EZA_TREE_IGNORE'
 # Tree-list depth presets.
-alias lt5='eza -a --icons=auto --tree -L 5'
-alias llt5='eza -la --icons=auto --tree -L 5'
+alias lt5='eza -a --icons=auto --tree -L 5 -I $_EZA_TREE_IGNORE'
+alias llt5='eza -la --icons=auto --tree -L 5 -I $_EZA_TREE_IGNORE'
 alias l='eza -lahG --icons=auto --no-permissions --no-user'
 
 # General aliases
