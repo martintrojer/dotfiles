@@ -264,6 +264,12 @@ lifecycle.
 - inside the `tms` picker: `Ctrl`+`c` filters to configured sessions only;
   `Ctrl`+`t` shows live tmux sessions; `Ctrl`+`x` shows zoxide entries;
   `Ctrl`+`f` runs the fallback `fd` scan
+- fzf defaults to `--exact` (literal substring match); prefix a query
+  token with `'` to opt back into fuzzy matching for that token. Set
+  `fzf_exact = false` in `tms.toml` to turn the toggle off globally.
+- `live_session_threshold = N` in `tms.toml` opens the picker on the live
+  view instead of the merged view when there are >= N live tmux sessions;
+  default `0` keeps the previous always-merged behavior
 - `./dotfiles-sync --apply` only clones TPM itself at a pinned ref
 - `prefix`+`I` — install plugin entries (TPM)
 - `prefix`+`U` — update plugins
