@@ -42,7 +42,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
     (
         "darwin",
         ROOT,
-        ("hammerspoon",),
+        ("ghostty", "hammerspoon"),
     ),
     (
         "darwin",

@@ -228,7 +228,7 @@ why = "`RPROMPT` shows a failure marker instead of hiding the last command state
 
 [[questions]]
 q = "Which `TERM` value is forced inside toolbox containers?"
-options = ["`screen-256color`", "`ghostty`", "`xterm-256color`"]
+options = ["`screen-256color`", "`alacritty`", "`xterm-256color`"]
 answer = 2
 why = "Toolbox lacks host terminfo entries often enough that the config forces `xterm-256color` there."
 
