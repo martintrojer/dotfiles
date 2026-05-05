@@ -10,7 +10,7 @@ if [[ -z "$TMUX" ]] && ! infocmp "$TERM" &>/dev/null; then
   export TERM=xterm-256color
 fi
 
-# Toolbox containers often lack the host's terminfo entry (ghostty,
+# Toolbox containers often lack the host's terminfo entry (alacritty,
 # tmux-256color, ...). Force a known-good value inside toolbox.
 if [[ -f /run/.toolboxenv ]]; then
   export TERM=xterm-256color
