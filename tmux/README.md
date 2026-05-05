@@ -103,6 +103,7 @@ Example:
 ```toml
 find_max_depth = 2
 preview_command = "eza --all --git --icons --color=always {path}"
+live_session_threshold = 5
 blacklist = [".cache", ".codex", ".config", ".local", "Library", "tmp"]
 noisy_basenames = ["node_modules", "dependencies", "docker", "examples", "m4", "opam", "scripts", "website", "target", "dist", "build", ".git"]
 
@@ -131,6 +132,8 @@ Notes:
 - `startup` runs in the original first pane. If that session has a split configured, the extra pane is created afterwards and starts empty.
 - `Ctrl-c` filters the picker down to configured sessions only.
 - `Ctrl-t` shows live tmux sessions, `Ctrl-x` shows `zoxide`, and `Ctrl-f` runs the fallback `fd` scan.
+- `live_session_threshold` (optional, default `0` = off): when the picker is launched in the default `all` view, auto-switch the *initial* view to live tmux sessions if at least this many are running. The `^a/^c/^t/^x/^f` reload binds are unchanged, so `^a` still pulls up the merged view.
+- `fzf_exact` (optional bool, default `true`): pass `--exact` to fzf so query tokens match as literal substrings instead of fzf's default scattered-character fuzzy. Prefix a token with `'` to opt back into fuzzy for that one token (e.g. `'dotf`). Set to `false` for classic fuzzy.
 
 ## Using tmux-fingers-rs
 

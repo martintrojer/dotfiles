@@ -65,6 +65,17 @@ class TmsConfig:
     noisy_basenames: frozenset[str]
     find_max_depth: int
     preview_command: str
+    # When the picker is launched in `all` mode and the number of live tmux
+    # sessions is >= this threshold, the initial view auto-switches to `tmux`
+    # (live sessions only). 0 disables the auto-switch. The fzf reload binds
+    # (^a/^c/^t/^x/^f) are unaffected; the user can still pull up the merged
+    # view with ^a after the picker is open.
+    live_session_threshold: int = 0
+    # Pass `--exact` to fzf so query tokens match as literal substrings
+    # instead of fzf's default scattered-character fuzzy. Prefix a token
+    # with `'` to escape back to fuzzy for that token. Default true keeps
+    # the strict behavior; flip to false in `tms.toml` for classic fuzzy.
+    fzf_exact: bool = True
 
 
 # Picker-row schema. The first field is the rendered (ANSI-styled) display
@@ -361,6 +372,8 @@ def load_config() -> TmsConfig:
     find_max_depth = data["find_max_depth"]
     preview_command = data["preview_command"]
     sessions = data.get("sessions", [])
+    live_session_threshold = data.get("live_session_threshold", 0)
+    fzf_exact = data.get("fzf_exact", True)
     if not isinstance(find_max_depth, int) or find_max_depth < 0:
         raise ConfigError(
             f"{CONFIG_PATH}: find_max_depth must be a non-negative integer"
@@ -369,6 +382,16 @@ def load_config() -> TmsConfig:
         raise ConfigError(f"{CONFIG_PATH}: preview_command must be a non-empty string")
     if not isinstance(sessions, list):
         raise ConfigError(f"{CONFIG_PATH}: sessions must be an array")
+    if (
+        not isinstance(live_session_threshold, int)
+        or isinstance(live_session_threshold, bool)
+        or live_session_threshold < 0
+    ):
+        raise ConfigError(
+            f"{CONFIG_PATH}: live_session_threshold must be a non-negative integer"
+        )
+    if not isinstance(fzf_exact, bool):
+        raise ConfigError(f"{CONFIG_PATH}: fzf_exact must be a boolean")
 
     out: list[SessionConfig] = []
     for session in sessions:
@@ -396,7 +419,27 @@ def load_config() -> TmsConfig:
         noisy_basenames=frozenset(noisy_basenames),
         find_max_depth=find_max_depth,
         preview_command=preview_command,
+        live_session_threshold=live_session_threshold,
+        fzf_exact=fzf_exact,
     )
+
+
+def effective_initial_mode(mode: str) -> str:
+    """Resolve the picker's *opening* mode, applying the live-session threshold.
+
+    Only `all` (the default landing view) is eligible for auto-switching; if
+    the caller explicitly asked for a specific mode we honor it. The threshold
+    is read from config and 0 disables the behavior. fzf's reload binds use
+    the original mode strings, so `^a` still pulls up the merged view.
+    """
+    if mode != "all":
+        return mode
+    threshold = load_config().live_session_threshold
+    if threshold <= 0:
+        return mode
+    if len(list_tmux_sessions()) >= threshold:
+        return "tmux"
+    return mode
 
 
 def attention_counts() -> dict[str, int]:
@@ -646,12 +689,23 @@ def print_entries(mode: str) -> int:
 
 
 def _fzf_command(mode: str) -> list[str]:
-    return [
+    cmd = [
         "fzf",
         "--layout=reverse",
         "--border=rounded",
-        "--no-sort",
         "--ansi",
+        # Match only the visible display column (field 1), not the payload
+        # fields tacked on for the consumer (kind/session/path/startup/split).
+        # Otherwise typing `dotfiles` would also match every row whose path
+        # happens to contain the word.
+        "--nth",
+        "1",
+        # `begin` ranks earlier match positions higher: query `notes` puts
+        # `notes` (pos 0) above `my-notes` (pos 3). `index` is the empty-query
+        # fallback: with no scoring signal it preserves the input grouping
+        # (pinned -> live -> zoxide -> find) we hand to fzf.
+        "--tiebreak",
+        "begin,index",
         "--color",
         f"bg:{CATPPUCCIN['base']},bg+:{CATPPUCCIN['surface0']},fg:{CATPPUCCIN['text']},fg+:{CATPPUCCIN['text']},hl:{CATPPUCCIN['sky']},hl+:{CATPPUCCIN['sky']},border:{CATPPUCCIN['overlay0']},gutter:{CATPPUCCIN['base']},header:{CATPPUCCIN['subtext0']},info:{CATPPUCCIN['overlay0']},prompt:{CATPPUCCIN['lavender']},pointer:{CATPPUCCIN['peach']},marker:{CATPPUCCIN['peach']},spinner:{CATPPUCCIN['sky']},label:{CATPPUCCIN['subtext0']},query:{CATPPUCCIN['text']},preview-bg:{CATPPUCCIN['base']},preview-border:{CATPPUCCIN['overlay0']}",
         "--delimiter",
@@ -681,9 +735,17 @@ def _fzf_command(mode: str) -> list[str]:
         "--preview",
         f"{sh_quote(sys.argv[0])} preview --kind {{2}} --session-name {{3}} --path {{4}} --split {{6}}",
     ]
+    if load_config().fzf_exact:
+        # Substring (literal) matching only. Prefix a token with `'` to opt
+        # back into fuzzy for that token. Inserted right after the base flags
+        # so the rest of the command (binds, preview) is unaffected by the
+        # config toggle.
+        cmd.insert(4, "--exact")
+    return cmd
 
 
 def fzf(mode: str = "all") -> int:
+    mode = effective_initial_mode(mode)
     entries = "\n".join(entry.to_fzf_row() for entry in build_entries(mode))
     proc = subprocess.run(_fzf_command(mode), input=entries, text=True)
     return proc.returncode
@@ -695,6 +757,7 @@ def pick_and_connect(mode: str = "all") -> int:
     fzf writes its UI to /dev/tty when stdout is captured, so the picker
     still renders interactively while we keep the selection in-process.
     """
+    mode = effective_initial_mode(mode)
     entries = "\n".join(entry.to_fzf_row() for entry in build_entries(mode))
     proc = subprocess.run(
         _fzf_command(mode), input=entries, text=True, capture_output=True

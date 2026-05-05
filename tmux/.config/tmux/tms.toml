@@ -1,5 +1,7 @@
 find_max_depth = 2
 preview_command = "eza --all --git --icons --color=always {path}"
+live_session_threshold = 5
+fzf_exact = false
 blacklist = [".cache", ".codex", ".config", ".local", "Library", "tmp"]
 noisy_basenames = [
   "node_modules",
