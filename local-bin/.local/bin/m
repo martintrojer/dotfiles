@@ -3,7 +3,8 @@
 
 Why this exists
 ---------------
-Two glow quirks make the obvious one-liner not work:
+Three glow quirks make the obvious one-liner not work, plus one
+upstream renderer limitation:
 
 1. **Pager regression in glow 2.x.** `glow -p` (its built-in pager) is
    sluggish on long files. We render once and page with `less -R` for
@@ -19,8 +20,19 @@ Two glow quirks make the obvious one-liner not work:
    terminfo entries are on termenv's "supports color queries" list, so
    termenv emits OSC 10/11 background-color queries on startup and waits
    for a response. The pty slave has nobody to answer, so glow hangs.
-   `tmux-256color` and `screen-256color` are not on that list \u2014 termenv
+   `tmux-256color` and `screen-256color` are not on that list — termenv
    skips the query but still emits truecolor. So we override TERM here.
+
+4. **No paragraph reflow in glamour (glow's renderer).** Every source
+   newline is treated as a hard break, so hard-wrapped paragraphs ignore
+   `-w` entirely. We pre-process the file with `prettier --prose-wrap=never`
+   when prettier is on PATH, which collapses soft-wrapped paragraphs into
+   single lines while leaving tables, code fences and lists intact. Glow
+   then has something to wrap. Falls back to the raw file when prettier
+   is missing or returns non-zero. Pass `--raw` (or use the `mr` alias
+   = `m --raw`) to skip the prettier pass while keeping the rest of
+   `m`'s rendering pipeline (custom style, less paging, truecolor pty,
+   TERM override).
 
 The previous incarnation of this lived as an inline `python3 -c` blob
 inside zsh's `m()` function. Same code, but inline-in-shell violates
@@ -29,15 +41,18 @@ inside zsh's `m()` function. Same code, but inline-in-shell violates
 
 from __future__ import annotations
 
+import contextlib
 import os
 import pty
 import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 GLOW_STYLE = Path.home() / ".config" / "glow" / "catppuccin-mocha.json"
+MARKDOWN_EXTS = frozenset({".md", ".markdown", ".mdown", ".mkd", ".mdx"})
 
 
 def terminal_width(default: int = 100) -> int:
@@ -75,13 +90,87 @@ def render_with_pty(argv: list[str]) -> int:
     return 1
 
 
+def reflow_with_prettier(src: Path) -> Path | None:
+    """Run prettier with paragraph-reflow settings; return a tempfile path or None.
+
+    None means "don't reflow, just hand the original file to glow" — either
+    prettier isn't installed, or it failed (e.g. malformed front matter).
+    The tempfile is `.md`-suffixed and lives **next to the source file**
+    (dot-prefixed so it stays out of ls/eza/git noise) so glow resolves
+    relative markdown links against the source's directory rather than
+    `$TMPDIR`. Without this, every `[doc](other.md)` would render as
+    `/tmp/m-reflow-XXXX/other.md` since glow always rewrites relative
+    links to absolute paths from the input file's parent dir.
+
+    Falls back to the system temp dir if the source's directory isn't
+    writable (system docs, read-only mounts). The link-resolution win is
+    lost in that case but rendering still works. The caller owns deletion.
+    """
+    if shutil.which("prettier") is None:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                "prettier",
+                "--prose-wrap=never",
+                "--parser=markdown",
+                str(src),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0 or not result.stdout:
+        return None
+    try:
+        fd, path = tempfile.mkstemp(
+            suffix=".md", prefix=".m-reflow-", dir=str(src.parent)
+        )
+    except OSError:
+        # Source dir not writable; fall back to $TMPDIR. Links will resolve
+        # against /tmp instead of the source dir, which is wrong but better
+        # than refusing to render.
+        try:
+            fd, path = tempfile.mkstemp(suffix=".md", prefix="m-reflow-")
+        except OSError:
+            return None
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(result.stdout)
+    except OSError:
+        os.unlink(path)
+        return None
+    return Path(path)
+
+
 def main(argv: list[str]) -> int:
     # Inherit SIGPIPE default so closing `less` early doesn't print a traceback.
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
-    if not argv:
-        print("usage: m <file.md> [glow-args...]", file=sys.stderr)
+    # `--raw` skips the prettier reflow pass but keeps everything else
+    # (style, less paging, pty, TERM override). Stripped from argv before
+    # the rest is forwarded to glow as-is. The `mr` shell alias is just
+    # `m --raw`. Accept the flag anywhere in argv rather than only first
+    # so users don't have to remember its position.
+    raw = "--raw" in argv
+    forwarded = [a for a in argv if a != "--raw"]
+    if not forwarded:
+        print("usage: m [--raw] <file.md> [glow-args...]", file=sys.stderr)
         return 2
+
+    # Only the first remaining positional is treated as the input; the
+    # rest pass through to glow.
+    target, *extra = forwarded
+    target_path = Path(target)
+    reflowed: Path | None = None
+    if (
+        not raw
+        and target_path.is_file()
+        and target_path.suffix.lower() in MARKDOWN_EXTS
+    ):
+        reflowed = reflow_with_prettier(target_path)
 
     glow_cmd = [
         "glow",
@@ -89,7 +178,8 @@ def main(argv: list[str]) -> int:
         str(GLOW_STYLE),
         "-w",
         str(terminal_width()),
-        *argv,
+        str(reflowed) if reflowed else target,
+        *extra,
     ]
 
     # See module docstring for the TERM override rationale.
@@ -141,6 +231,10 @@ def main(argv: list[str]) -> int:
             break
         except KeyboardInterrupt:
             continue
+
+    if reflowed is not None:
+        with contextlib.suppress(OSError):
+            reflowed.unlink()
     return rc
 
 

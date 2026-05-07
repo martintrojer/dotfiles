@@ -40,3 +40,10 @@ fi
 
 # Common `less` misspelling (the only one with history hits).
 alias elss='less'
+
+# `m` (local-bin/.local/bin/m) wraps glow with a prettier prose-reflow pass
+# so hard-wrapped paragraphs reflow to the current width. `mr` ("m raw") is
+# the bypass: same `m` pipeline (style, less paging, truecolor pty, TERM
+# override) minus the prettier preprocessing, for when prettier mangles a
+# file or you want to see the source layout untouched.
+alias mr='m --raw'
