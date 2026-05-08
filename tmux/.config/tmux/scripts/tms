@@ -886,17 +886,30 @@ def connect(target: str) -> int:
 
 
 def last() -> int:
+    # `tms last` is typically bound to a hotkey (prefix-L). When the
+    # last-known session has been killed, the right behavior is a silent
+    # no-op — not respawning a configured session from scratch (which is
+    # what `connect()` would do for a configured name) and not erroring
+    # with "No such session or path" for an unconfigured one.
+    #
+    # We collect both pointers (tmux's client_last_session, then our own
+    # LAST_FILE) and switch to the first that's still live. If none are,
+    # exit 0 without output.
+    candidates: list[str] = []
     result = tmux_cmd("display-message", "-p", "#{client_last_session}", check=False)
     if result.returncode == 0:
-        target = result.stdout.strip()
-        if target:
-            return connect(target)
+        name = result.stdout.strip()
+        if name:
+            candidates.append(name)
     if LAST_FILE.exists():
-        target = LAST_FILE.read_text().strip()
-        if target:
-            return connect(target)
-    print("No last session recorded", file=sys.stderr)
-    return 1
+        name = LAST_FILE.read_text().strip()
+        if name and name not in candidates:
+            candidates.append(name)
+    for name in candidates:
+        if tmux_session_exists(name):
+            switch_or_attach(name)
+            return 0
+    return 0
 
 
 def main(argv: Iterable[str] | None = None) -> int:
