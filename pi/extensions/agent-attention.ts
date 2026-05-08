@@ -25,6 +25,10 @@ function notify(eventType: string, message: string) {
 
 export default function (pi: ExtensionAPI) {
 	pi.on("agent_end", async () => {
+		// mu-spawned worker panes set MU_MANAGED_AGENT=1 in their env. The
+		// orchestrator (mu CLI / status segment) is the attention surface for
+		// those workers, so they must stay silent — no badge, no toast, no OSC.
+		if (process.env.MU_MANAGED_AGENT === "1") return;
 		notify("agent_end", "Waiting for input");
 	});
 }
