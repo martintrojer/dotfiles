@@ -14,12 +14,13 @@ set $blue #89b4fa
 set $lavender #b4befe
 set $text #cdd6f4
 set $subtext0 #a6adc8
+set $surface2 #585b70
 set $surface0 #313244
 set $overlay0 #6c7086
 set $base #1e1e2e
 set $mantle #181825
 
-font pango:JetBrains Mono Nerd Font Bold 11
+font pango:JetBrains Mono Nerd Font Bold 10
 
 input * {
     xkb_layout us
@@ -47,16 +48,19 @@ floating_modifier $mod normal
 
 default_border pixel 2
 default_floating_border pixel 2
+titlebar_padding 6 3
 hide_edge_borders smart_no_gaps
 gaps inner 4
 gaps outer 0
 smart_gaps on
 
-client.focused          $blue     $base $text     $lavender $blue
-client.focused_inactive $surface0 $base $subtext0 $surface0 $surface0
-client.unfocused        $mantle   $base $overlay0 $mantle   $mantle
-client.urgent           $red      $base $text     $red      $red
-client.placeholder      $mantle   $base $text     $mantle   $mantle
+# Keep the active tab filled even when focus is inside a split nested under it;
+# the leaf window remains distinguishable by its blue child border.
+client.focused          $surface2 $surface2 $lavender $surface2 $mauve
+client.focused_inactive $surface2 $surface2 $lavender $surface2 $surface0
+client.unfocused        $mantle   $mantle  $overlay0 $mantle   $mantle
+client.urgent           $red      $red     $text     $red      $red
+client.placeholder      $mantle   $mantle  $text     $mantle   $mantle
 client.background       $base
 
 for_window [title="^Picture in picture$"] floating enable, sticky enable, border pixel 2

@@ -1,11 +1,13 @@
 /* Catppuccin Mocha */
-@define-color darkgrey #6c7086;
-@define-color white    #cdd6f4;
-@define-color warning  #f38ba8;
-@define-color indigo1  #585b70;
-@define-color indigo2  rgba(30, 30, 46, 0.5);
-@define-color indigo3  rgba(30, 30, 46, 1.0);
-@define-color resize   #94e2d5;
+@define-color red      #f38ba8;
+@define-color lavender #b4befe;
+@define-color mauve    #cba6f7;
+@define-color teal     #94e2d5;
+@define-color text     #cdd6f4;
+@define-color overlay0 #6c7086;
+@define-color surface2 #585b70;
+@define-color base     #1e1e2e;
+@define-color base50   rgba(30, 30, 46, 0.5);
 
 /* Reset all styles */
 * {
@@ -33,21 +35,21 @@
 /* Keyframes for 1st bar criticals */
 @keyframes blink-critical-text {
 	to {
-		color: @warning;
+		color: @red;
 	}
 }
 
 /* Keyframes for 1st bar modifiers */
 @keyframes blink-modifier-text {
 	to {
-		color: @resize;
+		color: @teal;
 	}
 }
 
 /* The Main bar */
 #waybar.first {
-	background: @indigo2;
-	color: @white;
+	background: @base50;
+	color: @text;
 	font-family: JetBrains Mono Nerd Font;
 	font-size: 12pt;
 	font-weight: bold;
@@ -81,23 +83,23 @@
 	padding-right: 8pt;
 	margin-bottom: 3px;
 	background: transparent;
-	color: @white;
+	color: @text;
 }
 
 #waybar.first #network.info {
 	padding-right: 10px;
 	padding-left: 10px;
-	color: @warning;
+	color: @red;
 }
 
 #waybar.first #network.info.wifi.normal,
 #waybar.first #network.info.ethernet {
-	color: @white;
+	color: @text;
 	padding-right: 15px;
 }
 
 #waybar.first #network.info.wifi {
-	color: @warning;
+	color: @red;
 	padding-right: 15px;
 }
 
@@ -109,7 +111,7 @@
 #waybar.first #cpu.critical,
 #waybar.first #temperature.critical,
 #waybar.first #battery.critical.discharging {
-	color: @white;
+	color: @text;
 	animation-iteration-count: infinite;
 	animation-direction: alternate;
 	animation-name: blink-critical-text;
@@ -119,7 +121,7 @@
 
 #waybar.first #mode,
 #waybar.first #submap.RESIZE {
-	color: @white;
+	color: @text;
 	animation-iteration-count: infinite;
 	animation-direction: alternate;
 	animation-name: blink-modifier-text;
@@ -131,14 +133,14 @@
 #waybar.first #pulseaudio.output.muted,
 #waybar.first #pulseaudio.input.source-muted,
 #waybar.first #battery.warning.discharging {
-	color: @warning;
+	color: @red;
 }
 
 /* And now modules themselves in their respective order */
 
 /* Default workspace settings */
 #waybar.first #workspaces button {
-	color: @darkgrey;
+	color: @overlay0;
 	background: transparent;
 	font-size: 18px;
 	padding-left: 3pt;
@@ -153,24 +155,24 @@
 
 /* Inactive (on unfocused output) & Active (on focused output) */
 #waybar.first #workspaces button.visible {
-	color: @white;
-	background: @indigo1;
+	color: @text;
+	background: @surface2;
 }
 
 /* Workspace states */
 #waybar.first #workspaces button.active {
-	color: @white;
-	background: @indigo1;
+	color: @text;
+	background: @surface2;
 }
 
 #waybar.first #workspaces button.focused {
-	color: @white;
-	background: @indigo1;
+	color: @text;
+	background: @surface2;
 }
 
 /* Style when cursor is on the button */
 #waybar.first #workspaces button:hover {
-	color: @white;
+	color: @text;
 }
 
 /* Custom slashes as spacers */
@@ -178,13 +180,13 @@
 #waybar.first #custom-spacer2,
 #waybar.first #custom-spacer3 {
 	font-size: 12pt;
-	color: @darkgrey;
+	color: @overlay0;
 	background: transparent;
 }
 
 /* Tooltip recolor */
 tooltip {
-	background: @indigo3;
-	border: 3px solid @indigo1;
+	background: @base;
+	border: 3px solid @surface2;
 	border-radius: 10px;
 }
