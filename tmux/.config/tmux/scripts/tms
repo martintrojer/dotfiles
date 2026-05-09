@@ -262,7 +262,10 @@ def header_text() -> str:
 
 
 def sanitize_session_part(part: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", part)
+    # tmux normalizes dots in session names to underscores, and dotted target
+    # names are parsed as window/pane separators. Generate the normalized form
+    # ourselves so create and attach paths agree.
+    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "-", part.replace(".", "_"))
     return re.sub(r"-+", "-", cleaned).strip("-")
 
 
