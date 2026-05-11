@@ -355,7 +355,12 @@ local function newAlacrittyWindowHere()
 		hs.application.launchOrFocus("Alacritty")
 		return
 	end
-	hs.execute(string.format("alacritty msg --socket %q create-window", sock), true)
+	local cmd = string.format("alacritty msg --socket %q create-window 2>&1", sock)
+	local output, ok = hs.execute(cmd, true)
+	if not ok then
+		hs.alert.show("alacritty msg failed: " .. (output or "?"))
+		hs.application.launchOrFocus("Alacritty")
+	end
 end
 
 -- Hyper+T: focus an Alacritty window on the current Space if one exists
@@ -415,7 +420,8 @@ addHelp("Apps", "Y: Files/Finder (new window if frontmost)")
 hs.hotkey.bind(HYPER, "T", openOrNewAlacrittyWindow) -- T = Terminal
 addHelp("Apps", "T: Alacritty (new window if none on current Space)")
 hs.hotkey.bind(HYPER, "padenter", newAlacrittyWindowHere)
-addHelp("Apps", "PadEnter: New Alacritty window on current Space")
+hs.hotkey.bind(HYPER, "return", newAlacrittyWindowHere)
+addHelp("Apps", "Return / PadEnter: New Alacritty window on current Space")
 
 -- Focus window by direction (matches sway/yazi hjkl)
 local function focusDir(method)
