@@ -169,10 +169,11 @@ plain "focus the app" isn't enough.
 - `Hyper`+`B` — open the Browser, matching the sway launcher layer
 - `Hyper`+`Y` — focus Finder; if Finder is already frontmost, create a new
   Finder window on the current Space instead
-- `Hyper`+`PadEnter` — open a new Alacritty window on the current Space via
-  Alacritty's IPC socket (`alacritty msg create-window`), so it never swooshes
-  you to a Space holding an existing Alacritty window. Falls back to
-  `launchOrFocus` if Alacritty isn't running yet.
+- `Hyper`+`Return` (and `Hyper`+`PadEnter`) — open a new Alacritty window on
+  the current Space via Alacritty's IPC socket (`alacritty msg create-window`),
+  so it never swooshes you to a Space holding an existing Alacritty window.
+  Falls back to `launchOrFocus` if Alacritty isn't running, or if `alacritty
+  msg` fails (with an `hs.alert` showing the error).
 
 ```quiz
 [[questions]]
@@ -192,14 +193,14 @@ answer = 2
 why = "`Y` is the Finder/files special case."
 
 [[questions]]
-q = "What does `Hyper`+`PadEnter` do?"
+q = "What does `Hyper`+`Return` (or `PadEnter`) do?"
 options = [
   "Open a new Alacritty window on the current Space",
   "Resize the current window",
   "Accept the help overlay",
 ]
 answer = 0
-why = "`PadEnter` is reserved for creating a fresh Alacritty window on the current Space via IPC."
+why = "`Return`/`PadEnter` is reserved for creating a fresh Alacritty window on the current Space via IPC."
 ```
 
 ## Implementation details that matter
