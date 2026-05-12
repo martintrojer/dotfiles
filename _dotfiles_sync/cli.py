@@ -25,6 +25,7 @@ from .model import Args, PackageSpec
 from .pins import GITHUB_SLUG
 from .repo_checks import (
     check_package_coverage,
+    check_private_env_mistakes,
     check_repo_backlinks,
     prune_managed_ignored_artifact_links,
 )
@@ -137,6 +138,7 @@ def run_check_tasks(
 
     handlers: dict[str, Callable[[], bool]] = {
         "package-coverage": lambda: check_package_coverage(specs, ignore=ignore),
+        "private-env": lambda: check_private_env_mistakes(ignore=ignore),
         "zsh-plugins": lambda: check_zsh_plugins(
             target, verbose=verbose, ignore=ignore
         ),

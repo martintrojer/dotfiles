@@ -17,6 +17,7 @@ CONFLICT_RE: Final[re.Pattern[str]] = re.compile(
 
 CHECK_TASKS: Final[tuple[TaskPolicy, ...]] = (
     TaskPolicy("package-coverage", full_run_only=True),
+    TaskPolicy("private-env"),
     TaskPolicy("zsh-plugins", packages=frozenset({"zsh"})),
     TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
     TaskPolicy("agent-notify", full_run_only=True),
