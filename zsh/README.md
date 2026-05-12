@@ -15,6 +15,20 @@ For a browser-friendly walkthrough with quizzes, see [`../guides/ZSH.md`](../gui
 
 If you want the `tm` tmux helper, install `tmux`, `fzf`, `zoxide`, `fd`, and `eza` (the Fedora `base-packages.sh` covers these).
 
+## Local/private environment
+
+Keep machine-local secrets and private endpoints out of git by creating a real file in the stowed `~/.zsh/` directory, for example `~/.zsh/zz-local-env.zsh`:
+
+```zsh
+# ~/.zsh/zz-local-env.zsh
+export SERVICE_BASE_URL=https://example.internal/v1
+export SERVICE_API_KEY=...
+```
+
+`~/.zshrc` sources every `~/.zsh/*.zsh` file in lexical order, so new interactive shells pick this up automatically. Use a late name such as `zz-local-env.zsh` when the values should override repo-managed defaults. Keep permissions tight (`chmod 600 ~/.zsh/zz-local-env.zsh`). This is for programs launched from zsh; GUI apps or system services may need their own environment mechanism.
+
+Do not add these local files to `.gitignore`; the point is that they live outside the repo. `./dotfiles-sync --check` has a `private-env` guardrail that flags obvious mistakes in tracked package files, such as committed `*_API_KEY`, `*_TOKEN`, `*_SECRET`, or private `*_BASE_URL`/`*_ENDPOINT` assignments.
+
 ## Layout
 
 ```
