@@ -130,7 +130,7 @@ between its windows on the current Space.
 
 - `B` — Browser
 - `I` — IDE
-- `T` — Alacritty (Terminal)
+- `T` — Terminal: prefer Alacritty, fall back to Ghostty
 - `Y` — Finder / files
 - `M` — Music
 
@@ -139,10 +139,10 @@ directly.
 
 ```quiz
 [[questions]]
-q = "Which app key is mapped to Alacritty?"
+q = "Which app key is mapped to the terminal?"
 options = ["`G`", "`T`", "`PadEnter`"]
 answer = 1
-why = "`T` reads naturally as Terminal."
+why = "`T` reads naturally as Terminal. The config prefers Alacritty, then falls back to Ghostty on Macs without Alacritty."
 
 [[questions]]
 q = "What usually happens if you press an app key again while that app is already frontmost on the current Space?"
@@ -169,11 +169,12 @@ plain "focus the app" isn't enough.
 - `Hyper`+`B` — open the Browser, matching the sway launcher layer
 - `Hyper`+`Y` — focus Finder; if Finder is already frontmost, create a new
   Finder window on the current Space instead
-- `Hyper`+`Return` (and `Hyper`+`PadEnter`) — open a new Alacritty window on
-  the current Space via Alacritty's IPC socket (`alacritty msg create-window`),
-  so it never swooshes you to a Space holding an existing Alacritty window.
-  Falls back to `launchOrFocus` if Alacritty isn't running, or if `alacritty
-  msg` fails (with an `hs.alert` showing the error).
+- `Hyper`+`Return` (and `Hyper`+`PadEnter`) — open a new terminal window on
+  the current Space. Alacritty is tried first via its IPC socket (`alacritty
+  msg create-window`), so it never swooshes you to a Space holding an existing
+  Alacritty window. If Alacritty is absent, Ghostty is the fallback; Hammerspoon
+  uses app-local new-window behavior instead of generic Space-jumping focus
+  tricks.
 
 ```quiz
 [[questions]]
@@ -195,12 +196,12 @@ why = "`Y` is the Finder/files special case."
 [[questions]]
 q = "What does `Hyper`+`Return` (or `PadEnter`) do?"
 options = [
-  "Open a new Alacritty window on the current Space",
+  "Open a new terminal window on the current Space",
   "Resize the current window",
   "Accept the help overlay",
 ]
 answer = 0
-why = "`Return`/`PadEnter` is reserved for creating a fresh Alacritty window on the current Space via IPC."
+why = "`Return`/`PadEnter` is reserved for creating a fresh terminal window on the current Space: Alacritty first, Ghostty fallback."
 ```
 
 ## Implementation details that matter

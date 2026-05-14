@@ -4,6 +4,7 @@ local GAP = 4 -- pixels: gap between adjacent windows (no gap against screen edg
 local HYPER = { "shift", "cmd", "alt", "ctrl" }
 local BROWSER = { "Safari" } -- or { "Google Chrome", "Chrome" }
 local IDE = { "Visual Studio Code" }
+local TERMINAL = { "Alacritty", "Ghostty" }
 
 -- Layout units
 local UNITS = {
@@ -337,6 +338,20 @@ local function sendCmdN(app)
 	end)
 end
 
+local unavailableApps = {}
+
+local function launchFirstAvailableApp(appNames)
+	for _, appName in ipairs(appNames) do
+		if not unavailableApps[appName] then
+			if hs.application.launchOrFocus(appName) then
+				return true
+			end
+			unavailableApps[appName] = true
+		end
+	end
+	return false
+end
+
 local function alacrittySocket()
 	local app = hs.application.get("Alacritty")
 	if not app then
@@ -352,7 +367,7 @@ end
 local function newAlacrittyWindowHere()
 	local sock = alacrittySocket()
 	if not sock then
-		hs.application.launchOrFocus("Alacritty")
+		launchFirstAvailableApp(TERMINAL)
 		return
 	end
 	local cmd = string.format("alacritty msg --socket %q create-window 2>&1", sock)
@@ -363,25 +378,68 @@ local function newAlacrittyWindowHere()
 	end
 end
 
--- Hyper+T: focus an Alacritty window on the current Space if one exists
--- (cycling between them when frontmost), otherwise spawn a new window here
--- instead of jumping Spaces to an existing window elsewhere.
-local function openOrNewAlacrittyWindow()
-	local app = hs.application.get("Alacritty")
+-- Open a new Ghostty window on the CURRENT Space. open -na avoids activating
+-- an existing Ghostty window on another Space, which would make macOS swoosh
+-- there instead of opening a window here.
+local function newGhosttyWindowHere()
+	local app = hs.application.get("Ghostty")
 	if not app then
-		hs.application.launchOrFocus("Alacritty")
+		launchFirstAvailableApp({ "Ghostty" })
 		return
+	end
+	if app:isFrontmost() then
+		sendCmdN(app)
+		return
+	end
+
+	local output, ok = hs.execute('/usr/bin/open -na "Ghostty" 2>&1', true)
+	if not ok then
+		hs.alert.show("open Ghostty failed: " .. (output or "?"))
+		app:activate()
+	end
+end
+
+local function openOrNewAppWindowOnCurrentSpace(appName, appNames, newWindowFn)
+	local app = hs.application.get(appName)
+	if not app then
+		return false
 	end
 	local winsOnSpace = getAppWindowsOnCurrentSpace(app)
 	if app:isFrontmost() and #winsOnSpace > 0 then
-		cycleWindows(getWindowsOnCurrentSpace({ "Alacritty" }))
-		return
+		cycleWindows(getWindowsOnCurrentSpace(appNames))
+		return true
 	end
 	if #winsOnSpace > 0 then
 		winsOnSpace[1]:focus()
+		return true
+	end
+	newWindowFn()
+	return true
+end
+
+-- Hyper+T: prefer Alacritty, then Ghostty. Focus a terminal window on the
+-- current Space if one exists (cycling when frontmost), otherwise spawn a new
+-- window here instead of jumping Spaces to an existing window elsewhere.
+local function openOrNewTerminalWindow()
+	if openOrNewAppWindowOnCurrentSpace("Alacritty", { "Alacritty" }, newAlacrittyWindowHere) then
 		return
 	end
-	newAlacrittyWindowHere()
+	if openOrNewAppWindowOnCurrentSpace("Ghostty", { "Ghostty" }, newGhosttyWindowHere) then
+		return
+	end
+	launchFirstAvailableApp(TERMINAL)
+end
+
+local function newTerminalWindowHere()
+	if hs.application.get("Alacritty") then
+		newAlacrittyWindowHere()
+		return
+	end
+	if hs.application.get("Ghostty") then
+		newGhosttyWindowHere()
+		return
+	end
+	launchFirstAvailableApp(TERMINAL)
 end
 
 local function openOrNewFinderWindow()
@@ -417,11 +475,11 @@ bindApp("I", IDE, "IDE") -- I = IDE
 bindApp("M", { "Music" }, "Music") -- M = Music
 hs.hotkey.bind(HYPER, "Y", openOrNewFinderWindow) -- Y = files (yazi/Finder analogue)
 addHelp("Apps", "Y: Files/Finder (new window if frontmost)")
-hs.hotkey.bind(HYPER, "T", openOrNewAlacrittyWindow) -- T = Terminal
-addHelp("Apps", "T: Alacritty (new window if none on current Space)")
-hs.hotkey.bind(HYPER, "padenter", newAlacrittyWindowHere)
-hs.hotkey.bind(HYPER, "return", newAlacrittyWindowHere)
-addHelp("Apps", "Return / PadEnter: New Alacritty window on current Space")
+hs.hotkey.bind(HYPER, "T", openOrNewTerminalWindow) -- T = Terminal
+addHelp("Apps", "T: Terminal (Alacritty, fallback Ghostty)")
+hs.hotkey.bind(HYPER, "padenter", newTerminalWindowHere)
+hs.hotkey.bind(HYPER, "return", newTerminalWindowHere)
+addHelp("Apps", "Return / PadEnter: New terminal window on current Space")
 
 -- Focus window by direction (matches sway/yazi hjkl)
 local function focusDir(method)
