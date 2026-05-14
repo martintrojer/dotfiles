@@ -255,9 +255,27 @@ rm -rf ~/.config/niri
 
 ### 9. macOS-specific cleanup
 
-macOS machines should run items 1 through 6 above as relevant. Only the wallpaper/niri items are Linux-only no-ops on macOS. After the above, the Mac is current.
+macOS machines should run items 1 through 6 above as relevant. Only the wallpaper/niri items are Linux-only no-ops on macOS.
 
-Verify:
+Terminal policy on macOS is: **prefer Alacritty, tolerate Ghostty as fallback**. `dotfiles-sync --apply` stows both `alacritty` (common + Darwin overlay) and the small `ghostty` config on Darwin, because the active Macs are not perfectly uniform. Hammerspoon's terminal binds (`Hyper+T`, `Hyper+Return`, `Hyper+PadEnter`) try Alacritty first and fall back to Ghostty if Alacritty is absent.
+
+Verify terminal state:
+
+```bash
+cd ~/dotfiles && ./dotfiles-sync --check
+ls -l ~/.config/alacritty/alacritty.toml ~/.config/alacritty/os.toml 2>/dev/null
+ls -l ~/.config/ghostty/config 2>/dev/null
+```
+
+Expected policy:
+
+- New / primary Macs should install Alacritty and use that as the Hammerspoon target.
+- Machines that only have Ghostty should still be usable; the fallback is intentional.
+- Do not delete `ghostty/` just because a given Mac uses Alacritty — it is the compatibility config for mixed machines.
+
+After the above, the Mac is current.
+
+Verify overall sync:
 
 ```bash
 cd ~/dotfiles && ./dotfiles-sync --check
