@@ -101,6 +101,13 @@ util.buf_map("n", "<leader>tt", function()
 end, { desc = "Toggle todo" })
 
 ----------------------------------------------------------------------
+-- Read mode (glow-like)
+----------------------------------------------------------------------
+util.buf_map("n", "<leader>pr", function()
+	require("markdown_read_mode").toggle()
+end, { desc = "Toggle markdown read mode" })
+
+----------------------------------------------------------------------
 -- Writing Tools
 ----------------------------------------------------------------------
 local ts = require("timestamps")

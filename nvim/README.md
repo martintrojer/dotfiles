@@ -31,6 +31,7 @@ lua/
   history.lua                   — message and notification history viewers
   todos.lua                     — TODO grep + markdown todo toggle
   timestamps.lua                — elapsed time utility (markdown notes)
+  markdown_read_mode.lua        — glow-like read mode (window-scoped, follows links)
   async_run.lua                 — `:Sh` async shell with streaming output split
   git_diff.lua                  — side-by-side git diff helpers (used by `<leader>gD`)
   util.lua                      — shared helpers (VCS root detection, cwd helpers, etc.)
@@ -75,7 +76,7 @@ after/ftplugin/
 | fugitive-core.nvim | Shared VCS fugitive core | Own plugin. Common functionality extracted from jj-fugitive |
 | jj-fugitive | Jujutsu VCS power tool | Own plugin. Primary workflow here; git support stays intentionally lightweight |
 | redline.nvim | Inline review comments | Own plugin. Integrates with mini.git, `:DiffTool`, and jj-fugitive reviews |
-| render-markdown.nvim | In-buffer markdown rendering | Headings, code blocks, tables, checkboxes via treesitter. Heavy markdown user |
+| render-markdown.nvim | In-buffer markdown rendering | Headings, code blocks, tables, checkboxes via treesitter. Off by default; toggled per-buffer by `<leader>pr` (read mode) |
 | nabla.nvim | LaTeX formula popup preview (Unicode, no deps) |
 | zk-nvim | Zettelkasten notes | Creates, finds, links, navigates notes via zk CLI. Core daily workflow |
 | vecgrep.nvim | Semantic search | Own plugin. Local embeddings for meaning-based search, not just string matching |
@@ -235,6 +236,7 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `<leader>en` | Notification history |
 | **Markdown Preview (`<leader>p`)** | |
 | `<leader>pp` | LaTeX popup (markdown only) |
+| `<leader>pr` | Toggle markdown read mode (markdown only) |
 | **Markdown Tools (`<leader>t`)** | |
 | `<leader>tf` | Flash card (markdown only) |
 | `<leader>tt` | Toggle todo (markdown only) |

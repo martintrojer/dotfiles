@@ -62,7 +62,17 @@ require("oil").setup({
 	view_options = { show_hidden = true },
 })
 
-require("render-markdown").setup({ html = { enabled = false } })
+require("render-markdown").setup({
+	html = { enabled = false },
+	-- Disable link concealment: it triggers nvim's wrap+conceal layout
+	-- bug (phantom continuation rows for shortened links).
+	-- Tracked upstream: https://github.com/neovim/neovim/issues/14409
+	link = { enabled = false },
+	-- Off by default; toggled per-buffer by <leader>pr in markdown read mode.
+	enabled = false,
+	-- Don't un-prettify the cursor line; this is a reader, not an editor.
+	anti_conceal = { enabled = false },
+})
 require("jj-fugitive").setup({ default_command = "log", open_mode = "tab", ignore_immutable = true })
 require("redline").setup({ providers = { difftool = true, minigit = true } })
 require("zk").setup({ picker = "fzf_lua" })
