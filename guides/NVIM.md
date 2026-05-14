@@ -314,10 +314,12 @@ why = "Notification history is exposed on `<leader>en`."
 ## Notes & writing (`<leader>z`, `<leader>p`, `<leader>t`)
 
 Notes go through `zk-nvim` against `~/notes` (`vim.g.notes_path`).
-`render-markdown.nvim` is on by default, so headings, lists, and code fences
-render prettier in any markdown buffer with no toggle. The `<leader>p` and
-`<leader>t` namespaces are markdown-buffer-only (registered via
-`after/ftplugin/markdown.lua` and a buffer-local `mini.clue` group).
+`render-markdown.nvim` is **off by default** — markdown buffers stay raw and
+editable. `<leader>pr` toggles a glow-like read mode per window: it enables
+`render-markdown`, hides line numbers / signs, raises `conceallevel`, and
+makes the buffer read-only. The `<leader>p` and `<leader>t` namespaces are
+markdown-buffer-only (registered via `after/ftplugin/markdown.lua` and a
+buffer-local `mini.clue` group).
 
 **zk-nvim — notes (`<leader>z`)**
 
@@ -334,8 +336,13 @@ render prettier in any markdown buffer with no toggle. The `<leader>p` and
 
 - `<leader>pp` — `nabla.nvim` popup that renders inline LaTeX / math as
   Unicode ASCII art, no external tooling required
-- `render-markdown.nvim` is always on for headings, lists, code blocks, etc.;
-  `html` rendering is disabled to keep raw `<tag>`s visible
+- `<leader>pr` — toggle markdown read mode (window-scoped): turns on
+  `render-markdown` for headings/lists/code fences/checkboxes, hides UI
+  chrome, and locks the buffer read-only. Following a wikilink in the same
+  window keeps read mode active and re-locks the new buffer.
+- `render-markdown.nvim` defaults: `html` rendering disabled (raw `<tag>`s
+  stay visible), link concealment disabled (works around a wrap+conceal
+  layout bug), and `anti_conceal` disabled so the cursor line stays pretty
 
 **Markdown tools (`<leader>t`, markdown only)**
 
@@ -377,7 +384,7 @@ options = [
   "Toggles `render-markdown.nvim`",
 ]
 answer = 1
-why = "`nabla.nvim` renders math as ASCII art in a floating popup; `render-markdown` is always on for the rest."
+why = "`nabla.nvim` renders math as ASCII art in a floating popup; `<leader>pr` is the toggle for `render-markdown` read mode."
 ```
 
 ## Workflow extras
