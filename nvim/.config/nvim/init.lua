@@ -246,21 +246,4 @@ vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter" }, {
 	end,
 })
 
--- Format on save and trim trailing whitespace.
-vim.api.nvim_create_autocmd("BufWritePre", {
-	callback = function()
-		if not vim.bo.modifiable then
-			return
-		end
-		local bufnr = vim.api.nvim_get_current_buf()
-		local clients = vim.lsp.get_clients({ bufnr = bufnr })
-		for _, c in ipairs(clients) do
-			if c:supports_method("textDocument/formatting") then
-				vim.lsp.buf.format({ bufnr = bufnr, timeout_ms = 500 })
-				break
-			end
-		end
-		MiniTrailspace.trim()
-		MiniTrailspace.trim_last_lines()
-	end,
-})
+require("format_on_save").setup()

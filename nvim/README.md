@@ -34,10 +34,12 @@ lua/
   markdown_read_mode.lua        — glow-like read mode (window-scoped, follows links)
   async_run.lua                 — `:Sh` async shell with streaming output split
   git_diff.lua                  — side-by-side git diff helpers (used by `<leader>gD`)
+  format_on_save.lua            — LSP -> CLI fallback (prettier/stylua/shfmt) -> trim
+  markdown_read_mode.lua        — glow-like reader: render-markdown + lock + chrome off
   util.lua                      — shared helpers (VCS root detection, cwd helpers, etc.)
   lua_globals.lua               — lua-language-server globals list
 after/ftplugin/
-  markdown.lua                  — markdown-specific keymaps (nabla, zk link, cards, todos)
+  markdown.lua                  — markdown-specific keymaps (nabla, zk link, cards, todos, read mode)
 ```
 
 ## Plugins (13 vim.pack entries)
@@ -88,7 +90,7 @@ after/ftplugin/
 | LSP config | `vim.lsp.config()` + `vim.lsp.enable()` |
 | Completion | Built-in autocomplete (`vim.opt.autocomplete = true`) |
 | Commenting | Built-in `gc`/`gcc` |
-| Format on save | `BufWritePre` autocmd + `vim.lsp.buf.format()` + `MiniTrailspace.trim()` |
+| Format on save | `format_on_save.lua`: LSP if it formats, else CLI by filetype (prettier / stylua / shfmt), then `MiniTrailspace.trim()`. No conform/null-ls — keeps the "every plugin earns its place" rule |
 | Snippets | Built-in snippet engine |
 | Node selection | `v_an` / `v_in` |
 | URL open | `gx` |
@@ -106,6 +108,7 @@ brew install lua-language-server bash-language-server taplo uv
 brew install gopls
 brew install typescript-language-server vscode-langservers-extracted
 brew install typos-lsp vale rust-analyzer zk
+brew install prettier stylua shfmt   # format-on-save CLI fallbacks
 uv tool install ty ruff
 cargo install --git https://github.com/errata-ai/vale-ls
 ```
@@ -132,6 +135,9 @@ uv tool install ty ruff
 
 # LSP servers via cargo (needs rust above)
 cargo install --git https://github.com/errata-ai/vale-ls
+
+# Format-on-save CLI fallbacks (prettier/stylua/shfmt — see lua/format_on_save.lua)
+mise use npm:prettier cargo:stylua aqua:mvdan/sh
 ```
 
 For treesitter parser installs, `nvim-treesitter` also needs the `tree-sitter` CLI in
@@ -238,6 +244,7 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `<leader>pp` | LaTeX popup (markdown only) |
 | `<leader>pr` | Toggle markdown read mode (markdown only) |
 | **Markdown Tools (`<leader>t`)** | |
+| `<leader>pr` | Toggle markdown read mode (markdown only) |
 | `<leader>tf` | Flash card (markdown only) |
 | `<leader>tt` | Toggle todo (markdown only) |
 | `<leader>td` | Insert current date (markdown only) |

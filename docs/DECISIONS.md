@@ -353,6 +353,20 @@ In rough order of how badly each one bit during setup. Future-you will hit at le
 
 ## Accepted (non-obvious)
 
+### nvim format-on-save uses a hand-rolled LSP → CLI fallback, not conform.nvim / none-ls (accepted 2026-05-15)
+
+Markdown table formatting was the trigger: until now the on-save autocmd called `vim.lsp.buf.format()` and stopped, which means filetypes whose attached LSP doesn't format (markdown via vale/zk, lua via lua_ls with formatting deliberately off, sh/bash via bashls, raw json/yaml with no LSP at all) silently weren't formatted. The obvious answer is `conform.nvim` (or `none-ls`); the chosen answer is ~30 lines of glue in `nvim/.config/nvim/lua/format_on_save.lua` that pipes the buffer through CLI formatters by filetype.
+
+- **What it does:** on `BufWritePre`, try LSP first; if no client formats, look the filetype up in a small table (prettier for markdown / json / jsonc / json5 / yaml / html / css / scss / less / graphql / vue, stylua for lua, shfmt for sh / bash, with zsh deliberately excluded because shfmt is bash-only and would mangle zsh syntax); shell out via `vim.system({...}, { stdin = ... }):wait()` and replace lines only on a real diff (keeps cursor + undo stable). Missing CLI binaries are silent no-ops via `vim.fn.executable()`, so the same config is safe across machines that haven't installed every tool. Trailspace trim runs last regardless.
+- **Pillar costs of conform.nvim / none-ls:** failed pillar #4 (each piece earns its place — a plugin to wrap shell-outs to formatters that already live on `$PATH`), pillar #2 (builtins first — `vim.system` + a filetype table is the builtin path), and pillar #5 (local scripts over upstream plugins — 30 lines of glue is the textbook case for it). conform's broader features (LSP-vs-CLI ordering policies, async, stop-after-first-success, formatter-specific options) are real but unused here; the autocmd already does the only ordering we need.
+- **Pillar costs of the chosen path:** mild duplication of capability with conform if the formatter list ever grows large (say, ten+ filetypes with per-formatter args). The current shape — one `run_cli` helper plus a `FILETYPE_FORMATTERS` table — is still trivially readable at three formatters and would still be at twice that.
+- **Why not prettier-as-LSP via efm-langserver:** that swaps a plugin for a daemon, doesn't reduce moving parts, and routes prettier through the LSP path purely to satisfy the existing autocmd. The actual goal was "format on save for filetypes the LSP doesn't cover," not "make everything an LSP."
+- **Latency:** `prettier` over stdin is ~150-300ms on save. If that ever bites, swap `prettier` for `prettierd` in the formatter table — one word change, no plugin.
+
+**Reconsider only if:** the formatter table grows past ~10 filetypes or starts needing per-formatter arg arrays / range formatting / async coordination, at which point conform's design starts paying for itself. Until then, the existing file is the lighter answer.
+
+---
+
 ### macOS terminal policy: prefer Alacritty, tolerate Ghostty fallback (accepted 2026-05-14)
 
 The Mac fleet is temporarily mixed: some machines have Alacritty installed, some still have Ghostty. Do **not** turn that into a second equal terminal strategy. Policy:
