@@ -397,8 +397,15 @@ Vale vocabulary, per-project config, and plugin maintenance.
 - `<leader>u` — toggle the bundled `nvim.undotree` panel; `q` to close
 - `<leader>em` / `<leader>en` — messages history / `mini.notify` history; `q`
   in either buffer returns you to the previous one
-- format-on-save runs on every `:w`: LSP format if available, trim trailing
-  whitespace, trim trailing blank lines
+- format-on-save runs on every `:w` via `lua/format_on_save.lua`: LSP
+  formatter if any attached client supports it, else a CLI fallback
+  selected by filetype (`prettier` for markdown / json / jsonc / json5 /
+  yaml / html / css / scss / less / graphql / vue, `stylua` for lua,
+  `shfmt` for sh / bash — zsh deliberately not formatted, shfmt would
+  mangle it), then `MiniTrailspace` trims trailing whitespace and blank
+  lines. Missing CLI binaries are silent no-ops, so the same config
+  works across machines that don't have every formatter installed. No
+  `conform.nvim` / `none-ls` — ~30 lines of glue, no plugin
 - manual format on `<leader>cf`
 - inlay hints auto-enable on `LspAttach` for any server that supports them;
   `<leader>ch` toggles them per-buffer
