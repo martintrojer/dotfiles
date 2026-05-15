@@ -52,7 +52,7 @@ titlebar_padding 6 3
 hide_edge_borders smart_no_gaps
 gaps inner 4
 gaps outer 0
-smart_gaps on
+smart_gaps off
 
 # Keep the active tab filled even when focus is inside a split nested under it;
 # the leaf window remains distinguishable by its blue child border.
