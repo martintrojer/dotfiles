@@ -2,8 +2,6 @@
 
 # Packages layered on top of Fedora Sway Atomic (Sericea) for this setup.
 sway_packages=(
-  # Primary terminal used by the Sway setup.
-  alacritty
   # Clipboard history backend used by the fuzzel picker and startup watcher.
   clipman
   # Containerized dev environments launched from the desktop session.

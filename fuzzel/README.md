@@ -81,6 +81,6 @@ Python scripts in this package should pass:
 Located at `fuzzel/.config/fuzzel/fuzzel.ini`:
 
 - Font: JetBrains Mono Nerd Font, size 14
-- Terminal: alacritty
+- Terminal: footclient (foot in server mode via sway-foot-server.service)
 - Theme: Catppuccin Mocha
-- Icons: Papirus-Dark
+- Icons: Adwaita

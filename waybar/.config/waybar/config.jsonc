@@ -134,7 +134,7 @@
 			"tooltip": "{}",
 			"tooltip-format-wifi": "{ifname}\n{essid}\n{signalStrength}% \n{frequency} GHz\n󰇚 {bandwidthDownBits}\n󰕒 {bandwidthUpBits}",
 			"tooltip-format-ethernet": "{ifname}\n󰇚 {bandwidthDownBits} \n󰕒 {bandwidthUpBits}",
-			"on-click": "alacritty -e nmtui",
+			"on-click": "footclient nmtui",
 			"format-icons": ["󰤫", "󰤟", "󰤢", "󰤥", "󰤨"],
 			"states": {
 				"normal": 25,
@@ -154,7 +154,7 @@
 				"default": ["", ""],
 			},
 			"on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
-			"on-click-right": "alacritty --class wiremix-float -e wiremix",
+			"on-click-right": "footclient --app-id=wiremix-float wiremix",
 			"tooltip": true,
 			"scroll-step": 5,
 		},
@@ -166,7 +166,7 @@
 			"on-scroll-down": "pactl set-source-volume @DEFAULT_SOURCE@ -5%",
 			"max-volume": "100",
 			"on-click": "pactl set-source-mute @DEFAULT_SOURCE@ toggle",
-			"on-click-right": "alacritty --class wiremix-float -e wiremix",
+			"on-click-right": "footclient --app-id=wiremix-float wiremix",
 			"tooltip-format": "{source_desc}",
 		},
 		"tray": {

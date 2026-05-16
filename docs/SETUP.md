@@ -257,21 +257,20 @@ rm -rf ~/.config/niri
 
 macOS machines should run items 1 through 6 above as relevant. Only the wallpaper/niri items are Linux-only no-ops on macOS.
 
-Terminal policy on macOS is: **prefer Alacritty, tolerate Ghostty as fallback**. `dotfiles-sync --apply` stows both `alacritty` (common + Darwin overlay) and the small `ghostty` config on Darwin, because the active Macs are not perfectly uniform. Hammerspoon's terminal binds (`Hyper+T`, `Hyper+Return`, `Hyper+PadEnter`) try Alacritty first and fall back to Ghostty if Alacritty is absent.
+Terminal policy on macOS is: **Ghostty only**, no fallback. `dotfiles-sync --apply` stows the `ghostty` config on Darwin. Hammerspoon's terminal binds (`Hyper+T`, `Hyper+Return`, `Hyper+PadEnter`) all use `open -na "Ghostty"` for current-Space window creation. See [`DECISIONS.md`](./DECISIONS.md#each-os-gets-its-native-terminal-foot-on-linux-ghostty-on-macos-accepted-2026-05-15).
 
 Verify terminal state:
 
 ```bash
 cd ~/dotfiles && ./dotfiles-sync --check
-ls -l ~/.config/alacritty/alacritty.toml ~/.config/alacritty/os.toml 2>/dev/null
 ls -l ~/.config/ghostty/config 2>/dev/null
 ```
 
-Expected policy:
+If migrating from a previous Alacritty-everywhere setup on this machine:
 
-- New / primary Macs should install Alacritty and use that as the Hammerspoon target.
-- Machines that only have Ghostty should still be usable; the fallback is intentional.
-- Do not delete `ghostty/` just because a given Mac uses Alacritty — it is the compatibility config for mixed machines.
+```bash
+rm -rf ~/.config/alacritty   # safe: nothing in this repo references it anymore
+```
 
 After the above, the Mac is current.
 

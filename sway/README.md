@@ -192,4 +192,4 @@ Output configuration is delegated to `kanshi`. Sway's config never touches
 
 Catppuccin Mocha hex values are inlined at the top of `~/.config/sway/config`.
 See `docs/THEME.md` for the full palette and where it's mirrored across
-other tools (waybar, mako, alacritty, swaylock, etc.).
+other tools (waybar, mako, foot, swaylock, etc.).

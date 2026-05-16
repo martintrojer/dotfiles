@@ -35,24 +35,15 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
         ),
     ),
     (
-        "common",
-        ROOT / "alacritty",
-        ("alacritty",),
-    ),
-    (
         "darwin",
         ROOT,
         ("ghostty", "hammerspoon"),
     ),
     (
-        "darwin",
-        ROOT / "alacritty",
-        ("alacritty-darwin",),
-    ),
-    (
         "linux",
         ROOT,
         (
+            "foot",
             "fuzzel",
             "kanshi",
             "mako",
@@ -60,11 +51,6 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "swaylock",
             "waybar",
         ),
-    ),
-    (
-        "linux",
-        ROOT / "alacritty",
-        ("alacritty-linux",),
     ),
     (
         "fedora",
@@ -85,7 +71,6 @@ IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
     "__pycache__",
     "_dotfiles_sync",
     "agents",  # Claude plugin asset, consumed via `claude plugin install`
-    "alacritty",  # contains nested base/darwin/linux stow packages
     "docs",  # cross-cutting documentation hosted at repo root
     "fedora",  # contains its own stow packages, scope-driven
     "guides",  # interactive learning guides, rendered by guides/build.py

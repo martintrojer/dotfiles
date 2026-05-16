@@ -1,5 +1,5 @@
 [Unit]
 Description=Sway Session Services
 BindsTo=graphical-session.target
-Wants=graphical-session-pre.target sway-clipman-watcher.service sway-kanshi.service sway-mako.service swaybg.service swayidle.service sway-waybar.service xdg-desktop-portal.service xdg-desktop-portal-gtk.service xdg-desktop-portal-wlr.service
+Wants=graphical-session-pre.target sway-clipman-watcher.service sway-foot-server.service sway-kanshi.service sway-mako.service swaybg.service swayidle.service sway-waybar.service xdg-desktop-portal.service xdg-desktop-portal-gtk.service xdg-desktop-portal-wlr.service
 After=graphical-session-pre.target
