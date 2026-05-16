@@ -1,7 +1,10 @@
 # Catppuccin-flavoured Sway config.
 
 set $mod Mod4
-set $term alacritty
+# Connects to sway-foot-server.service (see fedora/systemd/). Falling back
+# to plain `foot` here would defeat the point of the server; if the daemon
+# isn't running, fix the unit rather than papering over it.
+set $term footclient
 set $menu fuzzel --prompt 'Run '
 set $browser sh -lc "$HOME/.config/sway/scripts/open-browser"
 set $lock ~/.config/sway/scripts/lock-screen
@@ -67,7 +70,7 @@ for_window [title="^Picture in picture$"] floating enable, sticky enable, border
 for_window [title="^Picture-in-Picture$"] floating enable, sticky enable, border pixel 2
 for_window [app_id="^pavucontrol$"] floating enable
 for_window [app_id="^nm-connection-editor$"] floating enable
-# wiremix launched from waybar (alacritty --class wiremix-float -e wiremix).
+# wiremix launched from waybar (see waybar config on-click-right binding).
 for_window [app_id="^wiremix-float$"] floating enable, resize set 720 480, move position center
 # GNOME Calculator (flatpak): summon, type, dismiss.
 for_window [app_id="^org\.gnome\.Calculator$"] floating enable, resize set 480 600, move position center

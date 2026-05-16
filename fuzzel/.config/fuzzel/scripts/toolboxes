@@ -22,7 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prompt", default="Toolbx  ")
     parser.add_argument("--width", type=int, default=45)
-    parser.add_argument("--terminal", default="alacritty")
+    parser.add_argument("--terminal", default="footclient")
     return parser.parse_args()
 
 
@@ -69,6 +69,8 @@ def main() -> int:
         return 0
 
     name = selection.split()[0]
+    # footclient accepts `-e` as an ignored xterm-compatible separator,
+    # which keeps --terminal overrides working for terminals that require it.
     run([args.terminal, "-e", "toolbox", "enter", name], check=False)
     return 0
 

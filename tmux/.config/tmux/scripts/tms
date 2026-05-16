@@ -874,9 +874,9 @@ def connect(target: str) -> int:
         )
     # If `target` already names a live tmux session, attach to it directly.
     # Without this, a bare session name that also happens to be a directory
-    # in the current pane's CWD (e.g. `alacritty` while sitting in
+    # in the current pane's CWD (e.g. `foot` while sitting in
     # ~/dotfiles, where stow packages mirror live session names) gets mangled
-    # into `dotfiles/alacritty` by session_name_for_path below, and a new
+    # into `dotfiles/foot` by session_name_for_path below, and a new
     # session is spawned instead of switching to the running one.
     if tmux_session_exists(target):
         return connect_resolved(target, None, None, DEFAULT_SPLIT)

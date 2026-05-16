@@ -1,0 +1,21 @@
+[Unit]
+Description=Foot Terminal Server (Sway)
+PartOf=sway-session.target
+BindsTo=sway-session.target
+After=sway-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+Documentation=man:foot(1)
+
+# We deliberately don't use the upstream foot-server.socket pair: it
+# listens on %t/foot.sock, but footclient's default socket path is
+# $XDG_RUNTIME_DIR/foot-$WAYLAND_DISPLAY.sock. Letting `foot --server`
+# create its own socket means `footclient` (no flags) just works.
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/foot --server
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=sway-session.target

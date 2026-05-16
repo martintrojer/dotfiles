@@ -4,7 +4,7 @@ local GAP = 4 -- pixels: gap between adjacent windows (no gap against screen edg
 local HYPER = { "shift", "cmd", "alt", "ctrl" }
 local BROWSER = { "Safari" } -- or { "Google Chrome", "Chrome" }
 local IDE = { "Visual Studio Code" }
-local TERMINAL = { "Alacritty", "Ghostty" }
+local TERMINAL = { "Ghostty" }
 
 -- Layout units
 local UNITS = {
@@ -352,32 +352,6 @@ local function launchFirstAvailableApp(appNames)
 	return false
 end
 
-local function alacrittySocket()
-	local app = hs.application.get("Alacritty")
-	if not app then
-		return nil
-	end
-	local tmpdir = os.getenv("TMPDIR") or "/tmp"
-	return string.format("%s/Alacritty-%d.sock", tmpdir, app:pid())
-end
-
--- Open a new Alacritty window on the CURRENT Space via IPC, without
--- activating any existing Alacritty window (which would swoosh macOS to
--- whichever Space already holds an Alacritty window).
-local function newAlacrittyWindowHere()
-	local sock = alacrittySocket()
-	if not sock then
-		launchFirstAvailableApp(TERMINAL)
-		return
-	end
-	local cmd = string.format("alacritty msg --socket %q create-window 2>&1", sock)
-	local output, ok = hs.execute(cmd, true)
-	if not ok then
-		hs.alert.show("alacritty msg failed: " .. (output or "?"))
-		hs.application.launchOrFocus("Alacritty")
-	end
-end
-
 -- Open a new Ghostty window on the CURRENT Space. open -na avoids activating
 -- an existing Ghostty window on another Space, which would make macOS swoosh
 -- there instead of opening a window here.
@@ -417,13 +391,10 @@ local function openOrNewAppWindowOnCurrentSpace(appName, appNames, newWindowFn)
 	return true
 end
 
--- Hyper+T: prefer Alacritty, then Ghostty. Focus a terminal window on the
--- current Space if one exists (cycling when frontmost), otherwise spawn a new
--- window here instead of jumping Spaces to an existing window elsewhere.
+-- Hyper+T: focus a Ghostty window on the current Space if one exists
+-- (cycling when frontmost), otherwise spawn a new window here instead of
+-- jumping Spaces to an existing Ghostty window elsewhere.
 local function openOrNewTerminalWindow()
-	if openOrNewAppWindowOnCurrentSpace("Alacritty", { "Alacritty" }, newAlacrittyWindowHere) then
-		return
-	end
 	if openOrNewAppWindowOnCurrentSpace("Ghostty", { "Ghostty" }, newGhosttyWindowHere) then
 		return
 	end
@@ -431,10 +402,6 @@ local function openOrNewTerminalWindow()
 end
 
 local function newTerminalWindowHere()
-	if hs.application.get("Alacritty") then
-		newAlacrittyWindowHere()
-		return
-	end
 	if hs.application.get("Ghostty") then
 		newGhosttyWindowHere()
 		return
@@ -476,7 +443,7 @@ bindApp("M", { "Music" }, "Music") -- M = Music
 hs.hotkey.bind(HYPER, "Y", openOrNewFinderWindow) -- Y = files (yazi/Finder analogue)
 addHelp("Apps", "Y: Files/Finder (new window if frontmost)")
 hs.hotkey.bind(HYPER, "T", openOrNewTerminalWindow) -- T = Terminal
-addHelp("Apps", "T: Terminal (Alacritty, fallback Ghostty)")
+addHelp("Apps", "T: Terminal (Ghostty)")
 hs.hotkey.bind(HYPER, "padenter", newTerminalWindowHere)
 hs.hotkey.bind(HYPER, "return", newTerminalWindowHere)
 addHelp("Apps", "Return / PadEnter: New terminal window on current Space")

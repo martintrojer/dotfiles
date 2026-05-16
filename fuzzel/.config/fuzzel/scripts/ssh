@@ -22,7 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", default=str(Path.home() / ".ssh" / "config"))
     parser.add_argument("--prompt", default="SSH  ")
     parser.add_argument("--width", type=int, default=40)
-    parser.add_argument("--terminal", default="alacritty")
+    parser.add_argument("--terminal", default="footclient")
     return parser.parse_args()
 
 
@@ -63,6 +63,8 @@ def main() -> int:
     if not selected:
         return 0
 
+    # footclient accepts `-e` as an ignored xterm-compatible separator,
+    # which keeps --terminal overrides working for terminals that require it.
     run([args.terminal, "-e", "ssh", selected], check=False)
     return 0
 

@@ -130,7 +130,7 @@ between its windows on the current Space.
 
 - `B` — Browser
 - `I` — IDE
-- `T` — Terminal: prefer Alacritty, fall back to Ghostty
+- `T` — Terminal: Ghostty
 - `Y` — Finder / files
 - `M` — Music
 
@@ -142,7 +142,7 @@ directly.
 q = "Which app key is mapped to the terminal?"
 options = ["`G`", "`T`", "`PadEnter`"]
 answer = 1
-why = "`T` reads naturally as Terminal. The config prefers Alacritty, then falls back to Ghostty on Macs without Alacritty."
+why = "`T` reads naturally as Terminal. macOS uses Ghostty (the only macOS terminal in this repo)."
 
 [[questions]]
 q = "What usually happens if you press an app key again while that app is already frontmost on the current Space?"
@@ -169,12 +169,11 @@ plain "focus the app" isn't enough.
 - `Hyper`+`B` — open the Browser, matching the sway launcher layer
 - `Hyper`+`Y` — focus Finder; if Finder is already frontmost, create a new
   Finder window on the current Space instead
-- `Hyper`+`Return` (and `Hyper`+`PadEnter`) — open a new terminal window on
-  the current Space. Alacritty is tried first via its IPC socket (`alacritty
-  msg create-window`), so it never swooshes you to a Space holding an existing
-  Alacritty window. If Alacritty is absent, Ghostty is the fallback; Hammerspoon
-  uses app-local new-window behavior instead of generic Space-jumping focus
-  tricks.
+- `Hyper`+`Return` (and `Hyper`+`PadEnter`) — open a new Ghostty window on
+  the current Space using `open -na "Ghostty"`, which creates a fresh window
+  without activating an existing Ghostty window on another Space (which
+  would swoosh macOS away). App-local new-window behavior, not generic
+  Space-jumping focus tricks.
 
 ```quiz
 [[questions]]
@@ -201,7 +200,7 @@ options = [
   "Accept the help overlay",
 ]
 answer = 0
-why = "`Return`/`PadEnter` is reserved for creating a fresh terminal window on the current Space: Alacritty first, Ghostty fallback."
+why = "`Return`/`PadEnter` is reserved for creating a fresh Ghostty window on the current Space."
 ```
 
 ## Implementation details that matter
