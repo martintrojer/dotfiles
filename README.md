@@ -15,7 +15,7 @@ When tempted, re-read this section before touching anything.
 5. **Local scripts over upstream plugins.** A small Python script in this repo beats a third-party dependency. Easier to read, easier to fix, doesn't break on upgrade.
 6. **Recreate, do not restore.** No session snapshots. No magic state restoration. Disposable sessions force the setup to stay cheap to spin up.
 7. **Thin wrappers around shared lists.** Decisions live in data, not in scripts. `dotfiles-sync`, `setup-*.sh`, the package lists — all wrappers around plain data.
-8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway. macOS is Hammerspoon, with Alacritty as the preferred terminal and Ghostty kept only as a compatibility fallback for Macs that already differ. The shared layer is the CLI/editor baseline; the desktop stack is allowed to diverge per platform, and once chosen, lean into its native primitives (Spaces, Mission Control, sway IPC, terminal IPC/app-launch hooks) rather than faking another OS's idioms on top.
+8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway with foot as the terminal. macOS is Hammerspoon with Ghostty as the terminal. The shared layer is the CLI/editor baseline; the desktop stack is allowed to diverge per platform, and once chosen, lean into each OS's native primitives (Spaces and Mission Control on macOS, sway IPC and Wayland layer-shell on Linux; foot's server/client and Ghostty's app-bundle launch model on their respective sides) rather than faking another OS's idioms on top. Each OS is allowed to bloom in its own direction.
 9. **One palette, everywhere.** Catppuccin Mocha. See [`docs/THEME.md`](./docs/THEME.md). New tools adopt the palette or do not get added.
 10. **Config lives next to the thing it configures.** Tool-specific docs go in the package folder. This root README only describes the repo shape and the rules above.
 
@@ -39,8 +39,8 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behaviour is 
 | Where | What |
 |---|---|
 | Portable core (stow packages) | [`zsh/`](./zsh), [`nvim/`](./nvim), [`tmux/`](./tmux), [`git/`](./git), [`ssh/`](./ssh), [`local-bin/`](./local-bin) |
-| Linux desktop stack (stow packages) | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaylock/`](./swaylock) |
-| macOS desktop stack (stow packages) | [`hammerspoon/`](./hammerspoon), [`alacritty/`](./alacritty) (preferred terminal; nested base + per-OS overlay packages, like `fedora/`), [`ghostty/`](./ghostty) (Darwin fallback config) |
+| Linux desktop stack (stow packages) | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`foot/`](./foot) (terminal), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaylock/`](./swaylock) |
+| macOS desktop stack (stow packages) | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) (terminal) |
 | Fedora setup namespace | [`fedora/`](./fedora) (special case: nested stow packages + setup wrappers) |
 | Universal agent sources | [`skills/`](./skills), [`pi/`](./pi) |
 | Claude marketplace surface | [`agents/`](./agents), [`hooks/`](./hooks), [`.claude-plugin/`](./.claude-plugin) — ugly but intentional; this is the published plugin contract Claude consumes |
