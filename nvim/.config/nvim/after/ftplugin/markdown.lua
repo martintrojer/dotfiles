@@ -64,6 +64,16 @@ vim.b.miniclue_config = vim.tbl_deep_extend("force", vim.b.miniclue_config or {}
 })
 
 ----------------------------------------------------------------------
+-- Markdown editing defaults
+----------------------------------------------------------------------
+-- Visually wrap long prose instead of requiring horizontal scrolling.
+vim.opt_local.wrap = true
+-- Prefer wrapping at word boundaries rather than mid-word.
+vim.opt_local.linebreak = true
+-- Keep wrapped continuation lines aligned with the original indent.
+vim.opt_local.breakindent = true
+
+----------------------------------------------------------------------
 -- Buffer-Local Keymaps
 ----------------------------------------------------------------------
 
