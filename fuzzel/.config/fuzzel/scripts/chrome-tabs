@@ -33,6 +33,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", default="Chrome  ")
     parser.add_argument("--width", type=int, default=85)
     parser.add_argument("--lines", type=int, default=15)
+    parser.add_argument(
+        "--hide-before-typing",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     return parser.parse_args()
 
 
@@ -106,6 +111,7 @@ def main() -> int:
         lines=args.lines,
         cache=cache,
         options=display,
+        hide_before_typing=args.hide_before_typing,
     )
     if not selected:
         return 0

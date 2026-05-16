@@ -5,7 +5,7 @@ set $mod Mod4
 # to plain `foot` here would defeat the point of the server; if the daemon
 # isn't running, fix the unit rather than papering over it.
 set $term footclient
-set $menu fuzzel --prompt 'Run '
+set $menu fuzzel --prompt 'Run ' --placeholder 'Search apps...'
 set $browser sh -lc "$HOME/.config/sway/scripts/open-browser"
 set $lock ~/.config/sway/scripts/lock-screen
 set $quit ~/.config/sway/scripts/session-quit

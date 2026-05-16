@@ -67,8 +67,11 @@ def fuzzel_dmenu(
     cache: str | None = None,
     options: Iterable[str] | None = None,
     input_text: str | None = None,
+    hide_before_typing: bool = False,
 ) -> str:
     cmd = ["fuzzel", "--dmenu", "--prompt", prompt, "--width", str(width)]
+    if hide_before_typing:
+        cmd.append("--hide-before-typing")
     if lines is not None:
         cmd.extend(["--lines", str(lines)])
     if cache:

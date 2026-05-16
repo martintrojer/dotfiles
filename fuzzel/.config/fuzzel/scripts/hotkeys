@@ -36,6 +36,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", default="Hotkeys  ")
     parser.add_argument("--width", type=int, default=90)
     parser.add_argument("--lines", type=int, default=20)
+    parser.add_argument(
+        "--hide-before-typing",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--key-width", type=int, default=24)
     parser.add_argument(
         "--no-exec",
@@ -104,6 +109,7 @@ def main() -> int:
         lines=args.lines,
         cache=picker_cache_path("hotkeys"),
         options=(label for label, _ in entries),
+        hide_before_typing=args.hide_before_typing,
     )
     if not selected:
         return 0
