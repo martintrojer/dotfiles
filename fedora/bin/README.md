@@ -9,7 +9,7 @@ wrapper.
 
 Wallpaper helpers:
 - `wallpaper set <url-or-file>` stores the wallpaper under `~/.local/share/wallpapers/archive/`, updates `~/.local/share/wallpapers/current`, and restarts `swaybg.service`
-- `wallpaper use [archive-file]` switches to an archived wallpaper; without an argument it opens an `fzf` picker and uses `chafa` for previews when available
+- `wallpaper use [archive-file]` switches to an archived wallpaper; without an argument it opens an `fzf` picker with sixel previews rendered by ImageMagick (foot renders sixel natively)
 - `wallpaper current` prints the active wallpaper path if one is installed
 - `wallpaper restart` restarts `swaybg.service` to re-apply the current wallpaper
-- `wallpaper preview <archive-file>` renders a wallpaper into the `fzf` preview pane via `chafa` (used internally by `wallpaper use`)
+- `wallpaper preview <archive-file>` renders a wallpaper as sixel (`magick … sixel:-`) into the `fzf` preview pane (used internally by `wallpaper use`); falls back to printing the path if `magick` is missing

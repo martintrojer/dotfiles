@@ -28,7 +28,7 @@ Subcommands
                         Pure cache read; doesn't render on demand. Used
                         by lock-screen.
   restart               Restart swaybg.service.
-  preview <file>        Render via chafa for fzf's preview pane.
+  preview <file>        Render via ImageMagick (sixel) for fzf's preview pane.
   rebuild-cache         Force-rebuild the lock image + accent for the
                         current wallpaper. Useful after editing the
                         render constants in this file.
@@ -99,10 +99,18 @@ BLUR_SIGMA = 18.0
 # gives you; 0.85 takes the edge off without losing identity.
 SATURATION_SCALE = 0.85
 FONT = "JetBrainsMono-NF-Bold"
+# Banner geometry as fractions of wallpaper height (back-derived from
+# the prior fixed 1080p values: 42/30 pt, 152/100 px from south).
+LINE1_PT_FRAC, LINE2_PT_FRAC = 0.039, 0.028
+LINE1_Y_FRAC, LINE2_Y_FRAC = 0.141, 0.093
+SHADOW_OFFSET_FRAC = 0.0019
+# WCAG AA contrast for large text. Accents below this against the
+# blurred bottom band get rejected in favor of FALLBACK_TEXT_COLOR.
+MIN_ACCENT_CONTRAST = 3.0
 # Bump when changing anything that affects the rendered PNG (font,
 # pointsizes, blur recipe, banner geometry). The cache key folds this
 # in, so changes invalidate cached images automatically.
-RENDER_VERSION = 2
+RENDER_VERSION = 3
 # Catppuccin Mocha 'text' — banner fallback when accent pluck fails.
 FALLBACK_TEXT_COLOR = "cdd6f4"
 # Cache eviction horizon. Entries untouched for this long get pruned
@@ -244,12 +252,46 @@ def _prune_cache() -> None:
             pass
 
 
-def _pick_accent(src: Path) -> str | None:
-    """Quantize wallpaper to 16 colors; pick the most-prominent vivid one.
+def _luminance(r: float, g: float, b: float) -> float:
+    """WCAG relative luminance for sRGB inputs in [0,1]."""
 
-    Score = count * saturation^1.5 * brightness-near-mid. Winner is then
-    desaturated by SATURATION_SCALE so it reads as an accent rather than
-    a neon stripe. Returns 6-char hex (no #) or None on failure.
+    def chan(c: float) -> float:
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    return 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b)
+
+
+def _bottom_band_luminance(src: Path) -> float | None:
+    """Mean luminance of the blurred bottom 25% (where the banner lands)."""
+    if not shutil.which("magick"):
+        return None
+    try:
+        res = subprocess.run(
+            [
+                "magick", str(src), "-blur", f"0x{BLUR_SIGMA}",
+                "-gravity", "south", "-crop", "100%x25%+0+0", "+repage",
+                "-resize", "1x1!",
+                "-format", "%[fx:r] %[fx:g] %[fx:b]", "info:-",
+            ],
+            capture_output=True, text=True, timeout=15, check=False,
+        )
+        r, g, b = (float(x) for x in res.stdout.split())
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+    return _luminance(r, g, b) if res.returncode == 0 else None
+
+
+def _pick_accent(src: Path) -> str | None:
+    """Quantize wallpaper to 16 colors; pick the most-prominent vivid one
+    that also contrasts against the banner zone.
+
+    Score = count * saturation^1.5 * brightness-near-mid. Top candidates
+    are then filtered by WCAG contrast against the (blurred) bottom
+    band so we don't pick a near-background color (e.g. plucking dark
+    navy from a cosmic wallpaper and rendering invisible text on dark
+    blur). Winner is desaturated by SATURATION_SCALE so it reads as an
+    accent rather than a neon stripe. Returns 6-char hex (no #) or None
+    on failure / no candidate clears the contrast bar.
     """
     if not shutil.which("magick"):
         return None
@@ -278,7 +320,9 @@ def _pick_accent(src: Path) -> str | None:
     if res.returncode != 0:
         return None
 
-    best: tuple[float, float, float, float] | None = None  # (score, h, l, s)
+    # Collect viable candidates; walk by score desc taking the first
+    # that clears MIN_ACCENT_CONTRAST against the bottom band.
+    candidates: list[tuple[float, float, float, float]] = []  # (score,h,l,s)
     for line in res.stdout.splitlines():
         m = _HIST_RE.match(line)
         if not m:
@@ -289,16 +333,20 @@ def _pick_accent(src: Path) -> str | None:
         hue, lightness, sat = colorsys.rgb_to_hls(r, g, b)
         bright = max(0.0, 1 - abs(lightness - 0.55) * 1.4)
         score = count * (sat**1.5) * bright
-        if score <= 0:
-            continue
-        if best is None or score > best[0]:
-            best = (score, hue, lightness, sat)
+        if score > 0:
+            candidates.append((score, hue, lightness, sat))
 
-    if best is None:
-        return None
-    _, hue, lightness, sat = best
-    r, g, b = colorsys.hls_to_rgb(hue, lightness, sat * SATURATION_SCALE)
-    return f"{round(r * 255):02x}{round(g * 255):02x}{round(b * 255):02x}"
+    candidates.sort(key=lambda t: t[0], reverse=True)
+    bg_lum = _bottom_band_luminance(src)
+    for _, hue, lightness, sat in candidates:
+        r, g, b = colorsys.hls_to_rgb(hue, lightness, sat * SATURATION_SCALE)
+        if bg_lum is not None:
+            fg_lum = _luminance(r, g, b)
+            ratio = (max(fg_lum, bg_lum) + 0.05) / (min(fg_lum, bg_lum) + 0.05)
+            if ratio < MIN_ACCENT_CONTRAST:
+                continue
+        return f"{round(r * 255):02x}{round(g * 255):02x}{round(b * 255):02x}"
+    return None
 
 
 def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
@@ -312,13 +360,26 @@ def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
     """
     if not shutil.which("magick"):
         return False
+    # Pull height to scale geometry; bail rather than render illegibly.
+    try:
+        dim = subprocess.run(
+            ["magick", "identify", "-format", "%h", str(src)],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+        height = int(dim.stdout.strip())
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return False
+    if height <= 0:
+        return False
+
     line1 = "LOCKED"
     line2 = f"{os.environ.get('USER', 'user')}@{socket.gethostname().split('.')[0]}"
-    # y-offsets are from the bottom edge (gravity south); larger y =
-    # higher up. ~52pt + ~14pt gap puts LOCKED above user@host with
-    # breathing room.
-    line1_y, line2_y = 152, 100
-    line1_pt, line2_pt = "42", "30"
+    # y-offsets are from the bottom (gravity south); larger y = higher up.
+    line1_y = round(height * LINE1_Y_FRAC)
+    line2_y = round(height * LINE2_Y_FRAC)
+    line1_pt = str(round(height * LINE1_PT_FRAC))
+    line2_pt = str(round(height * LINE2_PT_FRAC))
+    shadow_off = max(1, round(height * SHADOW_OFFSET_FRAC))
     if accent and re.fullmatch(r"[0-9a-fA-F]{6}", accent):
         fill = f"#{accent}ff"
     else:
@@ -333,7 +394,7 @@ def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
             "-fill",
             shadow,
             "-annotate",
-            f"+2+{y - 2}",
+            f"+{shadow_off}+{y - shadow_off}",
             text,
             "-fill",
             fill,
@@ -599,6 +660,15 @@ def cmd_restart(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _env_positive_int(name: str, default: int) -> int:
+    """Return a positive int from an env var, falling back on bad input."""
+    try:
+        value = int(os.environ.get(name, ""))
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
 def cmd_preview(args: argparse.Namespace) -> int:
     candidate = Path(args.archive_file)
     if not candidate.is_file():
@@ -606,15 +676,22 @@ def cmd_preview(args: argparse.Namespace) -> int:
         if not candidate.is_file():
             return 0
 
-    if shutil.which("chafa") is not None:
-        cols = os.environ.get("FZF_PREVIEW_COLUMNS", "80")
-        lines = os.environ.get("FZF_PREVIEW_LINES", "24")
+    # Sixel preview in foot (native support). Uses ImageMagick (`magick`)
+    # which ships in the Sericea base, so no extra packages are required.
+    # fzf's preview pane is sized in cells (cols x lines); rough cell
+    # geometry of 8x16 px gets us close to the actual pixel area without
+    # querying the terminal. The `>` qualifier on -resize means "only
+    # shrink, never enlarge" — small thumbnails stay sharp.
+    if shutil.which("magick") is not None:
+        cols = _env_positive_int("FZF_PREVIEW_COLUMNS", 80)
+        lines = _env_positive_int("FZF_PREVIEW_LINES", 24)
         result = subprocess.run(
             [
-                "chafa",
-                "--animate=off",
-                f"--size={cols}x{lines}",
+                "magick",
                 str(candidate),
+                "-resize",
+                f"{cols * 8}x{lines * 16}>",
+                "sixel:-",
             ]
         )
         if result.returncode == 0:
@@ -787,7 +864,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_restart = sub.add_parser("restart", help="restart swaybg.service")
     p_restart.set_defaults(func=cmd_restart)
 
-    p_preview = sub.add_parser("preview", help="chafa render for fzf preview pane")
+    p_preview = sub.add_parser("preview", help="sixel render for fzf preview pane")
     p_preview.add_argument("archive_file")
     p_preview.set_defaults(func=cmd_preview)
 
