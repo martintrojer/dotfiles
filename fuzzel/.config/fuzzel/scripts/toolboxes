@@ -1,33 +1,41 @@
 #!/usr/bin/env python3
-"""Toolbox selector from `toolbox list --containers`."""
+"""Toolbox/distrobox container selector."""
 
 from __future__ import annotations
 
 import argparse
 import re
+from dataclasses import dataclass
 
 from _common import (
     ScriptError,
     cli_main,
+    command_exists,
     fuzzel_dmenu,
-    notify,
     picker_cache_path,
     require_commands,
     run,
 )
 
 
+@dataclass(frozen=True)
+class Container:
+    source: str
+    name: str
+    status: str
+
+
 def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--prompt", default="Toolbx  ")
-    parser.add_argument("--width", type=int, default=45)
+    parser.add_argument("--prompt", default="Ctr  ")
+    parser.add_argument("--width", type=int, default=55)
     parser.add_argument("--terminal", default="footclient")
     return parser.parse_args()
 
 
-def parse_toolboxes(output: str) -> list[tuple[str, str]]:
-    toolboxes: list[tuple[str, str]] = []
+def parse_toolboxes(output: str) -> list[Container]:
+    containers: list[Container] = []
     for raw in output.splitlines():
         line = raw.strip()
         if not line or line.startswith("CONTAINER ID"):
@@ -40,38 +48,91 @@ def parse_toolboxes(output: str) -> list[tuple[str, str]]:
         name = columns[1].strip()
         status = columns[3].strip()
         if name:
-            toolboxes.append((name, status))
+            containers.append(Container("toolbox", name, status))
 
-    return sorted(toolboxes, key=lambda item: item[0])
+    return containers
+
+
+def parse_distroboxes(output: str) -> list[Container]:
+    containers: list[Container] = []
+    for raw in output.splitlines():
+        columns = [column.strip() for column in raw.split("|")]
+        if len(columns) < 4 or columns[0] == "ID":
+            continue
+
+        name = columns[1]
+        status = columns[2]
+        if name:
+            containers.append(Container("distrobox", name, status))
+
+    return containers
+
+
+def list_containers() -> list[Container]:
+    containers: list[Container] = []
+    errors: list[str] = []
+
+    if command_exists("toolbox"):
+        result = run(["toolbox", "list", "--containers"], check=False)
+        if result.returncode == 0:
+            containers.extend(parse_toolboxes(result.stdout))
+        else:
+            errors.append(result.stderr.strip() or "toolbox list failed")
+
+    if command_exists("distrobox"):
+        result = run(["distrobox", "list"], check=False)
+        if result.returncode == 0:
+            containers.extend(parse_distroboxes(result.stdout))
+        else:
+            errors.append(result.stderr.strip() or "distrobox list failed")
+
+    if containers:
+        return sorted(containers, key=lambda item: (item.name, item.source))
+
+    if errors:
+        raise ScriptError("; ".join(errors))
+    raise ScriptError("No toolbox or distrobox containers found")
+
+
+def option_for(
+    container: Container, *, name_width: int = 20, status_width: int = 0
+) -> str:
+    source_hint = {"toolbox": "tbx", "distrobox": "dbx"}[container.source]
+    return f"{container.name:<{name_width}} {container.status:<{status_width}} · {source_hint}"
+
+
+def enter_command(container: Container) -> list[str]:
+    if container.source == "toolbox":
+        return ["toolbox", "enter", container.name]
+    return ["distrobox", "enter", container.name]
 
 
 def main() -> int:
     args = parse_args()
-    require_commands(["fuzzel", args.terminal, "toolbox"])
+    require_commands(["fuzzel", args.terminal])
 
-    result = run(["toolbox", "list", "--containers"], check=False)
-    if result.returncode != 0:
-        message = result.stderr.strip() or "Failed to list toolboxes"
-        notify("Toolboxes", message)
-        raise ScriptError(message)
-
-    toolboxes = parse_toolboxes(result.stdout)
-    if not toolboxes:
-        notify("Toolboxes", "No toolboxes found")
-        raise ScriptError("No toolboxes found")
+    containers = list_containers()
 
     cache = picker_cache_path("toolboxes")
-    options = [f"{name:<20} {status}" for name, status in toolboxes]
+    name_width = max(20, *(len(container.name) for container in containers))
+    status_width = max(len(container.status) for container in containers)
+    options_by_row = {
+        option_for(container, name_width=name_width, status_width=status_width): container
+        for container in containers
+    }
     selection = fuzzel_dmenu(
-        prompt=args.prompt, width=args.width, cache=cache, options=options
+        prompt=args.prompt, width=args.width, cache=cache, options=options_by_row
     )
     if not selection:
         return 0
 
-    name = selection.split()[0]
+    container = options_by_row.get(selection)
+    if container is None:
+        return 0
+
     # footclient accepts `-e` as an ignored xterm-compatible separator,
     # which keeps --terminal overrides working for terminals that require it.
-    run([args.terminal, "-e", "toolbox", "enter", name], check=False)
+    run([args.terminal, "-e", *enter_command(container)], check=False)
     return 0
 
 

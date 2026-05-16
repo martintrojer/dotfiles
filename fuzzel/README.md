@@ -3,7 +3,7 @@
 ## Scripts
 
 - `fuzzel/.config/fuzzel/scripts/ssh` - SSH host selector
-- `fuzzel/.config/fuzzel/scripts/toolboxes` - Toolbox container selector
+- `fuzzel/.config/fuzzel/scripts/toolboxes` - Toolbox/distrobox container selector
 - `fuzzel/.config/fuzzel/scripts/calc` - Calculator with qalc/bc
 - `fuzzel/.config/fuzzel/scripts/windows` - Window switcher (Sway)
 - `fuzzel/.config/fuzzel/scripts/chrome-tabs` - Chrome tab switcher via DevTools Protocol

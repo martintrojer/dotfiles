@@ -78,7 +78,7 @@ Pickers (all under `fuzzel/.config/fuzzel/scripts/`):
 - `mod+e` — `emoji`, bemoji-backed.
 - `mod+\` — `calc`, qalc/bc-backed.
 - `mod+Shift+s` — `ssh`, ssh-config host picker.
-- `mod+Shift+t` — `toolboxes`, toolbox container picker.
+- `mod+Shift+t` — `toolboxes`, toolbox/distrobox container picker.
 - `mod+Shift+p` — `powermenu` (lock / suspend / logout / reboot / shutdown).
 - `mod+grave` — `chrome-tabs`, DevTools-protocol tab switcher (paired
   visually with `mod+Tab` window switcher — grave and Tab sit adjacent
