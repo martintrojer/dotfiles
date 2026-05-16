@@ -24,9 +24,6 @@ local READER_WIN = {
 	list = false,
 	cursorline = false,
 	spell = false,
-	wrap = true,
-	linebreak = true,
-	breakindent = true,
 }
 
 local SAVED_KEYS = {
@@ -38,9 +35,6 @@ local SAVED_KEYS = {
 	"list",
 	"cursorline",
 	"spell",
-	"wrap",
-	"linebreak",
-	"breakindent",
 }
 
 -- Global options we hide while ANY window is in read mode. Tabline is
