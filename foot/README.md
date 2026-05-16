@@ -22,6 +22,8 @@ Foot reloads its config automatically on file change.
 - 50000 lines of scrollback, 3-line wheel multiplier
 - Hide mouse cursor while typing
 - Selection saved to clipboard
+- Clipboard fallback on `Ctrl+Alt+c` / `Ctrl+Alt+v` (keeps `Ctrl+Shift+c`
+  out of muscle memory so Chrome DevTools inspect stops getting triggered)
 - URL mode (`Ctrl+Shift+o`) labels every URL on screen for keyboard launch
 
 ## Sway integration
