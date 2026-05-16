@@ -31,6 +31,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", default="Emoji ")
     parser.add_argument("--width", type=int, default=60)
     parser.add_argument("--lines", type=int, default=20)
+    parser.add_argument(
+        "--hide-before-typing",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--db", default=None, help="Emoji list file path")
     parser.add_argument("--print", action="store_true", help="Print chosen emoji")
     parser.add_argument(
@@ -107,6 +112,7 @@ def main() -> int:
         lines=args.lines,
         cache=cache,
         options=entries,
+        hide_before_typing=args.hide_before_typing,
     )
     if not selected:
         return 0
