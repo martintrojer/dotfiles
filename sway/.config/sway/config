@@ -77,6 +77,8 @@ for_window [app_id="^org\.gnome\.Calculator$"] floating enable, resize set 480 6
 # Cider (Apple Music client) auto-stashes into the scratchpad on launch.
 # Summon with $mod+n, hide with $mod+n. Never wastes a workspace slot.
 for_window [app_id="^Cider$"] move scratchpad
+# Prevent Sway from interfering with the game overlays
+for_window [class="gamescope"] floating enable, border none, scaling disable
 
 exec_always ~/.config/sway/scripts/session-start
 
