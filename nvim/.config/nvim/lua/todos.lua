@@ -8,10 +8,19 @@ local M = {}
 ----------------------------------------------------------------------
 -- Defaults
 ----------------------------------------------------------------------
+-- Tags grepped together by M.grep. Filter further inside the fzf popup
+-- by typing e.g. `TODO:` / `IDEA:` / `FIX:`. rg runs once.
+local tags = { "TODO", "FIX", "IDEA" }
+
 local default_grep_opts = {
-	search = "TODO:|FIX:",
+	search = table.concat(
+		vim.tbl_map(function(t)
+			return t .. ":"
+		end, tags),
+		"|"
+	),
 	no_esc = true,
-	prompt = "TODOs> ",
+	prompt = "Notes> ",
 	rg_opts = "--column --line-number --no-heading --color=always --smart-case -g '!*archive*'",
 }
 
