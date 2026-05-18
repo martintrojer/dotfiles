@@ -9,6 +9,11 @@
 --ignore=\.direnv
 --ignore=\.DS_Store
 --ignore=CACHEDIR\.TAG
---ignore=^.*/README\.md$
---ignore=^.*/LICENSE.*$
---ignore=^.*/COPYING$
+# Stow matches --ignore regexes against each path component (basename), at
+# any depth. Patterns like ^.*/NAME$ never fire because the leading slash
+# is never present in what stow tests. Use bare-name regexes here so they
+# match at the package root *and* in nested directories (e.g. vendored
+# README.md / LICENSE files inside yazi flavors).
+--ignore=README\.md
+--ignore=LICENSE.*
+--ignore=COPYING
