@@ -4,7 +4,6 @@ local GAP = 4 -- pixels: gap between adjacent windows (no gap against screen edg
 local HYPER = { "shift", "cmd", "alt", "ctrl" }
 local BROWSER = { "Safari" } -- or { "Google Chrome", "Chrome" }
 local IDE = { "Visual Studio Code" }
-local TERMINAL = { "Ghostty" }
 
 -- Layout units
 local UNITS = {
@@ -41,15 +40,18 @@ local CYCLE_UNITS = {
 -- Runtime cycle state, per key and per focused window id
 local cycleStateByKey = {}
 local helpAlertId = nil
+local HELP_SECTION_ORDER = { "Window", "Apps" }
 local HELP_SECTIONS = {
 	Window = {},
-	Desktops = {},
 	Apps = {},
 }
 
 -- Helpers
 
--- Electron apps where app:allWindows() is prohibitively slow
+-- Apps where the AX fast path (focusedWindow / mainWindow / allWindows) is
+-- unreliable or expensive. For Electron apps it's prohibitively slow; for
+-- Ghostty `app:allWindows()` returns empty so the fast path always wastes
+-- AX round-trips before falling through to the SkyLight slow path anyway.
 local SKIP_FULL_ENUM = {
 	["Code"] = true,
 	["Cider"] = true,
@@ -64,6 +66,7 @@ local SKIP_FULL_ENUM = {
 	["Signal"] = true,
 	["Spotify"] = true,
 	["WhatsApp"] = true,
+	["Ghostty"] = true,
 }
 for _, name in ipairs(IDE) do
 	SKIP_FULL_ENUM[name] = true
@@ -104,10 +107,22 @@ local function getAppWindowsOnCurrentSpace(app)
 		return results
 	end
 
-	-- Slow path: full enumeration (skipped for Electron apps)
-	for _, win in ipairs(app:allWindows()) do
-		if win:isStandard() and onSpace[win:id()] then
-			table.insert(results, win)
+	-- Slow path: enumerate via SkyLight rather than the app's AX AXWindows
+	-- attribute (app:allWindows()). Some apps -- notably Ghostty -- return an
+	-- empty AXWindows list even when their windows are perfectly enumerable
+	-- through SkyLight. hs.window.visibleWindows() already restricts to the
+	-- current Space and skips minimized windows, so it's much cheaper than
+	-- hs.window.allWindows() and good enough for our "windows on current
+	-- Space" use case (onSpace[] is kept as a belt-and-braces filter).
+	local pid = app:pid()
+	for _, win in ipairs(hs.window.visibleWindows()) do
+		local wid = win:id()
+		if wid and onSpace[wid] and not seen[wid] then
+			local a = win:application()
+			if a and a:pid() == pid then
+				seen[wid] = true
+				table.insert(results, win)
+			end
 		end
 	end
 	return results
@@ -163,26 +178,47 @@ local function cycleUnitsForKey(win, key, units)
 		end
 	end
 
+	-- Drop entries for windows that no longer exist so the per-window state
+	-- table doesn't grow unboundedly as windows are opened/closed.
+	for staleId in pairs(keyState) do
+		if not hs.window.get(tonumber(staleId)) then
+			keyState[staleId] = nil
+		end
+	end
+
 	local nextIndex = (currentIndex % #units) + 1
 	keyState[winId] = nextIndex
 	cycleStateByKey[key] = keyState
 	moveToUnit(win, units[nextIndex])
 end
 
--- Get all standard windows on the current space for the given app names, sorted by ID
+-- Get all windows on the current space for the given app names, sorted by
+-- ID. Goes through SkyLight (hs.window.visibleWindows()) rather than
+-- app:allWindows() so apps with empty AX AXWindows (Ghostty) still work.
+-- visibleWindows already restricts to the current Space, so we filter by
+-- pid only and skip the per-window isStandard() AX call.
 local function getWindowsOnCurrentSpace(appNames)
 	local onSpace = currentSpaceWindowIds()
 	if not onSpace then
 		return {}
 	end
-	local wins = {}
+	local wantedPids = {}
 	for _, name in ipairs(appNames) do
 		local app = hs.application.get(name)
 		if app then
-			for _, win in ipairs(app:allWindows()) do
-				if win:isStandard() and onSpace[win:id()] then
-					table.insert(wins, win)
-				end
+			wantedPids[app:pid()] = true
+		end
+	end
+	if not next(wantedPids) then
+		return {}
+	end
+	local wins = {}
+	for _, win in ipairs(hs.window.visibleWindows()) do
+		local wid = win:id()
+		if wid and onSpace[wid] then
+			local a = win:application()
+			if a and wantedPids[a:pid()] then
+				table.insert(wins, win)
 			end
 		end
 	end
@@ -221,16 +257,17 @@ local function launchOrFocusApp(appNames)
 	end
 
 	if app then
-		-- Fast path for Electron apps: skip all AX queries
-		for _, name in ipairs(appNames) do
-			if SKIP_FULL_ENUM[name] then
-				if hs.application.frontmostApplication():pid() == app:pid() then
-					hs.eventtap.keyStroke({ "cmd" }, "`", 0)
-				else
-					app:activate()
-				end
-				return
+		-- Fast path for apps where the AX window enumeration is unreliable or
+		-- prohibitively slow: just activate, or Cmd+` to cycle if frontmost.
+		-- Note: Cmd+` cycles across all Spaces, which can swoosh Spaces. We
+		-- accept that trade-off here to avoid an expensive app:allWindows().
+		if SKIP_FULL_ENUM[app:name()] then
+			if app:isFrontmost() then
+				hs.eventtap.keyStroke({ "cmd" }, "`", 0)
+			else
+				app:activate()
 			end
+			return
 		end
 
 		local winsOnSpace = getAppWindowsOnCurrentSpace(app)
@@ -274,25 +311,22 @@ local function formatModifiers(modifiers)
 	return table.concat(formatted, " + ")
 end
 
+local SECTION_INTROS = {
+	Apps = "Press app key again to cycle windows (if app has multiple)",
+}
+
 local function buildHelpText()
-	local lines = { "HYPER = " .. formatModifiers(HYPER), "", "Window" }
-	for _, line in ipairs(HELP_SECTIONS.Window) do
-		table.insert(lines, line)
+	local lines = { "HYPER = " .. formatModifiers(HYPER) }
+	for _, section in ipairs(HELP_SECTION_ORDER) do
+		table.insert(lines, "")
+		table.insert(lines, section)
+		if SECTION_INTROS[section] then
+			table.insert(lines, SECTION_INTROS[section])
+		end
+		for _, line in ipairs(HELP_SECTIONS[section]) do
+			table.insert(lines, line)
+		end
 	end
-
-	table.insert(lines, "")
-	table.insert(lines, "Desktops")
-	for _, line in ipairs(HELP_SECTIONS.Desktops) do
-		table.insert(lines, line)
-	end
-
-	table.insert(lines, "")
-	table.insert(lines, "Apps")
-	table.insert(lines, "Press app key again to cycle windows (if app has multiple)")
-	for _, line in ipairs(HELP_SECTIONS.Apps) do
-		table.insert(lines, line)
-	end
-
 	return table.concat(lines, "\n")
 end
 
@@ -303,7 +337,10 @@ local function toggleHelp()
 		return
 	end
 
-	local target = hs.window.focusedWindow() or hs.screen.mainScreen()
+	-- hs.alert.show signature: (text, style, screen, seconds). The third arg
+	-- must be a screen; passing a window silently fails on some HS versions.
+	local focused = hs.window.focusedWindow()
+	local screen = (focused and focused:screen()) or hs.screen.mainScreen()
 	helpAlertId = hs.alert.show(buildHelpText(), {
 		atScreenEdge = 1,
 		fadeInDuration = 0.1,
@@ -311,7 +348,7 @@ local function toggleHelp()
 		radius = 8,
 		strokeWidth = 2,
 		textSize = 20,
-	}, target, 12)
+	}, screen, 12)
 end
 
 -- Binding helpers
@@ -331,6 +368,12 @@ local function bindApp(key, appNames, helpText)
 	addHelp("Apps", string.format("%s: %s", key, helpText))
 end
 
+-- Bind an arbitrary function under HYPER, recording a help entry.
+local function bindCustom(section, key, fn, helpText)
+	hs.hotkey.bind(HYPER, key, fn)
+	addHelp(section, string.format("%s: %s", key, helpText))
+end
+
 local function sendCmdN(app)
 	-- Delay so the synthetic Cmd+N isn't merged with physical HYPER modifiers.
 	hs.timer.doAfter(0.05, function()
@@ -338,75 +381,49 @@ local function sendCmdN(app)
 	end)
 end
 
-local unavailableApps = {}
-
-local function launchFirstAvailableApp(appNames)
-	for _, appName in ipairs(appNames) do
-		if not unavailableApps[appName] then
-			if hs.application.launchOrFocus(appName) then
-				return true
-			end
-			unavailableApps[appName] = true
-		end
-	end
-	return false
-end
-
--- Open a new Ghostty window on the CURRENT Space. open -na avoids activating
--- an existing Ghostty window on another Space, which would make macOS swoosh
--- there instead of opening a window here.
+-- Hyper+Return / Hyper+PadEnter: open a new Ghostty window using the
+-- EXISTING Ghostty process (single Dock icon). We drive `File > New Window`
+-- via AX without activating Ghostty, which avoids the Space swoosh that
+-- `app:activate()` would cause when Ghostty's last window is elsewhere, and
+-- avoids the per-Space proliferation of `open -na` (which spawns a fresh
+-- Ghostty.app instance every time and lands a new Dock icon).
 local function newGhosttyWindowHere()
 	local app = hs.application.get("Ghostty")
 	if not app then
-		launchFirstAvailableApp({ "Ghostty" })
+		hs.application.launchOrFocus("Ghostty")
 		return
 	end
 	if app:isFrontmost() then
 		sendCmdN(app)
 		return
 	end
-
-	local output, ok = hs.execute('/usr/bin/open -na "Ghostty" 2>&1', true)
-	if not ok then
-		hs.alert.show("open Ghostty failed: " .. (output or "?"))
-		app:activate()
+	-- Try the common menu paths Ghostty exposes for new windows.
+	for _, path in ipairs({ { "File", "New Window" }, { "Ghostty", "New Window" } }) do
+		if app:selectMenuItem(path) then
+			return
+		end
 	end
+	hs.alert.show("Ghostty: New Window menu item not found")
 end
 
-local function openOrNewAppWindowOnCurrentSpace(appName, appNames, newWindowFn)
-	local app = hs.application.get(appName)
+-- Hyper+T: focus (or cycle) a Ghostty window on the current Space.
+-- No-op if Ghostty isn't running or has no window on the current Space --
+-- we never launch Ghostty or jump Spaces from here. Use Hyper+Return to
+-- spawn a new window.
+local function focusTerminalOnCurrentSpace()
+	local app = hs.application.get("Ghostty")
 	if not app then
-		return false
-	end
-	local winsOnSpace = getAppWindowsOnCurrentSpace(app)
-	if app:isFrontmost() and #winsOnSpace > 0 then
-		cycleWindows(getWindowsOnCurrentSpace(appNames))
-		return true
-	end
-	if #winsOnSpace > 0 then
-		winsOnSpace[1]:focus()
-		return true
-	end
-	newWindowFn()
-	return true
-end
-
--- Hyper+T: focus a Ghostty window on the current Space if one exists
--- (cycling when frontmost), otherwise spawn a new window here instead of
--- jumping Spaces to an existing Ghostty window elsewhere.
-local function openOrNewTerminalWindow()
-	if openOrNewAppWindowOnCurrentSpace("Ghostty", { "Ghostty" }, newGhosttyWindowHere) then
 		return
 	end
-	launchFirstAvailableApp(TERMINAL)
-end
-
-local function newTerminalWindowHere()
-	if hs.application.get("Ghostty") then
-		newGhosttyWindowHere()
+	local wins = getWindowsOnCurrentSpace({ "Ghostty" })
+	if #wins == 0 then
 		return
 	end
-	launchFirstAvailableApp(TERMINAL)
+	if app:isFrontmost() then
+		cycleWindows(wins)
+		return
+	end
+	wins[1]:focus()
 end
 
 local function openOrNewFinderWindow()
@@ -440,13 +457,10 @@ bindCycle("X", "Bottom cycle (1/3, 1/2, 2/3)")
 bindApp("B", BROWSER, "Browser") -- B = Browser
 bindApp("I", IDE, "IDE") -- I = IDE
 bindApp("M", { "Music" }, "Music") -- M = Music
-hs.hotkey.bind(HYPER, "Y", openOrNewFinderWindow) -- Y = files (yazi/Finder analogue)
-addHelp("Apps", "Y: Files/Finder (new window if frontmost)")
-hs.hotkey.bind(HYPER, "T", openOrNewTerminalWindow) -- T = Terminal
-addHelp("Apps", "T: Terminal (Ghostty)")
-hs.hotkey.bind(HYPER, "padenter", newTerminalWindowHere)
-hs.hotkey.bind(HYPER, "return", newTerminalWindowHere)
-addHelp("Apps", "Return / PadEnter: New terminal window on current Space")
+bindCustom("Apps", "Y", openOrNewFinderWindow, "Files/Finder (new window if frontmost)")
+bindCustom("Apps", "T", focusTerminalOnCurrentSpace, "Focus Ghostty on current Space (no-op if none)")
+bindCustom("Apps", "return", newGhosttyWindowHere, "New Ghostty window on current Space")
+hs.hotkey.bind(HYPER, "padenter", newGhosttyWindowHere) -- duplicate of return on numpad
 
 -- Focus window by direction (matches sway/yazi hjkl)
 local function focusDir(method)
@@ -457,15 +471,12 @@ local function focusDir(method)
 	end
 end
 
-hs.hotkey.bind(HYPER, "H", focusDir("focusWindowWest"))
-addHelp("Window", "H: Focus left")
-hs.hotkey.bind(HYPER, "J", focusDir("focusWindowSouth"))
-addHelp("Window", "J: Focus down")
-hs.hotkey.bind(HYPER, "K", focusDir("focusWindowNorth"))
-addHelp("Window", "K: Focus up")
-hs.hotkey.bind(HYPER, "L", focusDir("focusWindowEast"))
-addHelp("Window", "L: Focus right")
+bindCustom("Window", "H", focusDir("focusWindowWest"), "Focus left")
+bindCustom("Window", "J", focusDir("focusWindowSouth"), "Focus down")
+bindCustom("Window", "K", focusDir("focusWindowNorth"), "Focus up")
+bindCustom("Window", "L", focusDir("focusWindowEast"), "Focus right")
 
--- Help
-hs.hotkey.bind(HYPER, "/", toggleHelp)
-addHelp("Apps", "/: Show this help")
+-- Help. Bound to `;` rather than `/` because macOS's built-in "Help menu
+-- search" shortcut (Cmd+Shift+?) swallows the Cmd+Shift+/ event before
+-- Hammerspoon sees it, even with the full HYPER modifier set.
+bindCustom("Apps", ";", toggleHelp, "Show this help")

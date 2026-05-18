@@ -15,7 +15,7 @@ that the mnemonics are part of the design.
 - Pressing the same key repeatedly often cycles state.
 - App focus prefers windows on the *current* Space instead of dragging you
   across desktops.
-- `Hyper`+`/` toggles an on-screen help overlay generated from the same
+- `Hyper`+`;` toggles an on-screen help overlay generated from the same
   binding registry the config uses internally.
 
 ```quiz
@@ -26,10 +26,10 @@ answer = 1
 why = "Every Hammerspoon binding hangs off the four-modifier Hyper chord."
 
 [[questions]]
-q = "What does `Hyper`+`/` do?"
+q = "What does `Hyper`+`;` do?"
 options = ["Open Safari", "Toggle the help overlay", "Reload Hammerspoon"]
 answer = 1
-why = "The config builds a help screen from its binding registry and shows it on `Hyper`+`/`."
+why = "The config builds a help screen from its binding registry and shows it on `Hyper`+`;` (Cmd+Shift+/ is swallowed by macOS's built-in Help-menu shortcut, so we use `;`)."
 
 [[questions]]
 q = "How does app focus behave when possible?"
@@ -169,11 +169,15 @@ plain "focus the app" isn't enough.
 - `Hyper`+`B` — open the Browser, matching the sway launcher layer
 - `Hyper`+`Y` — focus Finder; if Finder is already frontmost, create a new
   Finder window on the current Space instead
+- `Hyper`+`T` — focus (or cycle) a Ghostty window on the current Space.
+  No-op if Ghostty isn't running or has no window on this Space; it will
+  not launch Ghostty and will not swoosh to another Space. Use
+  `Hyper`+`Return` to spawn a window.
 - `Hyper`+`Return` (and `Hyper`+`PadEnter`) — open a new Ghostty window on
   the current Space using `open -na "Ghostty"`, which creates a fresh window
   without activating an existing Ghostty window on another Space (which
   would swoosh macOS away). App-local new-window behavior, not generic
-  Space-jumping focus tricks.
+  Space-jumping focus tricks. Launches Ghostty if it isn't running.
 
 ```quiz
 [[questions]]
