@@ -106,15 +106,44 @@ def parse_keys(raw: str) -> list[tuple[str, str]]:
     Skips entries with an empty note (typically built-in keys without a
     description registered). Returns the order tmux emitted, which is
     alphanumeric — callers may re-sort.
+
+    Handles two output shapes:
+      * legacy (pre-3.5):  ``<key><ws><note>``
+      * 3.5+ default:     ``<prefix><ws><key><ws><note>`` (the prefix chord
+        — e.g. ``C-b`` — is repeated on every line; strip it).
+
+    Auto-detection: if every non-empty line shares the same first token
+    AND that token does not appear as a categorised key in any section,
+    treat it as the prefix and strip it. This keeps the function format-
+    agnostic without having to query tmux for ``#{prefix}``.
     """
-    entries: list[tuple[str, str]] = []
+    rows: list[list[str]] = []
     for line in raw.splitlines():
         # Each line is "<key><whitespace><note>". The note may itself
         # contain spaces, so split into exactly 2 parts on whitespace.
         parts = line.split(None, 1)
         if len(parts) < 2:
             continue
-        key, note = parts[0], parts[1].strip()
+        rows.append([parts[0], parts[1].strip()])
+
+    # Detect & strip a repeated leading prefix-chord column.
+    if rows:
+        first_tokens = {r[0] for r in rows}
+        all_known: set[str] = set()
+        for ks in SECTION_KEYS.values():
+            all_known.update(ks)
+        if len(first_tokens) == 1 and next(iter(first_tokens)) not in all_known:
+            for r in rows:
+                # Re-split the note column on first whitespace to lift the
+                # real key out from behind the prefix chord.
+                sub = r[1].split(None, 1)
+                if len(sub) < 2:
+                    r[0], r[1] = sub[0] if sub else "", ""
+                else:
+                    r[0], r[1] = sub[0], sub[1].strip()
+
+    entries: list[tuple[str, str]] = []
+    for key, note in rows:
         if not note:
             continue
         entries.append((key, note))
