@@ -1,0 +1,528 @@
+#!/usr/bin/env python3
+"""Upload Git LFS objects with curl, then optionally push Git refs.
+
+Generic workaround for Bubba/Forgejo Git LFS repositories where:
+
+  * SSH Git access works;
+  * `ssh git@bubba git-lfs-authenticate <owner/repo.git> upload` works;
+  * the LFS HTTP endpoint is reachable with curl;
+  * but the `git-lfs` client's Go HTTP stack cannot connect to Bubba.
+
+The script derives the repository path from the configured remote by default and
+supports remotes such as:
+
+  ssh://git@bubba:3022/owner/repo.git
+  git@bubba:owner/repo.git
+  http://bubba:8090/owner/repo.git
+
+For unusual repos, override discovery explicitly:
+
+  bubba-lfs-curl-push --ssh-host bubba --ssh-port 3022 --repo-path owner/repo.git
+
+What it does:
+
+  1. Lists local Git LFS objects.
+  2. Gets the authoritative LFS href + bearer token from `git-lfs-authenticate`.
+  3. Uses curl to call the LFS batch/upload/verify endpoints.
+  4. If `--push` is passed, runs `git push` with `GIT_LFS_SKIP_PUSH=1`.
+
+This is intentionally stdlib-only Python plus existing `git`, `ssh`, and `curl`.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+from collections.abc import Iterable
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
+
+BUBBA_DEFAULT_SSH_PORT = "3022"
+DEFAULT_BATCH_SIZE = 100
+
+
+@dataclass(frozen=True)
+class SshRemote:
+    user: str
+    host: str
+    port: str | None
+    repo_path: str
+
+    @property
+    def ssh_target(self) -> str:
+        return f"{self.user}@{self.host}" if self.user else self.host
+
+
+@dataclass(frozen=True)
+class LfsObject:
+    oid: str
+    size: int
+    name: str
+    path: Path
+
+
+def run(
+    args: list[str],
+    *,
+    input_bytes: bytes | None = None,
+    env: dict[str, str] | None = None,
+    capture: bool = True,
+    quiet: bool = False,
+) -> subprocess.CompletedProcess[bytes]:
+    if not quiet:
+        print("+ " + " ".join(shlex.quote(a) for a in args), file=sys.stderr)
+    return subprocess.run(
+        args,
+        input=input_bytes,
+        env=env,
+        check=True,
+        stdout=subprocess.PIPE if capture else None,
+        stderr=subprocess.PIPE if capture else None,
+    )
+
+
+def git(args: list[str], *, quiet: bool = True) -> str:
+    proc = run(["git", *args], quiet=quiet)
+    return (proc.stdout or b"").decode()
+
+
+def remote_url(remote: str) -> str:
+    return git(["remote", "get-url", remote]).strip()
+
+
+def normalize_repo_path(path: str) -> str:
+    path = path.strip().lstrip("/").rstrip("/")
+    if path.endswith("/info/lfs"):
+        path = path[: -len("/info/lfs")]
+    if not path:
+        raise ValueError("empty repository path")
+    return path
+
+
+def default_port_for_host(host: str) -> str | None:
+    return BUBBA_DEFAULT_SSH_PORT if host == "bubba" else None
+
+
+def infer_remote(
+    url: str,
+    *,
+    ssh_user: str | None,
+    ssh_host: str | None,
+    ssh_port: str | None,
+    repo_path: str | None,
+) -> SshRemote:
+    """Infer SSH auth target and Forgejo repo path from a git remote URL.
+
+    HTTP remotes expose the Git/LFS web port, not the SSH auth port, so for
+    `http://bubba:8090/owner/repo.git` we use host=bubba and default to port
+    3022 unless the caller passes --ssh-port.
+    """
+
+    parsed = urlparse(url)
+    inferred_user: str | None = None
+    inferred_host: str | None = None
+    inferred_port: str | None = None
+    inferred_path: str | None = None
+
+    if parsed.scheme == "ssh":
+        inferred_user = parsed.username or "git"
+        inferred_host = parsed.hostname
+        inferred_port = str(parsed.port) if parsed.port else None
+        inferred_path = parsed.path
+    elif parsed.scheme in {"http", "https"}:
+        inferred_user = "git"
+        inferred_host = parsed.hostname
+        inferred_port = None  # parsed.port is the web/LFS port, not SSH.
+        inferred_path = parsed.path
+    else:
+        scp_like = re.match(
+            r"(?:(?P<user>[^@:/]+)@)?(?P<host>[^:/]+):(?P<path>.+)$", url
+        )
+        if scp_like:
+            inferred_user = scp_like.group("user") or "git"
+            inferred_host = scp_like.group("host")
+            inferred_path = scp_like.group("path")
+
+    final_host = ssh_host or inferred_host
+    final_user = ssh_user or inferred_user or "git"
+    final_path = repo_path or inferred_path
+    if not final_host or not final_path:
+        raise ValueError(
+            "Could not infer Bubba SSH auth target/repository path from remote URL. "
+            "Pass --ssh-host and --repo-path explicitly. Remote URL was: " + url
+        )
+
+    final_port = ssh_port or inferred_port or default_port_for_host(final_host)
+    return SshRemote(
+        user=final_user,
+        host=final_host,
+        port=final_port,
+        repo_path=normalize_repo_path(final_path),
+    )
+
+
+def git_common_dir() -> Path:
+    top = Path(git(["rev-parse", "--show-toplevel"]).strip())
+    common = Path(git(["rev-parse", "--git-common-dir"]).strip())
+    if not common.is_absolute():
+        common = top / common
+    return common.resolve()
+
+
+def lfs_store_path(common_dir: Path, oid: str) -> Path:
+    return common_dir / "lfs" / "objects" / oid[:2] / oid[2:4] / oid
+
+
+def list_lfs_objects(*, all_history: bool, ref: str | None) -> list[LfsObject]:
+    args = ["lfs", "ls-files", "-l", "--json"]
+    if all_history:
+        args.append("--all")
+    elif ref:
+        args.append(ref)
+
+    data = json.loads(git(args))
+    common_dir = git_common_dir()
+    objects: dict[str, LfsObject] = {}
+
+    for entry in data.get("files", []):
+        oid = entry.get("oid")
+        if not oid:
+            continue
+        size = entry.get("size")
+        name = entry.get("name") or oid
+        path = lfs_store_path(common_dir, oid)
+        if size is None and path.exists():
+            size = path.stat().st_size
+        if size is None:
+            raise RuntimeError(f"No size known for LFS object {oid} ({name})")
+        objects.setdefault(
+            oid, LfsObject(oid=oid, size=int(size), name=name, path=path)
+        )
+
+    missing = [obj for obj in objects.values() if not obj.path.exists()]
+    if missing:
+        examples = "\n".join(f"  {obj.oid} {obj.name}" for obj in missing[:10])
+        raise RuntimeError(
+            "Some LFS objects are not present in the local LFS store. "
+            "Run `git lfs fetch --all` or otherwise obtain them first.\n" + examples
+        )
+
+    return sorted(objects.values(), key=lambda obj: obj.name)
+
+
+def lfs_auth(remote: SshRemote, operation: str) -> tuple[str, dict[str, str]]:
+    args = ["ssh"]
+    if remote.port:
+        args += ["-p", remote.port]
+    args += [remote.ssh_target, "git-lfs-authenticate", remote.repo_path, operation]
+    proc = run(args, quiet=True)
+    payload = json.loads((proc.stdout or b"").decode())
+    href = payload["href"].rstrip("/")
+    headers = payload.get("header", {})
+    if not isinstance(headers, dict):
+        raise RuntimeError("Unexpected git-lfs-authenticate header payload")
+    return href, {str(k): str(v) for k, v in headers.items()}
+
+
+def curl_json(
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    payload: dict[str, Any],
+    *,
+    no_proxy: str | None,
+) -> dict[str, Any]:
+    args = ["curl", "-sS", "--fail-with-body", "--connect-timeout", "10"]
+    if no_proxy:
+        args += ["--noproxy", no_proxy]
+    args += ["-X", method]
+    for key, value in headers.items():
+        args += ["-H", f"{key}: {value}"]
+    args += ["--data-binary", "@-", url]
+    proc = run(args, input_bytes=json.dumps(payload).encode(), quiet=True)
+    body = (proc.stdout or b"").decode()
+    return json.loads(body) if body else {}
+
+
+def curl_upload(
+    url: str, headers: dict[str, str], path: Path, *, no_proxy: str | None
+) -> None:
+    args = ["curl", "-sS", "--fail-with-body", "--connect-timeout", "10"]
+    if no_proxy:
+        args += ["--noproxy", no_proxy]
+    args += ["-X", "PUT"]
+    for key, value in headers.items():
+        args += ["-H", f"{key}: {value}"]
+    args += ["--data-binary", f"@{path}", url]
+    run(args, quiet=True)
+
+
+def chunks(items: list[LfsObject], size: int) -> Iterable[list[LfsObject]]:
+    for start in range(0, len(items), size):
+        yield items[start : start + size]
+
+
+def upload_lfs_objects(
+    objects: list[LfsObject],
+    href: str,
+    auth_headers: dict[str, str],
+    *,
+    dry_run: bool,
+    batch_size: int,
+    no_proxy: str | None,
+) -> None:
+    if not objects:
+        print("No local LFS objects found.")
+        return
+
+    by_oid = {obj.oid: obj for obj in objects}
+    headers = {
+        "Accept": "application/vnd.git-lfs+json",
+        "Content-Type": "application/vnd.git-lfs+json",
+        **auth_headers,
+    }
+
+    print(f"LFS href: {href}")
+    uploaded = verified = already_present = would_upload = would_verify = 0
+    total_remote_objects = 0
+
+    for batch_index, batch_objects in enumerate(chunks(objects, batch_size), 1):
+        batch_payload = {
+            "operation": "upload",
+            "transfers": ["basic"],
+            "objects": [{"oid": obj.oid, "size": obj.size} for obj in batch_objects],
+            "hash_algo": "sha256",
+        }
+        print(
+            f"Asking server which objects need upload "
+            f"(batch {batch_index}, {len(batch_objects)} objects)..."
+        )
+        batch = curl_json(
+            "POST",
+            href + "/objects/batch",
+            headers,
+            batch_payload,
+            no_proxy=no_proxy,
+        )
+        remote_objects = batch.get("objects", [])
+        total_remote_objects += len(remote_objects)
+
+        for remote_obj in remote_objects:
+            oid = remote_obj["oid"]
+            local = by_oid[oid]
+            actions = remote_obj.get("actions") or {}
+            upload = actions.get("upload")
+            verify = actions.get("verify")
+
+            if not upload:
+                already_present += 1
+                print(f"present {local.name}")
+                continue
+
+            print(f"upload {local.name} ({local.size} bytes)")
+            if dry_run:
+                would_upload += 1
+                if verify:
+                    would_verify += 1
+                continue
+
+            curl_upload(
+                upload["href"],
+                {str(k): str(v) for k, v in upload.get("header", {}).items()},
+                local.path,
+                no_proxy=no_proxy,
+            )
+            uploaded += 1
+
+            if verify:
+                verify_headers = {
+                    "Accept": "application/vnd.git-lfs+json",
+                    "Content-Type": "application/vnd.git-lfs+json",
+                    **{str(k): str(v) for k, v in verify.get("header", {}).items()},
+                }
+                curl_json(
+                    "POST",
+                    verify["href"],
+                    verify_headers,
+                    {"oid": oid, "size": local.size},
+                    no_proxy=no_proxy,
+                )
+                verified += 1
+
+    if dry_run:
+        print(
+            f"Done dry-run: would_upload={would_upload} would_verify={would_verify} "
+            f"already_present={already_present} server_objects={total_remote_objects}"
+        )
+    else:
+        print(
+            f"Done: uploaded={uploaded} verified={verified} "
+            f"already_present={already_present} server_objects={total_remote_objects}"
+        )
+
+
+def push(
+    remote: str, branch: str, *, set_upstream: bool, extra_args: list[str]
+) -> None:
+    args = ["git", "push"]
+    if set_upstream:
+        args.append("--set-upstream")
+    args += [remote, branch, *extra_args]
+    env = os.environ.copy()
+    env["GIT_LFS_SKIP_PUSH"] = "1"
+    run(args, env=env, capture=False, quiet=False)
+
+
+def current_branch() -> str:
+    branch = git(["branch", "--show-current"]).strip()
+    if not branch:
+        raise RuntimeError("Could not infer current branch; pass --branch explicitly")
+    return branch
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "remote", nargs="?", default="origin", help="Git remote name (default: origin)"
+    )
+    parser.add_argument(
+        "branch", nargs="?", help="Branch to push (default: current branch)"
+    )
+    parser.add_argument(
+        "--current-tree",
+        action="store_true",
+        help="Upload only LFS objects in --ref/current tree, not all local history",
+    )
+    parser.add_argument(
+        "--ref",
+        help="Ref to inspect for LFS objects. Implies tree scope unless --current-tree is omitted and no ref is set.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Ask server what is missing, but do not upload or push",
+    )
+    parser.add_argument(
+        "--push",
+        action="store_true",
+        help="After LFS upload, run `git push` with GIT_LFS_SKIP_PUSH=1",
+    )
+    parser.add_argument(
+        "--set-upstream",
+        action="store_true",
+        help="Use `git push --set-upstream` when --push is set",
+    )
+    parser.add_argument(
+        "--ssh-user",
+        help="SSH user for git-lfs-authenticate (default: from remote URL or git)",
+    )
+    parser.add_argument(
+        "--ssh-host",
+        help="SSH host for git-lfs-authenticate (default: from remote URL)",
+    )
+    parser.add_argument(
+        "--ssh-port",
+        help="SSH port for git-lfs-authenticate (default: remote SSH port, or 3022 for bubba)",
+    )
+    parser.add_argument(
+        "--repo-path",
+        help="Forgejo repo path for git-lfs-authenticate, e.g. owner/repo.git",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help=f"LFS batch size (default: {DEFAULT_BATCH_SIZE})",
+    )
+    parser.add_argument(
+        "--no-proxy",
+        default="bubba,192.168.0.100",
+        help="Value passed to curl --noproxy (default: bubba,192.168.0.100)",
+    )
+    parser.add_argument(
+        "--push-arg",
+        action="append",
+        default=[],
+        help="Extra argument appended to `git push`; repeat as needed",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    if args.batch_size <= 0:
+        raise ValueError("--batch-size must be positive")
+
+    branch = args.branch or current_branch()
+    url = remote_url(args.remote)
+    remote = infer_remote(
+        url,
+        ssh_user=args.ssh_user,
+        ssh_host=args.ssh_host,
+        ssh_port=args.ssh_port,
+        repo_path=args.repo_path,
+    )
+
+    # Default to all local LFS history, which is the safest pre-push analogue for
+    # first pushes. If --ref is provided, inspect that ref's tree unless the user
+    # explicitly asks for --current-tree too (same resulting tree scope).
+    all_history = not args.current_tree and args.ref is None
+    objects = list_lfs_objects(all_history=all_history, ref=args.ref)
+    total_bytes = sum(obj.size for obj in objects)
+    scope = "all local LFS history" if all_history else (args.ref or "current tree")
+
+    print(f"Git remote: {args.remote} ({url})")
+    print(
+        "LFS auth: "
+        f"ssh {('-p ' + remote.port + ' ') if remote.port else ''}"
+        f"{remote.ssh_target} git-lfs-authenticate {remote.repo_path} upload"
+    )
+    print(f"LFS scope: {scope}")
+    print(f"Found {len(objects)} LFS objects ({total_bytes} bytes)")
+
+    href, headers = lfs_auth(remote, "upload")
+    upload_lfs_objects(
+        objects,
+        href,
+        headers,
+        dry_run=args.dry_run,
+        batch_size=args.batch_size,
+        no_proxy=args.no_proxy,
+    )
+
+    if args.push:
+        if args.dry_run:
+            print("Dry run: skipping git push")
+        else:
+            push(
+                args.remote,
+                branch,
+                set_upstream=args.set_upstream,
+                extra_args=args.push_arg,
+            )
+    else:
+        print(
+            "Not pushing Git refs. Re-run with --push to push with GIT_LFS_SKIP_PUSH=1."
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except subprocess.CalledProcessError as exc:
+        if exc.stderr:
+            sys.stderr.write(exc.stderr.decode(errors="replace"))
+        if exc.stdout:
+            sys.stderr.write(exc.stdout.decode(errors="replace"))
+        raise SystemExit(exc.returncode) from None
+    except Exception as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
