@@ -122,7 +122,9 @@ def main() -> int:
     name_width = max(20, *(len(container.name) for container in containers))
     status_width = max(len(container.status) for container in containers)
     options_by_row = {
-        option_for(container, name_width=name_width, status_width=status_width): container
+        option_for(
+            container, name_width=name_width, status_width=status_width
+        ): container
         for container in containers
     }
     selection = fuzzel_dmenu(

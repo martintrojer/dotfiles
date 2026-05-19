@@ -174,7 +174,7 @@ def run_apply_tasks(
         ),
         "zsh-plugins": lambda: apply_zsh_plugins(target, verbose=verbose),
         "tmux-tpm": lambda: apply_tmux_tpm(target, verbose=verbose),
-        "agents-skills": lambda: apply_skills_symlinks(target, verbose=verbose),
+        "skills": lambda: apply_skills_symlinks(target, verbose=verbose),
         "pi-extensions": lambda: apply_pi_extensions_symlinks(target, verbose=verbose),
     }
 

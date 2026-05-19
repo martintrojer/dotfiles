@@ -20,7 +20,7 @@ Does **not** own:
 - Top-level stow packages (`zsh/`, `nvim/`, `tmux/`, ...)
 - The `fedora/` namespace, which stays a special-case package subtree plus setup wrappers
 - The universal agent source trees (`skills/`, `pi/`)
-- The Claude marketplace surface (`agents/`, `hooks/`, `.claude-plugin/`), which stays at repo root because that published layout is the integration contract Claude consumes
+- The Claude marketplace surface (`hooks/`, `.claude-plugin/`), which stays at repo root because that published layout is the integration contract Claude consumes
 
 ## Module map
 

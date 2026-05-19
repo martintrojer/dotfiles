@@ -28,7 +28,7 @@ APPLY_TASKS: Final[tuple[TaskPolicy, ...]] = (
     TaskPolicy("ignored-artifacts"),
     TaskPolicy("zsh-plugins", packages=frozenset({"zsh"})),
     TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
-    TaskPolicy("agents-skills", full_run_only=True),
+    TaskPolicy("skills", full_run_only=True),
     TaskPolicy("pi-extensions", full_run_only=True),
 )
 

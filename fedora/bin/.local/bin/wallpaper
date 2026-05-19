@@ -268,12 +268,25 @@ def _bottom_band_luminance(src: Path) -> float | None:
     try:
         res = subprocess.run(
             [
-                "magick", str(src), "-blur", f"0x{BLUR_SIGMA}",
-                "-gravity", "south", "-crop", "100%x25%+0+0", "+repage",
-                "-resize", "1x1!",
-                "-format", "%[fx:r] %[fx:g] %[fx:b]", "info:-",
+                "magick",
+                str(src),
+                "-blur",
+                f"0x{BLUR_SIGMA}",
+                "-gravity",
+                "south",
+                "-crop",
+                "100%x25%+0+0",
+                "+repage",
+                "-resize",
+                "1x1!",
+                "-format",
+                "%[fx:r] %[fx:g] %[fx:b]",
+                "info:-",
             ],
-            capture_output=True, text=True, timeout=15, check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
         )
         r, g, b = (float(x) for x in res.stdout.split())
     except (OSError, subprocess.SubprocessError, ValueError):
@@ -364,7 +377,10 @@ def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
     try:
         dim = subprocess.run(
             ["magick", "identify", "-format", "%h", str(src)],
-            capture_output=True, text=True, timeout=10, check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
         )
         height = int(dim.stdout.strip())
     except (OSError, subprocess.SubprocessError, ValueError):

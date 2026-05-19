@@ -195,7 +195,7 @@ def apply_skills_symlinks(target: Path, *, verbose: bool) -> None:
         if path.is_dir() and not path.name.startswith(".")
     }
     _agent_link_apply(
-        label="agents-skills",
+        label="skills",
         src_dir=src_dir,
         dest_dir=target / ".agents" / "skills",
         expected_names=expected_names,

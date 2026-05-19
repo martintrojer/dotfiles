@@ -139,7 +139,9 @@ def _looks_like_private_env_file(path: Path) -> bool:
 
 
 def _should_scan_env_assignments(path: Path) -> bool:
-    return path.name in ENV_ASSIGNMENT_FILENAMES or path.suffix in ENV_ASSIGNMENT_SUFFIXES
+    return (
+        path.name in ENV_ASSIGNMENT_FILENAMES or path.suffix in ENV_ASSIGNMENT_SUFFIXES
+    )
 
 
 def _assignment_value(raw_value: str) -> str:

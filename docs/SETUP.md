@@ -287,7 +287,7 @@ When any of the agent-side content changes in this repo:
 
 - **Skills and Pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` symlinks point straight at the repo source; edits propagate live.
 - **New / removed skills or Pi extensions:** re-run `./dotfiles-sync --apply` to create new symlinks or prune stale ones.
-- **Claude (any change to `agents/`, `hooks/`, `skills/`, or `.claude-plugin/`):** push to `origin`, then run `claude plugin install mtrojer@dotfiles` on each consumer machine. (The marketplace add from the fresh-install step is one-time — only the `plugin install` needs to be re-run.)
+- **Claude (any change to `hooks/`, `skills/`, or `.claude-plugin/`):** push to `origin`, then run `claude plugin install mtrojer@dotfiles` on each consumer machine. (The marketplace add from the fresh-install step is one-time — only the `plugin install` needs to be re-run.)
 
 ## Testing and debugging the bootstrap
 

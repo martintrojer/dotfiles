@@ -70,7 +70,6 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
 IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
     "__pycache__",
     "_dotfiles_sync",
-    "agents",  # Claude plugin asset, consumed via `claude plugin install`
     "docs",  # cross-cutting documentation hosted at repo root
     "fedora",  # contains its own stow packages, scope-driven
     "guides",  # interactive learning guides, rendered by guides/build.py
