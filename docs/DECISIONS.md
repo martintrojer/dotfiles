@@ -321,7 +321,7 @@ Only test runner is `tmux/.config/tmux/scripts/test-status-tools`. `_dotfiles_sy
 Replaced a ~1300-line bootstrap script with a root entrypoint (`dotfiles-sync`) and a repo-local Python package (`_dotfiles_sync/{cli,config,system,stow,checks,external,model}.py`). Cross-cutting repo docs moved to `docs/`; the tiny `vscode/` pseudo-package was demoted to `docs/VSCODE.md`.
 
 - Driver: the old script mixed stow orchestration, package inventory, pinned clones, agent fan-out, drift checks. No longer read like intentional software.
-- Top-level stow packages, `fedora/`, `skills/`, `pi/`, and the Claude marketplace baggage (`agents/`, `hooks/`, `.claude-plugin/`) all stayed put — the marketplace layout is an external integration contract.
+- Top-level stow packages, `fedora/`, `skills/`, `pi/`, and the Claude marketplace baggage (`hooks/`, `.claude-plugin/`) all stayed put — the marketplace layout is an external integration contract.
 - Improves #1, #3, #10. Tax is one new directory.
 
 **Reconsider only if:** control plane shrinks below ~300 lines (collapse the split), OR grows into a genuinely reusable tool (promote to standalone).

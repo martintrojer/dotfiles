@@ -6,7 +6,7 @@
 	"plugins": [
 		{
 			"name": "mtrojer",
-			"description": "Personal Claude Code plugin: code-review agents, commit/brainstorm/plan workflows, agent-attention tmux integration, and the shared dotfiles skills suite.",
+			"description": "Personal Claude Code plugin: agent-attention tmux integration, commit/brainstorm/plan workflows, and the shared dotfiles skills suite.",
 			"author": {
 				"name": "martintrojer"
 			},

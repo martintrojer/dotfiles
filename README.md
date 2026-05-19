@@ -43,7 +43,7 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behaviour is 
 | macOS desktop stack (stow packages) | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) (terminal) |
 | Fedora setup namespace | [`fedora/`](./fedora) (special case: nested stow packages + setup wrappers) |
 | Universal agent sources | [`skills/`](./skills), [`pi/`](./pi) |
-| Claude marketplace surface | [`agents/`](./agents), [`hooks/`](./hooks), [`.claude-plugin/`](./.claude-plugin) — ugly but intentional; this is the published plugin contract Claude consumes |
+| Claude marketplace surface | [`hooks/`](./hooks), [`.claude-plugin/`](./.claude-plugin) — ugly but intentional; this is the published plugin contract Claude consumes |
 | Repo control plane | [`dotfiles-sync`](./dotfiles-sync), [`_dotfiles_sync/`](./_dotfiles_sync), [`.stowrc`](./.stowrc) |
 | Cross-cutting docs/policy | [`docs/`](./docs) — [`SETUP.md`](./docs/SETUP.md), [`DECISIONS.md`](./docs/DECISIONS.md), [`THEME.md`](./docs/THEME.md), [`VSCODE.md`](./docs/VSCODE.md) |
 

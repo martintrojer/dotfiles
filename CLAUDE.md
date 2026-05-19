@@ -4,7 +4,7 @@ This repo uses **GNU Stow**. Most top-level directories are stow packages mirror
 
 - `fedora/` — Fedora bootstrap/setup namespace
 - `skills/`, `pi/` — shared agent source trees
-- `.claude-plugin/`, `agents/`, `hooks/` — Claude marketplace surface
+- `.claude-plugin/`, `hooks/` — Claude marketplace surface
 - `dotfiles-sync`, `_dotfiles_sync/` — repo control plane
 
 ## Search Tips

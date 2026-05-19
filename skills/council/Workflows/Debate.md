@@ -37,7 +37,7 @@ Launch 4 parallel Task calls (one per council member).
 
 **Each agent prompt includes:**
 ```
-You are [Agent Name], [brief role description from their agents/*.md file].
+You are [Agent Name], using the role description from CouncilMembers.md.
 
 COUNCIL DEBATE - ROUND 1: INITIAL POSITIONS
 
