@@ -2,6 +2,7 @@
 -- Module References
 ----------------------------------------------------------------------
 local zk_commands = require("zk.commands")
+local util = require("util")
 
 ----------------------------------------------------------------------
 -- Helpers
@@ -23,8 +24,10 @@ local function zk_call(name, opts)
 	handler(opts)
 end
 
+-- Resolve the notebook for the current buffer at call time, so that
+-- cd-ing into a different vault picks it up automatically.
 local function np()
-	return vim.g.notes_path
+	return util.notes_path()
 end
 
 ----------------------------------------------------------------------

@@ -27,6 +27,13 @@ function M.vcs_dir(bufnr)
 	return M.vcs_root(bufnr) or M.buf_dir(bufnr)
 end
 
+-- Notebook (zk vault) for the current buffer: nearest ancestor containing
+-- a `.zk/` marker, falling back to `vim.g.notes_path`. Lets us drop into
+-- any vault by `cd`-ing into it without re-pointing the default.
+function M.notes_path(bufnr)
+	return vim.fs.root(bufnr or 0, { ".zk" }) or vim.g.notes_path
+end
+
 ----------------------------------------------------------------------
 -- CWD Helpers
 ----------------------------------------------------------------------

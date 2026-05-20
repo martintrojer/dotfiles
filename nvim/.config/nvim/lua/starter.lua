@@ -1,5 +1,6 @@
 -- Start screen (mini.starter)
 local starter = require("mini.starter")
+local util = require("util")
 
 ----------------------------------------------------------------------
 -- Helpers
@@ -22,7 +23,7 @@ local function cwd_recent_files(n)
 end
 
 local function notes_section()
-	local notes_path = vim.g.notes_path
+	local notes_path = util.notes_path()
 	local home = vim.fn.expand("~")
 	if notes_path == home then
 		notes_path = "~"
@@ -78,13 +79,13 @@ starter.setup({
 		end),
 		action_item("Work", "Semantic search", "VecgrepLive"),
 		action_item(notes_header, "Notes", function()
-			require("zk.commands").get("ZkNotes")({ notebook_path = vim.g.notes_path, sort = { "modified" } })
+			require("zk.commands").get("ZkNotes")({ notebook_path = util.notes_path(), sort = { "modified" } })
 		end),
 		action_item(notes_header, "Journal", function()
-			require("zk.commands").get("ZkNew")({ notebook_path = vim.g.notes_path, group = "journal" })
+			require("zk.commands").get("ZkNew")({ notebook_path = util.notes_path(), group = "journal" })
 		end),
 		action_item(notes_header, "TODOs", function()
-			require("todos").grep({ cwd = vim.g.notes_path })
+			require("todos").grep({ cwd = util.notes_path() })
 		end),
 		action_item("System", "Oil" .. cwd_glyph, function()
 			require("oil").open(vim.uv.cwd())
