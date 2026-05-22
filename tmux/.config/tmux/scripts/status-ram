@@ -16,9 +16,11 @@ from _status_common import EXPECTED_ERRORS, STATE_DIR, log_error
 #   low    — muted subtext0 on surface0   (no signal)
 #   medium — peach (orange) on surface0  (warn: subtle fg shift only)
 #   high   — dark crust on Catppuccin red (high: subtle red bg signals trouble)
+# THEME BEGIN: status-ram-colors
 LOW_STYLE = "#[bg=#313244]#[fg=#a6adc8]"
 MEDIUM_STYLE = "#[bg=#313244]#[fg=#fab387]"
 HIGH_STYLE = "#[bg=#f38ba8]#[fg=#11111b]"
+# THEME END: status-ram-colors
 MEDIUM_THRESH = 75
 HIGH_THRESH = 90
 

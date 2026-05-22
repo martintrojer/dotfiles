@@ -10,6 +10,7 @@ set $browser sh -lc "$HOME/.config/sway/scripts/open-browser"
 set $lock ~/.config/sway/scripts/lock-screen
 set $quit ~/.config/sway/scripts/session-quit
 
+# THEME BEGIN: sway-palette
 set $rosewater #f5e0dc
 set $mauve #cba6f7
 set $red #f38ba8
@@ -22,6 +23,7 @@ set $surface0 #313244
 set $overlay0 #6c7086
 set $base #1e1e2e
 set $mantle #181825
+# THEME END: sway-palette
 
 font pango:JetBrains Mono Nerd Font Bold 10
 

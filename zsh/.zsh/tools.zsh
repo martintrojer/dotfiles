@@ -11,11 +11,13 @@ test -e "${HOME}/.ghcup/env" && . "${HOME}/.ghcup/env"
 autoload -Uz colors && colors
 setopt prompt_subst
 
+# THEME BEGIN: zsh-prompt-colors
 prompt_dir_color="%F{#b4befe}"
 prompt_accent_color="%F{#f9e2af}"
 prompt_error_color="%F{#f38ba8}"
 prompt_muted_color="%F{#6c7086}"
 prompt_toolbox_color="%F{#94e2d5}"
+# THEME END: zsh-prompt-colors
 prompt_reset="%f"
 prompt_error_glyph="󰅚"
 prompt_context=""

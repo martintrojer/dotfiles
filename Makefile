@@ -30,7 +30,9 @@ TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
 	build-guides \
 	serve-guides \
 	check-guides \
-	clean-guides
+	clean-guides \
+	theme \
+	check-theme
 
 help:
 	printf '%s\n' \
@@ -44,6 +46,8 @@ help:
 	  '  make check-prettier    # prettier --check on ts/json/jsonc/css' \
 	  '  make format-prettier   # prettier --write on ts/json/jsonc/css' \
 	  '  make check-tmux-tests  # isolated tmux smoke tests' \
+	  '  make theme             # render docs/palette.toml into every THEME BEGIN..END region' \
+	  '  make check-theme       # check theme regions are in sync with docs/palette.toml' \
 	  '  make check-ts          # alias for check-prettier' \
 	  '  make format-ts         # alias for format-prettier' \
 	  '  make build-guides      # render guides/*.md → guides/build/*.html' \
@@ -51,7 +55,7 @@ help:
 	  '  make check-guides      # validate guide sources without writing output' \
 	  '  make clean-guides      # rm -rf guides/build'
 
-check-all: check-python check-lua check-prettier check-tmux-tests check-guides
+check-all: check-python check-lua check-prettier check-tmux-tests check-guides check-theme
 
 format-all: format-python format-lua format-prettier
 
@@ -95,3 +99,9 @@ check-guides:
 
 clean-guides:
 	rm -rf guides/build
+
+theme:
+	python3 _dotfiles_sync/render_theme.py --write
+
+check-theme:
+	python3 _dotfiles_sync/render_theme.py --check

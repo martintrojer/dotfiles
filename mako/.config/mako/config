@@ -8,6 +8,7 @@ max-icon-size=32
 font=JetBrains Mono Nerd Font 18px
 
 # Catppuccin Mocha colors
+# THEME BEGIN: mako-colors
 background-color=#1e1e2e
 text-color=#cdd6f4
 border-color=#313244
@@ -21,7 +22,7 @@ invisible=false
 
 [urgency=low]
 background-color=#1e1e2e
-text-color=#89b4fa
+text-color=#a6adc8
 border-color=#313244
 
 [urgency=normal]
@@ -35,3 +36,4 @@ text-color=#f38ba8
 border-color=#f38ba8
 default-timeout=0
 layer=overlay
+# THEME END: mako-colors

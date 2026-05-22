@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# THEME BEGIN: session-wallpaper-fallback-color
 fallback_color="#1e1e2e"
+# THEME END: session-wallpaper-fallback-color
 wallpaper_helper="${HOME}/.local/bin/wallpaper"
 
 if [[ -x "$wallpaper_helper" ]] && wallpaper_path="$("$wallpaper_helper" current 2>/dev/null)"; then
