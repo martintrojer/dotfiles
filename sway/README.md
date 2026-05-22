@@ -19,8 +19,9 @@ without surprises.
 - Windowing: tiling with splits, tabbed layouts, floating mode, scratchpad-ready
   primitives, and six numbered workspaces.
 
-The hotkey overlay (`mod+Shift+/`) lives under `fuzzel/` because it's a fuzzel
-picker, not a sway script — see `fuzzel/README.md`.
+The hotkey overlay (`mod+F1`) lives under `fuzzel/` because it's a fuzzel
+picker, not a sway script — see `fuzzel/README.md`. `F1` mirrors
+hammerspoon's `Hyper+F1` so help is the same key on both OSes.
 
 ## Mental Map
 
@@ -62,9 +63,13 @@ Modifier conventions inside sway:
   `raise-window` is fire-and-forget on cold spawn — the very first
   press launches and returns immediately; second press focuses once
   the window has appeared. See TODO #14 for the deferred fix.
-- `mod+Shift+<letter>` — launch a fuzzel picker (`Shift+t` toolboxes, `Shift+s`
-  ssh, `Shift+p` powermenu, `Shift+b` browser profile, `Shift+/` hotkeys).
-  Lock is reached via `mod+Shift+p` powermenu — no dedicated key.
+- `mod+Shift+<letter>` — destructive / friction-needed actions (`Shift+q`
+  kill, `Shift+p` powermenu, `Shift+r` reload-config, `Shift+n`
+  send-to-scratchpad, `Shift+space` floating-toggle). Non-destructive
+  pickers (toolboxes, ssh, hotkeys) used to live on this layer but moved
+  to base `mod+<letter>` slots; only `Shift+p` (powermenu) stays here
+  because lock/suspend/shutdown earn the friction. Lock is reached via
+  `mod+Shift+p` powermenu — no dedicated key.
 - `mod+Shift+<motion>` — move container (`Shift+h/j/k/l`, `Shift+arrows`).
 - `mod+Ctrl+<motion>` — workspace-level move (`Ctrl+PgUp/Dn` move container +
   follow). Move-workspace-to-other-output is `mod+Shift+u` (left) / `mod+Shift+i`
@@ -96,14 +101,15 @@ Pickers (all under `fuzzel/.config/fuzzel/scripts/`):
 - `mod+v` — `clipboard`, clipman history.
 - `mod+e` — `emoji`, bemoji-backed.
 - `mod+\` — `calc`, qalc/bc-backed.
-- `mod+Shift+s` — `ssh`, ssh-config host picker.
-- `mod+Shift+t` — `toolboxes`, toolbox/distrobox container picker.
+- `mod+s` — `ssh`, ssh-config host picker.
+- `mod+t` — `toolboxes`, toolbox/distrobox container picker.
 - `mod+Shift+p` — `powermenu` (lock / suspend / logout / reboot / shutdown).
+  Kept on Shift because it's destructive (suspend / shutdown).
 - `mod+grave` — `chrome-tabs`, DevTools-protocol tab switcher (paired
   visually with `mod+Tab` window switcher — grave and Tab sit adjacent
   on the keyboard).
-- `mod+Shift+/` — `hotkeys`, parses this file's bindings and dispatches the
-  chosen action via `swaymsg`.
+- `mod+F1` — `hotkeys`, parses this file's bindings and dispatches the
+  chosen action via `swaymsg`. F1 mirrors hammerspoon's `Hyper+F1`.
 
 ## Session Model
 

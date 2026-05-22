@@ -11,7 +11,7 @@ For a browser-friendly walkthrough with quizzes, see [`../guides/HAMMERSPOON.md`
 - Hyper-key window size cycles centered on `Q/R/W` (with `E/X` for top/bottom)
 - H/J/K/L directional focus
 - A trimmed app launcher/focus set aligned with sway where it makes sense (`B/T/I/Y/M`)
-- Finder and Ghostty current-Space-aware focus/new-window behavior for `T`/`Return`/`PadEnter`, and the `;` help overlay (avoids macOS's Cmd+Shift+? Help-menu shortcut that swallows `/`)
+- Finder and Ghostty current-Space-aware focus/new-window behavior for `T`/`Return`/`PadEnter`, and the `F1` help overlay (mirrors sway's `mod+F1`; `/` would have been the obvious choice but `Hyper+/` is `Cmd+Shift+/` which macOS routes to the Help menu)
 
 ## macOS terminal policy
 
