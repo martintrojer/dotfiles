@@ -113,7 +113,17 @@ MIN_ACCENT_CONTRAST = 3.0
 # pointsizes, blur recipe, banner geometry, sixel encoding). The cache
 # key folds this in, so changes invalidate every <key>.* entry in one
 # go — lock PNG, accent file, and per-pane-size sixels alike.
-RENDER_VERSION = 3
+RENDER_VERSION = 6
+# Catppuccin Mocha base — sixel preview canvas fill. The fixed canvas
+# matters because fzf/foot don't reliably clear old sixel pixels when
+# consecutive previews have different intrinsic sizes.
+PREVIEW_BACKGROUND_COLOR = "#1e1e2e"
+# Keep sixel payloads well below the size where foot/fzf starts to
+# silently fail on large/high-detail wallpapers. This was observed on
+# the largest archive entries at ~1 MiB: direct `cat *.sixel-*` in foot
+# produced no image even though the sixel bytes were valid. `+dither`
+# avoids noisy diffusion patterns that compress poorly in sixel output.
+PREVIEW_COLORS = 48
 # Catppuccin Mocha 'text' — banner fallback when accent pluck fails.
 # THEME BEGIN: wallpaper-fallback-color
 FALLBACK_TEXT_COLOR = "cdd6f4"
@@ -251,6 +261,24 @@ def _sixel_cache_path(wallpaper: Path, cols: int, lines: int) -> Path | None:
     if key is None:
         return None
     return CACHE_DIR / f"{key}.sixel-{cols}x{lines}"
+
+
+def _file_identity(path: Path) -> tuple[int, int, int, int] | None:
+    """Return the source identity that must remain stable during render.
+
+    Preview renders are intentionally asynchronous under fzf: moving the
+    cursor can kill/restart preview commands while ImageMagick is still
+    doing work. Cache writes therefore re-check this identity after the
+    render and only publish bytes if the path still names the same file
+    content we keyed at the start. That prevents a late render from
+    populating a stale/wrong `.sixel-*` cache path after an archive entry
+    is replaced, deleted, or otherwise races with the preview process.
+    """
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
 
 
 def _atomic_write(path: Path, data: bytes) -> None:
@@ -450,7 +478,7 @@ def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
 
 
 def build_lock_cache(
-    wallpaper: Path, *, force: bool = False
+    wallpaper: Path, *, force: bool = False, verbose: bool = False
 ) -> tuple[Path | None, str | None]:
     """Pluck accent + render lock image for `wallpaper`. Idempotent.
 
@@ -463,6 +491,16 @@ def build_lock_cache(
         return None, None
     img_path, color_path = paths
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    cache_hit = (
+        not force
+        and img_path.is_file()
+        and img_path.stat().st_size > 0
+        and color_path.is_file()
+        and color_path.stat().st_size > 0
+    )
+    if verbose and not cache_hit:
+        print("Generating lock-screen image... ", end="", flush=True)
 
     # Accent first — the rendered image bakes it into the banner, so a
     # cached image without the accent stored is meaningless.
@@ -488,6 +526,9 @@ def build_lock_cache(
         wallpaper, img_path, accent=accent
     ):
         image = img_path
+
+    if verbose and not cache_hit:
+        print("done" if image else "failed", flush=True)
 
     return image, accent
 
@@ -543,7 +584,7 @@ def activate(archive_path: Path) -> None:
     # Pre-render the lock image so the next lock is instant. Best-effort
     # — a render failure here doesn't fail the activate; lock-screen
     # falls back to a solid-color lock when the cache is missing.
-    build_lock_cache(archive_path)
+    build_lock_cache(archive_path, verbose=True)
 
 
 # ----------------------------------------------------------------------
@@ -713,8 +754,16 @@ def cmd_preview(args: argparse.Namespace) -> int:
     # which ships in the Sericea base, so no extra packages are required.
     # fzf's preview pane is sized in cells (cols x lines); rough cell
     # geometry of 8x16 px gets us close to the actual pixel area without
-    # querying the terminal. The `>` qualifier on -resize means "only
-    # shrink, never enlarge" — small thumbnails stay sharp.
+    # querying the terminal. Each preview is rendered onto a fixed-size
+    # Catppuccin canvas before sixel encoding: foot/fzf don't reliably
+    # clear old sixel pixels when the next preview is smaller, so a
+    # same-size opaque canvas makes every render overwrite the previous
+    # one. The `>` qualifier on -resize means "only shrink, never
+    # enlarge" — small thumbnails stay sharp and are centered on the
+    # canvas. The image is then quantized before sixel encoding so
+    # very detailed wallpapers don't produce ~1 MiB sixel payloads; foot
+    # can silently refuse to paint those even when `cat`ting the sixel
+    # directly outside fzf.
     #
     # Cached per (wallpaper key, cols x lines): first preview pays the
     # ~200-400ms magick startup + decode + sixel encode cost, subsequent
@@ -725,10 +774,23 @@ def cmd_preview(args: argparse.Namespace) -> int:
     if shutil.which("magick") is not None:
         cols = _env_positive_int("FZF_PREVIEW_COLUMNS", 80)
         lines = _env_positive_int("FZF_PREVIEW_LINES", 24)
+        source_identity = _file_identity(candidate)
+        width = cols * 8
+        height = lines * 16
         cache_path = _sixel_cache_path(candidate, cols, lines)
+
+        # Always clear the preview pane immediately. This must happen
+        # before a possible slow render too; otherwise selecting an
+        # uncached/expensive wallpaper appears to "do nothing" until
+        # ImageMagick finishes, and quick cursor movement can leave the
+        # previous sixel visible long enough to look stuck.
+        clear_preview = b"\033[2J\033[H"
+        sys.stdout.buffer.write(clear_preview)
+        sys.stdout.buffer.flush()
 
         if (
             cache_path is not None
+            and source_identity is not None
             and cache_path.is_file()
             and cache_path.stat().st_size > 0
         ):
@@ -744,13 +806,26 @@ def cmd_preview(args: argparse.Namespace) -> int:
                 "magick",
                 str(candidate),
                 "-resize",
-                f"{cols * 8}x{lines * 16}>",
+                f"{width}x{height}>",
+                "-background",
+                PREVIEW_BACKGROUND_COLOR,
+                "-gravity",
+                "center",
+                "-extent",
+                f"{width}x{height}",
+                "+dither",
+                "-colors",
+                str(PREVIEW_COLORS),
                 "sixel:-",
             ],
             capture_output=True,
         )
         if result.returncode == 0 and result.stdout:
-            if cache_path is not None:
+            if (
+                cache_path is not None
+                and source_identity is not None
+                and _file_identity(candidate) == source_identity
+            ):
                 _atomic_write(cache_path, result.stdout)
             sys.stdout.buffer.write(result.stdout)
             sys.stdout.buffer.flush()
