@@ -13,7 +13,7 @@ without surprises.
 ## Files
 
 - `~/.config/sway/config` — main config (Mod4, Catppuccin colors, app launchers,
-  workspaces, layout primitives, media keys, screenshots, idle inhibit).
+  workspaces, layout primitives, media keys, screenshots).
 - `~/.config/sway/scripts/` — session, screenshot, lock, app launcher, and
   preset-width helpers.
 - Windowing: tiling with splits, tabbed layouts, floating mode, scratchpad-ready
@@ -40,15 +40,17 @@ verb does the same thing whether you're inside tmux or on the bare desktop.
 
 Modifier conventions inside sway:
 
-- `mod+<letter>` — launch an app (`t` term, `b` browser, `y` yazi (TUI files),
-  `m` cider, `i` vscode, `e` emoji).
+- `mod+<letter>` — launch an app (`b` browser, `y` yazi (TUI files), `m` cider,
+  `i` vscode, `e` emoji). Terminal is `mod+Return` (mirrors `Hyper+Return` in
+  `hammerspoon/` so the verb is identical on Linux and macOS).
 - `mod+Shift+<letter>` — launch a fuzzel picker (`Shift+t` toolboxes, `Shift+s`
   ssh, `Shift+p` powermenu, `Shift+b` browser profile, `Shift+/` hotkeys),
   exception: `mod+Shift+y` launches thunar (GUI files, paired with `mod+y`
   yazi). Lock is reached via `mod+Shift+p` powermenu — no dedicated key.
 - `mod+Shift+<motion>` — move container (`Shift+h/j/k/l`, `Shift+arrows`).
 - `mod+Ctrl+<motion>` — workspace-level move (`Ctrl+PgUp/Dn` move container +
-  follow, `Ctrl+Home/End` move workspace to other output).
+  follow). Move-workspace-to-other-output is `mod+Shift+u` (left) / `mod+Shift+i`
+  (right) — letter-based only.
 - `mod+1..6` — workspaces (`workspace_auto_back_and_forth` makes the same key
   toggle back to the previous workspace, complementing `mod+g`).
 
@@ -56,7 +58,6 @@ Layout containers:
 
 - `mod+[` / `mod+]` — split vertical / horizontal.
 - `mod+.` — toggle between tabbed and split layout for the current container.
-- `mod+Ctrl+f` — force tabbed layout.
 - `mod+f` / `mod+Shift+f` — fullscreen / floating.
 - `mod+c` / `mod+Ctrl+c` — focus parent / child container.
 - `mod+r` cycles preset widths via `~/.config/sway/scripts/preset-width`, which
