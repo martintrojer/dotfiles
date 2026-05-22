@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 # Mark source pane, run choose-tree move, always clear mark on exit.
+#
+# The lone bash script in tmux/scripts/ — every sibling is Python.
+# Kept as bash because the logic is three tmux invocations + one
+# trap; a Python version would just be subprocess.run plumbing
+# around each tmux call with no algorithmic content. Bash here is
+# the right tool.
 set -euo pipefail
 
 src_pane=${1:?source pane id required}

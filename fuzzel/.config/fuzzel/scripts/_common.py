@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Shared helpers for fuzzel-based scripts."""
+"""Shared helpers for fuzzel-based scripts.
+
+Colocated with the executables on purpose: sway invokes them directly,
+and Python's ``sys.path[0]`` makes ``from _common import ...`` resolve
+without any PYTHONPATH plumbing. Leading underscore marks it as the
+library file in this directory (don't ``exec _common``).
+"""
 
 from __future__ import annotations
 

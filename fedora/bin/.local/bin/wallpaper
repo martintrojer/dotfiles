@@ -97,6 +97,9 @@ BLUR_SIGMA = 18.0
 # wallpaper-derived rather than neon. 1.0 = take what the wallpaper
 # gives you; 0.85 takes the edge off without losing identity.
 SATURATION_SCALE = 0.85
+# ImageMagick `-font` takes a PostScript / fontconfig pattern, not
+# the family-name form used in sway/waybar/fuzzel/swaylock configs.
+# Same font asset, different lookup mechanism, different spelling.
 FONT = "JetBrainsMono-NF-Bold"
 # Banner geometry as fractions of wallpaper height (back-derived from
 # the prior fixed 1080p values: 42/30 pt, 152/100 px from south).

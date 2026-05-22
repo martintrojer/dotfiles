@@ -84,7 +84,6 @@
 				"mode-mon-col": 3,
 				"weeks-pos": "right",
 				"on-scroll": 1,
-				"on-click-right": "mode",
 				"format": {
 					// THEME BEGIN: waybar-calendar-colors
 					"months": "<span color='#cba6f7'><b>{}</b></span>",

@@ -13,6 +13,8 @@ from functools import cache
 from pathlib import Path
 from shlex import quote as sh_quote
 
+from _tmux_common import tmux_cmd
+
 DISPLAY_NAME_WIDTH = 20
 DEFAULT_SPLIT = ""
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "tms.toml"
@@ -226,10 +228,8 @@ def run(
     return subprocess.run(cmd, check=check, text=True, capture_output=capture)
 
 
-def tmux_cmd(
-    *args: str, check: bool = True, capture: bool = True
-) -> subprocess.CompletedProcess[str]:
-    return run(["tmux", *args], check=check, capture=capture)
+# `tmux_cmd` comes from `_tmux_common`; imported above so the
+# socket-env honoring used by `test-status-tools` works here too.
 
 
 def exact_session_target(name: str) -> str:

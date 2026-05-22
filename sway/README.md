@@ -42,11 +42,29 @@ Modifier conventions inside sway:
 
 - `mod+<letter>` — launch an app (`b` browser, `y` yazi (TUI files), `m` cider,
   `i` vscode, `e` emoji). Terminal is `mod+Return` (mirrors `Hyper+Return` in
-  `hammerspoon/` so the verb is identical on Linux and macOS).
+  `hammerspoon/` so the verb is identical on Linux and macOS). GUI file
+  managers (thunar etc.) deliberately don't get a bind — reach via
+  `mod+space` fuzzel on the rare occasion.
+
+  Singleton vs spawn behavior differs per app; second press of the
+  same bind does different things depending on which mechanism is in
+  play. Cheat sheet:
+
+  | Bind         | App         | Singleton via                                   | Re-press effect          |
+  | ------------ | ----------- | ----------------------------------------------- | ------------------------ |
+  | `mod+Return` | foot        | `footclient` → `sway-foot-server.service`       | new window               |
+  | `mod+b`      | chrome      | `--user-data-dir` profile (own logic)           | new window               |
+  | `mod+y`      | yazi        | none — fresh foot + fresh yazi each time        | new yazi window          |
+  | `mod+m`      | Cider       | `raise-window` script + scratchpad rule         | focus existing / spawn   |
+  | `mod+i`      | VS Code     | `raise-window` script                           | focus existing / spawn   |
+  | `mod+e`      | bemoji      | none (single-shot picker)                       | n/a                      |
+
+  `raise-window` is fire-and-forget on cold spawn — the very first
+  press launches and returns immediately; second press focuses once
+  the window has appeared. See TODO #14 for the deferred fix.
 - `mod+Shift+<letter>` — launch a fuzzel picker (`Shift+t` toolboxes, `Shift+s`
-  ssh, `Shift+p` powermenu, `Shift+b` browser profile, `Shift+/` hotkeys),
-  exception: `mod+Shift+y` launches thunar (GUI files, paired with `mod+y`
-  yazi). Lock is reached via `mod+Shift+p` powermenu — no dedicated key.
+  ssh, `Shift+p` powermenu, `Shift+b` browser profile, `Shift+/` hotkeys).
+  Lock is reached via `mod+Shift+p` powermenu — no dedicated key.
 - `mod+Shift+<motion>` — move container (`Shift+h/j/k/l`, `Shift+arrows`).
 - `mod+Ctrl+<motion>` — workspace-level move (`Ctrl+PgUp/Dn` move container +
   follow). Move-workspace-to-other-output is `mod+Shift+u` (left) / `mod+Shift+i`

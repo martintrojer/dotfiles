@@ -1,150 +1,212 @@
-#!/bin/sh
-# Render a smarter tmux window label from active-pane metadata.
-#
-# Called per visible window from window-status-format. tmux already
-# evaluates the format-string variables in the context of that window's
-# active pane, so we receive the relevant fields directly and avoid
-# re-querying tmux.
-#
-# Usage:
-#   status-window-label <window_name> <pane_current_command> \
-#                       <pane_title> <pane_current_path> <host> <pane_pid>
-#
-# Customise these lists by exporting the matching env vars before tmux
-# starts; values are space-separated, e.g.:
-#   export TMUX_LABEL_AGENTS="claude codex pi opencode aider"
+#!/usr/bin/env python3
+"""Render a smarter tmux window label from active-pane metadata.
 
-window_name=${1-}
-pane_current_command=${2-}
-pane_title=${3-}
-pane_current_path=${4-}
-host_name=${5-}
-pane_pid=${6-}
+Called per visible window from window-status-format. tmux evaluates
+the format-string variables in the context of the window's active
+pane, so we receive the relevant fields directly as positional args
+and avoid re-querying tmux.
 
-shells=${TMUX_LABEL_SHELLS:-zsh bash sh fish nu}
-editors=${TMUX_LABEL_EDITORS:-nvim vim vi hx helix kak emacs nano}
-agents=${TMUX_LABEL_AGENTS:-claude codex pi opencode}
-agent_wrappers=${TMUX_LABEL_AGENT_WRAPPERS:-Python python python3 node nodejs bun deno}
-agent_helpers=${TMUX_LABEL_AGENT_HELPERS:-less more man}
+Usage:
+    status-window-label <window_name> <pane_current_command> \\
+                        <pane_title> <pane_current_path> <host> <pane_pid>
 
-# Match needle against a space-separated list passed as the second
-# argument. Word splitting on $list is intentional, hence the disable.
-# shellcheck disable=SC2086
-matches() {
-  needle=$1
-  list=$2
-  for item in $list; do
-    [ "$needle" = "$item" ] && return 0
-  done
-  return 1
-}
+Customise the agent/editor/shell lists by exporting the matching env
+vars before tmux starts (space-separated):
 
-# A title is "meaningful" when it is non-empty, not just the host name,
-# and does not look like a path-ish leftover such as ":/foo", "/foo",
-# or "~/foo".
-has_meaningful_title() {
-  [ -n "$pane_title" ] || return 1
-  [ "$pane_title" != "$host_name" ] || return 1
-  case "$pane_title" in
-    :*|/*|~*) return 1 ;;
-  esac
-  return 0
-}
+    export TMUX_LABEL_AGENTS="claude codex pi opencode aider"
 
-# Walk the descendant process tree of $pane_pid and return the first
-# command matching $agents. This is the most trustworthy signal because
-# pane_title and window_name can both be stale leftovers from a previous
-# tenant of the pane (e.g. an old "✳ Claude Code" title when Pi is
-# actually the running process).
-detect_agent_in_tree() {
-  root_pid=$1
-  [ -n "$root_pid" ] || return 1
-  command -v ps >/dev/null 2>&1 || return 1
-  ps -axo pid=,ppid=,comm= 2>/dev/null | awk -v root="$root_pid" -v list="$agents" '
-    BEGIN {
-      n = split(list, items, " ")
-      for (i = 1; i <= n; i++) want[items[i]] = 1
-    }
-    {
-      # Use the basename of comm so paths like /usr/bin/pi still match.
-      cmd = $3
-      sub(".*/", "", cmd)
-      pids[NR] = $1
-      ppids[NR] = $2
-      cmds[NR] = cmd
-    }
-    END {
-      head = 1; tail = 1
-      queue[1] = root
-      while (head <= tail) {
-        cur = queue[head++]
-        for (i = 1; i <= NR; i++) {
-          if (pids[i] == cur && want[cmds[i]]) {
-            print cmds[i]
-            exit
-          }
-        }
-        for (i = 1; i <= NR; i++) {
-          if (ppids[i] == cur) {
-            queue[++tail] = pids[i]
-          }
-        }
-      }
-    }
-  '
-}
+Why a Python rewrite of a former /bin/sh script: the bash version
+embedded an awk BFS over ps output to find an agent in a pane's
+descendant process tree. ps-pipeline + awk is the classic shell smell
+flagged in AGENTS.md; the Python version keeps the same algorithm
+with explicit data structures and shares the status-bar error
+plumbing (`EXPECTED_ERRORS`, `log_error`) with the rest of the tmux
+status scripts.
+"""
 
-path_base=${pane_current_path##*/}
+from __future__ import annotations
 
-if matches "$pane_current_command" "$editors"; then
-  printf '%s' "$pane_current_command"
-  exit 0
-fi
+import os
+import subprocess
+import sys
+from collections import deque
 
-if matches "$pane_current_command" "$shells"; then
-  if has_meaningful_title; then
-    printf '%s' "$pane_title"
-  elif [ -n "$path_base" ]; then
-    printf '%s' "$path_base"
-  elif [ -n "$window_name" ]; then
-    printf '%s' "$window_name"
-  else
-    printf '%s' "$pane_current_command"
-  fi
-  exit 0
-fi
+from _status_common import EXPECTED_ERRORS, log_error
 
-# Agent-likely path: window claims to be an agent, OR the active command
-# is a wrapper interpreter (Python/node/etc) that often hosts an agent.
-# In both cases pane_title and window_name are unreliable, so we walk the
-# process tree first.
-if matches "$window_name" "$agents" \
-  || matches "$pane_current_command" "$agent_wrappers" \
-  || matches "$pane_current_command" "$agent_helpers"; then
-  detected=$(detect_agent_in_tree "$pane_pid")
-  if [ -n "$detected" ]; then
-    printf '%s' "$detected"
-    exit 0
-  fi
-  if has_meaningful_title; then
-    printf '%s' "$pane_title"
-  elif matches "$pane_current_command" "$agent_wrappers" \
-    || matches "$pane_current_command" "$agent_helpers"; then
-    printf '%s' "$window_name"
-  elif [ -n "$pane_current_command" ]; then
-    printf '%s' "$pane_current_command"
-  else
-    printf '%s' "$window_name"
-  fi
-  exit 0
-fi
+# ---------------------------------------------------------------------
+# Configurable word lists. Defaults match the bash version; env-var
+# overrides preserve the previous customisation contract.
+# ---------------------------------------------------------------------
 
-if has_meaningful_title; then
-  printf '%s' "$pane_title"
-elif [ -n "$pane_current_command" ]; then
-  printf '%s' "$pane_current_command"
-elif [ -n "$path_base" ]; then
-  printf '%s' "$path_base"
-else
-  printf '%s' "$window_name"
-fi
+
+def _env_list(name: str, default: str) -> tuple[str, ...]:
+    return tuple(os.environ.get(name, default).split())
+
+
+SHELLS = _env_list("TMUX_LABEL_SHELLS", "zsh bash sh fish nu")
+EDITORS = _env_list("TMUX_LABEL_EDITORS", "nvim vim vi hx helix kak emacs nano")
+AGENTS = _env_list("TMUX_LABEL_AGENTS", "claude codex pi opencode")
+# Wrapper interpreters that often *host* an agent rather than being one.
+# When the active command is one of these we walk the descendant
+# process tree to find the real agent.
+AGENT_WRAPPERS = _env_list(
+    "TMUX_LABEL_AGENT_WRAPPERS", "Python python python3 node nodejs bun deno"
+)
+# Helpers an agent may exec into (man/less/etc); same descendant-walk
+# trigger so the label keeps tracking the agent through helper drilldowns.
+AGENT_HELPERS = _env_list("TMUX_LABEL_AGENT_HELPERS", "less more man")
+
+
+# ---------------------------------------------------------------------
+# Predicates
+# ---------------------------------------------------------------------
+
+
+def has_meaningful_title(pane_title: str, host_name: str) -> bool:
+    """`pane_title` is meaningful when it's non-empty, isn't the host
+    name, and doesn't look like a path-ish leftover (``:/foo``, ``/foo``,
+    ``~/foo``).
+    """
+    if not pane_title or pane_title == host_name:
+        return False
+    return not pane_title.startswith((":", "/", "~"))
+
+
+def detect_agent_in_tree(root_pid: str, agents: tuple[str, ...]) -> str | None:
+    """Walk the descendant process tree of ``root_pid``; return the
+    first descendant command matching ``agents`` (basename match), or
+    ``None``.
+
+    This is the most trustworthy agent signal because both
+    ``pane_title`` and ``window_name`` can be stale leftovers from a
+    previous tenant of the pane (e.g. an old "Claude Code" title when
+    the running process is now Pi).
+    """
+    if not root_pid:
+        return None
+    try:
+        res = subprocess.run(
+            ["ps", "-axo", "pid=,ppid=,comm="],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+    except EXPECTED_ERRORS:
+        return None
+    if res.returncode != 0:
+        return None
+
+    wanted = frozenset(agents)
+    # Build (pid -> [child_pid, ...]) and (pid -> basename(comm))
+    children: dict[str, list[str]] = {}
+    comm: dict[str, str] = {}
+    for line in res.stdout.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) < 3:
+            continue
+        pid, ppid, cmd = parts
+        comm[pid] = cmd.rsplit("/", 1)[-1]
+        children.setdefault(ppid, []).append(pid)
+
+    queue: deque[str] = deque([root_pid])
+    seen: set[str] = set()
+    while queue:
+        cur = queue.popleft()
+        if cur in seen:
+            continue
+        seen.add(cur)
+        if comm.get(cur) in wanted:
+            return comm[cur]
+        queue.extend(children.get(cur, ()))
+    return None
+
+
+# ---------------------------------------------------------------------
+# Main label dispatch (mirrors the bash precedence chain)
+# ---------------------------------------------------------------------
+
+
+def render(
+    *,
+    window_name: str,
+    pane_current_command: str,
+    pane_title: str,
+    pane_current_path: str,
+    host_name: str,
+    pane_pid: str,
+) -> str:
+    path_base = pane_current_path.rsplit("/", 1)[-1] if pane_current_path else ""
+    meaningful = has_meaningful_title(pane_title, host_name)
+
+    # Editors: always show their own command (nvim/vim/etc.).
+    if pane_current_command in EDITORS:
+        return pane_current_command
+
+    # Shells: prefer the user-set title, fall back to cwd basename,
+    # then window name, then the shell command itself.
+    if pane_current_command in SHELLS:
+        if meaningful:
+            return pane_title
+        if path_base:
+            return path_base
+        if window_name:
+            return window_name
+        return pane_current_command
+
+    # Agent-likely: window name or active command suggests an agent
+    # (or its wrapper / helper). Walk the descendant tree first;
+    # pane_title / window_name can be stale here.
+    if (
+        window_name in AGENTS
+        or pane_current_command in AGENT_WRAPPERS
+        or pane_current_command in AGENT_HELPERS
+    ):
+        detected = detect_agent_in_tree(pane_pid, AGENTS)
+        if detected:
+            return detected
+        if meaningful:
+            return pane_title
+        if (
+            pane_current_command in AGENT_WRAPPERS
+            or pane_current_command in AGENT_HELPERS
+        ):
+            return window_name
+        if pane_current_command:
+            return pane_current_command
+        return window_name
+
+    # Default fallback chain for everything else.
+    if meaningful:
+        return pane_title
+    if pane_current_command:
+        return pane_current_command
+    if path_base:
+        return path_base
+    return window_name
+
+
+def main(argv: list[str]) -> int:
+    # Pad missing positional args to empty strings so callers that
+    # omit trailing fields don't crash. Matches the bash version's
+    # `${N-}` default behaviour.
+    args = (argv + [""] * 6)[:6]
+    try:
+        label = render(
+            window_name=args[0],
+            pane_current_command=args[1],
+            pane_title=args[2],
+            pane_current_path=args[3],
+            host_name=args[4],
+            pane_pid=args[5],
+        )
+    except EXPECTED_ERRORS as exc:
+        log_error("status-window-label", f"render failed: {exc!r}")
+        # Best-effort fallback: print whatever window_name we got.
+        label = args[0]
+    sys.stdout.write(label)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
