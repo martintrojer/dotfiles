@@ -15,8 +15,8 @@ that the mnemonics are part of the design.
 - Pressing the same key repeatedly often cycles state.
 - App focus prefers windows on the *current* Space instead of dragging you
   across desktops.
-- `Hyper`+`;` toggles an on-screen help overlay generated from the same
-  binding registry the config uses internally.
+- `Hyper`+`F1` toggles an on-screen help overlay generated from the same
+  binding registry the config uses internally. (Sway uses the same key.)
 
 ```quiz
 [[questions]]
@@ -26,10 +26,10 @@ answer = 1
 why = "Every Hammerspoon binding hangs off the four-modifier Hyper chord."
 
 [[questions]]
-q = "What does `Hyper`+`;` do?"
+q = "What does `Hyper`+`F1` do?"
 options = ["Open Safari", "Toggle the help overlay", "Reload Hammerspoon"]
 answer = 1
-why = "The config builds a help screen from its binding registry and shows it on `Hyper`+`;` (Cmd+Shift+/ is swallowed by macOS's built-in Help-menu shortcut, so we use `;`)."
+why = "The config builds a help screen from its binding registry and shows it on `Hyper`+`F1`. Sway uses the same key, so help is one keystroke away on both OSes. `Hyper`+`/` would have been the obvious choice but macOS routes `Cmd`+`Shift`+`/` to its Help menu."
 
 [[questions]]
 q = "How does app focus behave when possible?"

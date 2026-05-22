@@ -479,4 +479,4 @@ bindCustom("Window", "L", focusDir("focusWindowEast"), "Focus right")
 -- Help. Bound to `;` rather than `/` because macOS's built-in "Help menu
 -- search" shortcut (Cmd+Shift+?) swallows the Cmd+Shift+/ event before
 -- Hammerspoon sees it, even with the full HYPER modifier set.
-bindCustom("Apps", ";", toggleHelp, "Show this help")
+bindCustom("Apps", "f1", toggleHelp, "Show this help")

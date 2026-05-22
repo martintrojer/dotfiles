@@ -84,7 +84,8 @@ for_window [class="gamescope"] floating enable, border none, scaling disable
 
 exec_always ~/.config/sway/scripts/session-start
 
-bindsym $mod+Shift+slash exec ~/.config/fuzzel/scripts/hotkeys
+# mod+F1 mirrors hammerspoon's Hyper+F1 help overlay on macOS.
+bindsym $mod+F1 exec ~/.config/fuzzel/scripts/hotkeys
 
 # mod+Return launches the terminal, mirroring hammerspoon's
 # Hyper+Return on macOS so the verb is identical across both OSes.
@@ -95,14 +96,17 @@ bindsym $mod+y exec sh -lc "$HOME/.config/sway/scripts/open-yazi"
 bindsym $mod+m exec sh -lc "$HOME/.config/sway/scripts/open-cider"
 bindsym $mod+i exec sh -lc "$HOME/.config/sway/scripts/open-vscode"
 
+# Powermenu kept on Shift (destructive: lock/suspend/shutdown), the
+# rest of the pickers promoted off Shift since they're frequent and
+# non-destructive.
 bindsym $mod+Shift+p exec ~/.config/fuzzel/scripts/powermenu
-bindsym $mod+Shift+t exec ~/.config/fuzzel/scripts/toolboxes
+bindsym $mod+t exec ~/.config/fuzzel/scripts/toolboxes
+bindsym $mod+s exec ~/.config/fuzzel/scripts/ssh
 # mod+v: clipboard picker (mirrors tmux prefix+v).
 bindsym $mod+v exec ~/.config/fuzzel/scripts/clipboard
 bindsym $mod+e exec ~/.config/fuzzel/scripts/emoji
 bindsym $mod+Tab exec ~/.config/fuzzel/scripts/windows
 bindsym $mod+grave exec ~/.config/fuzzel/scripts/chrome-tabs
-bindsym $mod+Shift+s exec ~/.config/fuzzel/scripts/ssh
 bindsym $mod+backslash exec ~/.config/fuzzel/scripts/calc
 
 bindsym XF86AudioRaiseVolume exec wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+
