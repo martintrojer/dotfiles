@@ -169,10 +169,14 @@ def infer_remote(
 
 
 def git_common_dir() -> Path:
-    top = Path(git(["rev-parse", "--show-toplevel"]).strip())
+    # `git rev-parse --git-common-dir` returns a path relative to the *current
+    # working directory*, not to the repo toplevel. Resolving it against the
+    # toplevel silently produces a wrong path when the script is run from a
+    # subdirectory (e.g. cwd=repo/sub yields '../.git', which joined with the
+    # toplevel becomes <parent-of-repo>/.git).
     common = Path(git(["rev-parse", "--git-common-dir"]).strip())
     if not common.is_absolute():
-        common = top / common
+        common = Path.cwd() / common
     return common.resolve()
 
 
