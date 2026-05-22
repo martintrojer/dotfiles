@@ -84,7 +84,9 @@ exec_always ~/.config/sway/scripts/session-start
 
 bindsym $mod+Shift+slash exec ~/.config/fuzzel/scripts/hotkeys
 
-bindsym $mod+t exec $term
+# mod+Return launches the terminal, mirroring hammerspoon's
+# Hyper+Return on macOS so the verb is identical across both OSes.
+bindsym $mod+Return exec $term
 bindsym $mod+space exec $menu
 bindsym $mod+b exec $browser
 # mod+y / mod+Shift+y: files in TUI (yazi) vs GUI (thunar).
@@ -134,19 +136,15 @@ bindsym $mod+Shift+j move down
 bindsym $mod+Shift+k move up
 bindsym $mod+Shift+l move right
 
-bindsym $mod+Home focus parent
-bindsym $mod+End focus child
-bindsym $mod+Ctrl+Home move workspace to output left
-bindsym $mod+Ctrl+End move workspace to output right
-
 bindsym $mod+Page_Down workspace next
 bindsym $mod+Page_Up workspace prev
 # mod+g: toggle to last workspace (mirrors tmux prefix+g for last session).
 bindsym $mod+g workspace back_and_forth
 bindsym $mod+Ctrl+Page_Down move container to workspace next; workspace next
 bindsym $mod+Ctrl+Page_Up move container to workspace prev; workspace prev
-bindsym $mod+Shift+Page_Down move workspace to output right
-bindsym $mod+Shift+Page_Up move workspace to output left
+# Workspace-to-output is letter-based only (u=left, i=right); the
+# Ctrl+Home/End and Shift+Page_Up/Down variants used to live here too
+# but were never the form actually pressed.
 bindsym $mod+Shift+u move workspace to output left
 bindsym $mod+Shift+i move workspace to output right
 
@@ -163,46 +161,34 @@ bindsym $mod+Shift+4 move container to workspace number 4
 bindsym $mod+Shift+5 move container to workspace number 5
 bindsym $mod+Shift+6 move container to workspace number 6
 
-# Column-adjacent muscle memory mapped to Sway container primitives.
+# Brackets for splits: [ = splitv (list, top/bottom), ] = splith (row).
+# Sway's upstream idiom uses mod+b/v but those are browser/clipboard here.
 bindsym $mod+bracketleft splitv
 bindsym $mod+bracketright splith
 bindsym $mod+period layout toggle tabbed split
-# mod+r cycles container width 33/50/67 ppt (mirrors tmux prefix+r).
+# mod+r / mod+Shift+r mirror tmux prefix+r (cycle width) / prefix+R (reload).
 bindsym $mod+r exec ~/.config/sway/scripts/preset-width
-# mod+Shift+r reloads sway config (mirrors tmux prefix+R).
 bindsym $mod+Shift+r reload
-# Resize mode disabled (unused). Use mod+r preset cycle or mod+-/=/Shift+-/=.
-# bindsym $mod+Ctrl+Shift+r mode "resize"
-bindsym $mod+Ctrl+r resize set 0 0
 bindsym $mod+f fullscreen toggle
-# mod+Shift+space toggles floating (i3/sway default).
 bindsym $mod+Shift+space floating toggle
-# mod+a toggles focus between the tiled tree and the floating layer.
-# (i3 default is mod+space, but that's bound to fuzzel here.)
-# Use to jump from a tile to a floater (or back) without the mouse.
+# mod+a: focus mode_toggle — the canonical sway verb for jumping
+# between the tiled tree and the floating layer. Default key is
+# mod+space, which is fuzzel here; mod+a is a single-key reach
+# that doesn't conflict.
 bindsym $mod+a focus mode_toggle
-# Scratchpad: a hidden stash of floating utility windows.
-# mod+Shift+n: send focused window into the scratchpad (it disappears).
-# mod+n: show/hide the scratchpad. Cycles through stashed windows on repeat.
+# Scratchpad: mod+Shift+n stashes, mod+n shows/cycles.
 bindsym $mod+Shift+n move scratchpad
 bindsym $mod+n scratchpad show
-bindsym $mod+Ctrl+f layout tabbed
 bindsym $mod+c focus parent
 bindsym $mod+Ctrl+c focus child
-# Resize works on both tiled and floating windows.
-# Using `px` (no unit specifier needed for px) so floating resizes work too.
-# 50 px per press: noticeable on floats, fine on tiled (sway clamps to layout).
+# 50 px per press: noticeable on floats, fine on tiled (sway clamps).
 bindsym $mod+minus       resize shrink width  50 px
 bindsym $mod+equal       resize grow   width  50 px
 bindsym $mod+Shift+minus resize shrink height 50 px
 bindsym $mod+Shift+equal resize grow   height 50 px
-# Note: tile<->float swap removed; mod+Shift+space (floating toggle) covers most cases.
 
 bindsym $mod+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot all"
 bindsym $mod+Ctrl+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot output"
 bindsym $mod+Alt+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot region"
 
-bindsym $mod+Escape inhibit_idle focus
 bindsym Ctrl+Alt+Delete exec $quit
-
-# Resize mode removed (unused); see git history if you want to revive it.
