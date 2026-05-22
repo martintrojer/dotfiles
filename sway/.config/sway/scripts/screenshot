@@ -7,20 +7,36 @@ target="${target_dir}/Screenshot from $(date '+%Y-%m-%d %H-%M-%S').png"
 
 mkdir -p "$target_dir"
 
+notify_ok() {
+  command -v notify-send >/dev/null || return 0
+  # `-i <path>` lets mako preview the thumbnail in the notification.
+  notify-send -i "$target" "Screenshot saved" "$(basename "$target")"
+}
+
+notify_fail() {
+  command -v notify-send >/dev/null || return 0
+  notify-send -u critical "Screenshot failed" "$1"
+}
+
 case "$mode" in
   all)
-    exec grim "$target"
+    if grim "$target"; then notify_ok; else notify_fail "full capture"; exit 1; fi
     ;;
   output)
     output="$(swaymsg -t get_outputs | jq -r '.[] | select(.focused).name')"
     if [[ -z "$output" ]]; then
+      notify_fail "no focused output"
       echo "screenshot: no focused output found" >&2
       exit 1
     fi
-    exec grim -o "$output" "$target"
+    if grim -o "$output" "$target"; then notify_ok; else notify_fail "output capture"; exit 1; fi
     ;;
   region)
-    exec grim -g "$(slurp)" "$target"
+    # slurp exits 0 with empty stdout on Esc; treat as user cancel
+    # and stay silent rather than firing a "Screenshot failed" toast.
+    geom="$(slurp)" || exit 0
+    [[ -z "$geom" ]] && exit 0
+    if grim -g "$geom" "$target"; then notify_ok; else notify_fail "region capture"; exit 1; fi
     ;;
   *)
     echo "usage: screenshot [all|output|region]" >&2

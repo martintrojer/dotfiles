@@ -91,9 +91,7 @@ bindsym $mod+Shift+slash exec ~/.config/fuzzel/scripts/hotkeys
 bindsym $mod+Return exec $term
 bindsym $mod+space exec $menu
 bindsym $mod+b exec $browser
-# mod+y / mod+Shift+y: files in TUI (yazi) vs GUI (thunar).
 bindsym $mod+y exec sh -lc "$HOME/.config/sway/scripts/open-yazi"
-bindsym $mod+Shift+y exec thunar
 bindsym $mod+m exec sh -lc "$HOME/.config/sway/scripts/open-cider"
 bindsym $mod+i exec sh -lc "$HOME/.config/sway/scripts/open-vscode"
 

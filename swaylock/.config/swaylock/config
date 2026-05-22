@@ -2,7 +2,7 @@ daemonize
 ignore-empty-password
 show-failed-attempts
 
-font=JetBrainsMono Nerd Font
+font=JetBrains Mono Nerd Font
 # THEME BEGIN: swaylock-colors
 color=1e1e2e
 

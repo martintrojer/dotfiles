@@ -17,6 +17,8 @@ from collections import Counter, defaultdict
 from collections.abc import Iterator
 from pathlib import Path
 
+from _tmux_common import tmux_cmd
+
 STATE_DIR = (
     Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
     / "tmux-agent-attention"
@@ -34,18 +36,12 @@ def tmux_exists() -> bool:
 
 
 def tmux(args: list[str], check: bool = True) -> str:
-    # Respect TMUX_SOCKET_NAME / TMUX_SOCKET_PATH so test harnesses can
-    # point the script at an isolated server. Real tmux subprocesses
-    # already inherit the right TMUX env, so this only matters for
-    # tests and CI.
-    cmd = ["tmux"]
-    socket_name = os.environ.get("TMUX_SOCKET_NAME")
-    socket_path = os.environ.get("TMUX_SOCKET_PATH")
-    if socket_path:
-        cmd += ["-S", socket_path]
-    elif socket_name:
-        cmd += ["-L", socket_name]
-    result = subprocess.run([*cmd, *args], capture_output=True, text=True)
+    """agent-attention's local convenience wrapper: takes a list,
+    returns stripped stdout, and re-raises non-zero exits as
+    ``RuntimeError`` with the most useful stream text we have. Built
+    on `_tmux_common.tmux_cmd` so the socket-env honoring is shared.
+    """
+    result = tmux_cmd(*args, check=False)
     if check and result.returncode != 0:
         msg = result.stderr.strip() or result.stdout.strip() or "tmux command failed"
         raise RuntimeError(msg)

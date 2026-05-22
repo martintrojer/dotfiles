@@ -1,14 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Sentinel-guard `brightnessctl -s`: only save the pre-dim value once
+# per idle cycle, cleared on resume. Without it, a brief wake-then-idle
+# overwrites the saved value with the already-dim level.
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/sway"
+saved_flag="${state_dir}/brightness-saved-this-cycle"
+mkdir -p "$state_dir"
+rm -f "$saved_flag"  # clear stale flag from crashed/logged-out session
+
+dim_cmd="[ -f \"$saved_flag\" ] || { brightnessctl -s && touch \"$saved_flag\"; }; brightnessctl set 10"
+restore_cmd="brightnessctl -r; rm -f \"$saved_flag\""
+
 lock_screen="${HOME}/.config/sway/scripts/lock-screen"
 
 exec swayidle -w \
   before-sleep "pidof swaylock || \"$lock_screen\" --daemonize" \
-  timeout 300 'brightnessctl -s set 10' \
-  resume 'brightnessctl -r' \
+  timeout 300 "$dim_cmd" \
+  resume "$restore_cmd" \
   timeout 330 "pidof swaylock || \"$lock_screen\" --daemonize" \
   timeout 350 'swaymsg "output * power off"' \
   resume 'swaymsg "output * power on"' \
   timeout 3600 'systemctl suspend'
-
