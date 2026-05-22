@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 """Lock the session with swaylock.
 
-All the picture work (blur, banner stamp, accent pluck, cache) lives in
-the `wallpaper` helper now. This script just:
-  1. Reads `wallpaper status` to get the pre-rendered lock image + accent.
-  2. Builds a swaylock command using those.
-  3. Falls back to a solid-color lock if anything's missing.
-  4. exec's into swaylock.
+Reads `wallpaper status` for the pre-rendered lock image, builds a
+swaylock command, and exec's into it. Falls back to a solid Catppuccin
+base if anything's missing — locking must always succeed.
 
-Locking must always succeed. If `wallpaper` is unavailable, the JSON is
-malformed, the cached image is missing, or magick failed during the
-last `wallpaper set/use` — we still launch swaylock with the Catppuccin
-base color so the session is locked.
+All swaylock colors (ring, key-hl, state colors) come from
+`swaylock/config`. The wallpaper accent is baked into the banner text
+inside the lock image by the `wallpaper` helper; it does not bleed
+into the swaylock chrome, so theme coherence is preserved across
+wallpapers.
 
-Unknown flags pass through to swaylock verbatim (`parse_known_args`),
-so callers like `session-swayidle` can keep passing e.g. `--daemonize`.
+Unknown flags pass through to swaylock (`parse_known_args`), so
+`session-swayidle` can pass e.g. `--daemonize`.
 """
 
 from __future__ import annotations
@@ -84,18 +82,11 @@ def build_swaylock_cmd(passthrough: list[str]) -> list[str]:
       - lock_image missing but wallpaper path present and OK   -> -i wallpaper
         (raw wallpaper, no blur/banner — degraded but still locked)
       - everything missing                                     -> solid color
-
-    The accent ring is added when present and valid, regardless of
-    which image path we end up using.
     """
     status = wallpaper_status()
 
     image: Path | None = None
-    accent: str | None = None
     if status:
-        accent_v = status.get("accent")
-        if isinstance(accent_v, str) and len(accent_v) == 6:
-            accent = accent_v
         for key in ("lock_image", "path"):
             v = status.get(key)
             if isinstance(v, str) and Path(v).is_file():
@@ -105,11 +96,7 @@ def build_swaylock_cmd(passthrough: list[str]) -> list[str]:
     if image is None:
         return ["swaylock", "--color", FALLBACK_COLOR, *passthrough]
 
-    cmd = ["swaylock"]
-    if accent is not None:
-        cmd += ["--ring-color", f"{accent}ff", "--key-hl-color", f"{accent}ff"]
-    cmd += ["--image", str(image), "--scaling", "fill", *passthrough]
-    return cmd
+    return ["swaylock", "--image", str(image), "--scaling", "fill", *passthrough]
 
 
 def exec_swaylock(cmd: list[str], *, dry_run: bool) -> int:
