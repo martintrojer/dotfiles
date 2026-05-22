@@ -59,7 +59,6 @@ import string
 import subprocess
 import sys
 import tempfile
-import time
 from datetime import datetime
 from pathlib import Path
 from typing import NoReturn
@@ -107,15 +106,13 @@ SHADOW_OFFSET_FRAC = 0.0019
 # WCAG AA contrast for large text. Accents below this against the
 # blurred bottom band get rejected in favor of FALLBACK_TEXT_COLOR.
 MIN_ACCENT_CONTRAST = 3.0
-# Bump when changing anything that affects the rendered PNG (font,
-# pointsizes, blur recipe, banner geometry). The cache key folds this
-# in, so changes invalidate cached images automatically.
+# Bump when changing anything that affects a cached artifact (font,
+# pointsizes, blur recipe, banner geometry, sixel encoding). The cache
+# key folds this in, so changes invalidate every <key>.* entry in one
+# go — lock PNG, accent file, and per-pane-size sixels alike.
 RENDER_VERSION = 3
 # Catppuccin Mocha 'text' — banner fallback when accent pluck fails.
 FALLBACK_TEXT_COLOR = "cdd6f4"
-# Cache eviction horizon. Entries untouched for this long get pruned
-# on the next cache-touching invocation.
-CACHE_PRUNE_DAYS = 30
 
 # Match lines like:  "  1962: (92,37,12) #5C250C srgb(...)"
 _HIST_RE = re.compile(r"^\s*(\d+):.*#([0-9A-Fa-f]{6})")
@@ -204,14 +201,19 @@ def restart_swaybg() -> None:
 
 
 # ----------------------------------------------------------------------
-# Lock-image cache: blurred + banner-stamped PNG + plucked accent color
+# Cache: lock image + accent color + per-pane-size sixel previews
 #
-# Files live at $XDG_CACHE_HOME/wallpaper/<sha>.{png,color}. Key is
-# wallpaper path + mtime + RENDER_VERSION; bumping the version (or
-# editing the source wallpaper) invalidates the entry automatically.
+# Files live at $XDG_CACHE_HOME/wallpaper/<sha>.{png,color,sixel-WxH}.
+# Key is wallpaper path + mtime + RENDER_VERSION; bumping the version
+# (or editing the source wallpaper) invalidates the entry automatically.
+# Entries are removed when the source archive entry is deleted; there
+# is no time-based pruning, so a wallpaper kept around for years keeps
+# its warm lock-screen cache for years.
 #
-# Lock-screen reads these via `wallpaper status`. Wallpaper set/use
-# pre-render so the next lock is instant.
+# Lock-screen reads {png,color} via `wallpaper status`. Wallpaper
+# set/use pre-render those so the next lock is instant. Sixels are
+# rendered on demand by `wallpaper preview` (used by the fzf picker)
+# and cached per (cols x lines) pane size on first paint.
 # ----------------------------------------------------------------------
 
 
@@ -232,24 +234,40 @@ def _cache_paths(wallpaper: Path) -> tuple[Path, Path] | None:
     return CACHE_DIR / f"{key}.png", CACHE_DIR / f"{key}.color"
 
 
-def _touch(path: Path) -> None:
-    """Best-effort mtime bump so the prune step keeps active entries warm."""
-    with contextlib.suppress(OSError):
-        path.touch()
+def _sixel_cache_path(wallpaper: Path, cols: int, lines: int) -> Path | None:
+    """Cache path for a (wallpaper, cols x lines) sixel render.
+
+    Shares the wallpaper's `_cache_key` with the lock PNG/accent so
+    `cmd__delete_archive` can glob `<key>.*` and clean every artifact
+    derived from one archive entry in a single pass. Returns None if
+    the wallpaper's mtime can't be stat'd.
+    """
+    key = _cache_key(wallpaper)
+    if key is None:
+        return None
+    return CACHE_DIR / f"{key}.sixel-{cols}x{lines}"
 
 
-def _prune_cache() -> None:
-    """Drop cache entries untouched for more than CACHE_PRUNE_DAYS."""
-    if CACHE_PRUNE_DAYS <= 0 or not CACHE_DIR.is_dir():
+def _atomic_write(path: Path, data: bytes) -> None:
+    """Write bytes via temp + rename so concurrent preview processes
+    don't see torn files. Best-effort: failures are swallowed since a
+    missing cache just means the next preview re-renders.
+    """
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        fd, tmp_str = tempfile.mkstemp(
+            dir=str(CACHE_DIR), prefix=".sixel.", suffix=".tmp"
+        )
+    except OSError:
         return
-    cutoff = CACHE_PRUNE_DAYS * 86400
-    now = time.time()
-    for entry in CACHE_DIR.iterdir():
-        try:
-            if entry.is_file() and (now - entry.stat().st_mtime) > cutoff:
-                entry.unlink()
-        except OSError:
-            pass
+    tmp_path = Path(tmp_str)
+    try:
+        with os.fdopen(fd, "wb") as fp:
+            fp.write(data)
+        os.replace(tmp_path, path)
+    except OSError:
+        with contextlib.suppress(OSError):
+            tmp_path.unlink()
 
 
 def _luminance(r: float, g: float, b: float) -> float:
@@ -440,7 +458,6 @@ def build_lock_cache(
         return None, None
     img_path, color_path = paths
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    _prune_cache()
 
     # Accent first — the rendered image bakes it into the banner, so a
     # cached image without the accent stored is meaningless.
@@ -460,14 +477,11 @@ def build_lock_cache(
         if accent:
             with contextlib.suppress(OSError):
                 color_path.write_text(accent + "\n")
-    if accent:
-        _touch(color_path)
 
     image: Path | None = None
-    if img_path.is_file() and img_path.stat().st_size > 0:
-        image = img_path
-        _touch(img_path)
-    elif _build_lock_image(wallpaper, img_path, accent=accent):
+    if (img_path.is_file() and img_path.stat().st_size > 0) or _build_lock_image(
+        wallpaper, img_path, accent=accent
+    ):
         image = img_path
 
     return image, accent
@@ -629,13 +643,11 @@ def cmd_status(_args: argparse.Namespace) -> int:
         img_path, color_path = paths
         if img_path.is_file() and img_path.stat().st_size > 0:
             lock_image = str(img_path)
-            _touch(img_path)
         if color_path.is_file() and color_path.stat().st_size > 0:
             try:
                 cached = color_path.read_text().strip()
                 if re.fullmatch(r"[0-9a-fA-F]{6}", cached):
                     accent = cached
-                    _touch(color_path)
             except OSError:
                 pass
 
@@ -698,9 +710,30 @@ def cmd_preview(args: argparse.Namespace) -> int:
     # geometry of 8x16 px gets us close to the actual pixel area without
     # querying the terminal. The `>` qualifier on -resize means "only
     # shrink, never enlarge" — small thumbnails stay sharp.
+    #
+    # Cached per (wallpaper key, cols x lines): first preview pays the
+    # ~200-400ms magick startup + decode + sixel encode cost, subsequent
+    # cursor moves over the same entry at the same pane size are a
+    # bytes-to-stdout pass. Cache entries share <key>.* with the lock
+    # PNG/accent and get cleaned together when the archive entry is
+    # deleted.
     if shutil.which("magick") is not None:
         cols = _env_positive_int("FZF_PREVIEW_COLUMNS", 80)
         lines = _env_positive_int("FZF_PREVIEW_LINES", 24)
+        cache_path = _sixel_cache_path(candidate, cols, lines)
+
+        if (
+            cache_path is not None
+            and cache_path.is_file()
+            and cache_path.stat().st_size > 0
+        ):
+            try:
+                sys.stdout.buffer.write(cache_path.read_bytes())
+                sys.stdout.buffer.flush()
+                return 0
+            except OSError:
+                pass  # fall through to re-render
+
         result = subprocess.run(
             [
                 "magick",
@@ -708,9 +741,14 @@ def cmd_preview(args: argparse.Namespace) -> int:
                 "-resize",
                 f"{cols * 8}x{lines * 16}>",
                 "sixel:-",
-            ]
+            ],
+            capture_output=True,
         )
-        if result.returncode == 0:
+        if result.returncode == 0 and result.stdout:
+            if cache_path is not None:
+                _atomic_write(cache_path, result.stdout)
+            sys.stdout.buffer.write(result.stdout)
+            sys.stdout.buffer.flush()
             return 0
 
     print(candidate)
@@ -818,9 +856,11 @@ def cmd__delete_archive(args: argparse.Namespace) -> int:
         )
         return 0
 
-    # Find any cache entries derived from this wallpaper. The cache key
-    # folds in the wallpaper's mtime, so we look up before unlinking.
-    paths = _cache_paths(target)
+    # Compute the cache key before unlinking — once the file is gone we
+    # can't stat its mtime. Then glob <key>.* under CACHE_DIR to scoop
+    # up the lock PNG, accent file, and every per-pane-size sixel in
+    # one pass.
+    key = _cache_key(target)
 
     try:
         target.unlink()
@@ -828,10 +868,10 @@ def cmd__delete_archive(args: argparse.Namespace) -> int:
         print(f"wallpaper: failed to delete {name}: {exc}", file=sys.stderr)
         return 0
 
-    if paths is not None:
-        for cache_file in paths:
+    if key is not None:
+        for cache_file in CACHE_DIR.glob(f"{key}.*"):
             with contextlib.suppress(OSError):
-                cache_file.unlink(missing_ok=True)
+                cache_file.unlink()
     return 0
 
 

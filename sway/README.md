@@ -133,8 +133,7 @@ helper. The lock-screen script just:
 
 1. Calls `wallpaper status`, which returns JSON like
    `{"path": ..., "lock_image": ..., "accent": "9b8c32"}`.
-2. Builds `swaylock --ring-color <accent>ff --key-hl-color <accent>ff
-   --image <lock_image> --scaling fill <passthrough-args>`.
+2. Builds `swaylock --image <lock_image> --scaling fill <passthrough-args>`.
 3. exec's into `swaylock`.
 
 Locking must always succeed, so there's a fallback chain:
@@ -145,9 +144,13 @@ Locking must always succeed, so there's a fallback chain:
   was set) but `path` present → raw wallpaper, no blur or banner.
 - `path` also missing → solid color again.
 
-The ring uses the swaylock default behaviour (only visible while typing
-/ on key activity); the stacked LOCKED + user@host text on the
-pre-rendered image is the dominant "this is locked" cue.
+The wallpaper accent is deliberately scoped to the banner text *inside*
+the rendered lock image — it doesn't bleed into the swaylock chrome.
+All five state ring colors (rest, clear, caps-lock, ver, wrong) plus
+`key-hl-color` come from `swaylock/.config/swaylock/config` so the
+chrome stays theme-coherent across wallpapers. The status JSON still
+emits `accent` for future consumers (e.g. propagating into waybar/mako
+at wallpaper-set time).
 
 Unknown flags pass through to swaylock verbatim (`parse_known_args`),
 which is why `session-swayidle` can keep calling `lock-screen --daemonize`.
@@ -167,11 +170,17 @@ and saturation scale (0.85) are constants at the top of the script.
 Change them and bump `RENDER_VERSION` next to the constants — that
 invalidates all cached entries automatically.
 
-Results are cached under `$XDG_CACHE_HOME/wallpaper/<sha1(path+mtime+RENDER_VERSION)>.{png,color}`.
+Results are cached under `$XDG_CACHE_HOME/wallpaper/<sha1(path+mtime+RENDER_VERSION)>.{png,color,sixel-WxH}`.
 The warm path (cache hit during `wallpaper status`) is essentially
 instant. Cold render is ~3–6 s depending on wallpaper size. Cache
-hits `touch` their files, and entries untouched for 30 days are
-pruned on the next invocation.
+entries are kept for the lifetime of the source archive entry — when
+you delete a wallpaper via the fzf picker, every `<key>.*` artifact
+is cleaned up alongside it. There is no time-based pruning, so a
+wallpaper kept for years keeps its warm lock-screen cache for years.
+The `sixel-WxH` siblings are per-pane-size thumbnails for the fzf
+picker preview pane (see `wallpaper preview`): first paint pays the
+full ImageMagick cost, subsequent cursor moves over the same entry
+at the same pane size are a bytes-to-stdout pass.
 
 ## Screenshots
 
