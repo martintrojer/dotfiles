@@ -1,4 +1,5 @@
 /* Catppuccin Mocha */
+/* THEME BEGIN: waybar-palette */
 @define-color red      #f38ba8;
 @define-color lavender #b4befe;
 @define-color mauve    #cba6f7;
@@ -7,7 +8,10 @@
 @define-color overlay0 #6c7086;
 @define-color surface2 #585b70;
 @define-color base     #1e1e2e;
+/* base at 50% alpha; hand-derived from #1e1e2e. Re-derive
+   if base changes. */
 @define-color base50   rgba(30, 30, 46, 0.5);
+/* THEME END: waybar-palette */
 
 /* Reset all styles */
 * {

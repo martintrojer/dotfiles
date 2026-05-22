@@ -3,6 +3,7 @@ ignore-empty-password
 show-failed-attempts
 
 font=JetBrainsMono Nerd Font
+# THEME BEGIN: swaylock-colors
 color=1e1e2e
 
 indicator-radius=90
@@ -20,7 +21,9 @@ ring-caps-lock-color=f9e2afff
 ring-ver-color=a6e3a1ff
 ring-wrong-color=f38ba8ff
 
-key-hl-color=f5c2e7ff
+# Match the rest-ring color so the keystroke flash reads as a brief
+# modulation of the existing ring, not a new hue intrusion.
+key-hl-color=b4befeff
 line-color=00000000
 line-clear-color=00000000
 line-caps-lock-color=00000000
@@ -33,3 +36,4 @@ text-clear-color=cdd6f4ff
 text-caps-lock-color=f9e2afff
 text-ver-color=a6e3a1ff
 text-wrong-color=f38ba8ff
+# THEME END: swaylock-colors

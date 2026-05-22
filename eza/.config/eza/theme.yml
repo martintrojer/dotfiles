@@ -1,5 +1,6 @@
 colourful: true
 
+# THEME BEGIN: eza-colors
 filekinds:
   normal: {foreground: "#cdd6f4"}
   directory: {foreground: "#cba6f7"}
@@ -58,7 +59,7 @@ git:
   modified: {foreground: "#f9e2af"}
   deleted: {foreground: "#eba0ac"}
   renamed: {foreground: "#94e2d5"}
-  typechange: {foreground: "#74c7ec"}
+  typechange: {foreground: "#f5c2e7"}
   ignored: {foreground: "#7f849c"}
   conflicted: {foreground: "#fab387"}
 
@@ -99,3 +100,4 @@ symlink_path: {foreground: "#89dceb"}
 control_char: {foreground: "#74c7ec"}
 broken_symlink: {foreground: "#f38ba8"}
 broken_path_overlay: {foreground: "#585b70"}
+# THEME END: eza-colors

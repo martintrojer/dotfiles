@@ -21,6 +21,7 @@ from _status_common import EXPECTED_ERRORS, log_error
 # Order is fixed so the hostname → color mapping stays stable as the
 # palette evolves; appending entries only reshuffles the few hosts that
 # happen to land on the new index, never the existing ones.
+# THEME BEGIN: status-hostname-colors
 COLORS = (
     "#fab387",  # peach
     "#89dceb",  # sky
@@ -32,6 +33,8 @@ COLORS = (
     "#eba0ac",  # maroon
 )
 CRUST = "#11111b"
+FALLBACK_STYLE = "#[fg=#a6adc8]#[bg=#313244] 󰒋 ? #[default]"
+# THEME END: status-hostname-colors
 ICON = "󰒋"
 
 
@@ -55,7 +58,7 @@ def main() -> None:
     except EXPECTED_ERRORS as exc:
         log_error("status-hostname", f"hostname render failed: {exc!r}")
         # Fall back to the muted default style so the segment still draws.
-        print("#[fg=#a6adc8]#[bg=#313244] 󰒋 ? #[default]")
+        print(FALLBACK_STYLE)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,10 @@ nvim.log
 .vecgrep/
 guides/build/
 
+# Local scratch: TODO list + reflow tempfiles from markdown formatters.
+/TODO.md
+.m-reflow-*.md
+
 .DS_Store
 __pycache__
 *.pyc

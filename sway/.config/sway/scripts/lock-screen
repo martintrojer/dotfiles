@@ -27,7 +27,9 @@ import sys
 from pathlib import Path
 
 WALLPAPER_HELPER = Path.home() / ".local" / "bin" / "wallpaper"
+# THEME BEGIN: lock-screen-fallback-color
 FALLBACK_COLOR = "1e1e2e"  # Catppuccin Mocha base
+# THEME END: lock-screen-fallback-color
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:

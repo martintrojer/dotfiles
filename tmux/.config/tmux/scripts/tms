@@ -29,8 +29,8 @@ KIND_ICON = {
     "find": "·",
 }
 
+# THEME BEGIN: tms-palette
 CATPPUCCIN = {
-    "rosewater": "#f5e0dc",
     "peach": "#fab387",
     "yellow": "#f9e2af",
     "sky": "#89dceb",
@@ -42,6 +42,7 @@ CATPPUCCIN = {
     "surface0": "#313244",
     "base": "#1e1e2e",
 }
+# THEME END: tms-palette
 
 FZF_BORDER_LABEL = " sessions "
 

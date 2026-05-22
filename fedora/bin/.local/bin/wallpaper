@@ -112,7 +112,9 @@ MIN_ACCENT_CONTRAST = 3.0
 # go — lock PNG, accent file, and per-pane-size sixels alike.
 RENDER_VERSION = 3
 # Catppuccin Mocha 'text' — banner fallback when accent pluck fails.
+# THEME BEGIN: wallpaper-fallback-color
 FALLBACK_TEXT_COLOR = "cdd6f4"
+# THEME END: wallpaper-fallback-color
 
 # Match lines like:  "  1962: (92,37,12) #5C250C srgb(...)"
 _HIST_RE = re.compile(r"^\s*(\d+):.*#([0-9A-Fa-f]{6})")

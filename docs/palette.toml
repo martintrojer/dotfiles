@@ -1,0 +1,45 @@
+# Single source of truth for the Catppuccin Mocha palette across the
+# dotfiles repo. Edit colors here and run `make theme` to propagate
+# them into every config file with a `THEME BEGIN ... THEME END`
+# marker pair. `make check-theme` verifies all consumers are in sync.
+#
+# Reference: https://github.com/catppuccin/catppuccin
+#
+# Adding a new color: add a line to [mocha]. Bumping an existing color:
+# edit in place. Removing a color: delete the line AND check no marked
+# region references it (the renderer will fail loud if a template
+# names a missing color).
+#
+# The palette is consumed by `_dotfiles_sync/render_theme.py` (and the
+# helper `_dotfiles_sync/theme.py` for Python imports during the
+# render). It is intentionally NOT consumed at runtime — every config
+# file holds its own materialized hex values inside a marked region so
+# the apps that read the file don't need to know about this TOML.
+
+[mocha]
+rosewater = "#f5e0dc"
+flamingo  = "#f2cdcd"
+pink      = "#f5c2e7"
+mauve     = "#cba6f7"
+red       = "#f38ba8"
+maroon    = "#eba0ac"
+peach     = "#fab387"
+yellow    = "#f9e2af"
+green     = "#a6e3a1"
+teal      = "#94e2d5"
+sky       = "#89dceb"
+sapphire  = "#74c7ec"
+blue      = "#89b4fa"
+lavender  = "#b4befe"
+text      = "#cdd6f4"
+subtext1  = "#bac2de"
+subtext0  = "#a6adc8"
+overlay2  = "#9399b2"
+overlay1  = "#7f849c"
+overlay0  = "#6c7086"
+surface2  = "#585b70"
+surface1  = "#45475a"
+surface0  = "#313244"
+base      = "#1e1e2e"
+mantle    = "#181825"
+crust     = "#11111b"
