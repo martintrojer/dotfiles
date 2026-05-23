@@ -208,6 +208,16 @@ Even if you never re-enable SwayFX, these bit on first setup:
 
 ## Accepted (non-obvious)
 
+### Waybar is a restrained block statusline, not a widget strip (accepted 2026-05-23)
+
+Waybar should visually read as the topmost statusline of the Sway/tmux/nvim stack. The old slash/backslash spacer layout made it feel like floating text with decorative separators; the current design uses square, tmux-like blocks with small 1px gaps. The right side is grouped by function (system stats, connectivity, audio, clock/tray/power) using only Catppuccin surface colors, while the window title is plain text on the translucent bar instead of a long filled slab.
+
+Several more colorful variants were tried first: full pastel fills, then high-alpha pastel cluster backgrounds, then only selected pastel clusters. Dark text on pastel blocks was very legible, but it reduced refinement and fought the terminal-first desktop. The accepted compromise is deliberately bland: surfaces for structure, lavender only for the active workspace, red only for warnings/offline states. This keeps the bar aligned with tmux/nvim, where accents are meaningful rather than decorative.
+
+The custom spacer modules were removed once 1px CSS margins between blocks provided the same visual separation without extra config objects. Unused modules (`sway/mode`, `battery`, `backlight`) were also removed because they were configured but not displayed. `sway/mode` can return if Sway binding modes become part of the workflow; today resize is done through direct keybindings.
+
+A one-pixel seam under the bar on bright wallpapers appears to be a Sway/Wayland fractional-scale artifact (`scale 1.5`) rather than a Waybar border. CSS borders, padding, and negative Waybar margins did not fix it reliably. Keep the bar slightly translucent (`alpha(@base, 0.75)`) and avoid spending more time on the seam unless it becomes worse or an upstream fractional-scale fix lands.
+
 ### nvim format-on-save uses a hand-rolled LSP → CLI fallback, not conform.nvim / none-ls (accepted 2026-05-15)
 
 Markdown table formatting was the trigger. The old autocmd called `vim.lsp.buf.format()` and stopped, so filetypes whose attached LSP doesn't format (markdown, lua, sh, raw json/yaml) silently weren't formatted. Obvious answer is `conform.nvim`; chosen answer is ~30 lines of glue in `nvim/.config/nvim/lua/format_on_save.lua`.

@@ -2,15 +2,12 @@
 /* THEME BEGIN: waybar-palette */
 @define-color red      #f38ba8;
 @define-color lavender #b4befe;
-@define-color mauve    #cba6f7;
-@define-color teal     #94e2d5;
 @define-color text     #cdd6f4;
 @define-color overlay0 #6c7086;
 @define-color surface2 #585b70;
+@define-color surface1 #45475a;
+@define-color surface0 #313244;
 @define-color base     #1e1e2e;
-/* base at 50% alpha; hand-derived from #1e1e2e. Re-derive
-   if base changes. */
-@define-color base50   rgba(30, 30, 46, 0.5);
 /* THEME END: waybar-palette */
 
 /* Reset all styles */
@@ -25,11 +22,13 @@
 }
 
 /* Ensure waybar has no borders or shadows */
+window#waybar,
 #waybar {
 	border: none;
-	border-bottom: none;
+	border-bottom: 0 solid transparent;
 	border-top: none;
 	box-shadow: none;
+	outline: none;
 }
 
 /*----------*/
@@ -43,20 +42,13 @@
 	}
 }
 
-/* Keyframes for 1st bar modifiers */
-@keyframes blink-modifier-text {
-	to {
-		color: @teal;
-	}
-}
-
 /* The Main bar */
 #waybar.first {
-	background: @base50;
+	background: alpha(@base, 0.75);
 	color: @text;
 	font-family: JetBrains Mono Nerd Font;
 	font-size: 12pt;
-	font-weight: bold;
+	font-weight: normal;
 	border-bottom: none;
 	box-shadow: none;
 }
@@ -64,57 +56,105 @@
 #waybar.first button {
 	font-family: JetBrains Mono Nerd Font;
 	font-size: 12pt;
-	font-weight: bold;
+	font-weight: normal;
 	transition: all 0.15s ease-in-out;
 }
 
-/* Each Main bar module */
-#waybar.first #battery,
-#waybar.first #backlight,
+/* Shared block shape: close to tmux/nvim status cells, with subtle bar transparency behind it. */
+#waybar.first #bluetooth,
 #waybar.first #clock,
 #waybar.first #cpu,
-#waybar.first #language,
+#waybar.first #disk,
 #waybar.first #memory.swap,
 #waybar.first #memory.ram,
-#waybar.first #mode,
-#waybar.first #submap,
+#waybar.first #network.info,
 #waybar.first #pulseaudio,
-#waybar.first #temperature,
 #waybar.first #tray,
-#waybar.first #disk,
+#waybar.first #custom-power {
+	padding-left: 5.5pt;
+	padding-right: 5.5pt;
+	margin-top: 2px;
+	margin-bottom: 0;
+	margin-left: 1px;
+	margin-right: 1px;
+	border-radius: 0;
+	background: @surface0;
+	color: @text;
+}
+
+/* Cluster accents: same block geometry, gently varied backgrounds like tmux status segments. */
+#waybar.first #cpu,
+#waybar.first #memory.ram,
+#waybar.first #memory.swap,
+#waybar.first #disk {
+	background: @surface0;
+	color: @text;
+}
+
+#waybar.first #network.info,
+#waybar.first #bluetooth {
+	background: @surface1;
+	color: @text;
+}
+
+#waybar.first #pulseaudio.input,
+#waybar.first #pulseaudio.output {
+	background: @surface0;
+	color: @text;
+}
+
+#waybar.first #clock,
+#waybar.first #tray,
+#waybar.first #custom-power {
+	background: @surface1;
+	color: @text;
+}
+
 #waybar.first #window {
-	padding-left: 8pt;
-	padding-right: 8pt;
-	margin-bottom: 3px;
+	padding-left: 5.5pt;
+	padding-right: 5.5pt;
+	margin-left: 1px;
+	margin-right: 1px;
 	background: transparent;
 	color: @text;
 }
 
-#waybar.first #network.info {
-	padding-right: 10px;
-	padding-left: 10px;
-	color: @red;
+window#waybar.empty #window,
+#waybar.first #window.empty {
+	padding-left: 0;
+	padding-right: 0;
+	margin-left: 0;
+	margin-right: 0;
+	background: transparent;
 }
 
+#waybar.first #bluetooth.off,
+#waybar.first #bluetooth.disabled,
+#waybar.first #bluetooth.no-controller,
+#waybar.first #network.info {
+	background: @surface1;
+	color: @red;
+	font-weight: bold;
+}
+
+#waybar.first #bluetooth.on,
+#waybar.first #bluetooth.connected,
 #waybar.first #network.info.wifi.normal,
 #waybar.first #network.info.ethernet {
 	color: @text;
-	padding-right: 15px;
+	font-weight: normal;
 }
 
 #waybar.first #network.info.wifi {
 	color: @red;
-	padding-right: 15px;
 }
 
-/* Each Main bar critical module */
+/* Critical states */
 #waybar.first #workspaces button.urgent,
 #waybar.first #workspaces button.special,
 #waybar.first #memory.swap.critical,
 #waybar.first #memory.ram.critical,
-#waybar.first #cpu.critical,
-#waybar.first #temperature.critical,
-#waybar.first #battery.critical.discharging {
+#waybar.first #cpu.critical {
 	color: @text;
 	animation-iteration-count: infinite;
 	animation-direction: alternate;
@@ -123,69 +163,52 @@
 	animation-timing-function: steps(15);
 }
 
-#waybar.first #mode,
-#waybar.first #submap.RESIZE {
-	color: @text;
-	animation-iteration-count: infinite;
-	animation-direction: alternate;
-	animation-name: blink-modifier-text;
-	animation-duration: 1s;
-	animation-timing-function: steps(15);
-}
-
-/* Each Main bar warning */
+/* Warning states */
 #waybar.first #pulseaudio.output.muted,
-#waybar.first #pulseaudio.input.source-muted,
-#waybar.first #battery.warning.discharging {
-	color: @red;
+#waybar.first #pulseaudio.input.source-muted {
+	background: @red;
+	color: @base;
+	font-weight: bold;
 }
 
-/* And now modules themselves in their respective order */
-
-/* Default workspace settings */
+/* Workspace blocks */
 #waybar.first #workspaces button {
 	color: @overlay0;
-	background: transparent;
-	font-size: 18px;
-	padding-left: 3pt;
-	padding-right: 2pt;
-	border-radius: 20px;
-	margin-bottom: 3px;
-	margin-top: 3px;
-	margin-left: 3px;
-	margin-right: 3px;
+	background: @base;
+	font-size: 12pt;
+	padding-left: 5.5pt;
+	padding-right: 5.5pt;
+	border-radius: 0;
+	margin-top: 2px;
+	margin-bottom: 0;
+	margin-left: 1px;
+	margin-right: 1px;
 	transition: 0.25s ease;
 }
 
 /* Inactive (on unfocused output) & Active (on focused output) */
 #waybar.first #workspaces button.visible {
-	color: @text;
+	color: @lavender;
 	background: @surface2;
+	font-weight: bold;
 }
 
 /* Workspace states */
 #waybar.first #workspaces button.active {
-	color: @text;
+	color: @lavender;
 	background: @surface2;
+	font-weight: bold;
 }
 
 #waybar.first #workspaces button.focused {
-	color: @text;
+	color: @lavender;
 	background: @surface2;
+	font-weight: bold;
 }
 
 /* Style when cursor is on the button */
 #waybar.first #workspaces button:hover {
 	color: @text;
-}
-
-/* Custom slashes as spacers */
-#waybar.first #custom-spacer1,
-#waybar.first #custom-spacer2,
-#waybar.first #custom-spacer3 {
-	font-size: 12pt;
-	color: @overlay0;
-	background: transparent;
 }
 
 /* Tooltip recolor */
