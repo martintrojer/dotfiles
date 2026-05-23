@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""Run commands in a toolbox, with optional host-binary preference.
+
+Usage::
+
+    tbx <command> [args...]
+    tbx -c <toolbox> <command> [args...]
+
+By default, commands run in the ``dev`` toolbox. Wrapper scripts can pass
+``--prefer-host`` to prefer a matching host binary before falling back to the
+selected toolbox.
+"""
+
+from __future__ import annotations
+
+import os
+import shutil
+import sys
+from contextlib import suppress
+from dataclasses import dataclass
+from pathlib import Path
+
+DEFAULT_TBX_TOOLBOX = "dev"
+
+
+@dataclass(frozen=True)
+class Options:
+    toolbox_name: str
+    tool_name: str
+    passthrough: list[str]
+    prefer_host: bool
+
+
+class UsageError(Exception):
+    pass
+
+
+def usage(prog: str) -> str:
+    return "\n".join(
+        [
+            f"Usage: {prog} [options] <command> [args...]",
+            f"       {prog} -c <toolbox> [options] <command> [args...]",
+            "",
+            f"Run <command> inside a toolbox. Defaults to {DEFAULT_TBX_TOOLBOX!r}.",
+            "",
+            "Options:",
+            "  -c, --container, --toolbox NAME  Toolbox/container name",
+            "  --prefer-host, --host-first      Prefer a real host binary, then toolbox",
+            "  --remote-only, --toolbox-only    Always run through toolbox",
+            "  -h, --help                       Show this help",
+        ]
+    )
+
+
+def _skip_path_dirs() -> set[Path]:
+    dirs = {
+        Path(sys.argv[0]).absolute().parent,
+        Path.home() / ".local" / "bin",
+    }
+    for raw_dir in os.environ.get("TBX_SKIP_PATH_DIRS", "").split(os.pathsep):
+        if raw_dir:
+            dirs.add(Path(raw_dir).expanduser().absolute())
+    return dirs
+
+
+def path_without_wrapper_dirs(raw_path: str) -> str:
+    """Return PATH with wrapper directories removed.
+
+    Toolboxes share ``$HOME`` with the host, so ``~/.local/bin`` is visible
+    inside the toolbox too. Removing wrapper directories matters twice:
+    host-side ``--prefer-host`` lookup must not find wrappers, and toolbox-side
+    command lookup must not fall back to the same wrappers when the real command
+    is missing inside the container.
+    """
+    skip_dirs = _skip_path_dirs()
+    resolved_skip_dirs = set()
+    for path in skip_dirs:
+        with suppress(OSError):
+            resolved_skip_dirs.add(path.resolve())
+
+    candidates = []
+    for path_text in raw_path.split(os.pathsep):
+        if not path_text:
+            continue
+        path = Path(path_text).expanduser().absolute()
+        if path in skip_dirs:
+            continue
+        with suppress(OSError):
+            if path.resolve() in resolved_skip_dirs:
+                continue
+        candidates.append(path_text)
+    return os.pathsep.join(candidates)
+
+
+def find_outside_wrapper_dirs(command: str) -> str | None:
+    """Locate ``command`` on PATH, skipping wrapper directories."""
+    return shutil.which(
+        command, path=path_without_wrapper_dirs(os.environ.get("PATH", ""))
+    )
+
+
+def default_prefer_host() -> bool:
+    return False
+
+
+def consume_option_value(argv: list[str], index: int, option: str) -> tuple[str, int]:
+    if "=" in option:
+        _, value = option.split("=", 1)
+        if value:
+            return value, index + 1
+    if index + 1 >= len(argv):
+        raise UsageError(f"Missing value for {option}\n\n{usage(Path(sys.argv[0]).name)}")
+    return argv[index + 1], index + 2
+
+
+def parse_args(argv: list[str]) -> Options:
+    prog = Path(sys.argv[0]).name
+    prefer_host = default_prefer_host()
+    explicit_toolbox: str | None = None
+    index = 0
+
+    while index < len(argv):
+        arg = argv[index]
+        if arg in ("-h", "--help"):
+            raise UsageError(usage(prog))
+        if arg in ("--remote-only", "--toolbox-only"):
+            prefer_host = False
+            index += 1
+            continue
+        if arg in ("--prefer-host", "--host-first"):
+            prefer_host = True
+            index += 1
+            continue
+        if arg in ("-c", "--container", "--toolbox") or arg.startswith(
+            ("--container=", "--toolbox=")
+        ):
+            explicit_toolbox, index = consume_option_value(argv, index, arg)
+            continue
+        if arg == "--":
+            index += 1
+            break
+        if arg.startswith("--"):
+            raise UsageError(f"Unknown option: {arg}\n\n{usage(prog)}")
+        break
+
+    command = argv[index:]
+    toolbox_name = explicit_toolbox or os.environ.get(
+        "TBX_DEFAULT_TOOLBOX", DEFAULT_TBX_TOOLBOX
+    )
+    if not command:
+        raise UsageError(usage(prog))
+    tool_name, *passthrough = command
+    return Options(toolbox_name, tool_name, passthrough, prefer_host)
+
+
+def main(argv: list[str]) -> int:
+    try:
+        options = parse_args(argv)
+    except UsageError as error:
+        print(error, file=sys.stderr)
+        return 0 if str(error).startswith("Usage:") else 2
+
+    if options.prefer_host and (
+        real_cmd := find_outside_wrapper_dirs(options.tool_name)
+    ) is not None:
+        os.execv(real_cmd, [real_cmd, *options.passthrough])
+
+    toolbox = shutil.which("toolbox")
+    if toolbox is None:
+        print(
+            f"Cannot run {options.tool_name!r} in toolbox {options.toolbox_name!r}: "
+            "toolbox is unavailable",
+            file=sys.stderr,
+        )
+        return 127
+
+    toolbox_path = path_without_wrapper_dirs(os.environ.get("PATH", ""))
+    os.execv(
+        toolbox,
+        [
+            "toolbox",
+            "run",
+            "-c",
+            options.toolbox_name,
+            "sh",
+            "-lc",
+            (
+                'PATH="$1"; export PATH; shift; '
+                'command -v "$1" >/dev/null 2>&1 || '
+                '{ printf "%s: command not found in toolbox\\n" "$1" >&2; exit 126; }; '
+                '"$@"; status=$?; '
+                'test "$status" -eq 127 && exit 126; '
+                'exit "$status"'
+            ),
+            "tbx",
+            toolbox_path,
+            options.tool_name,
+            *options.passthrough,
+        ],
+    )
+    raise AssertionError("execvp returned unexpectedly")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
