@@ -25,6 +25,7 @@ STATE_DIR = (
 )
 PENDING_FILE = STATE_DIR / "pending.jsonl"
 MAX_EVENTS = 4000
+ENABLE_SYSTEM_NOTIFY_ENV = "TMUX_AGENT_ATTENTION_ENABLE_SYSTEM_NOTIFY"
 DISABLE_SYSTEM_NOTIFY_ENV = "TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY"
 
 
@@ -361,13 +362,26 @@ def send_osc777(title: str, message: str) -> None:
         pass
 
 
-def send_system_notification(fields: dict[str, str]) -> None:
+def system_notifications_enabled() -> bool:
+    # Desktop notifications are opt-in. Keep honoring the old disable flag as
+    # an explicit off switch in case an environment enables them globally.
     if os.environ.get(DISABLE_SYSTEM_NOTIFY_ENV, "").strip().lower() in {
         "1",
         "true",
         "yes",
         "on",
     }:
+        return False
+    return os.environ.get(ENABLE_SYSTEM_NOTIFY_ENV, "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def send_system_notification(fields: dict[str, str]) -> None:
+    if not system_notifications_enabled():
         return
 
     title = fields.get("title") or "Agent notification"

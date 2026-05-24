@@ -198,7 +198,7 @@ What it does:
 - opens a picker (`prefix + A`) listing flagged windows, then jumps to the selected one
 - clears attention automatically when you focus the agent's pane (window-level visit alone is not enough, so vertical splits behave correctly)
 - when a notify event fires, the badge is only suppressed if the user is *already* focused on the agent's pane; same-window-but-different-pane still queues the badge
-- sends desktop notifications on macOS/Linux by default (set `TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY=1` to disable)
+- sends desktop notifications on macOS/Linux only when opted in with `TMUX_AGENT_ATTENTION_ENABLE_SYSTEM_NOTIFY=1`
 - emits OSC 777 terminal notifications to the controlling TTY (for terminals that support it)
 
 Runtime state is stored in:
