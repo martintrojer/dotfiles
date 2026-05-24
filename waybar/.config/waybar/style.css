@@ -64,6 +64,8 @@ window#waybar,
 #waybar.first #bluetooth,
 #waybar.first #clock,
 #waybar.first #cpu,
+#waybar.first #custom-notifications,
+#waybar.first #custom-weather,
 #waybar.first #disk,
 #waybar.first #memory.swap,
 #waybar.first #memory.ram,
@@ -92,6 +94,8 @@ window#waybar,
 }
 
 #waybar.first #network.info,
+#waybar.first #custom-notifications,
+#waybar.first #custom-weather,
 #waybar.first #bluetooth {
 	background: @surface1;
 	color: @text;
@@ -131,6 +135,7 @@ window#waybar.empty #window,
 #waybar.first #bluetooth.off,
 #waybar.first #bluetooth.disabled,
 #waybar.first #bluetooth.no-controller,
+#waybar.first #custom-weather.unavailable,
 #waybar.first #network.info {
 	background: @surface1;
 	color: @red;
@@ -147,6 +152,16 @@ window#waybar.empty #window,
 
 #waybar.first #network.info.wifi {
 	color: @red;
+}
+
+#waybar.first #custom-notifications.has-history {
+	color: @lavender;
+	font-weight: bold;
+}
+
+#waybar.first #custom-notifications.dnd {
+	color: @red;
+	font-weight: bold;
 }
 
 /* Critical states */

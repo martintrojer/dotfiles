@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""Waybar notification indicator and fuzzel picker for mako history."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from typing import Any
+
+MAX_LABEL = 140
+MAX_BODY = 400
+
+
+def run(cmd: list[str], *, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, input=input_text, capture_output=True, text=True, check=False)
+
+
+def mako_json(command: str) -> list[dict[str, Any]]:
+    result = run(["makoctl", command, "-j"])
+    if result.returncode != 0:
+        return []
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return []
+    return data if isinstance(data, list) else []
+
+
+def mako_modes() -> set[str]:
+    result = run(["makoctl", "mode"])
+    if result.returncode != 0:
+        return set()
+    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+
+
+def notification_title(item: dict[str, Any]) -> str:
+    app = str(item.get("app_name") or "Notification")
+    summary = str(item.get("summary") or "")
+    body = str(item.get("body") or "")
+
+    text = f"{app} — {summary}" if summary else app
+    if body:
+        text = f"{text}: {body}"
+    text = " ".join(text.split())
+    if len(text) > MAX_LABEL:
+        text = f"{text[: MAX_LABEL - 1]}…"
+    return text
+
+
+def notification_details(item: dict[str, Any]) -> str:
+    app = str(item.get("app_name") or "Notification")
+    summary = str(item.get("summary") or "")
+    body = str(item.get("body") or "")
+    urgency = str(item.get("urgency") or "")
+    actions = item.get("actions") if isinstance(item.get("actions"), dict) else {}
+
+    parts = [app]
+    if summary:
+        parts.append(summary)
+    if body:
+        parts.append(body[:MAX_BODY])
+    if urgency:
+        parts.append(f"Urgency: {urgency}")
+    if actions:
+        parts.append("Actions: " + ", ".join(str(label) for label in actions.values()))
+    return "\n\n".join(parts)
+
+
+def copy_text(text: str) -> None:
+    if not text:
+        return
+    wl_copy = run(["wl-copy"], input_text=text)
+    if wl_copy.returncode != 0:
+        print(text)
+
+
+def waybar() -> int:
+    history = mako_json("history")
+    active = mako_json("list")
+    count = len(history)
+    modes = mako_modes()
+    dnd = "do-not-disturb" in modes
+
+    if dnd:
+        text = f"󰂛 {count}" if count else "󰂛"
+    else:
+        text = f"󰂚 {count}" if count else "󰂚"
+
+    tooltip_lines = []
+    if dnd:
+        tooltip_lines.append("Do not disturb enabled")
+    tooltip_lines.append(f"{count} recent notification{'s' if count != 1 else ''}")
+    if active:
+        tooltip_lines.append(f"{len(active)} visible")
+    if history:
+        tooltip_lines.append("")
+        tooltip_lines.extend(notification_title(item) for item in history[:20])
+
+    classes = []
+    if count:
+        classes.append("has-history")
+    if active:
+        classes.append("active")
+    if dnd:
+        classes.append("dnd")
+
+    print(json.dumps({"text": text, "tooltip": "\n".join(tooltip_lines), "class": classes}, ensure_ascii=False))
+    return 0
+
+
+def picker() -> int:
+    history = mako_json("history")
+    if not history:
+        run(["notify-send", "Notifications", "No recent notifications"])
+        return 0
+
+    rows = [notification_title(item) for item in history]
+    selected = run(
+        [
+            "fuzzel",
+            "--dmenu",
+            "--prompt",
+            "Pick to copy  ",
+            "--width",
+            "100",
+            "--lines",
+            "20",
+            "--layer",
+            "overlay",
+            "--no-exit-on-keyboard-focus-loss",
+        ],
+        input_text="\n".join(rows),
+    )
+    choice = selected.stdout.strip()
+    if selected.returncode != 0 or not choice:
+        return 0
+
+    try:
+        idx = rows.index(choice)
+    except ValueError:
+        return 0
+
+    copy_text(notification_details(history[idx]))
+    return 0
+
+
+def clear() -> int:
+    run(["makoctl", "dismiss", "--all"])
+    # mako has no explicit "clear history" command. Restarting clears history
+    # and the user service brings it back in this dotfiles setup.
+    run(["pkill", "-x", "mako"])
+    return 0
+
+
+def toggle_dnd() -> int:
+    run(["makoctl", "mode", "-t", "do-not-disturb"])
+    return 0
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", nargs="?", default="waybar", choices=("waybar", "picker", "clear", "toggle-dnd"))
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    return globals()[args.action.replace("-", "_")]()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

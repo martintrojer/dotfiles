@@ -14,8 +14,10 @@
 			"bluetooth",
 			"pulseaudio#input",
 			"pulseaudio#output",
+			"custom/weather",
 			"clock",
 			"tray",
+			"custom/notifications",
 			"custom/power",
 		],
 		"sway/workspaces": {
@@ -95,6 +97,22 @@
 			"format": "󰾵 {swapPercentage}%",
 			"tooltip": "{}",
 			"tooltip-format": "{swapUsed}/{swapTotal}GiB",
+		},
+		"custom/weather": {
+			"exec": "~/.config/waybar/scripts/weather",
+			"return-type": "json",
+			"interval": 300,
+			"tooltip": true,
+			"on-click": "notify-send -u low \"$(~/.config/waybar/scripts/weather --status)\"",
+		},
+		"custom/notifications": {
+			"exec": "~/.config/waybar/scripts/notifications",
+			"return-type": "json",
+			"interval": 5,
+			"tooltip": true,
+			"on-click": "~/.config/waybar/scripts/notifications picker",
+			"on-click-right": "~/.config/waybar/scripts/notifications clear",
+			"on-click-backward": "~/.config/waybar/scripts/notifications toggle-dnd",
 		},
 		"network#info": {
 			"interval": 1,
