@@ -28,14 +28,14 @@ This keeps the package decisions in one place. Both wrappers call `rpm-ostree in
 
 The package split reflects a few explicit decisions:
 
-- The Fedora host setup is intended to stay COPR-free, and package choices should prefer what is available in standard Fedora repositories.
+- The Fedora host setup is intended to stay COPR-free, and package choices should prefer what is available in standard Fedora repositories. `google-chrome-stable` is the explicit exception: the desktop browser layer assumes Google's Chrome repo is enabled on the host.
 - `base-packages.sh` is meant to be a viable minimal bootstrap baseline, not a full daily-driver package set.
 - `mise` is a core bootstrap tool, so the host base keeps a small native build toolchain: `binutils`, `gcc`, `gcc-c++`, and `make`.
-- `git`, `git-lfs`, `ripgrep`, `stow`, `tmux`, and `zsh` are treated as common baseline tooling.
-- `btop` and `gdu` are still in base as shared comfort tools.
+- `git`, `git-lfs`, `stow`, `tmux`, and `zsh` are treated as common baseline tooling.
+- Comfort and developer CLIs that do not need to be host-layered live in `setup-mise.sh`.
 - The tmux and zsh session-launch flow uses local scripts plus `fzf`, `zoxide`, `fd`, and `eza`, rather than a separate session-manager binary.
-- Desktop/session packages live in `sway-packages.sh` as a single `sway_packages` array. The list only contains packages layered on top of Sericea — anything Sericea already ships (sway, swaybg, swayidle, swaylock, waybar, wl-clipboard, pipewire, etc.) is intentionally not duplicated here.
-- `btop`, `gdu`, and `distrobox` do not fit the package split perfectly, but they are placed pragmatically based on how this setup is actually bootstrapped and used.
+- Desktop/session packages live in `sway-packages.sh` as a single `sway_packages` array. The list only contains packages layered on top of Sericea — anything Sericea already ships (sway, foot, kanshi, swaybg, swayidle, swaylock, waybar, wl-clipboard, pipewire, xdg-desktop-portal-wlr, etc.) is intentionally not duplicated here.
+- `distrobox` does not fit the package split perfectly, but it is placed pragmatically based on how this setup is actually bootstrapped and used.
 - Wallpapers are managed per machine with `wallpaper set <url-or-file>`, which stores files under `~/.local/share/wallpapers/` and restarts `swaybg.service`.
 
 ## GTK Theme
