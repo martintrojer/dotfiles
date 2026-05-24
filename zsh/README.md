@@ -13,7 +13,7 @@ For a browser-friendly walkthrough with quizzes, see [`../guides/ZSH.md`](../gui
 1. Stows `zsh/.zshrc` and `zsh/.zsh/` to `~/`.
 2. Clones `zsh-autosuggestions` and `zsh-syntax-highlighting` into `~/.local/share/zsh-plugins/<name>/` at pinned versions (see `_dotfiles_sync/pins.py`).
 
-If you want the `tm` tmux helper, install `tmux`, `fzf`, `zoxide`, `fd`, and `eza` (the Fedora `base-packages.sh` covers these).
+If you want the `tm` tmux helper, install `tmux`, `fzf`, `zoxide`, `fd`, and `eza` (the Fedora setup covers `tmux` in `base-packages.sh` and the rest via `setup-mise.sh`).
 
 ## Local/private environment
 
