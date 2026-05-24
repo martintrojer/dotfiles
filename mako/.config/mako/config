@@ -4,14 +4,16 @@ width=420
 outer-margin=20
 padding=10,15
 border-size=2
+border-radius=0
 max-icon-size=32
-font=JetBrains Mono Nerd Font 18px
+max-history=20
+font=JetBrains Mono Nerd Font 16px
 
 # Catppuccin Mocha colors
 # THEME BEGIN: mako-colors
 background-color=#1e1e2e
 text-color=#cdd6f4
-border-color=#313244
+border-color=#45475a
 progress-color=#cba6f7
 
 [mode=do-not-disturb]
@@ -28,7 +30,7 @@ border-color=#313244
 [urgency=normal]
 background-color=#1e1e2e
 text-color=#cdd6f4
-border-color=#313244
+border-color=#45475a
 
 [urgency=critical]
 background-color=#1e1e2e
