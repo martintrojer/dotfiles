@@ -39,3 +39,9 @@ border-color=#f38ba8
 default-timeout=0
 layer=overlay
 # THEME END: mako-colors
+
+# Noisy media-player track-change notifications should be visible briefly but
+# must not evict useful notifications from mako history / Waybar's picker.
+[app-name=Cider]
+default-timeout=1500
+history=0
