@@ -63,7 +63,7 @@ smart_gaps off
 # the leaf window remains distinguishable by its blue child border.
 client.focused          $surface2 $surface2 $lavender $surface2 $mauve
 client.focused_inactive $surface2 $surface2 $lavender $surface2 $surface0
-client.unfocused        $mantle   $mantle  $overlay0 $mantle   $mantle
+client.unfocused        $overlay0 $mantle  $overlay0 $mantle   $overlay0
 client.urgent           $red      $red     $text     $red      $red
 client.placeholder      $mantle   $mantle  $text     $mantle   $mantle
 client.background       $base
