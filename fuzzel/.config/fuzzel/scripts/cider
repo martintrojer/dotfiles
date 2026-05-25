@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+"""Cider controls through a small fuzzel picker."""
+
+from __future__ import annotations
+
+import argparse
+import re
+from pathlib import Path
+
+from _common import (
+    cli_main,
+    fuzzel_dmenu,
+    notify,
+    picker_cache_path,
+    require_commands,
+    run,
+)
+
+MPRIS_PREFIX = "org.mpris.MediaPlayer2."
+
+ACTIONS = [
+    ("󰐊 Play / Pause", "play-pause"),
+    ("󰒭 Next", "next"),
+    ("󰒮 Previous", "previous"),
+    ("󰍜 Show Cider", "show"),
+]
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--prompt", default="Cider  ")
+    parser.add_argument("--width", type=int, default=36)
+    parser.add_argument("--lines", type=int, default=5)
+    return parser.parse_args()
+
+
+def player_names() -> list[str]:
+    result = run(["playerctl", "--list-all"], check=False)
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def bus_name_pid(bus_name: str) -> int | None:
+    result = run(["busctl", "--user", "status", bus_name], check=False)
+    if result.returncode != 0:
+        return None
+    match = re.search(r"^PID=(\d+)$", result.stdout, re.MULTILINE)
+    return int(match.group(1)) if match else None
+
+
+def pid_comm(pid: int) -> str:
+    try:
+        return Path(f"/proc/{pid}/comm").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def is_cider_process(player: str) -> bool:
+    pid = bus_name_pid(MPRIS_PREFIX + player)
+    return pid is not None and pid_comm(pid).lower() == "cider"
+
+
+def is_cider_player(player: str) -> bool:
+    if is_cider_process(player):
+        return True
+
+    desktop = run(["playerctl", "--player", player, "metadata", "mpris:desktopEntry"], check=False)
+    if desktop.returncode == 0 and desktop.stdout.strip().lower() == "cider":
+        return True
+
+    metadata = run(
+        ["playerctl", "--player", player, "metadata", "--format", "{{mpris:identity}}\t{{xesam:url}}"],
+        check=False,
+    )
+    if metadata.returncode != 0:
+        return False
+    haystack = metadata.stdout.lower()
+    return "cider" in haystack or "music.apple.com" in haystack
+
+
+def cider_players() -> list[str]:
+    return [player for player in player_names() if is_cider_player(player)]
+
+
+def show_cider() -> None:
+    run(
+        [
+            str(Path.home() / ".config/fuzzel/scripts/raise-window"),
+            "--app-id-regex",
+            "^cider$",
+            "--title-regex",
+            "Cider",
+            "--spawn-sh",
+            "flatpak run sh.cider.Cider",
+        ],
+        check=False,
+    )
+
+
+def main() -> int:
+    args = parse_args()
+    require_commands(["busctl", "fuzzel", "playerctl"])
+
+    options = [label for label, _ in ACTIONS]
+
+    selected = fuzzel_dmenu(
+        prompt=args.prompt,
+        width=args.width,
+        lines=args.lines,
+        cache=picker_cache_path("cider"),
+        options=options,
+    )
+    if not selected:
+        return 0
+
+    selected_label = selected
+    action = next((action for label, action in ACTIONS if label == selected_label), "")
+    if not action:
+        return 0
+
+    if action == "show":
+        show_cider()
+        return 0
+
+    players = cider_players()
+    if not players:
+        notify("Cider", "No running Cider MPRIS player found")
+        return 1
+
+    run(["playerctl", "--player", ",".join(players), action], check=False, capture_output=False)
+    return 0
+
+
+if __name__ == "__main__":
+    cli_main("cider", main)
