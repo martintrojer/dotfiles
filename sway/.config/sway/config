@@ -96,6 +96,7 @@ bindsym $mod+space exec $menu
 bindsym $mod+b exec $browser
 bindsym $mod+y exec sh -lc "$HOME/.config/sway/scripts/open-yazi"
 bindsym $mod+m exec sh -lc "$HOME/.config/sway/scripts/open-cider"
+bindsym $mod+Shift+m exec ~/.config/fuzzel/scripts/cider
 bindsym $mod+i exec sh -lc "$HOME/.config/sway/scripts/open-vscode"
 
 # Powermenu kept on Shift (destructive: lock/suspend/shutdown), the

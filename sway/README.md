@@ -51,14 +51,15 @@ Modifier conventions inside sway:
   same bind does different things depending on which mechanism is in
   play. Cheat sheet:
 
-  | Bind         | App         | Singleton via                                   | Re-press effect          |
-  | ------------ | ----------- | ----------------------------------------------- | ------------------------ |
-  | `mod+Return` | foot        | `footclient` → `sway-foot-server.service`       | new window               |
-  | `mod+b`      | chrome      | `--user-data-dir` profile (own logic)           | new window               |
-  | `mod+y`      | yazi        | none — fresh foot + fresh yazi each time        | new yazi window          |
-  | `mod+m`      | Cider       | `raise-window` script + scratchpad rule         | focus existing / spawn   |
-  | `mod+i`      | VS Code     | `raise-window` script                           | focus existing / spawn   |
-  | `mod+e`      | bemoji      | none (single-shot picker)                       | n/a                      |
+  | Bind          | App            | Singleton via                                   | Re-press effect          |
+  | ------------- | -------------- | ----------------------------------------------- | ------------------------ |
+  | `mod+Return`  | foot           | `footclient` → `sway-foot-server.service`       | new window               |
+  | `mod+b`       | chrome         | `--user-data-dir` profile (own logic)           | new window               |
+  | `mod+y`       | yazi           | none — fresh foot + fresh yazi each time        | new yazi window          |
+  | `mod+m`       | Cider          | `raise-window` script + scratchpad rule         | focus existing / spawn   |
+  | `mod+Shift+m` | Cider controls | fuzzel + playerctl/MPRIS                        | media action picker      |
+  | `mod+i`       | VS Code        | `raise-window` script                           | focus existing / spawn   |
+  | `mod+e`       | bemoji         | none (single-shot picker)                       | n/a                      |
 
   `raise-window` is fire-and-forget on cold spawn — the very first
   press launches and returns immediately; second press focuses once
@@ -103,6 +104,7 @@ Pickers (all under `fuzzel/.config/fuzzel/scripts/`):
 - `mod+\` — `calc`, qalc/bc-backed.
 - `mod+s` — `ssh`, ssh-config host picker.
 - `mod+t` — `toolboxes`, toolbox/distrobox container picker.
+- `mod+Shift+m` — `cider`, small Cider media-control picker. Kept on Shift because `mod+m` summons Cider itself.
 - `mod+Shift+p` — `powermenu` (lock / suspend / logout / reboot / shutdown).
   Kept on Shift because it's destructive (suspend / shutdown).
 - `mod+grave` — `chrome-tabs`, DevTools-protocol tab switcher (paired
