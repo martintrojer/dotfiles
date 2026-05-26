@@ -7,6 +7,7 @@
 		"modules-left": ["sway/workspaces", "sway/window"],
 		"modules-right": [
 			"cpu",
+			"custom/temperature",
 			"memory#ram",
 			"memory#swap",
 			"disk",
@@ -81,6 +82,12 @@
 				"warning": 80,
 				"critical": 95,
 			},
+		},
+		"custom/temperature": {
+			"exec": "~/.config/waybar/scripts/temperature",
+			"return-type": "json",
+			"interval": 5,
+			"tooltip": true,
 		},
 		"memory#ram": {
 			"interval": 5,
