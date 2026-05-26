@@ -65,6 +65,7 @@ window#waybar,
 #waybar.first #clock,
 #waybar.first #cpu,
 #waybar.first #custom-notifications,
+#waybar.first #custom-temperature,
 #waybar.first #custom-weather,
 #waybar.first #disk,
 #waybar.first #memory.swap,
@@ -86,6 +87,7 @@ window#waybar,
 
 /* Cluster accents: same block geometry, gently varied backgrounds like tmux status segments. */
 #waybar.first #cpu,
+#waybar.first #custom-temperature,
 #waybar.first #memory.ram,
 #waybar.first #memory.swap,
 #waybar.first #disk {
@@ -169,6 +171,7 @@ window#waybar.empty #window,
 #waybar.first #workspaces button.special,
 #waybar.first #memory.swap.critical,
 #waybar.first #memory.ram.critical,
+#waybar.first #custom-temperature.critical,
 #waybar.first #cpu.critical {
 	color: @text;
 	animation-iteration-count: infinite;
