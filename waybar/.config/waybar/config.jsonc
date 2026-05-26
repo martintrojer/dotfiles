@@ -42,7 +42,7 @@
 		"disk": {
 			"path": "/var",
 			"interval": 10,
-			"format": " {percentage_used}%",
+			"format": "󰋊 {percentage_used}%",
 			"tooltip": "{}",
 			"tooltip-format": "Free {free}",
 		},
@@ -75,8 +75,8 @@
 		},
 		"cpu": {
 			"interval": 5,
-			"tooltip": " {load}",
-			"format": " {usage}%",
+			"tooltip": "󰘚 {load}",
+			"format": "󰘚 {usage}%",
 			"states": {
 				"warning": 80,
 				"critical": 95,
@@ -84,7 +84,7 @@
 		},
 		"memory#ram": {
 			"interval": 5,
-			"format": " {percentage}%",
+			"format": "󰍛 {percentage}%",
 			"states": {
 				"warning": 80,
 				"critical": 95,
@@ -94,7 +94,7 @@
 		},
 		"memory#swap": {
 			"interval": 5,
-			"format": "󰾵 {swapPercentage}%",
+			"format": "󰓡 {swapPercentage}%",
 			"tooltip": "{}",
 			"tooltip-format": "{swapUsed}/{swapTotal}GiB",
 		},
@@ -116,7 +116,7 @@
 		},
 		"network#info": {
 			"interval": 1,
-			"format": "󱘖  Offline",
+			"format": "󰲛  Offline",
 			"format-wifi": "{icon}",
 			"format-ethernet": "󰈀",
 			"tooltip": "{}",
@@ -129,12 +129,12 @@
 			},
 		},
 		"bluetooth": {
-			"format": "",
-			"format-disabled": "",
-			"format-off": "",
-			"format-on": "",
-			"format-connected": " {num_connections}",
-			"format-connected-battery": " {device_battery_percentage}%",
+			"format": "󰂯",
+			"format-disabled": "󰂯",
+			"format-off": "󰂯",
+			"format-on": "󰂯",
+			"format-connected": "󰂯 {num_connections}",
+			"format-connected-battery": "󰂯 {device_battery_percentage}%",
 			"tooltip-format": "{controller_alias}\n{status}",
 			"tooltip-format-connected": "{controller_alias}\n{num_connections} connected\n\n{device_enumerate}",
 			"tooltip-format-enumerate-connected": "{device_alias}",
@@ -143,16 +143,16 @@
 		},
 		"pulseaudio#output": {
 			"format": "{icon} {volume}%",
-			"format-bluetooth": "{icon} {volume}%",
+			"format-bluetooth": "{icon}󰂯 {volume}%",
 			"format-source-muted": "{volume}",
 			"format-icons": {
-				"headphone": "",
-				"hands-free": "",
-				"headset": "",
-				"phone": "",
-				"portable": "",
-				"car": "",
-				"default": ["", ""],
+				"headphone": "󰋋",
+				"hands-free": "󰋋",
+				"headset": "󰋋",
+				"phone": "󰄜",
+				"portable": "󰄜",
+				"car": "󰄋",
+				"default": ["󰕿", "󰕾"],
 			},
 			"on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
 			"on-click-right": "footclient --app-id=wiremix-float wiremix",
@@ -160,7 +160,7 @@
 			"scroll-step": 5,
 		},
 		"pulseaudio#input": {
-			"format": " {format_source}%",
+			"format": "󰍬 {format_source}%",
 			"format-source": "{volume}",
 			"format-source-muted": "{volume}",
 			"on-scroll-up": "sh -c 'vol=$(pactl get-source-volume @DEFAULT_SOURCE@ | grep -oP \"\\d+(?=%)\" | head -1); if [ \"$vol\" -lt 100 ]; then pactl set-source-volume @DEFAULT_SOURCE@ +5%; fi'",
@@ -175,7 +175,7 @@
 			"spacing": 6,
 		},
 		"custom/power": {
-			"format": "⏻",
+			"format": "󰐥",
 			"tooltip": "Power Options",
 			"on-click": "~/.config/fuzzel/scripts/powermenu",
 		},
