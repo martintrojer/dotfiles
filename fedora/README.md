@@ -94,7 +94,8 @@ systemctl --user enable --now ollama-toolbox.service
 Notes:
 
 - `postgres.container` is a Quadlet file under `~/.config/containers/systemd/`, so systemd generates `postgres.service` from it after reload.
-- `sway-session.target` is started by `~/.config/sway/scripts/session-start`, after importing the Sway session environment. It owns the desktop services, including `sway-waybar.service` for `waybar/config.jsonc` and `swayidle.service` for Sway monitor power commands.
+- `sway-session.target` is started by `~/.config/sway/scripts/session-start`, after importing the Sway session environment. It owns the desktop services, including `sway-waybar.service` for `waybar/config.jsonc`, `sway-mako.service` for notifications, and `swayidle.service` for Sway monitor power commands.
+- Vendor user units for `mako`, `waybar`, `kanshi`, and `foot-server` are masked by `dotfiles-sync --apply` so D-Bus activation or accidental enables cannot start duplicates alongside the `sway-*` units.
 - Desktop daemons tied to `sway-session.target` follow the same lifecycle and are stopped by `~/.config/sway/scripts/session-quit`.
 - If you change `*.service` or `*.container` files later, run `systemctl --user daemon-reload` again before restarting them.
 - `toolbox-dev.service` assumes a toolbox named `dev` already exists.

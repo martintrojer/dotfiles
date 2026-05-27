@@ -15,6 +15,7 @@ from .external import (
     apply_tmux_tpm,
     apply_zsh_plugins,
 )
+from .fedora_systemd import apply_fedora_systemd_masks, check_fedora_systemd_masks
 from .integration_checks import (
     check_agent_notify,
     check_tmux_tpm,
@@ -146,6 +147,9 @@ def run_check_tasks(
         "agent-notify": lambda: check_agent_notify(
             target, verbose=verbose, ignore=ignore
         ),
+        "fedora-systemd-masks": lambda: check_fedora_systemd_masks(
+            target, verbose=verbose, ignore=ignore
+        ),
         "repo-backlinks": _check_repo_backlinks,
     }
 
@@ -171,6 +175,9 @@ def run_apply_tasks(
             specs,
             active_names,
             verbose=verbose,
+        ),
+        "fedora-systemd-masks": lambda: apply_fedora_systemd_masks(
+            target, verbose=verbose
         ),
         "zsh-plugins": lambda: apply_zsh_plugins(target, verbose=verbose),
         "tmux-tpm": lambda: apply_tmux_tpm(target, verbose=verbose),

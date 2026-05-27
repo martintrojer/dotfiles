@@ -138,6 +138,13 @@ gets started exactly once when the session comes up:
 | `swaybg.service`                  | wallpaper via `session-wallpaper`   |
 | `swayidle.service`                | idle/lock/suspend via `session-swayidle` |
 
+Vendor units that would otherwise be easy to start in parallel with these
+session-owned services are masked by `dotfiles-sync --apply`: `mako.service`,
+`waybar.service`, `kanshi.service`, `foot-server.service`, and
+`foot-server.socket`. That keeps the Sway session uniformly owned by the
+`sway-*` units while still letting `sway-mako.service` use mako's D-Bus-aware
+`Type=dbus`/`BusName=org.freedesktop.Notifications` semantics.
+
 Naming rule: daemons whose binary already starts with `sway` (`swaybg`,
 `swayidle`) keep their bare name; others are prefixed (`sway-kanshi`,
 `sway-mako`, etc.) to make `systemctl --user list-units 'sway*'` show the full

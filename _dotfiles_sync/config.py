@@ -21,11 +21,13 @@ CHECK_TASKS: Final[tuple[TaskPolicy, ...]] = (
     TaskPolicy("zsh-plugins", packages=frozenset({"zsh"})),
     TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
     TaskPolicy("agent-notify", full_run_only=True),
+    TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
     TaskPolicy("repo-backlinks", full_run_only=True),
 )
 
 APPLY_TASKS: Final[tuple[TaskPolicy, ...]] = (
     TaskPolicy("ignored-artifacts"),
+    TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
     TaskPolicy("zsh-plugins", packages=frozenset({"zsh"})),
     TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
     TaskPolicy("skills", full_run_only=True),
