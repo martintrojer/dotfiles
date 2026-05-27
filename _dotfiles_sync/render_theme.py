@@ -102,9 +102,7 @@ def repo(rel: str) -> Path:
 CONSUMERS: tuple[Consumer, ...] = (
     Consumer(repo("sway/.config/sway/config"), ("sway-palette",)),
     Consumer(repo("waybar/.config/waybar/style.css"), ("waybar-palette",)),
-    Consumer(
-        repo("waybar/.config/waybar/config.jsonc"), ("waybar-calendar-colors",)
-    ),
+    Consumer(repo("waybar/.config/waybar/config.jsonc"), ("waybar-calendar-colors",)),
     Consumer(repo("mako/.config/mako/config"), ("mako-colors",)),
     Consumer(repo("swaylock/.config/swaylock/config"), ("swaylock-colors",)),
     Consumer(repo("tmux/.tmux.conf"), ("tmux-palette",)),
@@ -200,7 +198,7 @@ class RegionEdit:
 
     name: str
     begin_line: int  # 0-indexed, the marker line itself (kept)
-    end_line: int    # 0-indexed, the marker line itself (kept)
+    end_line: int  # 0-indexed, the marker line itself (kept)
 
 
 def find_regions(path: Path, expected: Iterable[str]) -> list[RegionEdit]:

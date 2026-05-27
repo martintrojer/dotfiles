@@ -6,15 +6,18 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
-import sys
 from typing import Any
 
 MAX_LABEL = 140
 MAX_BODY = 400
 
 
-def run(cmd: list[str], *, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, input=input_text, capture_output=True, text=True, check=False)
+def run(
+    cmd: list[str], *, input_text: str | None = None
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        cmd, input=input_text, capture_output=True, text=True, check=False
+    )
 
 
 def mako_json(command: str) -> list[dict[str, Any]]:
@@ -106,7 +109,12 @@ def waybar() -> int:
     if dnd:
         classes.append("dnd")
 
-    print(json.dumps({"text": text, "tooltip": "\n".join(tooltip_lines), "class": classes}, ensure_ascii=False))
+    print(
+        json.dumps(
+            {"text": text, "tooltip": "\n".join(tooltip_lines), "class": classes},
+            ensure_ascii=False,
+        )
+    )
     return 0
 
 
@@ -161,7 +169,12 @@ def toggle_dnd() -> int:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", nargs="?", default="waybar", choices=("waybar", "picker", "clear", "toggle-dnd"))
+    parser.add_argument(
+        "action",
+        nargs="?",
+        default="waybar",
+        choices=("waybar", "picker", "clear", "toggle-dnd"),
+    )
     return parser.parse_args()
 
 

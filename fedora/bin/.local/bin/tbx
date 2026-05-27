@@ -109,7 +109,9 @@ def consume_option_value(argv: list[str], index: int, option: str) -> tuple[str,
         if value:
             return value, index + 1
     if index + 1 >= len(argv):
-        raise UsageError(f"Missing value for {option}\n\n{usage(Path(sys.argv[0]).name)}")
+        raise UsageError(
+            f"Missing value for {option}\n\n{usage(Path(sys.argv[0]).name)}"
+        )
     return argv[index + 1], index + 2
 
 
@@ -160,9 +162,10 @@ def main(argv: list[str]) -> int:
         print(error, file=sys.stderr)
         return 0 if str(error).startswith("Usage:") else 2
 
-    if options.prefer_host and (
-        real_cmd := find_outside_wrapper_dirs(options.tool_name)
-    ) is not None:
+    if (
+        options.prefer_host
+        and (real_cmd := find_outside_wrapper_dirs(options.tool_name)) is not None
+    ):
         os.execv(real_cmd, [real_cmd, *options.passthrough])
 
     toolbox = shutil.which("toolbox")
