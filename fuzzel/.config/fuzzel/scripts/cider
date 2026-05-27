@@ -65,12 +65,21 @@ def is_cider_player(player: str) -> bool:
     if is_cider_process(player):
         return True
 
-    desktop = run(["playerctl", "--player", player, "metadata", "mpris:desktopEntry"], check=False)
+    desktop = run(
+        ["playerctl", "--player", player, "metadata", "mpris:desktopEntry"], check=False
+    )
     if desktop.returncode == 0 and desktop.stdout.strip().lower() == "cider":
         return True
 
     metadata = run(
-        ["playerctl", "--player", player, "metadata", "--format", "{{mpris:identity}}\t{{xesam:url}}"],
+        [
+            "playerctl",
+            "--player",
+            player,
+            "metadata",
+            "--format",
+            "{{mpris:identity}}\t{{xesam:url}}",
+        ],
         check=False,
     )
     if metadata.returncode != 0:
@@ -128,7 +137,11 @@ def main() -> int:
         notify("Cider", "No running Cider MPRIS player found")
         return 1
 
-    run(["playerctl", "--player", ",".join(players), action], check=False, capture_output=False)
+    run(
+        ["playerctl", "--player", ",".join(players), action],
+        check=False,
+        capture_output=False,
+    )
     return 0
 
 

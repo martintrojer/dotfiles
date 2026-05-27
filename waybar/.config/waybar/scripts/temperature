@@ -59,7 +59,9 @@ def hwmons() -> dict[str, Hwmon]:
     return devices
 
 
-def sensor_value(device: Hwmon | None, wanted_label: str, fallback_input: str = "temp1_input") -> int | None:
+def sensor_value(
+    device: Hwmon | None, wanted_label: str, fallback_input: str = "temp1_input"
+) -> int | None:
     if device is None:
         return None
 
@@ -81,7 +83,9 @@ def sensor_lines(title: str, device: Hwmon | None) -> list[str]:
         value = temp_c(temp_input)
         if value is None:
             continue
-        rows.append(f"{label(device.path / f'temp{idx}_label', f'temp{idx}')}: {value}°C")
+        rows.append(
+            f"{label(device.path / f'temp{idx}_label', f'temp{idx}')}: {value}°C"
+        )
 
     if not rows:
         return []
@@ -115,8 +119,12 @@ def main() -> int:
         classes.append("warning")
 
     output = {
-        "text": f"{ICON_TEMP} {' '.join(text_parts)}" if text_parts else f"{ICON_TEMP} n/a",
-        "tooltip": "\n\n".join(tooltip_sections) if tooltip_sections else "Temperature sensors unavailable",
+        "text": f"{ICON_TEMP} {' '.join(text_parts)}"
+        if text_parts
+        else f"{ICON_TEMP} n/a",
+        "tooltip": "\n\n".join(tooltip_sections)
+        if tooltip_sections
+        else "Temperature sensors unavailable",
         "class": classes,
     }
     print(json.dumps(output, ensure_ascii=False))

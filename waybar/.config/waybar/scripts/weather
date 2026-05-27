@@ -5,6 +5,8 @@
 
 set -o pipefail
 
+DEFAULT_WEATHER_ICON="󰖐"
+
 weather_url() {
   if [[ -n ${WTTR_LOCATION:-} ]]; then
     printf 'https://wttr.in/%s' "$WTTR_LOCATION"
@@ -15,7 +17,7 @@ weather_url() {
 
 weather_status() {
   local weather place temperature wind condition
-  weather=$(curl -fsS --max-time 4 "$(weather_url)?format=%l|%t|%w|%C" 2>/dev/null | tr -d '\n') || return 1
+  weather=$(curl -fsS --connect-timeout 2 --max-time 8 "$(weather_url)?format=%l|%t|%w|%C" 2>/dev/null | tr -d '\n') || return 1
 
   [[ -n $weather ]] || return 1
 
@@ -30,7 +32,7 @@ weather_status() {
 weather_icon() {
   local weather_data weather_code sunrise sunset now_epoch sunrise_epoch sunset_epoch night icon
 
-  weather_data=$(curl -fsS --max-time 3 "$(weather_url)?format=j1" 2>/dev/null \
+  weather_data=$(curl -fsS --connect-timeout 2 --max-time 8 "$(weather_url)?format=j1" 2>/dev/null \
     | jq -er '[.current_condition[0].weatherCode, .weather[0].astronomy[0].sunrise, .weather[0].astronomy[0].sunset] | select(all(. != null and . != "")) | @tsv' 2>/dev/null) || return 1
 
   IFS=$'\t' read -r weather_code sunrise sunset <<< "$weather_data"
@@ -70,13 +72,13 @@ case ${1:-} in
     weather_status || printf 'Weather unavailable\n'
     ;;
   *)
-    icon=$(weather_icon 2>/dev/null) || icon=""
+    icon=$(weather_icon 2>/dev/null) || icon="$DEFAULT_WEATHER_ICON"
     status=$(weather_status 2>/dev/null) || status="Weather unavailable"
 
-    if [[ -n $icon ]]; then
-      jq -cn --arg text "$icon" --arg tooltip "$status" '{text: $text, tooltip: $tooltip}'
+    if [[ $status == "Weather unavailable" ]]; then
+      jq -cn --arg text "$icon" --arg tooltip "$status" '{text: $text, class: "unavailable", tooltip: $tooltip}'
     else
-      jq -cn --arg tooltip "$status" '{text: "", class: "unavailable", tooltip: $tooltip}'
+      jq -cn --arg text "$icon" --arg tooltip "$status" '{text: $text, tooltip: $tooltip}'
     fi
     ;;
 esac
