@@ -5,8 +5,10 @@ BindsTo=sway-session.target
 After=sway-session.target
 
 [Service]
-Type=simple
+Type=dbus
+BusName=org.freedesktop.Notifications
 ExecStart=/usr/bin/mako
+ExecReload=/usr/bin/makoctl reload
 Restart=always
 RestartSec=1
 
