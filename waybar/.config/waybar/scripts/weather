@@ -1,0 +1,363 @@
+#!/usr/bin/env python3
+"""Cached ambient Waybar weather.
+
+Render only the last good result, valid for one hour. Refreshes happen in the
+background so Waybar never flashes a network error into the bar.
+"""
+
+from __future__ import annotations
+
+import argparse
+import fcntl
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+from urllib.error import URLError
+from urllib.parse import quote
+from urllib.request import urlopen
+
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "waybar"
+CACHE_FILE = CACHE_DIR / "weather.json"
+LOCK_FILE = CACHE_DIR / "weather.refreshing"
+
+CACHE_MAX_AGE = 60 * 60
+REFRESH_AFTER = 10 * 60
+CONNECT_TIMEOUT = 6
+
+
+@dataclass(frozen=True)
+class Weather:
+    fetched_at: int
+    place: str
+    temp_c: int
+    feels_like_c: int | None
+    condition: str
+    summary: str
+    wind: str
+    humidity: str | None
+    uv_index: str | None
+    sunrise: str | None
+    sunset: str | None
+    min_temp_c: int | None
+    max_temp_c: int | None
+    rain_chance: int | None
+    snow_chance: int | None
+    precip_mm: float | None
+    wind_direction: str | None
+    visibility_km: int | None
+
+
+def weather_url() -> str:
+    location = os.environ.get("WTTR_LOCATION")
+    if location:
+        return f"https://wttr.in/{quote(location)}?format=j1"
+    return "https://wttr.in?format=j1"
+
+
+def compact_condition(code: str, description: str) -> str:
+    try:
+        weather_code = int(code)
+    except ValueError:
+        weather_code = 0
+
+    if weather_code == 113:
+        return "Clear"
+    if weather_code == 116:
+        return "Partly cloudy"
+    if weather_code == 119:
+        return "Cloudy"
+    if weather_code == 122:
+        return "Overcast"
+    if weather_code == 143:
+        return "Mist"
+    if weather_code in {248, 260}:
+        return "Fog"
+    if weather_code in {176, 263, 266, 293, 296, 299, 302, 305, 308, 353, 356, 359}:
+        return "Rain"
+    if weather_code in {179, 227, 230, 323, 326, 329, 332, 335, 338, 368, 371}:
+        return "Snow"
+    if weather_code in {
+        182,
+        185,
+        281,
+        284,
+        311,
+        314,
+        317,
+        320,
+        350,
+        362,
+        365,
+        374,
+        377,
+    }:
+        return "Sleet"
+    if weather_code in {200, 386, 389, 392, 395}:
+        return "Storm"
+
+    first_word = description.split(maxsplit=1)[0] if description else "Weather"
+    return first_word.capitalize()
+
+
+def first_value(data: Any, *keys: str) -> str | None:
+    value: Any = data
+    for key in keys:
+        if isinstance(value, list) and value:
+            value = value[0]
+        if not isinstance(value, dict):
+            return None
+        value = value.get(key)
+    if isinstance(value, list) and value:
+        value = value[0]
+    if isinstance(value, dict):
+        value = value.get("value")
+    return str(value) if value not in (None, "") else None
+
+
+def optional_int(value: object) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(str(value))
+    except ValueError:
+        return None
+
+
+def optional_float(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(str(value))
+    except ValueError:
+        return None
+
+
+def parse_weather(data: dict[str, object]) -> Weather:
+    current = data.get("current_condition")
+    if not isinstance(current, list) or not current or not isinstance(current[0], dict):
+        raise ValueError("missing current condition")
+    condition: Any = current[0]
+
+    description = first_value(condition, "weatherDesc") or "Weather"
+    code = str(condition.get("weatherCode") or "")
+    temp_c = int(str(condition.get("temp_C") or "0"))
+    feels_like_c = optional_int(condition.get("FeelsLikeC"))
+    wind = str(condition.get("windspeedKmph") or "")
+    wind_direction = str(condition.get("winddir16Point") or "") or None
+    humidity_raw = condition.get("humidity")
+    humidity = str(humidity_raw) if humidity_raw not in (None, "") else None
+    uv_raw = condition.get("uvIndex")
+    uv_index = str(uv_raw) if uv_raw not in (None, "") else None
+    visibility_km = optional_int(condition.get("visibility"))
+
+    weather_days = data.get("weather")
+    today: Any = None
+    astronomy: Any = None
+    if (
+        isinstance(weather_days, list)
+        and weather_days
+        and isinstance(weather_days[0], dict)
+    ):
+        today = dict(weather_days[0])
+        astronomy = today.get("astronomy")
+    sunrise = first_value(astronomy, "sunrise")
+    sunset = first_value(astronomy, "sunset")
+    min_temp_c = optional_int(today.get("mintempC")) if today is not None else None
+    max_temp_c = optional_int(today.get("maxtempC")) if today is not None else None
+
+    hourly: Any = today.get("hourly") if today is not None else None
+    rain_chances: list[int] = []
+    snow_chances: list[int] = []
+    precip_values: list[float] = []
+    if isinstance(hourly, list):
+        for item in hourly:
+            if not isinstance(item, dict):
+                continue
+            rain = optional_int(item.get("chanceofrain"))
+            snow = optional_int(item.get("chanceofsnow"))
+            precip = optional_float(item.get("precipMM"))
+            if rain is not None:
+                rain_chances.append(rain)
+            if snow is not None:
+                snow_chances.append(snow)
+            if precip is not None:
+                precip_values.append(precip)
+    rain_chance = max(rain_chances) if rain_chances else None
+    snow_chance = max(snow_chances) if snow_chances else None
+    precip_mm = sum(precip_values) if precip_values else None
+
+    place = (
+        first_value(data.get("nearest_area"), "areaName")
+        or first_value(data.get("nearest_area"), "region")
+        or "Weather"
+    )
+
+    return Weather(
+        fetched_at=int(time.time()),
+        place=place,
+        temp_c=temp_c,
+        feels_like_c=feels_like_c,
+        condition=compact_condition(code, description),
+        summary=description,
+        wind=f"{wind} km/h" if wind else "n/a",
+        humidity=humidity,
+        uv_index=uv_index,
+        sunrise=sunrise,
+        sunset=sunset,
+        min_temp_c=min_temp_c,
+        max_temp_c=max_temp_c,
+        rain_chance=rain_chance,
+        snow_chance=snow_chance,
+        precip_mm=precip_mm,
+        wind_direction=wind_direction,
+        visibility_km=visibility_km,
+    )
+
+
+def fetch_weather() -> Weather:
+    with urlopen(weather_url(), timeout=CONNECT_TIMEOUT) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("unexpected weather response")
+    return parse_weather(data)
+
+
+def read_cache() -> Weather | None:
+    try:
+        data = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return None
+        data.setdefault("uv_index", None)
+        data.setdefault("sunrise", None)
+        data.setdefault("sunset", None)
+        data.setdefault("min_temp_c", None)
+        data.setdefault("max_temp_c", None)
+        data.setdefault("rain_chance", None)
+        data.setdefault("snow_chance", None)
+        data.setdefault("precip_mm", None)
+        data.setdefault("wind_direction", None)
+        data.setdefault("visibility_km", None)
+        return Weather(**data)
+    except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+
+
+def write_cache(weather: Weather) -> None:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix="weather.", suffix=".json", dir=CACHE_DIR)
+    with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+        json.dump(asdict(weather), tmp, ensure_ascii=False)
+        tmp.write("\n")
+    Path(tmp_name).replace(CACHE_FILE)
+
+
+def refresh() -> int:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        with LOCK_FILE.open("w", encoding="utf-8") as lock:
+            try:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return 0
+            lock.write(str(os.getpid()))
+            lock.truncate()
+            write_cache(fetch_weather())
+    except (OSError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+        print(f"weather: refresh failed: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def maybe_refresh(cache: Weather | None) -> None:
+    age = int(time.time()) - cache.fetched_at if cache else CACHE_MAX_AGE + 1
+    if age < REFRESH_AFTER:
+        return
+
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        subprocess.Popen(
+            [sys.executable, __file__, "--refresh"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except OSError:
+        return
+
+
+def render(cache: Weather | None) -> int:
+    maybe_refresh(cache)
+    if cache is None or int(time.time()) - cache.fetched_at > CACHE_MAX_AGE:
+        print(json.dumps({"text": "", "tooltip": "", "class": ["empty"]}))
+        return 0
+
+    updated = datetime.fromtimestamp(cache.fetched_at).strftime("%H:%M")
+    details = [f"{cache.place} · {cache.condition} {cache.temp_c}°"]
+    if cache.min_temp_c is not None and cache.max_temp_c is not None:
+        details.append(f"Today {cache.min_temp_c}°-{cache.max_temp_c}°")
+    comfort = []
+    if cache.feels_like_c is not None:
+        comfort.append(f"Feels like {cache.feels_like_c}°")
+    if cache.humidity is not None:
+        comfort.append(f"Humidity {cache.humidity}%")
+    if comfort:
+        details.append(" · ".join(comfort))
+    wind_parts = ["Wind"]
+    if cache.wind_direction:
+        wind_parts.append(cache.wind_direction)
+    wind_parts.append(cache.wind)
+    details.append(" ".join(wind_parts))
+    precip = []
+    if cache.rain_chance is not None and cache.rain_chance > 0:
+        precip.append(f"Rain {cache.rain_chance}%")
+    if cache.snow_chance is not None and cache.snow_chance > 0:
+        precip.append(f"Snow {cache.snow_chance}%")
+    if cache.precip_mm is not None and cache.precip_mm > 0:
+        precip.append(f"{cache.precip_mm:.1f} mm")
+    if precip:
+        details.append(" · ".join(precip))
+    if cache.visibility_km is not None and cache.visibility_km < 10:
+        details.append(f"Visibility {cache.visibility_km} km")
+    if cache.uv_index is not None:
+        details.append(f"UV index {cache.uv_index}")
+    if cache.sunrise or cache.sunset:
+        details.append(
+            f"Sunrise {cache.sunrise or 'n/a'} · Sunset {cache.sunset or 'n/a'}"
+        )
+    details.append(f"Updated {updated}")
+
+    print(
+        json.dumps(
+            {
+                "text": f"{cache.condition} {cache.temp_c}°",
+                "tooltip": "\n".join(details),
+                "class": ["ambient"],
+            },
+            ensure_ascii=False,
+        )
+    )
+    return 0
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--refresh", action="store_true")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    if args.refresh:
+        return refresh()
+    return render(read_cache())
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

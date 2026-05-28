@@ -47,7 +47,14 @@ ACTION_OPEN = {
     "audio": ["footclient", "--app-id=wiremix-float", "wiremix"],
     "mic": ["footclient", "--app-id=wiremix-float", "wiremix"],
     "network": ["footclient", "--app-id=nmtui-float", "nmtui"],
-    "bluetooth": ["footclient", "--app-id=bluetui-float", "zsh", "-il", "-c", "bluetui"],
+    "bluetooth": [
+        "footclient",
+        "--app-id=bluetui-float",
+        "zsh",
+        "-il",
+        "-c",
+        "bluetui",
+    ],
     "cpu": ["footclient", "--app-id=btop-float", "zsh", "-il", "-c", "btop"],
     "temperature": ["footclient", "--app-id=btop-float", "zsh", "-il", "-c", "btop"],
     "memory": ["footclient", "--app-id=btop-float", "zsh", "-il", "-c", "btop"],
@@ -88,7 +95,6 @@ def run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(cmd, 127, "", f"command not found: {cmd[0]}")
 
 
-
 def demo_issues() -> list[Issue]:
     return [
         Issue("cpu", f"{ICON_CPU} 91%", "CPU load: 91%"),
@@ -97,7 +103,9 @@ def demo_issues() -> list[Issue]:
         Issue("swap", f"{ICON_SWAP} 31%", "Swap: 2.5/8.0 GiB (31%)"),
         Issue("disk", f"{ICON_DISK} 89%", "/var: 89% used, 42.0 GiB free"),
         Issue("network", f"{ICON_NET} 18%", "Weak Wi-Fi: demo-network (18%)"),
-        Issue("bluetooth", f"{ICON_BT} low", "Bluetooth battery low:\nDemo Headphones 12%"),
+        Issue(
+            "bluetooth", f"{ICON_BT} low", "Bluetooth battery low:\nDemo Headphones 12%"
+        ),
         Issue("audio", f"{ICON_AUDIO} muted", "Output muted 40%"),
         Issue("mic", f"{ICON_MIC} hot", "Mic is live 75%", True),
     ]
@@ -187,7 +195,9 @@ def sensor_lines(title: str, device: Hwmon | None) -> list[str]:
         idx = temp_input.name.removeprefix("temp").removesuffix("_input")
         value = temp_c(temp_input)
         if value is not None:
-            rows.append(f"{sensor_label(device.path / f'temp{idx}_label', f'temp{idx}')}: {value}°C")
+            rows.append(
+                f"{sensor_label(device.path / f'temp{idx}_label', f'temp{idx}')}: {value}°C"
+            )
     return [title, *rows] if rows else []
 
 
@@ -276,7 +286,9 @@ def issue_temperature(devices: dict[str, Hwmon]) -> Issue | None:
     return Issue(
         "temperature",
         f"{ICON_TEMP} {hottest}°",
-        "Temperature: " + ", ".join(labels) + ("\n\n" + "\n\n".join(sections) if sections else ""),
+        "Temperature: "
+        + ", ".join(labels)
+        + ("\n\n" + "\n\n".join(sections) if sections else ""),
         hottest >= TEMP_CRIT,
     )
 
@@ -333,7 +345,11 @@ def issue_audio() -> list[Issue]:
     if sink_muted:
         suffix = f" {sink_volume}%" if sink_volume is not None else ""
         issues.append(
-            Issue("audio", f"{ICON_AUDIO} muted", f"Output muted{suffix}\n{sink_text or ''}".strip())
+            Issue(
+                "audio",
+                f"{ICON_AUDIO} muted",
+                f"Output muted{suffix}\n{sink_text or ''}".strip(),
+            )
         )
 
     source_volume, source_muted, source_text = wpctl_volume("@DEFAULT_AUDIO_SOURCE@")
@@ -381,7 +397,11 @@ def issue_bluetooth() -> Issue | None:
 
     if not low_devices:
         return None
-    return Issue("bluetooth", f"{ICON_BT} low", "Bluetooth battery low:\n" + "\n".join(low_devices))
+    return Issue(
+        "bluetooth",
+        f"{ICON_BT} low",
+        "Bluetooth battery low:\n" + "\n".join(low_devices),
+    )
 
 
 def collect_issues() -> list[Issue]:
@@ -401,7 +421,9 @@ def collect_issues() -> list[Issue]:
     return [issue for issue in checks if issue is not None] + issue_audio()
 
 
-def choose_action(issues: list[Issue], actions: dict[str, list[str]]) -> list[str] | None:
+def choose_action(
+    issues: list[Issue], actions: dict[str, list[str]]
+) -> list[str] | None:
     for issue in reversed(issues):
         action = actions.get(issue.key)
         if action:
