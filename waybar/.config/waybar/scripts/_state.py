@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "waybar"
+STATE_DIR = (
+    Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "waybar"
+)
 DEMO_FILE = STATE_DIR / "demo"
 
 

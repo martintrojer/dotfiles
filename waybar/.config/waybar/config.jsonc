@@ -4,8 +4,9 @@
 		"position": "top",
 		"name": "first",
 		"spacing": 0,
-		"modules-left": ["sway/workspaces", "sway/window"],
-		"modules-right": ["custom/issues", "custom/notifications", "tray", "clock"],
+		"modules-left": ["sway/workspaces"],
+		"modules-center": ["custom/issues"],
+		"modules-right": ["custom/notifications", "custom/weather", "clock"],
 		"sway/workspaces": {
 			"disable-scroll": false,
 			"all-outputs": false,
@@ -19,12 +20,7 @@
 				"6": [],
 			},
 		},
-		"sway/window": {
-			"format": "{title}",
-			"tooltip": false,
-			"icon": true,
-			"icon-size": 14,
-		},
+
 		"custom/issues": {
 			"exec": "~/.config/waybar/scripts/issues",
 			"return-type": "json",
@@ -42,11 +38,13 @@
 			"on-click-right": "~/.config/waybar/scripts/notifications clear",
 			"on-click-backward": "~/.config/waybar/scripts/notifications toggle-dnd",
 		},
-		"tray": {
-			"icon-size": 14,
-			"spacing": 8,
-			"show-passive-items": false,
+		"custom/weather": {
+			"exec": "~/.config/waybar/scripts/weather",
+			"return-type": "json",
+			"interval": 600,
+			"tooltip": true,
 		},
+
 		"clock": {
 			"interval": 10,
 			"format": "{:%a %d %H:%M}",

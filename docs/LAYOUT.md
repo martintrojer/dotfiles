@@ -53,9 +53,9 @@ Fonts follow the same structural rule: pick the face for the role, not because a
 new surface wants novelty.
 
 - Foot uses Hack Nerd Font Mono: it is the primary Linux terminal face.
-- Waybar uses SF Compact for ambient chrome such as the clock and window title,
-  with JetBrains Mono Nerd Font as the fallback and as the forced face for
-  workspaces, issue blocks, notification blocks, and Nerd-heavy status cells.
+- Waybar uses SF Compact for ambient chrome such as the clock, with JetBrains
+  Mono Nerd Font as the fallback and as the forced face for workspaces, issue
+  blocks, notification blocks, and Nerd-heavy status cells.
 - Temporary desktop control surfaces (`fuzzel`, Mako, Sway title text) keep
   JetBrains Mono Nerd Font. Its heavier, high-legibility shape works better for
   scanning popups/notifications than the calmer Waybar ambient face.
@@ -100,11 +100,12 @@ Waybar is not a cockpit. It is an interruption filter.
 
 Default shape:
 
-- workspaces are blocks because they are navigation objects
-- window title is ambient context
-- clock and tray are ambient context
+- workspaces live on the left and are blocks because they are navigation objects
+- issues live in the center and are hidden when healthy
 - notifications are hidden when empty, blocked when actionable
-- issues are hidden when healthy, blocked when attention/action is needed
+- weather and clock are ambient context
+- tray and window title are omitted; controls and context live in keybindings,
+  issue click actions, tmux, the focused app, or the window switcher
 
 Interaction rule:
 

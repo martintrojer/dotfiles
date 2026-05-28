@@ -5,10 +5,15 @@ Calm, exception-only status bar for Sway. The visual language follows
 
 ## Shape
 
-The default bar only shows orientation/context:
+The default bar is a sparse top HUD:
 
-- left: workspaces and focused window title
-- right: issues, notifications, tray, clock
+- left: workspaces
+- center: issues, hidden when healthy
+- right: notifications, weather, and clock
+
+There is intentionally no tray and no window title. App/system controls live in
+keybindings and issue click actions; focused-window context belongs to the app,
+tmux, or the window switcher rather than the desktop bar.
 
 Power-user telemetry is intentionally not always visible. It is aggregated by
 `~/.config/waybar/scripts/issues` and appears only when something crosses a
@@ -17,9 +22,18 @@ threshold. Healthy state emits an empty module with the `ok` class.
 Layout language:
 
 - workspaces are blocks because they are navigation objects
-- issues and notifications become blocks only when actionable
-- tray and clock are ambient context, so they stay unboxed
-- window title is context, not a status cell
+- issues sit in the center and become blocks only when actionable
+- notifications become blocks only when actionable
+- clock is ambient context, so it stays unboxed
+
+## Sizing and typography
+
+The bar is tuned to stay at 20px on the main display, preserving an extra tmux
+row compared with the old larger bar.
+
+- base font: SF Compact + JetBrains fallback, 10pt, weight 500
+- issue/notification blocks: JetBrains Mono Nerd Font
+- window/tray modules are omitted rather than shrunk into ambiguity
 
 ## Issue policy
 
@@ -54,6 +68,15 @@ systemctl --user restart sway-waybar.service
 
 The flag is shared, so either script can toggle it. Demo mode does not change
 system state; it only changes script output.
+
+## Weather
+
+`~/.config/waybar/scripts/weather` is ambient context, not telemetry. It renders
+only the last good wttr.in result, cached at `$XDG_CACHE_HOME/waybar/weather.json`
+for up to one hour. Refreshes happen in the background after ten minutes; if
+there is no valid cache, the module renders nothing instead of showing an error.
+
+Set `WTTR_LOCATION` to pin the location; otherwise wttr.in guesses from IP.
 
 ## Audio controls
 

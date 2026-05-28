@@ -22,7 +22,6 @@ def run(
     )
 
 
-
 def demo_notifications() -> list[dict[str, Any]]:
     return [
         {
@@ -147,7 +146,9 @@ def waybar() -> int:
         json.dumps(
             {
                 "text": text,
-                "tooltip": "\n".join(tooltip_lines) if tooltip_lines else "No notifications",
+                "tooltip": "\n".join(tooltip_lines)
+                if tooltip_lines
+                else "No notifications",
                 "class": classes,
             },
             ensure_ascii=False,
@@ -213,7 +214,9 @@ def parse_args() -> argparse.Namespace:
         default="waybar",
         choices=("waybar", "picker", "clear", "toggle-dnd", "demo"),
     )
-    parser.add_argument("demo_state", nargs="?", choices=("on", "off", "toggle", "status"))
+    parser.add_argument(
+        "demo_state", nargs="?", choices=("on", "off", "toggle", "status")
+    )
     return parser.parse_args()
 
 

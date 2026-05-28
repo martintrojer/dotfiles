@@ -10,6 +10,10 @@ set $browser sh -lc "$HOME/.config/sway/scripts/open-browser"
 set $lock ~/.config/sway/scripts/lock-screen
 set $quit ~/.config/sway/scripts/session-quit
 
+# Wallpapers are owned by swaybg.service via session-wallpaper. Disable Sway's
+# own output-bg helper so it doesn't spawn a second compositor-child swaybg.
+swaybg_command -
+
 # THEME BEGIN: sway-palette
 set $rosewater #f5e0dc
 set $mauve #cba6f7
@@ -70,12 +74,22 @@ client.background       $base
 
 for_window [title="^Picture in picture$"] floating enable, sticky enable, border pixel 2
 for_window [title="^Picture-in-Picture$"] floating enable, sticky enable, border pixel 2
-for_window [app_id="^pavucontrol$"] floating enable
-for_window [app_id="^nm-connection-editor$"] floating enable
+# Thunar — float when summoned ad-hoc, useful default size.
+for_window [app_id="^thunar$"] floating enable, resize set 1100 720, move position center
+# Nautilus quicklook previewer (flatpak sushi-equivalent).
+for_window [app_id="^org\.gnome\.NautilusPreviewer$"] floating enable, resize set 1000 720, move position center
+# imv image viewer — throwaway, float it.
+for_window [app_id="^imv$"] floating enable, resize set 1000 720, move position center
+# Chrome auth/print/save dialogs reuse the same app_id as the main window
+# on Wayland, so we can't target them by app_id alone. Title-match the
+# common transient ones instead.
+for_window [app_id="^google-chrome$" title="^(Open File|Save File|Save As|Print|Sign in)"] floating enable, move position center
+# Generic auth prompt title (polkit/ssh-askpass style).
+for_window [title="^Authentication Required$"] floating enable, move position center
 # Floating TUIs launched from waybar.
-for_window [app_id="^wiremix-float$"] floating enable, resize set 720 480, move position center
-for_window [app_id="^bluetui-float$"] floating enable, resize set 720 480, move position center
-for_window [app_id="^nmtui-float$"] floating enable, resize set 720 480, move position center
+for_window [app_id="^wiremix-float$"] floating enable, resize set 1000 700, move position center
+for_window [app_id="^bluetui-float$"] floating enable, resize set 1000 700, move position center
+for_window [app_id="^nmtui-float$"] floating enable, resize set 1000 700, move position center
 for_window [app_id="^btop-float$"] floating enable, resize set 900 640, move position center
 # GNOME Calculator (flatpak): summon, type, dismiss.
 for_window [app_id="^org\.gnome\.Calculator$"] floating enable, resize set 480 600, move position center

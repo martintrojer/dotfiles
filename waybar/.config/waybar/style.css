@@ -37,11 +37,11 @@ window#waybar,
 }
 
 #waybar.first {
-	background: alpha(@base, 0.65);
+	background: alpha(@base, 0.55);
 	color: @text;
 	font-family: "SF Compact Text", "JetBrains Mono Nerd Font";
 	font-size: 10pt;
-	font-weight: normal;
+	font-weight: 500;
 	border-bottom: none;
 	box-shadow: none;
 }
@@ -68,7 +68,7 @@ window#waybar,
 }
 
 #waybar.first #clock,
-#waybar.first #tray {
+#waybar.first #custom-weather {
 	padding-left: 8pt;
 	padding-right: 8pt;
 	margin-top: 1px;
@@ -79,21 +79,9 @@ window#waybar,
 	color: @text;
 }
 
-#waybar.first #tray {
-	margin-top: 2px;
-	margin-bottom: 0;
-}
-
-#waybar.first #tray > .passive {
-	color: @overlay0;
-}
-
-#waybar.first #tray > .needs-attention {
-	color: @red;
-}
-
 #waybar.first #custom-issues.ok,
-#waybar.first #custom-notifications.empty {
+#waybar.first #custom-notifications.empty,
+#waybar.first #custom-weather.empty {
 	padding-left: 0;
 	padding-right: 0;
 	margin-left: 0;
@@ -122,25 +110,6 @@ window#waybar,
 	animation-timing-function: steps(15);
 }
 
-#waybar.first #window {
-	padding-left: 5.5pt;
-	padding-right: 5.5pt;
-	margin-left: 1px;
-	margin-right: 1px;
-	background: transparent;
-	color: @text;
-	font-weight: 500;
-}
-
-window#waybar.empty #window,
-#waybar.first #window.empty {
-	padding-left: 0;
-	padding-right: 0;
-	margin-left: 0;
-	margin-right: 0;
-	background: transparent;
-}
-
 #waybar.first #workspaces {
 	font-family: "SF Compact Text", "JetBrains Mono Nerd Font";
 	background: transparent;
@@ -155,8 +124,8 @@ window#waybar.empty #window,
 	background: transparent;
 	font-size: 10pt;
 	font-weight: 500;
-	padding-left: 5.5pt;
-	padding-right: 5.5pt;
+	padding-left: 7pt;
+	padding-right: 7pt;
 	border-radius: 0;
 	margin: 0;
 	transition: 0.25s ease;
@@ -188,4 +157,7 @@ tooltip {
 	background: @base;
 	border: 3px solid @surface2;
 	border-radius: 10px;
+	font-family: "SF Compact Text", "JetBrains Mono Nerd Font";
+	font-size: 11pt;
+	font-weight: 500;
 }
