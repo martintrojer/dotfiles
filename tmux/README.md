@@ -49,7 +49,7 @@ From your current `tmux/.tmux.conf`:
 
 ## Status Bar Layout
 
-The current bar keeps the same useful information as before, but without the pill-style Catppuccin theme chrome.
+The current bar keeps the same useful information as before, but without the pill-style Catppuccin theme chrome. It follows the shared language in [`docs/LAYOUT.md`](../docs/LAYOUT.md): filled cells are affordances for place, focus, modal state, or attention.
 
 - Left: a filled session block.
 - Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline `!` / `Z` markers.
