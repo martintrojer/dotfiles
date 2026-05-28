@@ -208,6 +208,32 @@ Even if you never re-enable SwayFX, these bit on first setup:
 
 ## Accepted (non-obvious)
 
+### Cmd+C / Cmd+V everywhere via Rainy75 firmware layer, not xremap (accepted 2026-05-28)
+
+MacOS muscle memory wants one chord for copy/paste everywhere. Linux gives two: `Ctrl+C` in GUI apps, `Ctrl+Shift+C` in terminals (because `Ctrl+C` is SIGINT). Living with both was a constant low-grade annoyance — different motor program per focused-app type, no way for the brain to fork it cleanly.
+
+The walk through the alternatives:
+
+- **xremap with per-window-class rules** is the only thing that actually delivers "Super+C means copy in Chrome but stays uninterpreted in foot." Rejected: not packaged in Fedora, needs `cargo install`, needs a udev rule on `/dev/uinput` plus `input` group membership, needs a user systemd unit. Too much infrastructure for a chord preference (pillar #1, #4). Vendoring the static-linked binary was considered — rejected for the same reasons plus opacity in `jj diff`.
+- **keyd / input-remapper** are in Fedora but global-only on Wayland. No per-app context means any Super→Ctrl remap turns terminal Super+C into SIGINT. Dead end.
+- **Sway-level synth with wtype** can't scope bindsym per focused window without a focus-watcher hack. Racy, not worth it.
+- **Going back to defaults** (`Ctrl+Shift+C/V` in terminals, `Ctrl+C/V` in GUI) is the obvious right answer for most people, and was briefly accepted. The two-chord cognitive split never embedded after years of trying.
+
+The accepted solution: **the programmable keyboard does the translation in firmware.** Rainy75 supports VIA. Left Cmd is `MO(1)`; on layer 1, `C`→`LCTL(KC_INS)`, `V`→`LSFT(KC_INS)`, `X`→`LSFT(KC_DEL)`. `Ctrl+Insert` / `Shift+Insert` / `Shift+Delete` are the universal Linux legacy clipboard chords that every GTK/Qt/Chromium app and every terminal already honors. Foot needed a small additive config to accept them alongside its `Ctrl+Shift+c/v` defaults (and `primary-paste=none` to free `Shift+Insert` from its default primary-selection binding).
+
+Right Cmd stays raw Super so the sway `$mod+...` universe is untouched. Asymmetric split, one hand each.
+
+Why this is the right layer:
+
+- Firmware doesn't care about Wayland security, app focus, or distro. The remap lives below the OS entirely.
+- Zero new infrastructure: no daemon, no udev rule, no group, no systemd unit, no COPR, no vendored binary. Repo policy intact.
+- Additive at the foot layer: every existing chord (`Ctrl+Shift+C/V`, `Ctrl+C` = SIGINT, mouse-selection-to-clipboard) still works. Anyone with standard Linux muscle memory hits zero surprises.
+- Portable: the keyboard does the same thing on any host. macOS users get Cmd+C natively from Mac mode (Win key remapped to Cmd position by firmware), so no layer needed there.
+
+**Reconsider only if:** the Rainy75 dies and the replacement keyboard lacks programmable layers, OR an app appears in the daily stack that ignores `Ctrl+Insert` / `Shift+Insert` (rare — some Electron and Java Swing apps).
+
+---
+
 ### Waybar is a restrained block statusline, not a widget strip (accepted 2026-05-23)
 
 Waybar should visually read as the topmost statusline of the Sway/tmux/nvim stack. The old slash/backslash spacer layout made it feel like floating text with decorative separators; the current design uses square, tmux-like blocks with small 1px gaps. The right side is grouped by function (system stats, connectivity, audio, clock/tray/power) using only Catppuccin surface colors, while the window title is plain text on the translucent bar instead of a long filled slab.
