@@ -16,7 +16,11 @@ When tempted, re-read this section before touching anything.
 6. **Recreate, do not restore.** No session snapshots. No magic state restoration. Disposable sessions force the setup to stay cheap to spin up.
 7. **Thin wrappers around shared lists.** Decisions live in data, not in scripts. `dotfiles-sync`, `setup-*.sh`, the package lists — all wrappers around plain data.
 8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway with foot as the terminal. macOS is Hammerspoon with Ghostty as the terminal. The shared layer is the CLI/editor baseline; the desktop stack is allowed to diverge per platform, and once chosen, lean into each OS's native primitives (Spaces and Mission Control on macOS, sway IPC and Wayland layer-shell on Linux; foot's server/client and Ghostty's app-bundle launch model on their respective sides) rather than faking another OS's idioms on top. Each OS is allowed to bloom in its own direction.
-9. **One palette, everywhere.** Catppuccin Mocha. See [`docs/THEME.md`](./docs/THEME.md). New tools adopt the palette or do not get added.
+9. **One palette, one layout language.** Catppuccin Mocha is the color system;
+   blocky/tmux geometry is the interaction grammar. Blocks are affordances, not
+   decoration: use them for navigation, focus, modal state, or actionable
+   problems, and keep ambient context quieter. See [`docs/THEME.md`](./docs/THEME.md)
+   and [`docs/LAYOUT.md`](./docs/LAYOUT.md).
 10. **Config lives next to the thing it configures.** Tool-specific docs go in the package folder. This root README only describes the repo shape and the rules above.
 
 If a new toy violates more than one of these, it does not belong here — no matter how cool the blur effect is.
@@ -45,7 +49,7 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behaviour is 
 | Universal agent sources | [`skills/`](./skills), [`pi/`](./pi) |
 | Claude marketplace surface | [`hooks/`](./hooks), [`.claude-plugin/`](./.claude-plugin) — ugly but intentional; this is the published plugin contract Claude consumes |
 | Repo control plane | [`dotfiles-sync`](./dotfiles-sync), [`_dotfiles_sync/`](./_dotfiles_sync), [`.stowrc`](./.stowrc) |
-| Cross-cutting docs/policy | [`docs/`](./docs) — [`SETUP.md`](./docs/SETUP.md), [`DECISIONS.md`](./docs/DECISIONS.md), [`THEME.md`](./docs/THEME.md), [`VSCODE.md`](./docs/VSCODE.md) |
+| Cross-cutting docs/policy | [`docs/`](./docs) — [`SETUP.md`](./docs/SETUP.md), [`DECISIONS.md`](./docs/DECISIONS.md), [`THEME.md`](./docs/THEME.md), [`LAYOUT.md`](./docs/LAYOUT.md), [`VSCODE.md`](./docs/VSCODE.md) |
 
 Most top-level directories are Stow packages mirroring `$HOME`. The notable exceptions are the Fedora namespace, agent source trees, the Claude marketplace surface, and the repo control-plane files. `skills/` and `pi/` stay top-level because they are real source trees consumed directly by external tools, not bootstrap internals.
 

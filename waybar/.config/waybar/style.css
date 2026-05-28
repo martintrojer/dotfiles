@@ -21,7 +21,6 @@
 	text-shadow: none;
 }
 
-/* Ensure waybar has no borders or shadows */
 window#waybar,
 #waybar {
 	border: none;
@@ -31,89 +30,96 @@ window#waybar,
 	outline: none;
 }
 
-/*----------*/
-/* MAIN BAR */
-/*----------*/
-
-/* Keyframes for 1st bar criticals */
 @keyframes blink-critical-text {
 	to {
 		color: @red;
 	}
 }
 
-/* The Main bar */
 #waybar.first {
-	background: alpha(@base, 0.75);
+	background: alpha(@base, 0.65);
 	color: @text;
-	font-family: JetBrains Mono Nerd Font;
-	font-size: 12pt;
+	font-family: "SF Compact Text", "JetBrains Mono Nerd Font";
+	font-size: 10pt;
 	font-weight: normal;
 	border-bottom: none;
 	box-shadow: none;
 }
 
 #waybar.first button {
-	font-family: JetBrains Mono Nerd Font;
-	font-size: 12pt;
+	font-family: "JetBrains Mono Nerd Font";
+	font-size: 10pt;
 	font-weight: normal;
 	transition: all 0.15s ease-in-out;
 }
 
-/* Shared block shape: close to tmux/nvim status cells, with subtle bar transparency behind it. */
-#waybar.first #bluetooth,
-#waybar.first #clock,
-#waybar.first #cpu,
-#waybar.first #custom-notifications,
-#waybar.first #custom-temperature,
-#waybar.first #custom-weather,
-#waybar.first #disk,
-#waybar.first #memory.swap,
-#waybar.first #memory.ram,
-#waybar.first #network.info,
-#waybar.first #pulseaudio,
-#waybar.first #tray,
-#waybar.first #custom-power {
-	padding-left: 5.5pt;
-	padding-right: 5.5pt;
+#waybar.first #custom-issues,
+#waybar.first #custom-notifications {
+	font-family: "JetBrains Mono Nerd Font";
+	padding-left: 7pt;
+	padding-right: 7pt;
 	margin-top: 2px;
 	margin-bottom: 0;
-	margin-left: 1px;
-	margin-right: 1px;
+	margin-left: 4px;
+	margin-right: 4px;
 	border-radius: 0;
 	background: @surface0;
 	color: @text;
 }
 
-/* Cluster accents: same block geometry, gently varied backgrounds like tmux status segments. */
-#waybar.first #cpu,
-#waybar.first #custom-temperature,
-#waybar.first #memory.ram,
-#waybar.first #memory.swap,
-#waybar.first #disk {
-	background: @surface0;
-	color: @text;
-}
-
-#waybar.first #network.info,
-#waybar.first #custom-notifications,
-#waybar.first #custom-weather,
-#waybar.first #bluetooth {
-	background: @surface1;
-	color: @text;
-}
-
-#waybar.first #pulseaudio.input,
-#waybar.first #pulseaudio.output {
-	background: @surface0;
-	color: @text;
-}
-
 #waybar.first #clock,
-#waybar.first #tray,
-#waybar.first #custom-power {
-	background: @surface1;
+#waybar.first #tray {
+	padding-left: 8pt;
+	padding-right: 8pt;
+	margin-top: 1px;
+	margin-bottom: 1px;
+	margin-left: 3px;
+	margin-right: 3px;
+	background: transparent;
 	color: @text;
+}
+
+#waybar.first #tray {
+	margin-top: 2px;
+	margin-bottom: 0;
+}
+
+#waybar.first #tray > .passive {
+	color: @overlay0;
+}
+
+#waybar.first #tray > .needs-attention {
+	color: @red;
+}
+
+#waybar.first #custom-issues.ok,
+#waybar.first #custom-notifications.empty {
+	padding-left: 0;
+	padding-right: 0;
+	margin-left: 0;
+	margin-right: 0;
+	background: transparent;
+}
+
+#waybar.first #custom-issues.warning,
+#waybar.first #custom-notifications.has-history {
+	color: @lavender;
+	font-weight: bold;
+}
+
+#waybar.first #custom-issues.critical,
+#waybar.first #custom-notifications.active,
+#waybar.first #custom-notifications.dnd {
+	color: @red;
+	font-weight: bold;
+}
+
+#waybar.first #custom-issues.critical {
+	animation-iteration-count: infinite;
+	animation-direction: alternate;
+	animation-name: blink-critical-text;
+	animation-duration: 1s;
+	animation-timing-function: steps(15);
 }
 
 #waybar.first #window {
@@ -123,6 +129,7 @@ window#waybar,
 	margin-right: 1px;
 	background: transparent;
 	color: @text;
+	font-weight: 500;
 }
 
 window#waybar.empty #window,
@@ -134,45 +141,37 @@ window#waybar.empty #window,
 	background: transparent;
 }
 
-#waybar.first #bluetooth.off,
-#waybar.first #bluetooth.disabled,
-#waybar.first #bluetooth.no-controller,
-#waybar.first #custom-weather.unavailable,
-#waybar.first #network.info {
-	background: @surface1;
-	color: @red;
-	font-weight: bold;
+#waybar.first #workspaces {
+	font-family: "SF Compact Text", "JetBrains Mono Nerd Font";
+	background: transparent;
+	margin-top: 2px;
+	margin-bottom: 0;
+	margin-left: 1px;
+	margin-right: 2px;
 }
 
-#waybar.first #bluetooth.on,
-#waybar.first #bluetooth.connected,
-#waybar.first #network.info.wifi.normal,
-#waybar.first #network.info.ethernet {
-	color: @text;
-	font-weight: normal;
+#waybar.first #workspaces button {
+	color: @overlay0;
+	background: transparent;
+	font-size: 10pt;
+	font-weight: 500;
+	padding-left: 5.5pt;
+	padding-right: 5.5pt;
+	border-radius: 0;
+	margin: 0;
+	transition: 0.25s ease;
 }
 
-#waybar.first #network.info.wifi {
-	color: @red;
-}
-
-#waybar.first #custom-notifications.has-history {
+#waybar.first #workspaces button.visible,
+#waybar.first #workspaces button.active,
+#waybar.first #workspaces button.focused {
 	color: @lavender;
-	font-weight: bold;
+	background: @surface2;
+	font-weight: 500;
 }
 
-#waybar.first #custom-notifications.dnd {
-	color: @red;
-	font-weight: bold;
-}
-
-/* Critical states */
 #waybar.first #workspaces button.urgent,
-#waybar.first #workspaces button.special,
-#waybar.first #memory.swap.critical,
-#waybar.first #memory.ram.critical,
-#waybar.first #custom-temperature.critical,
-#waybar.first #cpu.critical {
+#waybar.first #workspaces button.special {
 	color: @text;
 	animation-iteration-count: infinite;
 	animation-direction: alternate;
@@ -181,55 +180,10 @@ window#waybar.empty #window,
 	animation-timing-function: steps(15);
 }
 
-/* Warning states */
-#waybar.first #pulseaudio.output.muted,
-#waybar.first #pulseaudio.input.source-muted {
-	background: @red;
-	color: @base;
-	font-weight: bold;
-}
-
-/* Workspace blocks */
-#waybar.first #workspaces button {
-	color: @overlay0;
-	background: @base;
-	font-size: 12pt;
-	padding-left: 5.5pt;
-	padding-right: 5.5pt;
-	border-radius: 0;
-	margin-top: 2px;
-	margin-bottom: 0;
-	margin-left: 1px;
-	margin-right: 1px;
-	transition: 0.25s ease;
-}
-
-/* Inactive (on unfocused output) & Active (on focused output) */
-#waybar.first #workspaces button.visible {
-	color: @lavender;
-	background: @surface2;
-	font-weight: bold;
-}
-
-/* Workspace states */
-#waybar.first #workspaces button.active {
-	color: @lavender;
-	background: @surface2;
-	font-weight: bold;
-}
-
-#waybar.first #workspaces button.focused {
-	color: @lavender;
-	background: @surface2;
-	font-weight: bold;
-}
-
-/* Style when cursor is on the button */
 #waybar.first #workspaces button:hover {
 	color: @text;
 }
 
-/* Tooltip recolor */
 tooltip {
 	background: @base;
 	border: 3px solid @surface2;

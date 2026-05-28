@@ -58,6 +58,9 @@ Modifier conventions inside sway:
   | `mod+y`       | yazi           | none — fresh foot + fresh yazi each time        | new yazi window          |
   | `mod+m`       | Cider          | `raise-window` script + scratchpad rule         | focus existing / spawn   |
   | `mod+Shift+m` | Cider controls | fuzzel + playerctl/MPRIS                        | media action picker      |
+  | `mod+Shift+a` | Audio mixer    | `wiremix` in a centered floating terminal       | new mixer window         |
+  | `mod+Shift+b` | Bluetooth TUI  | `bluetui` in a centered floating terminal       | new Bluetooth TUI        |
+  | `mod+Shift+w` | Network TUI    | `nmtui` in a centered floating terminal         | new NetworkManager TUI   |
   | `mod+i`       | VS Code        | `raise-window` script                           | focus existing / spawn   |
   | `mod+e`       | bemoji         | none (single-shot picker)                       | n/a                      |
 
@@ -66,11 +69,14 @@ Modifier conventions inside sway:
   the window has appeared. See TODO #14 for the deferred fix.
 - `mod+Shift+<letter>` — destructive / friction-needed actions (`Shift+q`
   kill, `Shift+p` powermenu, `Shift+r` reload-config, `Shift+n`
-  send-to-scratchpad, `Shift+space` floating-toggle). Non-destructive
-  pickers (toolboxes, ssh, hotkeys) used to live on this layer but moved
-  to base `mod+<letter>` slots; only `Shift+p` (powermenu) stays here
-  because lock/suspend/shutdown earn the friction. Lock is reached via
-  `mod+Shift+p` powermenu — no dedicated key.
+  send-to-scratchpad, `Shift+space` floating-toggle). `Shift+a` summons the
+  audio mixer, `Shift+b` summons the Bluetooth TUI, `Shift+w` summons the
+  NetworkManager TUI, and `Shift+m` opens Cider controls; these stay on Shift
+  because their base keys are app launchers. Non-destructive pickers (toolboxes,
+  ssh, hotkeys) used to live on this layer but moved to base `mod+<letter>`
+  slots; only `Shift+p` (powermenu) stays here because lock/suspend/shutdown
+  earn the friction. Lock is reached via `mod+Shift+p` powermenu — no dedicated
+  key.
 - `mod+Shift+<motion>` — move container (`Shift+h/j/k/l`, `Shift+arrows`).
 - `mod+Ctrl+<motion>` — workspace-level move (`Ctrl+PgUp/Dn` move container +
   follow). Move-workspace-to-other-output is `mod+Shift+u` (left) / `mod+Shift+i`
@@ -104,6 +110,10 @@ Pickers (all under `fuzzel/.config/fuzzel/scripts/`):
 - `mod+\` — `calc`, qalc/bc-backed.
 - `mod+s` — `ssh`, ssh-config host picker.
 - `mod+t` — `toolboxes`, toolbox/distrobox container picker.
+- `mod+Shift+a` — `wiremix`, centered floating PipeWire mixer for changing
+  volume, per-app levels, and input/output devices.
+- `mod+Shift+b` — `bluetui`, centered floating Bluetooth TUI.
+- `mod+Shift+w` — `nmtui`, centered floating NetworkManager TUI.
 - `mod+Shift+m` — `cider`, small Cider media-control picker. Kept on Shift because `mod+m` summons Cider itself.
 - `mod+Shift+p` — `powermenu` (lock / suspend / logout / reboot / shutdown).
   Kept on Shift because it's destructive (suspend / shutdown).

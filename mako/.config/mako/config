@@ -45,3 +45,9 @@ layer=overlay
 [app-name=Cider]
 default-timeout=1500
 history=0
+
+# Agent completion notifications should toast briefly and update tmux's
+# agent-attention state, but repeated "waiting for input" reminders should not
+# fill mako history / Waybar's notification counter.
+[app-name=footclient summary=Pi body="Waiting for input"]
+history=0

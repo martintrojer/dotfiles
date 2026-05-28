@@ -1,0 +1,485 @@
+#!/usr/bin/env python3
+"""Exception-only Waybar issue summary.
+
+Normal state is quiet: emit no text and an ``ok`` class. Warnings/criticals are
+aggregated into one compact module while detailed power-user data stays in the
+tooltip.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+
+from _state import demo_enabled, set_demo
+
+HWMON_ROOT = Path("/sys/class/hwmon")
+VAR_PATH = Path("/var")
+
+CPU_WARN = 80
+CPU_CRIT = 95
+TEMP_WARN = 80
+TEMP_CRIT = 90
+RAM_WARN = 80
+RAM_CRIT = 95
+SWAP_WARN = 25
+SWAP_CRIT = 50
+DISK_WARN = 85
+DISK_CRIT = 95
+WIFI_WARN = 25
+
+ICON_CPU = "󰘚"
+ICON_TEMP = ""
+ICON_RAM = "󰍛"
+ICON_SWAP = "󰓡"
+ICON_DISK = "󰋊"
+ICON_NET = "󰲛"
+ICON_AUDIO = "󰖁"
+ICON_MIC = "󰍭"
+ICON_BT = "󰂯"
+
+ACTION_OPEN = {
+    "audio": ["footclient", "--app-id=wiremix-float", "wiremix"],
+    "mic": ["footclient", "--app-id=wiremix-float", "wiremix"],
+    "network": ["footclient", "--app-id=nmtui-float", "nmtui"],
+    "bluetooth": ["footclient", "--app-id=bluetui-float", "zsh", "-il", "-c", "bluetui"],
+    "cpu": ["footclient", "--app-id=btop-float", "zsh", "-il", "-c", "btop"],
+    "temperature": ["footclient", "--app-id=btop-float", "zsh", "-il", "-c", "btop"],
+    "memory": ["footclient", "--app-id=btop-float", "zsh", "-il", "-c", "btop"],
+    "swap": ["footclient", "--app-id=btop-float", "zsh", "-il", "-c", "btop"],
+}
+
+ACTION_FIX = {
+    "audio": ["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "0"],
+    "mic": ["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "1"],
+}
+
+DEVICE_TITLES = {
+    "k10temp": "CPU",
+    "amdgpu": "GPU",
+    "gigabyte_wmi": "Motherboard",
+    "nvme": "NVMe",
+}
+
+
+@dataclass(frozen=True)
+class Issue:
+    key: str
+    text: str
+    details: str
+    critical: bool = False
+
+
+@dataclass(frozen=True)
+class Hwmon:
+    name: str
+    path: Path
+
+
+def run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        return subprocess.CompletedProcess(cmd, 127, "", f"command not found: {cmd[0]}")
+
+
+
+def demo_issues() -> list[Issue]:
+    return [
+        Issue("cpu", f"{ICON_CPU} 91%", "CPU load: 91%"),
+        Issue("temperature", f"{ICON_TEMP} 88°", "Temperature: CPU 88°C, GPU 84°C"),
+        Issue("memory", f"{ICON_RAM} 86%", "RAM: 27.5/32.0 GiB (86%)"),
+        Issue("swap", f"{ICON_SWAP} 31%", "Swap: 2.5/8.0 GiB (31%)"),
+        Issue("disk", f"{ICON_DISK} 89%", "/var: 89% used, 42.0 GiB free"),
+        Issue("network", f"{ICON_NET} 18%", "Weak Wi-Fi: demo-network (18%)"),
+        Issue("bluetooth", f"{ICON_BT} low", "Bluetooth battery low:\nDemo Headphones 12%"),
+        Issue("audio", f"{ICON_AUDIO} muted", "Output muted 40%"),
+        Issue("mic", f"{ICON_MIC} hot", "Mic is live 75%", True),
+    ]
+
+
+def read_text(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except (FileNotFoundError, OSError):
+        return None
+
+
+def read_int(path: Path) -> int | None:
+    value = read_text(path)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def percent(value: int, total: int) -> int:
+    if total <= 0:
+        return 0
+    return round(value / total * 100)
+
+
+def meminfo() -> dict[str, int]:
+    values: dict[str, int] = {}
+    for line in (read_text(Path("/proc/meminfo")) or "").splitlines():
+        key, _, rest = line.partition(":")
+        amount = rest.split(maxsplit=1)[0]
+        try:
+            values[key] = int(amount) * 1024
+        except ValueError:
+            continue
+    return values
+
+
+def cpu_load() -> int | None:
+    try:
+        load = os.getloadavg()[0]
+    except OSError:
+        return None
+    cores = os.cpu_count() or 1
+    return round(load / cores * 100)
+
+
+def hwmons() -> dict[str, Hwmon]:
+    devices = {}
+    for path in sorted(HWMON_ROOT.glob("hwmon*")):
+        name = read_text(path / "name")
+        if name and name not in devices:
+            devices[name] = Hwmon(name=name, path=path)
+    return devices
+
+
+def temp_c(path: Path) -> int | None:
+    value = read_int(path)
+    if value is None:
+        return None
+    return round(value / 1000)
+
+
+def sensor_label(path: Path, fallback: str) -> str:
+    return read_text(path) or fallback
+
+
+def sensor_value(
+    device: Hwmon | None, wanted_label: str, fallback_input: str = "temp1_input"
+) -> int | None:
+    if device is None:
+        return None
+    for temp_input in sorted(device.path.glob("temp*_input")):
+        idx = temp_input.name.removeprefix("temp").removesuffix("_input")
+        if sensor_label(device.path / f"temp{idx}_label", "") == wanted_label:
+            return temp_c(temp_input)
+    return temp_c(device.path / fallback_input)
+
+
+def sensor_lines(title: str, device: Hwmon | None) -> list[str]:
+    if device is None:
+        return []
+    rows = []
+    for temp_input in sorted(device.path.glob("temp*_input")):
+        idx = temp_input.name.removeprefix("temp").removesuffix("_input")
+        value = temp_c(temp_input)
+        if value is not None:
+            rows.append(f"{sensor_label(device.path / f'temp{idx}_label', f'temp{idx}')}: {value}°C")
+    return [title, *rows] if rows else []
+
+
+def issue_cpu() -> Issue | None:
+    load = cpu_load()
+    if load is None or load < CPU_WARN:
+        return None
+    return Issue("cpu", f"{ICON_CPU} {load}%", f"CPU load: {load}%", load >= CPU_CRIT)
+
+
+def issue_memory() -> Issue | None:
+    info = meminfo()
+    total = info.get("MemTotal", 0)
+    available = info.get("MemAvailable", 0)
+    if not total:
+        return None
+    used_pct = percent(total - available, total)
+    if used_pct < RAM_WARN:
+        return None
+    total_gib = total / 1024**3
+    used_gib = (total - available) / 1024**3
+    return Issue(
+        "memory",
+        f"{ICON_RAM} {used_pct}%",
+        f"RAM: {used_gib:.1f}/{total_gib:.1f} GiB ({used_pct}%)",
+        used_pct >= RAM_CRIT,
+    )
+
+
+def issue_swap() -> Issue | None:
+    info = meminfo()
+    total = info.get("SwapTotal", 0)
+    free = info.get("SwapFree", 0)
+    if not total:
+        return None
+    used_pct = percent(total - free, total)
+    if used_pct < SWAP_WARN:
+        return None
+    total_gib = total / 1024**3
+    used_gib = (total - free) / 1024**3
+    return Issue(
+        "swap",
+        f"{ICON_SWAP} {used_pct}%",
+        f"Swap: {used_gib:.1f}/{total_gib:.1f} GiB ({used_pct}%)",
+        used_pct >= SWAP_CRIT,
+    )
+
+
+def issue_disk() -> Issue | None:
+    try:
+        usage = shutil.disk_usage(VAR_PATH)
+    except OSError:
+        return None
+    used_pct = percent(usage.used, usage.total)
+    if used_pct < DISK_WARN:
+        return None
+    free_gib = usage.free / 1024**3
+    return Issue(
+        "disk",
+        f"{ICON_DISK} {used_pct}%",
+        f"{VAR_PATH}: {used_pct}% used, {free_gib:.1f} GiB free",
+        used_pct >= DISK_CRIT,
+    )
+
+
+def issue_temperature(devices: dict[str, Hwmon]) -> Issue | None:
+    cpu = sensor_value(devices.get("k10temp"), "Tctl")
+    gpu = sensor_value(devices.get("amdgpu"), "edge")
+    values = [value for value in (cpu, gpu) if value is not None]
+    if not values or max(values) < TEMP_WARN:
+        return None
+
+    labels = []
+    if cpu is not None:
+        labels.append(f"CPU {cpu}°C")
+    if gpu is not None:
+        labels.append(f"GPU {gpu}°C")
+
+    sections = []
+    for name, title in DEVICE_TITLES.items():
+        lines = sensor_lines(title, devices.get(name))
+        if lines:
+            sections.append("\n".join(lines))
+
+    hottest = max(values)
+    return Issue(
+        "temperature",
+        f"{ICON_TEMP} {hottest}°",
+        "Temperature: " + ", ".join(labels) + ("\n\n" + "\n\n".join(sections) if sections else ""),
+        hottest >= TEMP_CRIT,
+    )
+
+
+def issue_network() -> Issue | None:
+    operstates = []
+    for path in Path("/sys/class/net").glob("*/operstate"):
+        if path.parent.name == "lo":
+            continue
+        operstates.append(read_text(path))
+    online = any(state in {"up", "unknown"} for state in operstates)
+    if not online:
+        return Issue("network", f"{ICON_NET} offline", "Network offline", True)
+
+    result = run(["nmcli", "-t", "-f", "active,ssid,signal", "dev", "wifi"])
+    if result.returncode != 0:
+        return None
+    for line in result.stdout.splitlines():
+        active, _, rest = line.partition(":")
+        if active != "yes":
+            continue
+        ssid, _, signal_text = rest.rpartition(":")
+        try:
+            signal = int(signal_text)
+        except ValueError:
+            return None
+        if signal < WIFI_WARN:
+            return Issue(
+                "network",
+                f"{ICON_NET} {signal}%",
+                f"Weak Wi-Fi: {ssid or 'connected network'} ({signal}%)",
+            )
+    return None
+
+
+def wpctl_volume(target: str) -> tuple[int | None, bool | None, str | None]:
+    result = run(["wpctl", "get-volume", target])
+    if result.returncode != 0:
+        return None, None, None
+    output = result.stdout.strip()
+    fields = output.split()
+    if len(fields) < 2:
+        return None, None, output
+    try:
+        volume = round(float(fields[1]) * 100)
+    except ValueError:
+        volume = None
+    return volume, "[MUTED]" in output, output
+
+
+def issue_audio() -> list[Issue]:
+    issues: list[Issue] = []
+    sink_volume, sink_muted, sink_text = wpctl_volume("@DEFAULT_AUDIO_SINK@")
+    if sink_muted:
+        suffix = f" {sink_volume}%" if sink_volume is not None else ""
+        issues.append(
+            Issue("audio", f"{ICON_AUDIO} muted", f"Output muted{suffix}\n{sink_text or ''}".strip())
+        )
+
+    source_volume, source_muted, source_text = wpctl_volume("@DEFAULT_AUDIO_SOURCE@")
+    if source_muted is False:
+        suffix = f" {source_volume}%" if source_volume is not None else ""
+        issues.append(
+            Issue(
+                "mic",
+                f"{ICON_MIC} hot",
+                f"Mic is live{suffix}\n{source_text or ''}".strip(),
+                True,
+            )
+        )
+    return issues
+
+
+def issue_bluetooth() -> Issue | None:
+    result = run(["bluetoothctl", "devices", "Connected"])
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+
+    low_devices = []
+    for line in result.stdout.splitlines():
+        parts = line.split(maxsplit=2)
+        if len(parts) < 2:
+            continue
+        address = parts[1]
+        name = parts[2] if len(parts) > 2 else address
+        info = run(["bluetoothctl", "info", address])
+        if info.returncode != 0:
+            continue
+        battery = None
+        for detail in info.stdout.splitlines():
+            if "Battery Percentage:" not in detail:
+                continue
+            _, _, raw = detail.partition("Battery Percentage:")
+            value = raw.strip().split()[0]
+            try:
+                battery = int(value, 0)
+            except ValueError:
+                battery = None
+            break
+        if battery is not None and battery <= 20:
+            low_devices.append(f"{name} {battery}%")
+
+    if not low_devices:
+        return None
+    return Issue("bluetooth", f"{ICON_BT} low", "Bluetooth battery low:\n" + "\n".join(low_devices))
+
+
+def collect_issues() -> list[Issue]:
+    if demo_enabled():
+        return demo_issues()
+
+    devices = hwmons()
+    checks = [
+        issue_cpu(),
+        issue_temperature(devices),
+        issue_memory(),
+        issue_swap(),
+        issue_disk(),
+        issue_network(),
+        issue_bluetooth(),
+    ]
+    return [issue for issue in checks if issue is not None] + issue_audio()
+
+
+def choose_action(issues: list[Issue], actions: dict[str, list[str]]) -> list[str] | None:
+    for issue in reversed(issues):
+        action = actions.get(issue.key)
+        if action:
+            return action
+    return None
+
+
+def click(button: str) -> int:
+    issues = collect_issues()
+    if not issues:
+        return 0
+
+    if button == "left":
+        action = choose_action(issues, ACTION_OPEN)
+    elif button == "right":
+        action = choose_action(issues, ACTION_FIX)
+    else:
+        action = None
+
+    if not action:
+        return 0
+
+    subprocess.Popen(action, start_new_session=True)
+    return 0
+
+
+def waybar() -> int:
+    issues = collect_issues()
+    if not issues:
+        print(json.dumps({"text": "", "tooltip": "All quiet", "class": ["ok"]}))
+        return 0
+
+    open_action = choose_action(issues, ACTION_OPEN)
+    fix_action = choose_action(issues, ACTION_FIX)
+    tooltip_parts = [issue.details for issue in issues]
+    action_hints = []
+    if open_action:
+        action_hints.append("Left click: " + " ".join(open_action))
+    if fix_action:
+        action_hints.append("Right click: " + " ".join(fix_action))
+    if action_hints:
+        tooltip_parts.append("\n".join(action_hints))
+
+    classes = ["critical" if any(issue.critical for issue in issues) else "warning"]
+    output = {
+        "text": "  ".join(issue.text for issue in issues),
+        "tooltip": "\n\n".join(tooltip_parts),
+        "class": classes,
+    }
+    print(json.dumps(output, ensure_ascii=False))
+    return 0
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command")
+    click_parser = subparsers.add_parser("click")
+    click_parser.add_argument("button", choices=("left", "right"))
+    demo_parser = subparsers.add_parser("demo")
+    demo_parser.add_argument("state", choices=("on", "off", "toggle", "status"))
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    if args.command == "click":
+        return click(args.button)
+    if args.command == "demo":
+        if args.state == "toggle":
+            set_demo(not demo_enabled())
+        elif args.state == "on":
+            set_demo(True)
+        elif args.state == "off":
+            set_demo(False)
+        print("on" if demo_enabled() else "off")
+        return 0
+    return waybar()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -100,7 +100,7 @@ SATURATION_SCALE = 0.85
 # ImageMagick `-font` takes a PostScript / fontconfig pattern, not
 # the family-name form used in sway/waybar/fuzzel/swaylock configs.
 # Same font asset, different lookup mechanism, different spelling.
-FONT = "JetBrainsMono-NF-Bold"
+FONT = "SF-Compact-Text-Bold"
 # Banner geometry as fractions of wallpaper height (back-derived from
 # the prior fixed 1080p values: 42/30 pt, 152/100 px from south).
 LINE1_PT_FRAC, LINE2_PT_FRAC = 0.039, 0.028
@@ -113,7 +113,7 @@ MIN_ACCENT_CONTRAST = 3.0
 # pointsizes, blur recipe, banner geometry, sixel encoding). The cache
 # key folds this in, so changes invalidate every <key>.* entry in one
 # go — lock PNG, accent file, and per-pane-size sixels alike.
-RENDER_VERSION = 6
+RENDER_VERSION = 7
 # Catppuccin Mocha base — sixel preview canvas fill. The fixed canvas
 # matters because fzf/foot don't reliably clear old sixel pixels when
 # consecutive previews have different intrinsic sizes.
