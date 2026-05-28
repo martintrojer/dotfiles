@@ -92,7 +92,7 @@ FALLBACK_CURRENT = XDG_CONFIG_HOME / "wallpapers" / "current"
 # RENDER_VERSION below).
 # ----------------------------------------------------------------------
 
-BLUR_SIGMA = 18.0
+BLUR_SIGMA = 12.0
 # Multiply plucked-color saturation by this so the accent reads as
 # wallpaper-derived rather than neon. 1.0 = take what the wallpaper
 # gives you; 0.85 takes the edge off without losing identity.
@@ -113,7 +113,7 @@ MIN_ACCENT_CONTRAST = 3.0
 # pointsizes, blur recipe, banner geometry, sixel encoding). The cache
 # key folds this in, so changes invalidate every <key>.* entry in one
 # go — lock PNG, accent file, and per-pane-size sixels alike.
-RENDER_VERSION = 7
+RENDER_VERSION = 10
 # Catppuccin Mocha base — sixel preview canvas fill. The fixed canvas
 # matters because fzf/foot don't reliably clear old sixel pixels when
 # consecutive previews have different intrinsic sizes.
