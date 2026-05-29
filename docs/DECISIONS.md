@@ -376,4 +376,20 @@ Replaced `Morantron/tmux-fingers` (Crystal) with a personal Rust port.
 
 ---
 
+### Agent state awareness: tmux scripts, not herdr (accepted 2026-05-29)
+
+herdr (`github.com/ogulcancelik/herdr`) is a Rust terminal multiplexer purpose-built for coding agents. It replaces tmux and adds per-pane agent-state detection (`idle / working / blocked / done`), a cross-workspace urgency sidebar, a socket API for agents to drive panes, and persistence with session restore.
+
+Evaluated it against the existing tmux setup. Decision: stay on tmux, port the one idea that earns rent (agent state awareness), skip the rest.
+
+- **What herdr does better:** real-time agent-state sidebar across workspaces. Our old `agent-attention` script had a binary flag (`!` or nothing). herdr's model is richer.
+- **What we'd lose:** `vim-tmux-navigator` (seamless nvim↔tmux pane movement), `tmux-fingers-rs` (hint picking), `tms` session recipes, the TPM plugin ecosystem, 17 years of tmux stability, and full control over the status bar. herdr's always-visible left sidebar wastes screen real estate for information you only need occasionally — `prefix+A` surfaces the same data on demand without a permanent column tax. herdr is v0.x, one maintainer, AGPL, with active churn.
+- **What we built instead:** upgraded `agent-attention` from a binary attention flag to a three-state push model (`working / blocked / crashed`) using an `IntEnum` with urgency as the value. Pi's extension pushes state on `agent_start`, `agent_end`, and `session_shutdown`. A pid-liveness reaper detects crashes (zero-fork `os.kill(pid, 0)`). Events are stored in SQLite WAL for crash detection and picker history; `@agent_state` tmux window option is the authoritative display state, written by the extension (direct tmux calls for `agent_end`/`session_shutdown`, Python script for `agent_start` which records the pid). Status pill and window glyphs color by state. `prefix+a` popup groups by urgency with idle agents at the bottom.
+- **Design rule applied:** port the idea, keep the substrate. tmux is the substrate. herdr is a collection of ideas, one of which was worth stealing.
+- **Scope guard:** push-only, no terminal scraping. Pi extension resolves the tmux pane at load time via `tmux display-message` (works across toolbox/container boundaries where `TMUX_PANE` is stripped). Other agents (claude, codex) still emit the old single-bit `blocked` signal via `hooks.json` — they don't get `working` because they don't push `agent_start`.
+
+**Reconsider if:** something extraordinary happens. tmux has been the terminal substrate for 17 years and the switching cost is total.
+
+---
+
 *(Promote entries from `README.md § Zen Of This Setup` or `CLAUDE.md` to here when they need longer-form than a pillar bullet.)*

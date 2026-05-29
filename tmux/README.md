@@ -42,17 +42,17 @@ From your current `tmux/.tmux.conf`:
 - Vim split to tmux pane movement comes from `christoomey/vim-tmux-navigator`.
 - The right side CPU segment comes from `tmux-cpu`.
 - Cross-platform RAM usage is provided by `$HOME/.config/tmux/scripts/status-ram`.
-- The `agent-attention` integration is not a plugin. It is a local script in this repo that adds `[!]` markers and the popup picker.
+- The `agent-attention` integration is not a plugin. It is a local script in this repo that tracks per-window agent state (`working / blocked / crashed`) via push events from the pi extension, with a pid-liveness reaper for crash detection. See [`docs/DECISIONS.md` § Agent state awareness](../docs/DECISIONS.md).
 - Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
 - Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `claude`, `π - ...`, or a cwd basename.
-- The AI badge itself is rendered by `$HOME/.config/tmux/scripts/status-ai`.
+- The AI badge is rendered by `$HOME/.config/tmux/scripts/status-ai`, which sets `@ai_status` and `@ai_status_state` tmux options; `.tmux.conf` conditionals handle the coloring.
 
 ## Status Bar Layout
 
 The current bar keeps the same useful information as before, but without the pill-style Catppuccin theme chrome. It follows the shared language in [`docs/LAYOUT.md`](../docs/LAYOUT.md): filled cells are affordances for place, focus, modal state, or attention.
 
 - Left: a filled session block.
-- Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline `!` / `Z` markers.
+- Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline agent state (`▶` working, `!` blocked, `✗` crashed, `·` idle agent) / `Z` markers.
 - Pane, window, and session switches trigger an immediate `refresh-client -S`, so label changes show up right away instead of waiting for the status timer.
 - Right: boxed `PREFIX` and `AI` segments, followed by flatter glyph-based `CPU`, `RAM`, `host`, and `uptime` segments.
 
@@ -73,7 +73,7 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `!`: break the current pane out into a new window
 - `prefix` + `M`: move the current pane into the selected window or pane as a split
 - `prefix` + `w`: built-in tmux session-window tree picker
-- `prefix` + `A`: agent-attention picker
+- `prefix` + `a`: agent state picker
 - `prefix` + `Ctrl-g`: cheatsheet popup
 - mouse click on the left status session block: opens the tmux session picker
 - built-in menus, prompts, and popups use Mocha background/foreground colors with a sky selection highlight
@@ -195,7 +195,7 @@ What it does:
 
 - marks windows with pending agent attention as `[!]`
 - shows total flagged windows in `status-right` as a boxed `AI <count>` segment
-- opens a picker (`prefix + A`) listing flagged windows, then jumps to the selected one
+- opens a picker (`prefix + a`) listing flagged windows, then jumps to the selected one
 - clears attention automatically when you focus the agent's pane (window-level visit alone is not enough, so vertical splits behave correctly)
 - when a notify event fires, the badge is only suppressed if the user is *already* focused on the agent's pane; same-window-but-different-pane still queues the badge
 - sends desktop notifications on macOS/Linux only when opted in with `TMUX_AGENT_ATTENTION_ENABLE_SYSTEM_NOTIFY=1`
@@ -203,7 +203,7 @@ What it does:
 
 Runtime state is stored in:
 
-- `$XDG_STATE_HOME/tmux-agent-attention/pending.jsonl` (default `~/.local/state/tmux-agent-attention/pending.jsonl`)
+- `$XDG_STATE_HOME/tmux-agent-attention/events.db` (default `~/.local/state/tmux-agent-attention/events.db`)
 
 ## Hook Setup
 

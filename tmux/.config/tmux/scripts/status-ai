@@ -1,35 +1,55 @@
 #!/usr/bin/env python3
-"""Render the tmux AI attention status segment."""
+"""Render the tmux AI agent-state status segment.
+
+Reads the reconciled output from ``agent-attention status`` which emits
+``<state>\t<count>`` where state is one of working / blocked / crashed / idle.
+
+Sets two tmux user options so ``.tmux.conf`` can render the segment with
+palette colors via conditionals:
+
+  @ai_status       — content text like "AI ✗ 2" (empty when no agents)
+  @ai_status_state — state name for color selection (empty when no agents)
+
+No colors here — ``.tmux.conf`` owns the palette.
+"""
 
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 from _status_common import EXPECTED_ERRORS, log_error
+from _tmux_common import STATE_GLYPH, AgentState, tmux_cmd
 
 SCRIPT = Path(__file__).with_name("agent-attention")
 
 
-def agent_attention_count() -> str:
+def main() -> None:
     try:
-        return subprocess.check_output(
+        raw = subprocess.check_output(
             [str(SCRIPT), "status"], text=True, stderr=subprocess.DEVNULL
         ).strip()
     except EXPECTED_ERRORS as exc:
         log_error("status-ai", f"agent-attention status failed: {exc}")
-        return ""
+        raw = ""
 
+    if raw:
+        parts = raw.split("\t", 1)
+        if len(parts) == 2:
+            state_str, count = parts
+            state = AgentState.parse(state_str)
+            glyph = STATE_GLYPH.get(state, "?") if state else "?"
+            content = f" AI {glyph} {count} "
+            state_name = state.name if state else ""
+        else:
+            state_name = ""
+            content = f" AI {parts[0]} "
+    else:
+        state_name = ""
+        content = ""
 
-def main() -> None:
-    # Caller in tmux/.tmux.conf wraps this with the AI badge style.
-    # We emit the badge content and then reset style + a trailing spacer
-    # so the gap before the next segment only appears when the badge
-    # itself does (no badge -> no orphaned gap).
-    count = agent_attention_count()
-    if count:
-        sys.stdout.write(f" AI {count} #[default]  ")
+    tmux_cmd("set-option", "-gq", "@ai_status", content, check=False)
+    tmux_cmd("set-option", "-gq", "@ai_status_state", state_name, check=False)
 
 
 if __name__ == "__main__":
