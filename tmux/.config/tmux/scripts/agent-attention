@@ -1,29 +1,46 @@
 #!/usr/bin/env python3
-"""Track AI agent notifications per tmux window and surface attention in tmux UI."""
+"""Track AI agent state per tmux window and surface it in tmux UI.
+
+State model:
+  working  — agent is running (set by pi extension directly)
+  blocked  — agent waiting on user (pi extension or legacy notify)
+  crashed  — agent died unexpectedly (reaper: pid gone while working)
+  cleared  — explicit clear; resets to none
+
+The pi extension is the authoritative writer of @agent_state for
+normal transitions.  This script handles:
+  - ``notify``: legacy path for non-pi agents (Claude hooks.json)
+  - ``status``: crash reaper + state counting for the status pill
+  - ``clear-current`` / ``clear-target``: focus-clear hooks
+  - ``menu``: the prefix+a picker
+"""
 
 from __future__ import annotations
 
 import argparse
-import contextlib
-import fcntl
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
-import sys
-import tempfile
 import time
-from collections import Counter, defaultdict
-from collections.abc import Iterator
 from pathlib import Path
+from typing import NamedTuple
 
-from _tmux_common import tmux_cmd
+from _tmux_common import (
+    STATE_GLYPH,
+    AgentState,
+    AgentStats,
+    ProcessSnapshot,
+    scan_agent_states,
+    tmux_cmd,
+)
 
 STATE_DIR = (
     Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
     / "tmux-agent-attention"
 )
-PENDING_FILE = STATE_DIR / "pending.jsonl"
+DB_PATH = STATE_DIR / "events.db"
 MAX_EVENTS = 4000
 ENABLE_SYSTEM_NOTIFY_ENV = "TMUX_AGENT_ATTENTION_ENABLE_SYSTEM_NOTIFY"
 DISABLE_SYSTEM_NOTIFY_ENV = "TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY"
@@ -174,177 +191,126 @@ def current_context(pane: str | None) -> dict[str, str] | None:
     return dict(zip(CONTEXT_KEYS, parts, strict=True)) if parts else None
 
 
-def is_focused_pane(ctx: dict[str, str]) -> bool:
-    """True only if a real user is currently looking at this pane.
+# ---------- event store (SQLite WAL) ----------
 
-    Requires: pane active in window, window active in session, and the
-    session has at least one attached client (otherwise an agent in a
-    detached session would silently skip the badge).
-    """
-    return (
-        ctx.get("pane_active") == "1"
-        and ctx.get("window_active") == "1"
-        and to_int(ctx.get("session_attached", "0")) > 0
-    )
-
-
-# ---------- pending events store ----------
-#
-# Concurrency model: the file is JSONL, one event per line. The notify hot
-# path (`append_event`) does a single `O_APPEND` write of one line, which is
-# atomic w.r.t. concurrent appends on POSIX local filesystems for writes
-# below PIPE_BUF (~4 KB) — a single JSON event fits easily. The
-# truncate-rewrite paths (`save_events`, `prune_stale_events`,
-# `clear_events_for_target`) use a `.lock` sidecar guarded by `fcntl.flock`
-# and write to a tempfile + atomic rename, so concurrent appends and
-# rewrites can't interleave or leave a half-written file behind.
-
-LOCK_FILE = PENDING_FILE.with_suffix(PENDING_FILE.suffix + ".lock")
+_CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS events (
+    ts       INTEGER NOT NULL,
+    session_id   TEXT NOT NULL DEFAULT '',
+    session_name TEXT NOT NULL DEFAULT '',
+    window_id    TEXT NOT NULL DEFAULT '',
+    window_index TEXT NOT NULL DEFAULT '',
+    window_name  TEXT NOT NULL DEFAULT '',
+    pane_id      TEXT NOT NULL DEFAULT '',
+    source       TEXT NOT NULL DEFAULT '',
+    state        TEXT NOT NULL DEFAULT '',
+    message      TEXT NOT NULL DEFAULT '',
+    pid          INTEGER,
+    synthetic    INTEGER NOT NULL DEFAULT 0,
+    reason       TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_events_window ON events(window_id);
+"""
 
 
-@contextlib.contextmanager
-def _events_lock() -> Iterator[None]:
-    """Hold an exclusive flock on the sidecar lock file for the duration.
-
-    The lock lives on a sidecar (not on PENDING_FILE itself) so that the
-    truncate-rewrite path can rename the data file underneath without
-    invalidating the lock fd held by other waiters.
-    """
+def _db() -> sqlite3.Connection:
+    """Open (or create) the events database with WAL mode."""
     STATE_DIR.mkdir(parents=True, exist_ok=True)
-    fd = os.open(LOCK_FILE, os.O_RDWR | os.O_CREAT, 0o600)
-    try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
-        yield
-    finally:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-        finally:
-            os.close(fd)
+    conn = sqlite3.connect(str(DB_PATH), timeout=5)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.executescript(_CREATE_SQL)
+    return conn
 
 
-def load_events() -> list[dict[str, object]]:
-    if not PENDING_FILE.exists():
-        return []
-    events: list[dict[str, object]] = []
-    with PENDING_FILE.open("r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                parsed = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(parsed, dict):
-                events.append(parsed)
-    return events
+def insert_event(
+    *,
+    session_id: str = "",
+    session_name: str = "",
+    window_id: str = "",
+    window_index: str = "",
+    window_name: str = "",
+    pane_id: str = "",
+    source: str = "",
+    state: str = "",
+    message: str = "",
+    pid: int | None = None,
+    synthetic: bool = False,
+    reason: str = "",
+) -> None:
+    """Insert a single event row."""
+    with _db() as conn:
+        conn.execute(
+            "INSERT INTO events (ts,session_id,session_name,window_id,window_index,"
+            "window_name,pane_id,source,state,message,pid,synthetic,reason) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                int(time.time()),
+                session_id,
+                session_name,
+                window_id,
+                window_index,
+                window_name,
+                pane_id,
+                source,
+                state,
+                message,
+                pid,
+                int(synthetic),
+                reason,
+            ),
+        )
 
 
-def append_event(event: dict[str, object]) -> None:
-    """Atomically append a single event to the JSONL store.
-
-    Uses ``O_APPEND`` so concurrent notifies from multiple panes can't
-    overwrite each other. No flock is needed for the append itself; the
-    lock only matters for truncate-rewrite paths that may run in parallel.
-    """
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    line = json.dumps(event, separators=(",", ":")) + "\n"
-    fd = os.open(PENDING_FILE, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-    try:
-        os.write(fd, line.encode("utf-8"))
-    finally:
-        os.close(fd)
-
-
-def _rewrite_events_locked(events: list[dict[str, object]]) -> None:
-    """Truncate-rewrite the store via tempfile + atomic rename.
-
-    Caller must hold ``_events_lock()``. Trims to ``MAX_EVENTS`` retaining
-    the most recent entries.
-    """
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(
-        prefix=PENDING_FILE.name + ".", suffix=".tmp", dir=str(STATE_DIR)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            for event in events[-MAX_EVENTS:]:
-                f.write(json.dumps(event, separators=(",", ":")) + "\n")
-        os.replace(tmp_path, PENDING_FILE)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp_path)
-        raise
+def prune_stale_events() -> None:
+    """Remove events for windows that no longer exist and trim to MAX_EVENTS."""
+    targets = set()
+    out = tmux(["list-windows", "-a", "-F", "#{window_id}"], check=False)
+    for line in out.splitlines():
+        wid = line.strip()
+        if wid:
+            targets.add(wid)
+    with _db() as conn:
+        if targets:
+            placeholders = ",".join("?" for _ in targets)
+            conn.execute(
+                f"DELETE FROM events WHERE window_id NOT IN ({placeholders})",
+                list(targets),
+            )
+        else:
+            conn.execute("DELETE FROM events")
+        # Trim old events.
+        conn.execute(
+            "DELETE FROM events WHERE rowid NOT IN "
+            "(SELECT rowid FROM events ORDER BY ts DESC LIMIT ?)",
+            (MAX_EVENTS,),
+        )
 
 
-def list_existing_targets() -> set[tuple[str, str]]:
-    out = tmux(["list-windows", "-a", "-F", "#{session_id}\t#{window_id}"], check=False)
-    targets: set[tuple[str, str]] = set()
-    for row in out.splitlines():
-        parts = row.split("\t", 1)
-        if len(parts) == 2 and parts[0] and parts[1]:
-            targets.add((parts[0], parts[1]))
-    return targets
+def clear_events_for_window(window_id: str) -> None:
+    """Delete all events for a window."""
+    with _db() as conn:
+        conn.execute("DELETE FROM events WHERE window_id = ?", (window_id,))
 
 
-def prune_stale_events() -> list[dict[str, object]]:
-    with _events_lock():
-        events = load_events()
-        if not events:
-            return events
-        targets = list_existing_targets()
-        if not targets:
-            _rewrite_events_locked([])
-            return []
-        filtered = [
-            e
-            for e in events
-            if (str(e.get("session_id", "")), str(e.get("window_id", ""))) in targets
-        ]
-        if len(filtered) != len(events):
-            _rewrite_events_locked(filtered)
-        return filtered
-
-
-def clear_events_for_target(session_id: str | None, window_id: str) -> None:
-    with _events_lock():
-        events = load_events()
-        filtered = [
-            e
-            for e in events
-            if str(e.get("window_id")) != window_id
-            or (session_id is not None and str(e.get("session_id")) != session_id)
-        ]
-        if len(filtered) != len(events):
-            _rewrite_events_locked(filtered)
+def event_summary_by_window() -> dict[str, dict[str, object]]:
+    """Latest timestamp, source, and message per window."""
+    conn = _db()
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT window_id, MAX(ts) as last_ts, source, message "
+        "FROM events GROUP BY window_id"
+    ).fetchall()
+    return {
+        row["window_id"]: {
+            "last_ts": row["last_ts"],
+            "src": row["source"] or "",
+            "msg": row["message"] or "",
+        }
+        for row in rows
+    }
 
 
 # ---------- notifications ----------
-
-
-def parse_notify_fields(args: argparse.Namespace) -> dict[str, str]:
-    payload: dict[str, str] = {}
-    if not sys.stdin.isatty():
-        raw = sys.stdin.read().strip()
-        if raw:
-            try:
-                parsed = json.loads(raw)
-                if isinstance(parsed, dict):
-                    for key in ("source", "type", "title", "message"):
-                        value = parsed.get(key)
-                        if value is not None:
-                            payload[key] = sanitize(str(value))
-            except json.JSONDecodeError:
-                payload["message"] = sanitize(raw)
-
-    source = args.source or payload.get("source") or "agent"
-    event_type = args.event_type or payload.get("type") or "attention"
-    return {
-        "source": sanitize(source),
-        "type": sanitize(event_type),
-        "title": sanitize(args.title or payload.get("title") or source),
-        "message": sanitize(args.message or payload.get("message") or event_type),
-    }
 
 
 def send_osc777(title: str, message: str) -> None:
@@ -380,14 +346,14 @@ def system_notifications_enabled() -> bool:
     }
 
 
-def send_system_notification(fields: dict[str, str]) -> None:
+def send_system_notification(fields: dict[str, object]) -> None:
     if not system_notifications_enabled():
         return
 
-    title = fields.get("title") or "Agent notification"
-    message = fields.get("message", "")
-    source = fields.get("source", "")
-    event_type = fields.get("type", "")
+    title = str(fields.get("title") or "Agent notification")
+    message = str(fields.get("message", ""))
+    source = str(fields.get("source", ""))
+    event_type = str(fields.get("type", ""))
     if source or event_type:
         prefix = f"[{source}/{event_type}]".strip("/")
         message = f"{prefix} {message}".strip()
@@ -419,22 +385,48 @@ def send_system_notification(fields: dict[str, str]) -> None:
 # ---------- attention state on tmux side ----------
 
 
-def set_attention_flag(window_id: str, on: bool) -> None:
-    if on:
+def set_state(window_id: str, state: AgentState | None) -> None:
+    """Set @agent_state (and @pane_agent) on a tmux window.
+
+    @pane_agent is sticky — once set it persists until the pane dies,
+    so idle detection works even across container boundaries where
+    process-tree scanning can't see the agent.
+    """
+    if state and state.visible:
         tmux(
-            ["set-window-option", "-q", "-t", window_id, "@agent_attention", "1"],
+            ["set-window-option", "-q", "-t", window_id, "@agent_state", state.name],
+            check=False,
+        )
+        # Mark window as hosting an agent (sticky: survives state clears).
+        tmux(
+            ["set-window-option", "-q", "-t", window_id, "@pane_agent", "1"],
             check=False,
         )
     else:
         tmux(
-            ["set-window-option", "-qu", "-t", window_id, "@agent_attention"],
+            ["set-window-option", "-qu", "-t", window_id, "@agent_state"],
             check=False,
         )
+        # @pane_agent intentionally NOT cleared — it's sticky.
 
 
 def clear_target(session_id: str | None, window_id: str) -> None:
-    set_attention_flag(window_id, False)
-    clear_events_for_target(session_id, window_id)
+    """Clear attention state for a window on focus.
+
+    Only clears ``blocked`` and ``crashed`` — these are "look at me"
+    states the user acknowledges by focusing.  ``working`` means the
+    agent is still active; focusing doesn't change that.
+    """
+    cur = AgentState.parse(
+        tmux(
+            ["display-message", "-p", "-t", window_id, "#{@agent_state}"],
+            check=False,
+        )
+    )
+    if cur is AgentState.working:
+        return
+    set_state(window_id, None)
+    clear_events_for_window(window_id)
     tmux(["refresh-client", "-S"], check=False)
 
 
@@ -454,42 +446,197 @@ def resolve_target(target: str) -> tuple[str | None, str] | None:
 
 
 def cmd_notify(args: argparse.Namespace) -> int:
+    """Legacy notify path for non-pi agents (e.g. Claude hooks.json).
+
+    Sets @agent_state=blocked and inserts a DB event.  Pi agents
+    bypass this entirely and write tmux options + DB rows directly
+    from the extension via the ``event`` subcommand.
+    """
     if not tmux_exists():
         return 0
     ctx = current_context(args.pane)
     if ctx is None:
         return 0
 
-    fields = parse_notify_fields(args)
-
-    # Skip the badge only if a user is genuinely focused on this pane.
-    if is_focused_pane(ctx):
-        send_system_notification(fields)
-        return 0
-
-    event: dict[str, object] = {"ts": int(time.time()), **ctx, **fields}
-    append_event(event)
-
-    set_attention_flag(ctx["window_id"], True)
-    send_system_notification(fields)
-    send_osc777(
-        fields.get("title", "Agent"), fields.get("message", "Waiting for input")
+    insert_event(
+        session_id=ctx["session_id"],
+        session_name=ctx["session_name"],
+        window_id=ctx["window_id"],
+        window_index=ctx["window_index"],
+        window_name=ctx["window_name"],
+        pane_id=ctx["pane_id"],
+        source=sanitize(args.source or "agent"),
+        state=AgentState.blocked.name,
+        message=sanitize(args.message or "attention"),
     )
+    set_state(ctx["window_id"], AgentState.blocked)
     tmux(["refresh-client", "-S"], check=False)
     return 0
+
+
+def cmd_event(args: argparse.Namespace) -> int:
+    """Record an event and set @agent_state.  Called by the pi extension.
+
+    Unlike ``notify``, this takes explicit --window and --state flags
+    and does not resolve pane context.  Handles working/blocked/cleared
+    transitions and sets @pane_agent as a sticky marker.
+    """
+    if not tmux_exists():
+        return 0
+    window_id = args.window
+    state = args.state
+    # Resolve session context from window_id.
+    ctx_raw = tmux_query(
+        window_id,
+        [
+            "#{session_id}",
+            "#{session_name}",
+            "#{window_index}",
+            "#{window_name}",
+        ],
+    )
+    if not ctx_raw:
+        return 0
+    sid, sname, widx, wname = ctx_raw
+
+    insert_event(
+        session_id=sid,
+        session_name=sname,
+        window_id=window_id,
+        window_index=widx,
+        window_name=wname,
+        source="pi",
+        state=state,
+        message=state,
+        pid=args.pid,
+    )
+    if state == "cleared":
+        set_state(window_id, None)
+    elif state == "blocked":
+        set_state(window_id, AgentState.blocked)
+    elif state == "working":
+        set_state(window_id, AgentState.working)
+    tmux(["refresh-client", "-S"], check=False)
+    return 0
+
+
+# ---------- reaper and reconciler ----------
+
+
+def pid_alive(pid: int) -> bool:
+    """Check whether a process is still running (zero-fork, one syscall)."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Different uid but pid exists — treat as alive to be safe.
+        return True
+    except (OSError, TypeError, ValueError):
+        return False
+
+
+class WindowState(NamedTuple):
+    state: AgentState | None
+    event: sqlite3.Row | None
+
+
+def compute_window_state(events: list[sqlite3.Row]) -> WindowState:
+    """Determine the current state for a window from its events.
+
+    Scans newest-first.  Rules:
+      - blocked: terminal, wins immediately.
+      - cleared: resets to none.
+      - crashed (synthesized): sticky, wins.
+      - working: only if pid is still alive; otherwise synthesize crashed.
+    """
+    for event in reversed(events):
+        state = AgentState.parse(event["state"], AgentState.blocked)
+        if state is AgentState.blocked:
+            return WindowState(AgentState.blocked, event)
+        if state is AgentState.cleared:
+            return WindowState(None, None)
+        if state is AgentState.crashed:
+            return WindowState(AgentState.crashed, event)
+        if state is AgentState.working:
+            pid = to_int(event["pid"] or 0, 0)
+            if pid > 0 and pid_alive(pid):
+                return WindowState(AgentState.working, event)
+            return WindowState(AgentState.crashed, event)
+    return WindowState(None, None)
+
+
+def synthesize_crash(source_event: sqlite3.Row, *, reason: str = "pid_gone") -> None:
+    """Insert a synthetic crashed event from a stale working event."""
+    insert_event(
+        session_id=source_event["session_id"],
+        session_name=source_event["session_name"],
+        window_id=source_event["window_id"],
+        window_index=source_event["window_index"],
+        window_name=source_event["window_name"],
+        pane_id=source_event["pane_id"],
+        source=source_event["source"] or "reaper",
+        state=AgentState.crashed.name,
+        message=f"crashed ({reason})",
+        pid=source_event["pid"],
+        synthetic=True,
+        reason=reason,
+    )
+
+
+def reconcile_window_states() -> AgentStats:
+    """Detect crashes and count window states for the status segment.
+
+    The extension is the authoritative writer of @agent_state for
+    normal transitions (working/blocked/cleared).  The reconciler
+    only writes @agent_state when it detects a crash (pid gone while
+    working).  For all other states it reads the tmux option without
+    overwriting it.
+
+    Returns {state: count} for the status pill.
+    """
+    prune_stale_events()
+
+    # --- crash detection from DB ---
+    conn = _db()
+    conn.row_factory = sqlite3.Row
+    window_ids = [
+        row[0]
+        for row in conn.execute("SELECT DISTINCT window_id FROM events").fetchall()
+    ]
+    for wid in window_ids:
+        win_events = conn.execute(
+            "SELECT * FROM events WHERE window_id = ? ORDER BY ts ASC",
+            (wid,),
+        ).fetchall()
+        ws = compute_window_state(win_events)
+        if ws.state is AgentState.crashed and ws.event and not ws.event["synthetic"]:
+            set_state(wid, AgentState.crashed)
+            synthesize_crash(ws.event)
+            send_system_notification(
+                {
+                    "source": ws.event["source"] or "reaper",
+                    "type": "crashed",
+                    "title": "Pi",
+                    "message": f"crashed (pid {ws.event['pid']} gone)",
+                }
+            )
+            send_osc777("Pi", f"crashed (pid {ws.event['pid']} gone)")
+
+    # --- count states from tmux options (authoritative) ---
+    return scan_agent_states()
 
 
 def cmd_status(_: argparse.Namespace) -> int:
     if not tmux_exists():
         return 0
-    events = prune_stale_events()
-    if not events:
+    stats = reconcile_window_states()
+    worst = stats.worst_state
+    if worst is None:
         return 0
-    windows = {
-        (str(e.get("session_id", "")), str(e.get("window_id", ""))) for e in events
-    }
-    # tmux status segment: no trailing newline so the badge sits flush.
-    print(len(windows), end="")
+    count = getattr(stats, worst.name, 0)
+    print(f"{worst.name}\t{count}", end="")
     return 0
 
 
@@ -538,96 +685,173 @@ def attention_windows() -> list[dict[str, str]]:
             "list-windows",
             "-a",
             "-F",
-            "#{session_id}\t#{session_name}\t#{window_id}\t#{window_index}\t#{window_name}\t#{?@agent_attention,1,0}",
+            "#{session_id}\t#{session_name}\t#{window_id}\t#{window_index}\t#{window_name}\t#{@agent_state}",
         ],
         check=False,
     )
     windows: list[dict[str, str]] = []
     for row in out.splitlines():
         parts = row.split("\t")
-        if len(parts) == 6 and parts[5] == "1":
-            windows.append(
-                {
-                    "session_id": parts[0],
-                    "session_name": parts[1],
-                    "window_id": parts[2],
-                    "window_index": parts[3],
-                    "window_name": parts[4],
-                }
-            )
+        if len(parts) == 6:
+            ws = AgentState.parse(parts[5])
+            if ws and ws.visible:
+                windows.append(
+                    {
+                        "session_id": parts[0],
+                        "session_name": parts[1],
+                        "window_id": parts[2],
+                        "window_index": parts[3],
+                        "window_name": parts[4],
+                        "state": parts[5],
+                    }
+                )
     return windows
 
 
-def build_menu_rows() -> list[tuple[str, str]]:
-    """Return [(target, label)] rows for the picker, sorted by recency then count."""
-    prune_stale_events()
-    summary: dict[tuple[str, str], dict[str, object]] = defaultdict(
-        lambda: {"count": 0, "last_ts": 0, "msg": "", "src": "", "type": ""}
-    )
-    for event in load_events():
-        sid = str(event.get("session_id", ""))
-        wid = str(event.get("window_id", ""))
-        if not sid or not wid:
-            continue
-        item = summary[(sid, wid)]
-        item["count"] = to_int(item["count"]) + 1
-        ts = to_int(event.get("ts", 0))
-        if ts >= to_int(item["last_ts"]):
-            item["last_ts"] = ts
-            item["msg"] = sanitize(str(event.get("message", "")))
-            item["src"] = str(event.get("source", "")).strip()
-            item["type"] = str(event.get("type", "")).strip()
+# ANSI-colored glyphs for fzf --ansi display.
+STATE_GLYPH_ANSI: dict[AgentState, str] = {
+    AgentState.crashed: f"\033[1;31m{STATE_GLYPH[AgentState.crashed]}\033[0m",
+    AgentState.blocked: f"\033[33m{STATE_GLYPH[AgentState.blocked]}\033[0m",
+    AgentState.working: STATE_GLYPH[AgentState.working],
+    AgentState.idle: f"\033[2m{STATE_GLYPH[AgentState.idle]}\033[0m",
+}
 
-    rows: list[tuple[str, str, int, int]] = []
+
+class PickerRow(NamedTuple):
+    """Structured data for one row in the prefix+a picker."""
+
+    target: str  # sid:wid for tmux switch-client
+    glyph: str  # ANSI-colored state glyph
+    location: str  # session:window_index
+    name: str  # window name
+    age: str  # relative timestamp
+    sort_key: tuple[int, int, int]  # (-urgency, is_mu, -last_ts)
+
+
+def build_menu_rows() -> list[PickerRow]:
+    """Active-state rows for the picker, sorted by urgency then recency."""
+    prune_stale_events()
+    summary = event_summary_by_window()
+
+    rows: list[PickerRow] = []
     for window in attention_windows():
         sid, wid = window["session_id"], window["window_id"]
-        details = summary.get((sid, wid), {})
-        count = to_int(details.get("count", 0))
+        sname = window["session_name"]
+        ws = AgentState.parse(window.get("state"), AgentState.blocked)
+        urgency = int(ws) if ws else 0
+        is_mu = 1 if sname.startswith("mu-") else 0
+        details = summary.get(wid, {})
         last_ts = to_int(details.get("last_ts", 0))
-        src, etype = str(details.get("src", "")), str(details.get("type", ""))
-        msg = str(details.get("msg", ""))
-        if len(msg) > 80:
-            msg = f"{msg[:77]}..."
-        hint = f"{src}/{etype}" if src or etype else "event"
-        label = (
-            f"[{count:>2}] {window['session_name']}:{window['window_index']} "
-            f"{window['window_name']} | {hint} | {format_relative(last_ts):>3} | {msg}"
-        )
-        rows.append((f"{sid}:{wid}", label, last_ts, count))
-
-    rows.sort(key=lambda item: (-item[2], -item[3], item[1]))
-    return [(target, label) for target, label, _, _ in rows]
+        glyph = STATE_GLYPH_ANSI.get(ws, "?") if ws else "?"
+        rows.append(PickerRow(
+            target=f"{sid}:{wid}",
+            glyph=glyph,
+            location=f"{sname}:{window['window_index']}",
+            name=window["window_name"],
+            age=format_relative(last_ts) if last_ts else "",
+            sort_key=(-urgency, is_mu, -last_ts),
+        ))
+    rows.sort(key=lambda r: r.sort_key)
+    return rows
 
 
-def cmd_sessions(_: argparse.Namespace) -> int:
-    if not tmux_exists():
-        return 0
-    prune_stale_events()
-    counts = Counter(
-        session_name
-        for window in attention_windows()
-        if (session_name := window.get("session_name", "").strip())
+def idle_agent_rows(exclude_windows: set[str]) -> list[PickerRow]:
+    """Idle agent rows for the picker.
+
+    Two detection paths:
+      1. Process-tree scan (``ps`` snapshot) — works for native panes.
+      2. ``@pane_agent`` tmux option — set by the push path, survives
+         container boundaries where the process tree is invisible.
+    """
+    out = tmux(
+        [
+            "list-panes",
+            "-a",
+            "-F",
+            "#{session_id}\t#{session_name}\t#{window_id}\t#{window_index}"
+            "\t#{window_name}\t#{pane_pid}\t#{pane_id}\t#{@pane_agent}",
+        ],
+        check=False,
     )
-    for session_name in sorted(counts):
-        print(f"{session_name}\t{counts[session_name]}")
-    return 0
+    if not out:
+        return []
+
+    ps = ProcessSnapshot()
+    rows: list[PickerRow] = []
+    seen_windows: set[str] = set()
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 8:
+            continue
+        sid, sname, wid, widx, wname, pane_pid, _pane_id, pane_agent = parts
+        if wid in exclude_windows or wid in seen_windows:
+            continue
+        agent = ps.detect_agent(pane_pid)
+        if not agent and pane_agent == "1":
+            agent = wname or "agent"
+        if agent:
+            seen_windows.add(wid)
+            is_mu = 1 if sname.startswith("mu-") else 0
+            rows.append(PickerRow(
+                target=f"{sid}:{wid}",
+                glyph=STATE_GLYPH_ANSI.get(AgentState.idle, STATE_GLYPH[AgentState.idle]),
+                location=f"{sname}:{widx}",
+                name=wname,
+                age="",
+                sort_key=(0, is_mu, 0),
+            ))
+    rows.sort(key=lambda r: r.sort_key)
+    return rows
+
+
+def format_picker_rows(rows: list[PickerRow]) -> list[tuple[str, str]]:
+    """Format rows with aligned columns for fzf display."""
+    if not rows:
+        return []
+    loc_w = max(len(r.location) for r in rows)
+    name_w = max(len(r.name) for r in rows)
+    result: list[tuple[str, str]] = []
+    for r in rows:
+        age_part = f"  {r.age:>3}" if r.age else "     "
+        label = f"{r.glyph} {r.location:<{loc_w}}  {r.name:<{name_w}}{age_part}"
+        result.append((r.target, label))
+    return result
 
 
 def cmd_menu(_: argparse.Namespace) -> int:
     if not tmux_exists():
         return 0
-    rows = build_menu_rows()
-    if not rows:
-        print("No windows need attention.")
+    active = build_menu_rows()
+
+    active_wids: set[str] = set()
+    for window in attention_windows():
+        active_wids.add(window["window_id"])
+
+    idle = idle_agent_rows(active_wids)
+    all_rows = active + idle
+
+    if not all_rows:
+        print("No agent windows found.")
         return 0
+
+    formatted = format_picker_rows(all_rows)
 
     fzf = shutil.which("fzf")
     if fzf is None:
-        for _target, label in rows:
+        for _target, label in formatted:
             print(label)
         return 0
 
-    chooser_input = "\n".join(f"{target}\t{label}" for target, label in rows)
+    # Build prompt with state counts.
+    stats = scan_agent_states()
+    prompt_parts: list[str] = []
+    for state in (AgentState.crashed, AgentState.blocked, AgentState.working, AgentState.idle):
+        n = getattr(stats, state.name, 0)
+        if n:
+            prompt_parts.append(f"{STATE_GLYPH.get(state, '?')}{n}")
+    prompt = f"Agent state ({' '.join(prompt_parts)}) > " if prompt_parts else "Agent state > "
+
+    chooser_input = "\n".join(f"{target}\t{label}" for target, label in formatted)
     env = {k: v for k, v in os.environ.items() if not k.startswith("FZF_DEFAULT_OPTS")}
     selection = subprocess.run(
         [
@@ -637,11 +861,12 @@ def cmd_menu(_: argparse.Namespace) -> int:
             "--with-nth",
             "2..",
             "--prompt",
-            "Agent attention > ",
+            prompt,
             "--border",
             "--no-sort",
             "--layout",
             "reverse",
+            "--ansi",
             "--bind",
             "enter:accept",
             "--no-select-1",
@@ -684,13 +909,22 @@ def build_parser() -> argparse.ArgumentParser:
     notify.add_argument("--message", help="Event message")
     notify.set_defaults(func=cmd_notify)
 
+    event = sub.add_parser(
+        "event", help="Record a state event (called by pi extension)"
+    )
+    event.add_argument("--window", required=True, help="tmux window id")
+    event.add_argument(
+        "--state",
+        required=True,
+        choices=["working", "blocked", "cleared"],
+        help="Agent state",
+    )
+    event.add_argument("--pid", type=int, default=None, help="Agent process pid")
+    event.set_defaults(func=cmd_event)
+
     sub.add_parser("status", help="Render status-right segment").set_defaults(
         func=cmd_status
     )
-
-    sub.add_parser(
-        "sessions", help="List sessions with pending attention counts"
-    ).set_defaults(func=cmd_sessions)
 
     sub.add_parser(
         "menu", help="Open chooser for attention windows and jump"

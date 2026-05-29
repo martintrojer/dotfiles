@@ -13,17 +13,23 @@ from functools import cache
 from pathlib import Path
 from shlex import quote as sh_quote
 
-from _tmux_common import tmux_cmd
+from _tmux_common import (
+    STATE_GLYPH,
+    AgentState,
+    AgentStats,
+    scan_agent_states,
+    tmux_cmd,
+)
 
 DISPLAY_NAME_WIDTH = 20
 DEFAULT_SPLIT = ""
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "tms.toml"
-AGENT_ATTENTION_SCRIPT = Path(__file__).with_name("agent-attention")
 STATE_DIR = (
     Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state") / "tms"
 )
 LAST_FILE = STATE_DIR / "last"
 
+# Must match STATE_GLYPH in agent-attention.
 KIND_ICON = {
     "default": "★",
     "tmux": "●",
@@ -104,6 +110,7 @@ class Entry:
     startup: str = ""
     split: str = ""
     attention_count: int = 0
+    worst_state: AgentState | None = None
     is_running: bool = False
 
     @property
@@ -127,12 +134,17 @@ class Entry:
             text = f"{self.icon}  {name}  {self.display_path}"
         else:
             text = f"{self.icon}  {name}"
+        ws = self.worst_state
+        glyph = (" " + STATE_GLYPH[ws]) if ws else ""
+        if glyph:
+            text = f"{text}{glyph}"
+        if self.worst_state is AgentState.crashed:
+            return ansi_style(
+                text, fg=CATPPUCCIN["red"], bg=CATPPUCCIN["surface0"], bold=True,
+            )
         if self.attention_count > 0:
             return ansi_style(
-                text,
-                fg=CATPPUCCIN["yellow"],
-                bg=CATPPUCCIN["surface0"],
-                bold=True,
+                text, fg=CATPPUCCIN["peach"], bg=CATPPUCCIN["surface0"], bold=True,
             )
         style_map: dict[str, str] = {
             "default": CATPPUCCIN["lavender"],
@@ -446,21 +458,6 @@ def effective_initial_mode(mode: str) -> str:
     return mode
 
 
-def attention_counts() -> dict[str, int]:
-    result = run([str(AGENT_ATTENTION_SCRIPT), "sessions"], check=False)
-    if result.returncode != 0:
-        return {}
-    counts: dict[str, int] = {}
-    for row in result.stdout.splitlines():
-        session_name, _, count = row.partition("\t")
-        if not session_name or not count:
-            continue
-        try:
-            counts[session_name] = int(count)
-        except ValueError:
-            continue
-    return counts
-
 
 def build_path_entries(
     *,
@@ -498,7 +495,8 @@ def build_entries(mode: str) -> list[Entry]:
     sessions_by_name = {session.name: session for session in configured_sessions}
     configured_paths = {expand(session.path) for session in configured_sessions}
     live_names = set(list_tmux_sessions())
-    attention_by_session = attention_counts()
+    agent_stats = scan_agent_states()
+    stats_by_session = agent_stats.per_session()
 
     entries: list[Entry] = []
 
@@ -511,7 +509,8 @@ def build_entries(mode: str) -> list[Entry]:
                 path=expand(session.path),
                 startup=session.startup,
                 split=session.split,
-                attention_count=attention_by_session.get(session.name, 0),
+                attention_count=stats_by_session.get(session.name, AgentStats()).attention_count,
+                worst_state=stats_by_session.get(session.name, AgentStats()).worst_state,
                 is_running=session.name in live_names,
             )
             for session in configured_sessions
@@ -531,7 +530,8 @@ def build_entries(mode: str) -> list[Entry]:
                     path=expand(session.path) if session else "",
                     startup=session.startup if session else "",
                     split=session.split if session else DEFAULT_SPLIT,
-                    attention_count=attention_by_session.get(session_name, 0),
+                    attention_count=stats_by_session.get(session_name, AgentStats()).attention_count,
+                    worst_state=stats_by_session.get(session_name, AgentStats()).worst_state,
                     is_running=True,
                 )
             )
@@ -578,7 +578,7 @@ def tmux_session_preview(name: str) -> int:
         "-t",
         exact_session_target(name),
         "-F",
-        "#{window_index}\t#{window_active}\t#{window_name}\t#{window_panes}\t#{?@agent_attention,1,0}",
+        "#{window_index}\t#{window_active}\t#{window_name}\t#{window_panes}\t#{@agent_state}",
         check=False,
     )
     panes = tmux_cmd(
@@ -597,20 +597,20 @@ def tmux_session_preview(name: str) -> int:
     attention_total = 0
     active_window_index = ""
     active_window_name = ""
-    active_window_attention = "0"
+    active_window_state = ""
     for line in windows.stdout.splitlines():
         parts = line.split("\t")
         if len(parts) != 5:
             continue
-        window_index, window_active, window_name, _window_panes, window_attention = (
+        window_index, window_active, window_name, _window_panes, window_state = (
             parts
         )
-        if window_attention == "1":
+        if window_state in ("blocked", "crashed"):
             attention_total += 1
         if window_active == "1":
             active_window_index = window_index
             active_window_name = window_name
-            active_window_attention = window_attention
+            active_window_state = window_state
 
     active_pane_index = ""
     active_command = ""
@@ -637,8 +637,9 @@ def tmux_session_preview(name: str) -> int:
     print(f"{session_name}{suffix}")
 
     if active_window_index:
-        attention_marker = " !" if active_window_attention == "1" else ""
-        print(f"window: {active_window_index}{attention_marker} {active_window_name}")
+        _ws = AgentState.parse(active_window_state)
+        state_marker = (" " + STATE_GLYPH[_ws]) if _ws else ""
+        print(f"window: {active_window_index}{state_marker} {active_window_name}")
     if active_pane_index:
         short_path = active_path.replace(str(Path.home()), "~", 1)
         print(f"pane: {active_pane_index}  {active_command}  {short_path}")

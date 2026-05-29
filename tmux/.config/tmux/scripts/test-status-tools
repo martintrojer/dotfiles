@@ -161,55 +161,155 @@ def teardown_server(env: dict[str, str]) -> None:
 # ---------- the actual tests ----------
 
 
+def set_agent_state(
+    env: dict[str, str], target: str, state: str, pid: str = ""
+) -> None:
+    """Simulate what the pi extension does: call agent-attention event."""
+    args = [
+        "python3",
+        str(AGENT_ATTENTION),
+        "event",
+        "--window",
+        tmux(env, ["display-message", "-p", "-t", target, "#{window_id}"]),
+        "--state",
+        state,
+    ]
+    if pid:
+        args += ["--pid", pid]
+    subprocess.run(args, capture_output=True, text=True, env=env, check=True)
+
+
+def clear_agent_state(env: dict[str, str], target: str) -> None:
+    """Simulate what the pi extension does on cleared."""
+    wid = tmux(env, ["display-message", "-p", "-t", target, "#{window_id}"])
+    subprocess.run(
+        [
+            "python3",
+            str(AGENT_ATTENTION),
+            "event",
+            "--window",
+            wid,
+            "--state",
+            "cleared",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=True,
+    )
+
+
 def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
-    print("\n[agent-attention]")
+    print("\n[agent-attention: legacy notify (Claude path)]")
 
     expect("status starts empty", attention(env, ["status"]), "")
 
-    # The session is detached (no client attached), so even notifying on the
-    # truly active pane should QUEUE, exercising the session_attached check.
+    # Legacy notify defaults to blocked.
     attention(
         env,
         ["notify", "--source", "test", "--event-type", "detached"],
         pane=panes["w1p1"],
     )
-    expect("notify on detached session queues", attention(env, ["status"]), "1")
     expect(
-        "@agent_attention set on the right window",
-        tmux(env, ["display-message", "-p", "-t", "s1:1", "#{@agent_attention}"]),
-        "1",
+        "notify defaults to blocked state",
+        attention(env, ["status"]),
+        "blocked\t1",
+    )
+    expect(
+        "@agent_state set to blocked",
+        tmux(env, ["display-message", "-p", "-t", "s1:1", "#{@agent_state}"]),
+        "blocked",
     )
 
-    # Clear it the way tmux hooks do (--pane #{pane_id}).
     attention(env, ["clear-current", "--pane", panes["w1p1"]])
-    expect("clear-current clears the badge", attention(env, ["status"]), "")
+    expect("clear-current clears blocked (idle remains)", attention(env, ["status"]), "idle\t1")
     expect(
-        "@agent_attention is unset after clear",
-        tmux(env, ["display-message", "-p", "-t", "s1:1", "#{@agent_attention}"]),
+        "@agent_state is unset after clear",
+        tmux(env, ["display-message", "-p", "-t", "s1:1", "#{@agent_state}"]),
         "",
     )
 
-    # Notify for window 2 so we can test clear-target by window id.
+    # --- working state (pi extension path) ---
+
+    print("\n[agent-attention: pi extension path]")
+
+    set_agent_state(env, "s1:1", "working", str(os.getpid()))
+    expect(
+        "working state recorded",
+        attention(env, ["status"]),
+        "working\t1",
+    )
+    expect(
+        "@agent_state set to working",
+        tmux(env, ["display-message", "-p", "-t", "s1:1", "#{@agent_state}"]),
+        "working",
+    )
+
+    # Focus should NOT clear working state.
+    attention(env, ["clear-current", "--pane", panes["w1p1"]])
+    expect(
+        "focus does not clear working",
+        tmux(env, ["display-message", "-p", "-t", "s1:1", "#{@agent_state}"]),
+        "working",
+    )
+
+    # cleared drops working.
+    clear_agent_state(env, "s1:1")
+    expect(
+        "cleared drops working state",
+        tmux(env, ["display-message", "-p", "-t", "s1:1", "#{@agent_state}"]),
+        "",
+    )
+    expect("status idle after cleared", attention(env, ["status"]), "idle\t1")
+
+    # --- crash detection via pid reaper ---
+
+    print("\n[agent-attention: crash reaper]")
+    set_agent_state(env, "s1:2", "working", "9999999")
+    # The reconciler (called by status) should detect the dead pid.
+    status_out = attention(env, ["status"])
+    expect("dead pid detected as crashed", status_out, "crashed\t1")
+    expect(
+        "@agent_state set to crashed",
+        tmux(env, ["display-message", "-p", "-t", "s1:2", "#{@agent_state}"]),
+        "crashed",
+    )
+    # Focus-clear should clear crashed.
+    attention(env, ["clear-current", "--pane", panes["w2p1"]])
+    expect(
+        "crashed clears on focus",
+        tmux(env, ["display-message", "-p", "-t", "s1:2", "#{@agent_state}"]),
+        "",
+    )
+
+    # --- clear-target by window id ---
+
     w2_id = tmux(env, ["display-message", "-p", "-t", "s1:2", "#{window_id}"])
     attention(
         env, ["notify", "--source", "test", "--event-type", "w2"], pane=panes["w2p1"]
     )
-    expect("notify queues on second window", attention(env, ["status"]), "1")
+    expect("notify queues on second window", attention(env, ["status"]), "blocked\t1")
     attention(env, ["clear-target", w2_id])
-    expect("clear-target clears the second window", attention(env, ["status"]), "")
+    expect("clear-target clears blocked (idle remains)", attention(env, ["status"]), "idle\t2")
 
-    # JSON payload via stdin (the OpenCode plugin path).
+    # --- JSON payload via stdin (legacy Claude path) ---
+
+    print("\n[agent-attention: JSON stdin]")
     json_proc = subprocess.run(
         ["python3", str(AGENT_ATTENTION), "notify"],
-        input='{"source":"opencode","type":"session.idle","title":"OC","message":"done"}',
+        input='{"source":"claude","type":"notification","title":"Claude","message":"done"}',
         capture_output=True,
         text=True,
         env={**env, "TMUX_PANE": panes["w1p2"]},
     )
     expect("stdin JSON notify exits 0", json_proc.returncode, 0)
-    expect("stdin JSON notify queues", attention(env, ["status"]), "1")
+    expect(
+        "stdin JSON sets blocked",
+        attention(env, ["status"]),
+        "blocked\t1",
+    )
     attention(env, ["clear-current", "--pane", panes["w1p2"]])
-    expect("status empty again", attention(env, ["status"]), "")
+    expect("status idle after clear", attention(env, ["status"]), "idle\t2")
 
     print("\n[status-window-label]")
 

@@ -27,11 +27,10 @@ status scripts.
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
-from collections import deque
 
 from _status_common import EXPECTED_ERRORS, log_error
+from _tmux_common import AGENT_COMMANDS, AGENT_WRAPPERS, ProcessSnapshot
 
 # ---------------------------------------------------------------------
 # Configurable word lists. Defaults match the bash version; env-var
@@ -45,13 +44,8 @@ def _env_list(name: str, default: str) -> tuple[str, ...]:
 
 SHELLS = _env_list("TMUX_LABEL_SHELLS", "zsh bash sh fish nu")
 EDITORS = _env_list("TMUX_LABEL_EDITORS", "nvim vim vi hx helix kak emacs nano")
-AGENTS = _env_list("TMUX_LABEL_AGENTS", "claude codex pi opencode")
-# Wrapper interpreters that often *host* an agent rather than being one.
-# When the active command is one of these we walk the descendant
-# process tree to find the real agent.
-AGENT_WRAPPERS = _env_list(
-    "TMUX_LABEL_AGENT_WRAPPERS", "Python python python3 node nodejs bun deno"
-)
+AGENTS = AGENT_COMMANDS
+_AGENT_WRAPPERS = AGENT_WRAPPERS
 # Helpers an agent may exec into (man/less/etc); same descendant-walk
 # trigger so the label keeps tracking the agent through helper drilldowns.
 AGENT_HELPERS = _env_list("TMUX_LABEL_AGENT_HELPERS", "less more man")
@@ -77,49 +71,13 @@ def detect_agent_in_tree(root_pid: str, agents: tuple[str, ...]) -> str | None:
     first descendant command matching ``agents`` (basename match), or
     ``None``.
 
-    This is the most trustworthy agent signal because both
-    ``pane_title`` and ``window_name`` can be stale leftovers from a
-    previous tenant of the pane (e.g. an old "Claude Code" title when
-    the running process is now Pi).
+    Delegates to ``ProcessSnapshot`` from ``_tmux_common``. Each call
+    within the same process reuses the cached snapshot.
     """
-    if not root_pid:
-        return None
-    try:
-        res = subprocess.run(
-            ["ps", "-axo", "pid=,ppid=,comm="],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=5,
-        )
-    except EXPECTED_ERRORS:
-        return None
-    if res.returncode != 0:
-        return None
+    return _ps_snapshot.detect_agent(root_pid, agents)
 
-    wanted = frozenset(agents)
-    # Build (pid -> [child_pid, ...]) and (pid -> basename(comm))
-    children: dict[str, list[str]] = {}
-    comm: dict[str, str] = {}
-    for line in res.stdout.splitlines():
-        parts = line.split(None, 2)
-        if len(parts) < 3:
-            continue
-        pid, ppid, cmd = parts
-        comm[pid] = cmd.rsplit("/", 1)[-1]
-        children.setdefault(ppid, []).append(pid)
 
-    queue: deque[str] = deque([root_pid])
-    seen: set[str] = set()
-    while queue:
-        cur = queue.popleft()
-        if cur in seen:
-            continue
-        seen.add(cur)
-        if comm.get(cur) in wanted:
-            return comm[cur]
-        queue.extend(children.get(cur, ()))
-    return None
+_ps_snapshot = ProcessSnapshot()
 
 
 # ---------------------------------------------------------------------
@@ -159,7 +117,7 @@ def render(
     # pane_title / window_name can be stale here.
     if (
         window_name in AGENTS
-        or pane_current_command in AGENT_WRAPPERS
+        or pane_current_command in _AGENT_WRAPPERS
         or pane_current_command in AGENT_HELPERS
     ):
         detected = detect_agent_in_tree(pane_pid, AGENTS)
@@ -168,7 +126,7 @@ def render(
         if meaningful:
             return pane_title
         if (
-            pane_current_command in AGENT_WRAPPERS
+            pane_current_command in _AGENT_WRAPPERS
             or pane_current_command in AGENT_HELPERS
         ):
             return window_name
@@ -190,7 +148,7 @@ def main(argv: list[str]) -> int:
     # Pad missing positional args to empty strings so callers that
     # omit trailing fields don't crash. Matches the bash version's
     # `${N-}` default behaviour.
-    args = (argv + [""] * 6)[:6]
+    args = (argv + [""] * 7)[:7]
     try:
         label = render(
             window_name=args[0],
@@ -204,6 +162,35 @@ def main(argv: list[str]) -> int:
         log_error("status-window-label", f"render failed: {exc!r}")
         # Best-effort fallback: print whatever window_name we got.
         label = args[0]
+
+    # Set @pane_agent on the window so tmux format conditionals can
+    # show an idle marker when no @agent_state is active.  The window
+    # id is passed as the 7th arg from .tmux.conf.
+    window_id = args[6]
+    if window_id:
+        is_agent = label in AGENTS
+        from _tmux_common import tmux_cmd as _tmux
+
+        if is_agent:
+            _tmux(
+                "set-window-option",
+                "-q",
+                "-t",
+                window_id,
+                "@pane_agent",
+                "1",
+                check=False,
+            )
+        else:
+            _tmux(
+                "set-window-option",
+                "-qu",
+                "-t",
+                window_id,
+                "@pane_agent",
+                check=False,
+            )
+
     sys.stdout.write(label)
     return 0
 
