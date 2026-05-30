@@ -81,7 +81,10 @@ for_window [app_id="^imv$"] floating enable, resize set 50 ppt 60 ppt, move posi
 # Chrome auth/print/save dialogs reuse the same app_id as the main window
 # on Wayland, so we can't target them by app_id alone. Title-match the
 # common transient ones instead.
+for_window [app_id="^google-chrome$"] border pixel 2
 for_window [app_id="^google-chrome$" title="^(Open File|Save File|Save As|Print|Sign in)"] floating enable, move position center
+# VS Code is Electron → CSD; force Sway's border.
+for_window [app_id="^(code|vscode)$"] border pixel 2
 # Generic auth prompt title (polkit/ssh-askpass style).
 for_window [title="^Authentication Required$"] floating enable, move position center
 # Floating TUIs launched from waybar.
@@ -91,7 +94,7 @@ for_window [app_id="^nmtui-float$"] floating enable, resize set 50 ppt 60 ppt, m
 for_window [app_id="^btop-float$"] floating enable, resize set 900 640, move position center
 # Cider (Apple Music client) auto-stashes into the scratchpad on launch.
 # Summon with $mod+n, hide with $mod+n. Never wastes a workspace slot.
-for_window [app_id="^Cider$"] move scratchpad
+for_window [app_id="^Cider$"] border pixel 2, move scratchpad
 # Prevent Sway from interfering with the game overlays
 for_window [class="gamescope"] floating enable, border none, scaling disable
 
