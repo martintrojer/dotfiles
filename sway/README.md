@@ -30,7 +30,7 @@ verb does the same thing whether you're inside tmux or on the bare desktop.
 
 | Verb                          | Sway              | Tmux            |
 | ----------------------------- | ----------------- | --------------- |
-| Cycle 1/3 → 1/2 → 2/3 width   | `mod+r`           | `prefix+r`      |
+| Cycle preset sizes              | `mod+r`           | `prefix+r`      |
 | Reload config                 | `mod+Shift+r`     | `prefix+R`      |
 | Clipboard history picker      | `mod+v`           | `prefix+v`      |
 | Fullscreen / zoom             | `mod+f`           | `prefix+z`      |
@@ -90,9 +90,13 @@ Layout containers:
 - `mod+.` — toggle between tabbed and split layout for the current container.
 - `mod+f` / `mod+Shift+f` — fullscreen / floating.
 - `mod+c` / `mod+Ctrl+c` — focus parent / child container.
-- `mod+r` cycles preset widths via `~/.config/sway/scripts/preset-width`, which
-  persists state in `$XDG_STATE_HOME/sway/preset-width` so consecutive presses
-  rotate through `33 → 50 → 67 ppt`.
+- `mod+r` cycles preset sizes via `~/.config/sway/scripts/preset-width`.
+  **Tiled:** rotates width through `33 → 50 → 67 ppt` (same as before).
+  **Floating:** rotates through `center50 → center90 → tallCenter` (50×60%
+  centered, 90×90% centered, then 70% wide × full height centered) — mirroring hammerspoon's Hyper+R
+  minus full (which is covered by tiling). Each step positions the window
+  absolutely within the workspace. State is persisted in
+  `$XDG_STATE_HOME/sway/` (separate files for tiled and floating).
 - `mod+-` / `mod+=` — shrink / grow width by 10 ppt; `Shift+-` / `Shift+=` for
   height. Resize *mode* is intentionally not bound — the preset cycle plus the
   ten-percent steppers cover the workflow.

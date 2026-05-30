@@ -1,24 +1,114 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""Cycle preset sizes for the focused window.
 
-state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/sway"
-state_file="${state_dir}/preset-width"
-presets=(33 50 67)
+Tiled windows:  rotate width through 33 → 50 → 67 ppt (unchanged behavior).
+Floating windows: rotate through center90 and tallCenter rects, mirroring
+                  hammerspoon's Hyper+R cycle on macOS (minus full, which is
+                  covered by tiling).
 
-mkdir -p "$state_dir"
+State is stored in $XDG_STATE_HOME/sway/ so consecutive presses cycle.
+Tiled and floating windows track their cycle position independently.
+"""
 
-current="50"
-if [[ -r "$state_file" ]]; then
-  current="$(<"$state_file")"
-fi
+import json
+import os
+import subprocess
+import sys
 
-next="${presets[0]}"
-for i in "${!presets[@]}"; do
-  if [[ "${presets[$i]}" == "$current" ]]; then
-    next="${presets[$(((i + 1) % ${#presets[@]}))]}"
-    break
-  fi
-done
+# ── presets ──────────────────────────────────────────────────────────────────
+# Tiled: percentage-point widths (sway ppt).
+TILED_PRESETS = [33, 50, 67]
 
-printf '%s\n' "$next" >"$state_file"
-exec swaymsg "resize set width ${next} ppt"
+# Floating: (x, y, width, height) as fractions of the workspace rect.
+# Mirrors hammerspoon's Hyper+R cycle: full → center90 → tallCenter.
+FLOAT_PRESETS = [
+    (0.25, 0.2,  0.5, 0.6),   # center50
+    (0.05, 0.05, 0.9, 0.9),   # center90
+    (0.15, 0.0,  0.7, 1.0),   # tallCenter
+]
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+def swaymsg(*args: str) -> str:
+    return subprocess.check_output(["swaymsg", *args], text=True)
+
+
+def get_focused():
+    """Return (output_rect, workspace_rect, focused_container) from the tree."""
+    tree = json.loads(swaymsg("-t", "get_tree"))
+
+    def walk(node, output=None, workspace=None):
+        if node.get("type") == "output" and not node["name"].startswith("__"):
+            output = node
+        if node.get("type") == "workspace" and node["name"] != "__i3_scratch":
+            workspace = node
+        if node.get("focused"):
+            return output, workspace, node
+        for child in node.get("nodes", []) + node.get("floating_nodes", []):
+            result = walk(child, output, workspace)
+            if result:
+                return result
+        return None
+
+    return walk(tree)
+
+
+def is_floating(container: dict) -> bool:
+    return container.get("floating", "").startswith("user_") or \
+           container.get("type") == "floating_con"
+
+
+def state_dir() -> str:
+    d = os.path.join(os.environ.get("XDG_STATE_HOME",
+                                     os.path.expanduser("~/.local/state")),
+                     "sway")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def read_index(path: str) -> int:
+    try:
+        return int(open(path).read().strip())
+    except (FileNotFoundError, ValueError):
+        return 0
+
+
+def write_index(path: str, idx: int) -> None:
+    with open(path, "w") as f:
+        f.write(f"{idx}\n")
+
+
+# ── main ─────────────────────────────────────────────────────────────────────
+def main() -> None:
+    result = get_focused()
+    if not result:
+        sys.exit(0)
+    _output, workspace, container = result
+
+    floating = is_floating(container)
+
+    if floating:
+        ws = workspace["rect"]
+        state_file = os.path.join(state_dir(), "preset-float")
+        idx = read_index(state_file)
+        next_idx = (idx + 1) % len(FLOAT_PRESETS)
+        write_index(state_file, next_idx)
+
+        fx, fy, fw, fh = FLOAT_PRESETS[next_idx]
+        x = int(ws["x"] + ws["width"] * fx)
+        y = int(ws["y"] + ws["height"] * fy)
+        w = int(ws["width"] * fw)
+        h = int(ws["height"] * fh)
+
+        swaymsg(f"resize set {w} px {h} px, move absolute position {x} px {y} px")
+    else:
+        state_file = os.path.join(state_dir(), "preset-width")
+        idx = read_index(state_file)
+        next_idx = (idx + 1) % len(TILED_PRESETS)
+        write_index(state_file, next_idx)
+
+        ppt = TILED_PRESETS[next_idx]
+        swaymsg(f"resize set width {ppt} ppt")
+
+
+if __name__ == "__main__":
+    main()
