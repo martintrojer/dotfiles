@@ -20,4 +20,4 @@ For a browser-friendly walkthrough with quizzes, see [`../guides/YAZI.md`](../gu
 - `y` launches Yazi and adopts the directory you exit from.
 - `z` means zoxide in both zsh and Yazi; `Z` is the fzf jump inside Yazi.
 - `g l` reuses the shared pager-backed preview command (`m`) instead of shelling out to raw `glow`.
-- `c i` and `g t` reuse the shared `clipf` and `trashd` commands from `local-bin/.local/bin/`.
+- `c i` and `g t` reuse the shared `clipf` and `trash` commands from `local-bin/.local/bin/`.

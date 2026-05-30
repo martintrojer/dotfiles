@@ -88,7 +88,7 @@ Selection criterion: ≥5 hits in `~/.zsh_history`. Everything else from the OMZ
 - `la` → `ls` plus dotfiles (`eza -a --group-directories-first`)
 - `lt` / `llt` → tree view at depth 3, with / without long format
 - `lt5` / `llt5` → deeper tree view at depth 5, with / without long format
-- `td` → `cd "$(trashd)"`
+- `td` → `cd "$(trash path)"`
 - `ff <pattern>` → `fd --hidden --exclude .git --exclude .jj --type f <pattern>`
 - `ffd <pattern>` → `fd --hidden --exclude .git --exclude .jj --type d <pattern>`
 

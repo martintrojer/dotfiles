@@ -743,14 +743,16 @@ def build_menu_rows() -> list[PickerRow]:
         details = summary.get(wid, {})
         last_ts = to_int(details.get("last_ts", 0))
         glyph = STATE_GLYPH_ANSI.get(ws, "?") if ws else "?"
-        rows.append(PickerRow(
-            target=f"{sid}:{wid}",
-            glyph=glyph,
-            location=f"{sname}:{window['window_index']}",
-            name=window["window_name"],
-            age=format_relative(last_ts) if last_ts else "",
-            sort_key=(-urgency, is_mu, -last_ts),
-        ))
+        rows.append(
+            PickerRow(
+                target=f"{sid}:{wid}",
+                glyph=glyph,
+                location=f"{sname}:{window['window_index']}",
+                name=window["window_name"],
+                age=format_relative(last_ts) if last_ts else "",
+                sort_key=(-urgency, is_mu, -last_ts),
+            )
+        )
     rows.sort(key=lambda r: r.sort_key)
     return rows
 
@@ -792,14 +794,18 @@ def idle_agent_rows(exclude_windows: set[str]) -> list[PickerRow]:
         if agent:
             seen_windows.add(wid)
             is_mu = 1 if sname.startswith("mu-") else 0
-            rows.append(PickerRow(
-                target=f"{sid}:{wid}",
-                glyph=STATE_GLYPH_ANSI.get(AgentState.idle, STATE_GLYPH[AgentState.idle]),
-                location=f"{sname}:{widx}",
-                name=wname,
-                age="",
-                sort_key=(0, is_mu, 0),
-            ))
+            rows.append(
+                PickerRow(
+                    target=f"{sid}:{wid}",
+                    glyph=STATE_GLYPH_ANSI.get(
+                        AgentState.idle, STATE_GLYPH[AgentState.idle]
+                    ),
+                    location=f"{sname}:{widx}",
+                    name=wname,
+                    age="",
+                    sort_key=(0, is_mu, 0),
+                )
+            )
     rows.sort(key=lambda r: r.sort_key)
     return rows
 
@@ -845,11 +851,20 @@ def cmd_menu(_: argparse.Namespace) -> int:
     # Build prompt with state counts.
     stats = scan_agent_states()
     prompt_parts: list[str] = []
-    for state in (AgentState.crashed, AgentState.blocked, AgentState.working, AgentState.idle):
+    for state in (
+        AgentState.crashed,
+        AgentState.blocked,
+        AgentState.working,
+        AgentState.idle,
+    ):
         n = getattr(stats, state.name, 0)
         if n:
             prompt_parts.append(f"{STATE_GLYPH.get(state, '?')}{n}")
-    prompt = f"Agent state ({' '.join(prompt_parts)}) > " if prompt_parts else "Agent state > "
+    prompt = (
+        f"Agent state ({' '.join(prompt_parts)}) > "
+        if prompt_parts
+        else "Agent state > "
+    )
 
     chooser_input = "\n".join(f"{target}\t{label}" for target, label in formatted)
     env = {k: v for k, v in os.environ.items() if not k.startswith("FZF_DEFAULT_OPTS")}

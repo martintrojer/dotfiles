@@ -22,10 +22,11 @@ TILED_PRESETS = [33, 50, 67]
 # Floating: (x, y, width, height) as fractions of the workspace rect.
 # Mirrors hammerspoon's Hyper+R cycle: full → center90 → tallCenter.
 FLOAT_PRESETS = [
-    (0.25, 0.2,  0.5, 0.6),   # center50
-    (0.05, 0.05, 0.9, 0.9),   # center90
-    (0.15, 0.0,  0.7, 1.0),   # tallCenter
+    (0.25, 0.2, 0.5, 0.6),  # center50
+    (0.05, 0.05, 0.9, 0.9),  # center90
+    (0.15, 0.0, 0.7, 1.0),  # tallCenter
 ]
+
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 def swaymsg(*args: str) -> str:
@@ -53,14 +54,16 @@ def get_focused():
 
 
 def is_floating(container: dict) -> bool:
-    return container.get("floating", "").startswith("user_") or \
-           container.get("type") == "floating_con"
+    return (
+        container.get("floating", "").startswith("user_")
+        or container.get("type") == "floating_con"
+    )
 
 
 def state_dir() -> str:
-    d = os.path.join(os.environ.get("XDG_STATE_HOME",
-                                     os.path.expanduser("~/.local/state")),
-                     "sway")
+    d = os.path.join(
+        os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "sway"
+    )
     os.makedirs(d, exist_ok=True)
     return d
 

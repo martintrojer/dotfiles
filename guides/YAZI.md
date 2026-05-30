@@ -91,7 +91,7 @@ Yazi leans on external search tools rather than reinventing them.
 - `Z` — fzf jump (built-in plugin)
 - `g` then `Space` — interactive cd
 - `g` `s` — go to the configured SFTP service `bubba`
-- `g` `t` — jump to Trash via `trashd`
+- `g` `t` — jump to Trash via `trash path`
 - `g` `l` — preview the current file via the shared pager-backed `m` command
 
 ```quiz
@@ -160,7 +160,8 @@ copying, remote navigation, markdown preview, and Trash access.
 - `c` `i` — copy file contents to the system clipboard via `clipf`
 - `g` `s` — open the SFTP service named `bubba`
 - `g` `l` — preview the current file via the shared pager-backed `m` command
-- `g` `t` — go to Trash via `trashd`
+- `g` `t` — go to Trash via `trash path`
+- `g` `T` — empty Trash via `trash empty`
 
 `clipf` preserves MIME type. On macOS it uses `pbcopy` for text and special
 handling for images / PDFs; on Wayland it uses `wl-copy`.

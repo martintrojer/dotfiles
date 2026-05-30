@@ -241,7 +241,9 @@ def scan_agent_states() -> AgentStats:
     call.  Returns global counts and caches per-session breakdowns.
     """
     result = tmux_cmd(
-        "list-windows", "-a", "-F",
+        "list-windows",
+        "-a",
+        "-F",
         "#{session_name}\t#{@agent_state}\t#{@pane_agent}",
         check=False,
     )
@@ -275,7 +277,6 @@ def scan_agent_states() -> AgentStats:
 
     stats = _from_counts(global_counts)
     stats._by_session = {
-        name: _from_counts(counts)
-        for name, counts in by_session.items()
+        name: _from_counts(counts) for name, counts in by_session.items()
     }
     return stats

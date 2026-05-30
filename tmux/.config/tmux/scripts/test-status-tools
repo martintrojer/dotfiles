@@ -222,7 +222,11 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     )
 
     attention(env, ["clear-current", "--pane", panes["w1p1"]])
-    expect("clear-current clears blocked (idle remains)", attention(env, ["status"]), "idle\t1")
+    expect(
+        "clear-current clears blocked (idle remains)",
+        attention(env, ["status"]),
+        "idle\t1",
+    )
     expect(
         "@agent_state is unset after clear",
         tmux(env, ["display-message", "-p", "-t", "s1:1", "#{@agent_state}"]),
@@ -290,7 +294,11 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     )
     expect("notify queues on second window", attention(env, ["status"]), "blocked\t1")
     attention(env, ["clear-target", w2_id])
-    expect("clear-target clears blocked (idle remains)", attention(env, ["status"]), "idle\t2")
+    expect(
+        "clear-target clears blocked (idle remains)",
+        attention(env, ["status"]),
+        "idle\t2",
+    )
 
     # --- JSON payload via stdin (legacy Claude path) ---
 
