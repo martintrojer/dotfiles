@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Cross-platform XDG / macOS Trash helper.
+
+Subcommands
+  path    Print the Trash directory path (default).
+  empty   Permanently delete all items in the Trash.
+"""
+
+import argparse
+import platform
+import subprocess
+from pathlib import Path
+
+
+def _is_mac() -> bool:
+    return platform.system() == "Darwin"
+
+
+def trash_path() -> Path:
+    if _is_mac():
+        return Path.home() / ".Trash"
+    return Path.home() / ".local" / "share" / "Trash"
+
+
+def cmd_path(_args: argparse.Namespace) -> None:
+    print(trash_path())
+
+
+def cmd_empty(_args: argparse.Namespace) -> None:
+    if _is_mac():
+        subprocess.run(
+            ["osascript", "-e", 'tell application "Finder" to empty trash'],
+            check=True,
+        )
+    else:
+        subprocess.run(["gio", "trash", "--empty"], check=True)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        prog="trash",
+        description="Cross-platform Trash helper.",
+    )
+    sub = parser.add_subparsers(dest="command")
+
+    sub.add_parser("path", help="Print the Trash directory path")
+    sub.add_parser("empty", help="Permanently delete all Trash items")
+
+    args = parser.parse_args()
+    if args.command is None or args.command == "path":
+        cmd_path(args)
+    elif args.command == "empty":
+        cmd_empty(args)
+
+
+if __name__ == "__main__":
+    main()

@@ -140,11 +140,17 @@ class Entry:
             text = f"{text}{glyph}"
         if self.worst_state is AgentState.crashed:
             return ansi_style(
-                text, fg=CATPPUCCIN["red"], bg=CATPPUCCIN["surface0"], bold=True,
+                text,
+                fg=CATPPUCCIN["red"],
+                bg=CATPPUCCIN["surface0"],
+                bold=True,
             )
         if self.attention_count > 0:
             return ansi_style(
-                text, fg=CATPPUCCIN["peach"], bg=CATPPUCCIN["surface0"], bold=True,
+                text,
+                fg=CATPPUCCIN["peach"],
+                bg=CATPPUCCIN["surface0"],
+                bold=True,
             )
         style_map: dict[str, str] = {
             "default": CATPPUCCIN["lavender"],
@@ -458,7 +464,6 @@ def effective_initial_mode(mode: str) -> str:
     return mode
 
 
-
 def build_path_entries(
     *,
     kind: str,
@@ -509,8 +514,12 @@ def build_entries(mode: str) -> list[Entry]:
                 path=expand(session.path),
                 startup=session.startup,
                 split=session.split,
-                attention_count=stats_by_session.get(session.name, AgentStats()).attention_count,
-                worst_state=stats_by_session.get(session.name, AgentStats()).worst_state,
+                attention_count=stats_by_session.get(
+                    session.name, AgentStats()
+                ).attention_count,
+                worst_state=stats_by_session.get(
+                    session.name, AgentStats()
+                ).worst_state,
                 is_running=session.name in live_names,
             )
             for session in configured_sessions
@@ -530,8 +539,12 @@ def build_entries(mode: str) -> list[Entry]:
                     path=expand(session.path) if session else "",
                     startup=session.startup if session else "",
                     split=session.split if session else DEFAULT_SPLIT,
-                    attention_count=stats_by_session.get(session_name, AgentStats()).attention_count,
-                    worst_state=stats_by_session.get(session_name, AgentStats()).worst_state,
+                    attention_count=stats_by_session.get(
+                        session_name, AgentStats()
+                    ).attention_count,
+                    worst_state=stats_by_session.get(
+                        session_name, AgentStats()
+                    ).worst_state,
                     is_running=True,
                 )
             )
@@ -602,9 +615,7 @@ def tmux_session_preview(name: str) -> int:
         parts = line.split("\t")
         if len(parts) != 5:
             continue
-        window_index, window_active, window_name, _window_panes, window_state = (
-            parts
-        )
+        window_index, window_active, window_name, _window_panes, window_state = parts
         if window_state in ("blocked", "crashed"):
             attention_total += 1
         if window_active == "1":
@@ -693,7 +704,7 @@ def print_entries(mode: str) -> int:
     return 0
 
 
-def _fzf_command(mode: str) -> list[str]:
+def _fzf_command(mode: str, query: str = "") -> list[str]:
     cmd = [
         "fzf",
         "--layout=reverse",
@@ -746,17 +757,19 @@ def _fzf_command(mode: str) -> list[str]:
         # so the rest of the command (binds, preview) is unaffected by the
         # config toggle.
         cmd.insert(4, "--exact")
+    if query:
+        cmd.extend(["--query", query])
     return cmd
 
 
-def fzf(mode: str = "all") -> int:
+def fzf(mode: str = "all", query: str = "") -> int:
     mode = effective_initial_mode(mode)
     entries = "\n".join(entry.to_fzf_row() for entry in build_entries(mode))
-    proc = subprocess.run(_fzf_command(mode), input=entries, text=True)
+    proc = subprocess.run(_fzf_command(mode, query=query), input=entries, text=True)
     return proc.returncode
 
 
-def pick_and_connect(mode: str = "all") -> int:
+def pick_and_connect(mode: str = "all", query: str = "") -> int:
     """Run the fzf picker and connect to the selection in one step.
 
     fzf writes its UI to /dev/tty when stdout is captured, so the picker
@@ -765,7 +778,7 @@ def pick_and_connect(mode: str = "all") -> int:
     mode = effective_initial_mode(mode)
     entries = "\n".join(entry.to_fzf_row() for entry in build_entries(mode))
     proc = subprocess.run(
-        _fzf_command(mode), input=entries, text=True, capture_output=True
+        _fzf_command(mode, query=query), input=entries, text=True, capture_output=True
     )
     if proc.returncode != 0:
         return proc.returncode
@@ -935,6 +948,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             choices=["all", "default", "tmux", "zoxide", "find"],
             default="all",
         )
+        p_pick.add_argument("--query", default="")
 
         p_pick_connect = sub.add_parser("pick-and-connect")
         p_pick_connect.add_argument(
@@ -942,6 +956,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             choices=["all", "default", "tmux", "zoxide", "find"],
             default="all",
         )
+        p_pick_connect.add_argument("--query", default="")
 
         p_connect = sub.add_parser("connect")
         p_connect.add_argument("target")
@@ -959,9 +974,9 @@ def main(argv: Iterable[str] | None = None) -> int:
         if args.cmd == "list":
             return print_entries(args.mode)
         if args.cmd == "picker":
-            return fzf(args.mode)
+            return fzf(args.mode, query=args.query)
         if args.cmd == "pick-and-connect":
-            return pick_and_connect(args.mode)
+            return pick_and_connect(args.mode, query=args.query)
         if args.cmd == "connect":
             return connect(args.target)
         if args.cmd == "preview":

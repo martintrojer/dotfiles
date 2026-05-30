@@ -25,8 +25,13 @@ desc = "Go to bubba"
 
 [[mgr.prepend_keymap]]
 on   = [ "g", "t" ]
-run  = "shell 'ya emit cd \"$(trashd)\"'"
+run  = "shell 'ya emit cd \"$(trash path)\"'"
 desc = "Go to Trash"
+
+[[mgr.prepend_keymap]]
+on   = [ "g", "T" ]
+run  = 'shell "trash empty" --confirm'
+desc = "Empty Trash"
 
 [[mgr.prepend_keymap]]
 on   = [ "g", "l" ]

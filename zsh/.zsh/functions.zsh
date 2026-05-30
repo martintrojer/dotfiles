@@ -58,6 +58,6 @@ rmhist() {
 
 # tm: tmux session picker (pinned sessions + live sessions + zoxide + finder).
 tm() {
-  "$HOME/.config/tmux/scripts/tms" pick-and-connect
+  "$HOME/.config/tmux/scripts/tms" pick-and-connect ${1:+--query} ${1:+"$1"}
 }
 
