@@ -4,4 +4,4 @@ set -euo pipefail
 # Spawned via the foot server (sway-foot-server.service). Same
 # rationale as `set $term footclient` in sway/config: don't fall back
 # to plain `foot`, fix the unit if it's not running.
-exec footclient zsh -il -c yazi
+exec footclient --app-id yazi-float zsh -il -c yazi
