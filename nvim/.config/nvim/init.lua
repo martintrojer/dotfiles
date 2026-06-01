@@ -53,7 +53,17 @@ vim.cmd.colorscheme("catppuccin")
 require("mini_setup")
 require("starter")
 
-require("fzf-lua").setup({ "default-title", ui_select = true })
+require("fzf-lua").setup({
+	"default-title",
+	ui_select = true,
+	-- tmux grabs <C-q> globally (bind -n C-q clear-history), so move
+	-- fzf-lua's send-to-quickfix action off ctrl-q onto alt-q.
+	actions = {
+		files = {
+			["alt-q"] = require("fzf-lua.actions").file_sel_to_qf,
+		},
+	},
+})
 
 require("oil").setup({
 	default_file_explorer = true,
