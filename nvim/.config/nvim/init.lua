@@ -58,8 +58,12 @@ require("fzf-lua").setup({
 	ui_select = true,
 	-- tmux grabs <C-q> globally (bind -n C-q clear-history), so move
 	-- fzf-lua's send-to-quickfix action off ctrl-q onto alt-q.
+	-- `[1] = true` keeps fzf-lua's default file/buffer binds (notably the
+	-- `enter` open action); without it this table *replaces* the defaults
+	-- and Enter stops opening the selection.
 	actions = {
 		files = {
+			true,
 			["alt-q"] = require("fzf-lua.actions").file_sel_to_qf,
 		},
 	},
