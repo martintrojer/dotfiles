@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Embedded "SteamOS Gaming Mode" session: a gamescope session on the DRM/KMS
+# backend that owns the display directly and drives true HDR10 — what the Sway
+# desktop can't do under Sway < 1.12. See fedora/docs/HDR-GAMING.md.
+#
+# Picked as "Steam (gamescope)" at the SDDM login screen; the session entry
+# (steam.desktop) execs this script. Installed by setup-gamescope-session.sh.
+# Quitting Steam exits gamescope and returns to SDDM.
+#
+# This session runs Steam's gamepad UI cleanly under gamescope. Per-game Proton,
+# OptiScaler, and FSR4 tweaks should stay in Steam launch options; applying them
+# to Steam itself can break the CEF-rendered UI and leave the gamescope viewport
+# black. Under the Sway desktop none of this applies.
+#
+# Keep only the HDR WSI environment here, because Steam/game launches inherit it
+# and gamescope needs it for Vulkan HDR negotiation.
+#
+# A game that dislikes HDR can still override it via Steam launch options, since
+# those env vars expand before %command%, e.g. `DXVK_HDR=0 %command%`.
+#
+# Knobs (the monitor here is fixed 4K@60 HDR, so defaults rarely need changing):
+#   GS_OUT_W   output width   (default 3840)
+#   GS_OUT_H   output height  (default 2160)
+#   GS_REFRESH refresh rate   (default 60)
+#   GS_HDR     HDR output (default on); set GS_HDR=0 to disable
+#   GS_ARGS    extra gamescope args appended verbatim
+
+# Refuse to run nested: the DRM backend needs to own the display. This only makes
+# sense as an SDDM session, not from inside Sway.
+if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
+  echo "steam-session: refusing to run inside a graphical session." \
+       "Pick 'Steam (gamescope)' at the SDDM login screen instead." >&2
+  exit 1
+fi
+
+# SDDM launches this via a non-interactive login shell, so ~/.zshrc (which puts
+# ~/.local/bin on PATH and activates mise) is never sourced, and the
+# environment.d PATH addition isn't reliably imported either. The result is the
+# bare login PATH, so anything Steam spawns that relies on ~/.local/bin would
+# fail with "command not found". Ensure the dir is on PATH here; the whole session
+# tree (Steam and everything it spawns) inherits it.
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
+# An embedded login has a more minimal environment than the Sway session, so
+# mangoapp (from gamescope's --mangoapp) may not resolve the MangoHud config via
+# its normal XDG search path. Point it at the stowed config explicitly. The whole
+# session tree (including every game) inherits this.
+if [[ -z "${MANGOHUD_CONFIGFILE:-}" ]]; then
+  cfg="${XDG_CONFIG_HOME:-$HOME/.config}/MangoHud/MangoHud.conf"
+  [[ -r "$cfg" ]] && export MANGOHUD_CONFIGFILE="$cfg"
+fi
+
+args=(--backend drm
+  -W "${GS_OUT_W:-3840}" -H "${GS_OUT_H:-2160}" -r "${GS_REFRESH:-60}"
+  -f --mangoapp -e)
+
+[[ "${GS_HDR:-1}" != "0" ]] && args+=(--hdr-enabled)
+
+# shellcheck disable=SC2206  # word-splitting GS_ARGS is intentional
+[[ -n "${GS_ARGS:-}" ]] && args+=($GS_ARGS)
+
+# Let Vulkan clients (Proton/DXVK) negotiate HDR via the gamescope WSI layer.
+if [[ "${GS_HDR:-1}" != "0" ]]; then
+  exec gamescope "${args[@]}" -- env DXVK_HDR=1 ENABLE_GAMESCOPE_WSI=1 steam -gamepadui
+fi
+exec gamescope "${args[@]}" -- steam -gamepadui

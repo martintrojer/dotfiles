@@ -45,8 +45,10 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
         (
             "foot",
             "fuzzel",
+            "gamemode",
             "kanshi",
             "mako",
+            "mangohud",
             "sway",
             "swaylock",
             "waybar",

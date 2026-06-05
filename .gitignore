@@ -12,6 +12,13 @@ guides/build/
 /TODO.md
 .m-reflow-*.md
 
+# OptiScaler Client per-machine state. Never stow this: games.json holds the
+# full Steam library with $HOME paths, Cache/ is ~200MB of re-downloadable DLLs,
+# and config.json mixes prefs with volatile window geometry/timestamps. See
+# fedora/bin/README.md (optiscaler-client). Defensive ignore so a stray
+# `git add` of a stow tree can't leak it.
+OptiscalerClient/
+
 .DS_Store
 __pycache__
 *.pyc

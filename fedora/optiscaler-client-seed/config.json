@@ -1,0 +1,24 @@
+{
+	"Language": "en",
+	"Debug": false,
+	"DefaultProfileName": "Home",
+	"AutoScan": true,
+	"AnimationsEnabled": true,
+	"PreferGridView": true,
+	"ScanDriveRoots": ["/"],
+	"ScanSources": {
+		"ScanSteam": true,
+		"ScanEpic": true,
+		"ScanGOG": true,
+		"ScanXbox": true,
+		"ScanEA": true,
+		"ScanUbisoft": true,
+		"CustomFolders": [],
+		"UpscalerFilter": 0
+	},
+	"Network": {
+		"UseSystemProxy": true,
+		"ProxyType": "HTTPS",
+		"ProxyRequiresAuth": false
+	}
+}

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=OptiScaler Client
+Comment=Install and manage the OptiScaler upscaling mod across your game library
+Exec=sh -c 'exec "$HOME/.local/bin/optiscaler-client" run'
+Terminal=false
+Categories=Utility;
+Keywords=optiscaler;upscaling;fsr;dlss;mod;gaming;

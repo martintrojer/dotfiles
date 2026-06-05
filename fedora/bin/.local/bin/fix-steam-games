@@ -1,0 +1,533 @@
+#!/usr/bin/env python3
+"""Check/fix Steam games that use OptiScaler.
+
+Default action fixes both:
+- OptiScaler.ini ShortcutKey drift (Home / 0x24 by default)
+- Steam launch options for games with OptiScaler.ini (`optirun %command%`)
+
+Default action is a dry run. Use `--apply` to write changes.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+XDG_DATA_HOME = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+
+APP_CONFIG_DIR = XDG_CONFIG_HOME / "OptiscalerClient"
+DEFAULT_KEY = "0x24"  # VK_HOME
+DEFAULT_LAUNCH = "optirun %command%"
+
+STEAM_ROOTS = [
+    XDG_DATA_HOME / "Steam",
+    Path.home() / ".steam/steam",
+    Path.home() / ".var/app/com.valvesoftware.Steam/data/Steam",
+]
+
+SHORTCUT_RE = re.compile(r"^(\s*ShortcutKey\s*=\s*)(.+?)\s*$", re.IGNORECASE)
+VDF_PATH_RE = re.compile(r'"path"\s*"([^"]+)"')
+VDF_APP_RE = re.compile(r'"(\d+)"\s*"\d+"')
+VDF_STR_RE = re.compile(r'"([^"]+)"\s*"([^"]*)"')
+LAUNCH_RE = re.compile(r'^(\s*"LaunchOptions"\s*")([^"]*)(".*)$')
+OLD_WRAPPER_RE = re.compile(
+    r"^(gscope|optiscope|gamemoderun)\s+%command%(?P<suffix>(?:\s+.*)?)$"
+)
+STALE_LAUNCH_RE = re.compile(
+    r"\b(gscope|optiscope)\b|WINEDLLOVERRIDES|PROTON_FSR4_UPGRADE|DXIL_SPIRV_CONFIG|gamemoderun"
+)
+STALE_NON_OPTI_RE = re.compile(
+    r"\b(gscope|optiscope)\b|WINEDLLOVERRIDES|PROTON_FSR4_UPGRADE|DXIL_SPIRV_CONFIG"
+)
+
+
+@dataclass(frozen=True)
+class SteamApp:
+    appid: str
+    name: str
+    installdir: str
+    library: Path
+    path: Path
+
+
+@dataclass(frozen=True)
+class LaunchEntry:
+    config: Path
+    appid: str
+    options: str
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(errors="replace")
+
+
+def steam_roots() -> list[Path]:
+    seen: set[Path] = set()
+    roots: list[Path] = []
+    for root in STEAM_ROOTS:
+        try:
+            real = root.resolve()
+        except OSError:
+            real = root
+        if real in seen or not (root / "steamapps").is_dir():
+            continue
+        seen.add(real)
+        roots.append(root)
+    return roots
+
+
+def library_roots() -> list[Path]:
+    seen: set[Path] = set()
+    libs: list[Path] = []
+    for root in steam_roots():
+        vdf = root / "steamapps/libraryfolders.vdf"
+        if not vdf.is_file():
+            continue
+        text = read_text(vdf)
+        for raw in VDF_PATH_RE.findall(text):
+            lib = Path(raw)
+            if lib not in seen and (lib / "steamapps").is_dir():
+                seen.add(lib)
+                libs.append(lib)
+    return libs
+
+
+def steam_apps() -> dict[str, SteamApp]:
+    apps: dict[str, SteamApp] = {}
+    for lib in library_roots():
+        for manifest in sorted((lib / "steamapps").glob("appmanifest_*.acf")):
+            appid = manifest.stem.removeprefix("appmanifest_")
+            fields = dict(VDF_STR_RE.findall(read_text(manifest)))
+            installdir = fields.get("installdir", "")
+            name = fields.get("name") or installdir or appid
+            if installdir:
+                apps[appid] = SteamApp(
+                    appid, name, installdir, lib, lib / "steamapps/common" / installdir
+                )
+    return apps
+
+
+def installed_appids() -> set[str]:
+    ids: set[str] = set()
+    for root in steam_roots():
+        vdf = root / "steamapps/libraryfolders.vdf"
+        if vdf.is_file():
+            ids.update(VDF_APP_RE.findall(read_text(vdf)))
+    ids.update(steam_apps().keys())
+    return ids
+
+
+def desired_key(override: str | None) -> str:
+    if override:
+        return override
+    cfg = APP_CONFIG_DIR / "config.json"
+    try:
+        name = json.loads(cfg.read_text()).get("DefaultProfileName")
+    except (OSError, ValueError):
+        return DEFAULT_KEY
+    if not name:
+        return DEFAULT_KEY
+    prof = APP_CONFIG_DIR / "Profiles/custom" / f"{name}.json"
+    try:
+        basic = json.loads(prof.read_text()).get("IniSettings", {}).get("Basic", {})
+    except (OSError, ValueError):
+        return DEFAULT_KEY
+    key = basic.get("ShortcutKey")
+    if isinstance(key, str) and key.strip() and key.lower() != "auto":
+        return key
+    return DEFAULT_KEY
+
+
+def optiscaler_inis() -> list[Path]:
+    found: list[Path] = []
+    for app in steam_apps().values():
+        if app.path.is_dir():
+            found.extend(sorted(app.path.rglob("OptiScaler.ini")))
+    return sorted(set(found))
+
+
+def appids_with_optiscaler() -> set[str]:
+    appids: set[str] = set()
+    for app in steam_apps().values():
+        if app.path.is_dir() and any(app.path.rglob("OptiScaler.ini")):
+            appids.add(app.appid)
+    return appids
+
+
+def app_for_path(path: Path, apps: dict[str, SteamApp]) -> SteamApp | None:
+    matches = [app for app in apps.values() if path.is_relative_to(app.path)]
+    if not matches:
+        return None
+    return max(matches, key=lambda app: len(app.path.parts))
+
+
+def label_ini(ini: Path, apps: dict[str, SteamApp]) -> str:
+    app = app_for_path(ini, apps)
+    if not app:
+        return str(ini)
+    rel = ini.relative_to(app.path)
+    return f"{app.appid} {app.name}: {rel}"
+
+
+def current_shortcut(ini: Path) -> str | None:
+    try:
+        for line in ini.read_text(errors="replace").splitlines():
+            match = SHORTCUT_RE.match(line)
+            if match:
+                return match.group(2).strip()
+    except OSError:
+        return None
+    return None
+
+
+def set_shortcut(ini: Path, key: str) -> bool:
+    lines = ini.read_text(errors="replace").splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        match = SHORTCUT_RE.match(line.rstrip("\n"))
+        if match and match.group(2).strip() != key:
+            newline = "\n" if line.endswith("\n") else ""
+            lines[index] = f"{match.group(1)}{key}{newline}"
+            ini.write_text("".join(lines))
+            return True
+    return False
+
+
+def localconfigs() -> list[Path]:
+    paths: list[Path] = []
+    seen: set[Path] = set()
+    for root in steam_roots():
+        for path in sorted((root / "userdata").glob("*/config/localconfig.vdf")):
+            real = path.resolve()
+            if real not in seen:
+                seen.add(real)
+                paths.append(path)
+    return paths
+
+
+def in_steam_apps(stack: list[str]) -> bool:
+    return (
+        len(stack) >= 5
+        and stack[-2] == "apps"
+        and stack[-5:-2] == ["Software", "Valve", "Steam"]
+    )
+
+
+def launch_entries(path: Path) -> list[LaunchEntry]:
+    entries: list[LaunchEntry] = []
+    lines = read_text(path).splitlines()
+    stack: list[str] = []
+    pending_key: str | None = None
+    current_app: str | None = None
+    for line in lines:
+        key_match = re.match(r'^\s*"([^"]+)"\s*$', line)
+        if key_match:
+            pending_key = key_match.group(1)
+            continue
+        if "{" in line:
+            if pending_key is not None:
+                stack.append(pending_key)
+                if pending_key.isdigit() and in_steam_apps(stack):
+                    current_app = pending_key
+                pending_key = None
+            continue
+        if "}" in line:
+            if stack:
+                popped = stack.pop()
+                if popped == current_app:
+                    current_app = next(
+                        (item for item in reversed(stack) if item.isdigit()), None
+                    )
+            continue
+        launch = LAUNCH_RE.match(line)
+        if launch and current_app:
+            entries.append(LaunchEntry(path, current_app, launch.group(2)))
+    return entries
+
+
+def launch_map() -> dict[str, LaunchEntry]:
+    entries: dict[str, LaunchEntry] = {}
+    for cfg in localconfigs():
+        for entry in launch_entries(cfg):
+            entries[entry.appid] = entry
+    return entries
+
+
+def desired_launch(current: str, target: str) -> str | None:
+    current = current.strip()
+    if not current:
+        return target
+    if current == target or current.startswith(f"{target} "):
+        return current
+    old_wrapper = OLD_WRAPPER_RE.match(current)
+    if old_wrapper:
+        return f"{target}{old_wrapper.group('suffix')}".strip()
+    if STALE_LAUNCH_RE.search(current):
+        return None
+    if "%command%" in current:
+        return current.replace("%command%", target, 1)
+    return f"{target} {current}"
+
+
+def remove_stale_launch(current: str) -> str | None:
+    current = current.strip()
+    if current == "%command%":
+        return ""
+    old_wrapper = OLD_WRAPPER_RE.match(current)
+    if old_wrapper:
+        suffix = old_wrapper.group("suffix").strip()
+        return f"%command% {suffix}" if suffix else ""
+    if STALE_NON_OPTI_RE.search(current):
+        return None
+    return current
+
+
+def set_launch_option(path: Path, appid: str, value: str) -> bool:
+    text = read_text(path)
+    lines = text.splitlines(keepends=True)
+    stack: list[str] = []
+    pending_key: str | None = None
+    current_app: str | None = None
+    in_target = False
+    insert_at: int | None = None
+
+    for index, line in enumerate(lines):
+        key_match = re.match(r'^\s*"([^"]+)"\s*$', line)
+        if key_match:
+            pending_key = key_match.group(1)
+            continue
+        if "{" in line:
+            if pending_key is not None:
+                stack.append(pending_key)
+                current_app = (
+                    pending_key
+                    if pending_key.isdigit() and in_steam_apps(stack)
+                    else current_app
+                )
+                in_target = current_app == appid
+                pending_key = None
+            continue
+        if "}" in line:
+            if in_target and stack and stack[-1] == appid and insert_at is None:
+                insert_at = index
+            if stack:
+                popped = stack.pop()
+                if popped == current_app:
+                    current_app = next(
+                        (item for item in reversed(stack) if item.isdigit()), None
+                    )
+                in_target = current_app == appid
+            continue
+        launch = LAUNCH_RE.match(line)
+        if launch and in_target:
+            if launch.group(2) == value:
+                return False
+            newline = "\n" if line.endswith("\n") else ""
+            lines[index] = f"{launch.group(1)}{value}{launch.group(3)}{newline}"
+            path.write_text("".join(lines))
+            return True
+
+    if insert_at is not None:
+        lines.insert(insert_at, f'\t\t\t\t\t\t\t"LaunchOptions"\t\t"{value}"\n')
+        path.write_text("".join(lines))
+        return True
+    return False
+
+
+def backup(path: Path) -> None:
+    bak = path.with_suffix(path.suffix + ".bak")
+    if not bak.exists():
+        shutil.copy2(path, bak)
+
+
+def check_shortcuts(args: argparse.Namespace) -> int:
+    key = desired_key(args.key)
+    apps = steam_apps()
+    inis = optiscaler_inis()
+    print(f"ShortcutKey target: {key}")
+    if not inis:
+        print("No OptiScaler.ini files found.")
+        return 0
+    drift = 0
+    fixed = 0
+    for ini in inis:
+        current = current_shortcut(ini)
+        label = label_ini(ini, apps)
+        if current == key:
+            print(f"  ok       {label}: {current}")
+            continue
+        drift += 1
+        if args.check:
+            print(f"  drift    {label}: {current} -> {key}")
+        elif set_shortcut(ini, key):
+            fixed += 1
+            print(f"  fixed    {label}: {current} -> {key}")
+        else:
+            print(f"  skipped  {label}: no ShortcutKey line")
+    if args.check and drift:
+        print(f"{drift} ShortcutKey value(s) need fixing.")
+        return 1
+    if not args.check:
+        print(f"ShortcutKey: {fixed} fixed, {len(inis) - drift} already ok.")
+    return 0
+
+
+def check_launch_options(args: argparse.Namespace) -> int:
+    target = args.launch
+    apps = steam_apps()
+    opti = appids_with_optiscaler()
+    installed = installed_appids()
+    entries = launch_map()
+    configs = localconfigs()
+    if not configs:
+        print("No Steam localconfig.vdf found.")
+        return 0
+    primary = configs[0]
+    drift = 0
+    fixed = 0
+
+    print(f"LaunchOptions target for OptiScaler games: {target}")
+    for appid in sorted(opti, key=int):
+        app = apps.get(appid)
+        name = app.name if app else appid
+        entry = entries.get(appid)
+        current = entry.options if entry else ""
+        wanted = desired_launch(current, target)
+        if wanted is None:
+            drift += 1
+            print(f"  manual   {appid} {name}: {current!r} contains stale tokens")
+            continue
+        if current == wanted:
+            print(f"  ok       {appid} {name}: {current}")
+            continue
+        drift += 1
+        if args.check:
+            print(f"  drift    {appid} {name}: {current!r} -> {wanted!r}")
+            continue
+        config = entry.config if entry else primary
+        backup(config)
+        if set_launch_option(config, appid, wanted):
+            fixed += 1
+            print(f"  fixed    {appid} {name}: {current!r} -> {wanted!r}")
+        else:
+            print(f"  skipped  {appid} {name}: could not write LaunchOptions")
+
+    stale = [
+        entry
+        for entry in entries.values()
+        if entry.appid in installed
+        and entry.appid not in opti
+        and (
+            STALE_NON_OPTI_RE.search(entry.options)
+            or entry.options.strip() == "%command%"
+        )
+    ]
+    for entry in sorted(stale, key=lambda e: int(e.appid)):
+        app = apps.get(entry.appid)
+        name = app.name if app else entry.appid
+        wanted = remove_stale_launch(entry.options)
+        drift += 1
+        if wanted is None:
+            print(
+                f"  manual   {entry.appid} {name}: {entry.options!r} contains stale tokens (no OptiScaler.ini)"
+            )
+            continue
+        if args.check:
+            print(
+                f"  stale    {entry.appid} {name}: {entry.options!r} -> {wanted!r} (no OptiScaler.ini)"
+            )
+            continue
+        backup(entry.config)
+        if set_launch_option(entry.config, entry.appid, wanted):
+            fixed += 1
+            print(
+                f"  fixed    {entry.appid} {name}: {entry.options!r} -> {wanted!r} (no OptiScaler.ini)"
+            )
+        else:
+            print(
+                f"  skipped  {entry.appid} {name}: could not clear stale LaunchOptions"
+            )
+
+    if args.check and drift:
+        print(f"{drift} LaunchOptions issue(s) found.")
+        return 1
+    if not args.check:
+        print(f"LaunchOptions: {fixed} fixed, {len(opti)} OptiScaler game(s) checked.")
+    return 0
+
+
+def parse_args(argv: list[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Check/fix Steam games that use OptiScaler."
+    )
+    parser.add_argument(
+        "--apply", action="store_true", help="write changes; default is dry-run"
+    )
+    parser.add_argument(
+        "--check", action="store_false", dest="apply", help=argparse.SUPPRESS
+    )
+    parser.add_argument(
+        "--key", help=f"ShortcutKey to stamp (default: profile's, else {DEFAULT_KEY})"
+    )
+    parser.add_argument(
+        "--launch",
+        default=DEFAULT_LAUNCH,
+        help="target launch option (default: optirun %%command%%)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="allow --apply while Steam appears to be running",
+    )
+    parser.add_argument(
+        "--only",
+        choices=("all", "shortcut", "launch-options"),
+        default="all",
+        help="limit what to check/fix",
+    )
+    return parser.parse_args(argv)
+
+
+def steam_running() -> bool:
+    try:
+        result = subprocess.run(
+            ["pgrep", "-x", "steam"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        return False
+    return result.returncode == 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    if args.apply and not args.force and steam_running():
+        print(
+            "Steam appears to be running; quit Steam before --apply or pass --force.",
+            file=sys.stderr,
+        )
+        return 2
+    args.check = not args.apply
+    if args.check:
+        print("dry run; use --apply to write changes\n")
+    rc = 0
+    if args.only in ("all", "shortcut"):
+        rc |= check_shortcuts(args)
+    if args.only == "all":
+        print()
+    if args.only in ("all", "launch-options"):
+        rc |= check_launch_options(args)
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main())
