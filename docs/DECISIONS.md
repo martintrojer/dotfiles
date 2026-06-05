@@ -208,6 +208,54 @@ Even if you never re-enable SwayFX, these bit on first setup:
 
 ## Accepted (non-obvious)
 
+### The gaming layer deliberately breaks the COPR-free + minimal-overlay rules (accepted 2026-06-05)
+
+This box stopped dual-booting: the Windows partition is gone and Windows-era PC
+gaming moved onto Linux wholesale. That migration is the reason a `fedora/`
+setup that had been proudly COPR-free and minimal now layers RPM Fusion, a COPR,
+and a stack of non-CLI desktop packages. The break is intentional and scoped, not
+drift — this entry exists so a future cleanup pass doesn't "restore purity" and
+amputate the gaming stack.
+
+What the migration forced, and why each was previously avoided:
+
+- **RPM Fusion (free + nonfree).** `steam`, `gamescope`, `mangohud`, `gamemode`
+  are not in stock Fedora repos. The old rule was "prefer what stock Fedora
+  ships"; full-fat gaming simply isn't there.
+- **A COPR (`ilyaz/LACT`).** AMD GPU undervolt/fan/power control. The SwayFX
+  entry ([above](#swayfx-tried-and-reverted-2026-04-28)) rejected SwayFX partly
+  *because* it "adds a COPR on Sericea." Here the COPR earns its place: the RX
+  7800 XT runs hot/loud at stock, and LACT is the one good Linux tool for it
+  (see [`fedora/docs/LACT.md`](../fedora/docs/LACT.md)).
+- **Host-layered desktop apps, not CLIs.** `base-packages.sh` is "a viable
+  minimal bootstrap baseline, not a full daily-driver set," and comfort tooling
+  lives in `mise`. None of that applies to Steam/gamescope/mangohud/gamemode:
+  they are graphical, need host udev/driver integration (`steam-devices`,
+  GameMode's group + governor control), and cannot live in `mise` or a toolbox.
+
+How the break is contained so it doesn't rot the rest of the setup:
+
+- **Quarantined in its own wrapper.** All of it lives in `steam-packages.sh` /
+  `setup-steam.sh`, a separate `steam_packages` array. A non-gaming host never
+  runs it; the base/sway/mise layers stay COPR-free and minimal exactly as
+  before. The split *is* the firewall.
+- **Opt-in and manual.** RPM Fusion and the LACT COPR must be enabled by hand
+  before `setup-steam.sh` (documented in the script header). Nothing in the
+  default bootstrap pulls them in.
+- **Pillar fit:** #8 (opinionated — this is *the* gaming box now, lean into it),
+  #7 (still a thin wrapper around a data list), #4 (each gaming package answers
+  a "why not builtin/stock?" — the answer is "it doesn't exist there"). The
+  tension is with the self-imposed COPR-free/minimal goals, which were never
+  pillars, just defaults for a CLI-first host. The host's job changed.
+
+**Reconsider only if:** the machine stops being a gaming box (then delete
+`steam-packages.sh`/`setup-steam.sh`, the gaming stow packages, drop RPM Fusion +
+the LACT COPR, and this whole layer reverts cleanly), OR Fedora ships these in
+stock repos (unlikely for the nonfree pieces), OR a future Atomic image bundles a
+gaming profile that supersedes the manual COPR/RPM-Fusion dance.
+
+---
+
 ### Cmd+C / Cmd+V everywhere via Rainy75 firmware layer, not xremap (accepted 2026-05-28)
 
 MacOS muscle memory wants one chord for copy/paste everywhere. Linux gives two: `Ctrl+C` in GUI apps, `Ctrl+Shift+C` in terminals (because `Ctrl+C` is SIGINT). Living with both was a constant low-grade annoyance — different motor program per focused-app type, no way for the brain to fork it cleanly.

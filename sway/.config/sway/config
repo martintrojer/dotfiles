@@ -96,8 +96,6 @@ for_window [app_id="^btop-float$"] floating enable, resize set 50 ppt 60 ppt, mo
 # Cider (Apple Music client) auto-stashes into the scratchpad on launch.
 # Summon with $mod+n, hide with $mod+n. Never wastes a workspace slot.
 for_window [app_id="^Cider$"] border pixel 2, move scratchpad
-# Prevent Sway from interfering with the game overlays
-for_window [class="gamescope"] floating enable, border none, scaling disable
 
 exec_always ~/.config/sway/scripts/session-start
 
@@ -122,6 +120,7 @@ bindsym $mod+i exec sh -lc "$HOME/.config/sway/scripts/open-vscode"
 # rest of the pickers promoted off Shift since they're frequent and
 # non-destructive.
 bindsym $mod+Shift+p exec ~/.config/fuzzel/scripts/powermenu
+bindsym $mod+Shift+BackSpace exec $lock
 bindsym $mod+t exec ~/.config/fuzzel/scripts/toolboxes
 bindsym $mod+s exec ~/.config/fuzzel/scripts/ssh
 # mod+v: clipboard picker (mirrors tmux prefix+v).

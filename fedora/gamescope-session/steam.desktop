@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Steam (gamescope)
+Comment=SteamOS-style Big Picture session on gamescope (DRM, HDR)
+Exec=/usr/local/bin/steam-session
+Type=Application
+DesktopNames=gamescope

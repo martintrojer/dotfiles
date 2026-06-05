@@ -4,6 +4,8 @@
 		"position": "top",
 		"name": "first",
 		"spacing": 0,
+		// This ensures full-screen windows hide the bar
+		"mode": "dock",
 		"modules-left": ["sway/workspaces"],
 		"modules-center": ["custom/issues"],
 		"modules-right": ["custom/notifications", "custom/weather", "clock"],

@@ -1,60 +1,68 @@
 # Fedora Setup
 
-This directory holds Fedora-specific bootstrap scripts plus `containers/` and `systemd/` packages that are only stowed on Fedora-family systems.
-
-This setup targets **Fedora Sway Atomic (Sericea)** — the rpm-ostree Sway spin. Mutable Workstation and other Fedora variants are not supported.
+Fedora-specific bootstrap scripts plus `containers/` and `systemd/` stow packages.
+Targets **Fedora Sway Atomic (Sericea)** — the rpm-ostree Sway spin. Other Fedora
+variants are not supported.
 
 ## Setup Flow
 
-Typical order:
-
-1. Run `fedora/setup-base.sh` to layer the base packages with `rpm-ostree`.
-2. Run `fedora/setup-sway.sh` to layer the extra Sway session packages on top of Sericea with `rpm-ostree`.
-3. Run `fedora/setup-mise.sh` to install userland tools with `mise`.
-4. Optionally run `fedora/setup-toolbox.sh` inside a Fedora toolbox.
-
-If you want the tmux session workflow from this repo, make sure `tmux`, `fzf`, `zoxide`, `fd`, and `eza` are installed too.
+1. `setup-base.sh` — layer base packages (`rpm-ostree`).
+2. `setup-sway.sh` — layer extra Sway session packages.
+3. `setup-mise.sh` — install userland tools with `mise`.
+4. `setup-steam.sh` (optional) — gaming/Steam packages; needs RPM Fusion + the
+   LACT COPR enabled first (see `steam-packages.sh`).
+5. `setup-gamescope-session.sh` (optional) — install the "Steam (gamescope)"
+   embedded HDR session selectable at SDDM (see `docs/HDR-GAMING.md`).
+6. `setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
 
 ## Package Lists
 
-The main Fedora setup scripts are intentionally thin wrappers around shared package lists:
+Setup scripts are thin wrappers around shared package arrays; all call
+`rpm-ostree install`:
 
-- `base-packages.sh`: common bootstrap and CLI tooling layered on top of the Sericea base.
-- `sway-packages.sh`: extra desktop/session packages this setup layers on top of the Sericea Sway session.
+- `base-packages.sh` — minimal bootstrap + CLI tooling on top of Sericea.
+- `sway-packages.sh` — extra desktop/session packages only (nothing Sericea
+  already ships: sway, foot, kanshi, swaybg/idle/lock, waybar, wl-clipboard,
+  pipewire, xdg-desktop-portal-wlr, etc.).
+- `steam-packages.sh` — gaming/Steam packages (single `steam_packages` array),
+  gated behind RPM Fusion + the LACT COPR. A deliberate break from the
+  COPR-free baseline; see [`docs/DECISIONS.md`](../docs/DECISIONS.md).
 
-This keeps the package decisions in one place. Both wrappers call `rpm-ostree install`.
+Related docs: GPU tuning with LACT in [`docs/LACT.md`](./docs/LACT.md); gaming
+session/per-game helpers (`steam-session`, `optirun`, `optiscaler-client`) in
+[`bin/README.md`](./bin/README.md); HDR gaming in
+[`docs/HDR-GAMING.md`](./docs/HDR-GAMING.md).
 
 ## Decisions
 
-The package split reflects a few explicit decisions:
-
-- The Fedora host setup is intended to stay COPR-free, and package choices should prefer what is available in standard Fedora repositories. `google-chrome-stable` is the explicit exception: the desktop browser layer assumes Google's Chrome repo is enabled on the host.
-- `base-packages.sh` is meant to be a viable minimal bootstrap baseline, not a full daily-driver package set.
-- `mise` is a core bootstrap tool, so the host base keeps a small native build toolchain: `binutils`, `gcc`, `gcc-c++`, and `make`.
-- `git`, `git-lfs`, `stow`, `tmux`, and `zsh` are treated as common baseline tooling.
-- Comfort and developer CLIs that do not need to be host-layered live in `setup-mise.sh`.
-- The tmux and zsh session-launch flow uses local scripts plus `fzf`, `zoxide`, `fd`, and `eza`, rather than a separate session-manager binary.
-- Desktop/session packages live in `sway-packages.sh` as a single `sway_packages` array. The list only contains packages layered on top of Sericea — anything Sericea already ships (sway, foot, kanshi, swaybg, swayidle, swaylock, waybar, wl-clipboard, pipewire, xdg-desktop-portal-wlr, etc.) is intentionally not duplicated here.
-- `distrobox` does not fit the package split perfectly, but it is placed pragmatically based on how this setup is actually bootstrapped and used.
-- Wallpapers are managed per machine with `wallpaper set <url-or-file>`, which stores files under `~/.local/share/wallpapers/` and restarts `swaybg.service`.
+- The **baseline** (base + sway + mise) stays COPR-free and prefers stock Fedora
+  repos. `google-chrome-stable` is the one exception (assumes Google's Chrome
+  repo is enabled).
+- The **gaming layer is a deliberate, scoped break**: `steam-packages.sh` layers
+  RPM Fusion + the `ilyaz/LACT` COPR plus graphical packages that don't fit the
+  minimal baseline. Kept in its own array so non-gaming hosts never pull it in.
+  Enable RPM Fusion + LACT COPR manually before `setup-steam.sh`. See
+  [`docs/DECISIONS.md`](../docs/DECISIONS.md).
+- `mise` is core bootstrap, so the base keeps a small build toolchain
+  (`binutils`, `gcc`, `gcc-c++`, `make`). `git`, `git-lfs`, `stow`, `tmux`, `zsh`
+  are baseline; comfort CLIs that don't need host-layering live in
+  `setup-mise.sh`.
+- The tmux/zsh session flow uses local scripts + `fzf`, `zoxide`, `fd`, `eza`
+  rather than a session-manager binary.
+- Wallpapers: `wallpaper set <url-or-file>` (stores under
+  `~/.local/share/wallpapers/`, restarts `swaybg.service`).
 
 ## GTK Theme
 
-`fedora/gtk-3.0/.config/gtk-3.0/settings.ini` ships an `Adwaita-dark` default for GTK3 apps. Sway does not push a GTK theme on its own, so without this file GTK apps render in the system light default.
+`gtk-3.0/.config/gtk-3.0/settings.ini` ships an `Adwaita-dark` default for GTK3
+apps (Sway doesn't push a GTK theme). GTK4 apps instead follow
+`gsettings set org.gnome.desktop.interface color-scheme prefer-dark` — run once
+per machine if GTK4 apps disagree with GTK3; it's per-user state, not stowed.
 
-GTK4 apps follow `gsettings set org.gnome.desktop.interface color-scheme prefer-dark` instead of the `settings.ini` mechanism. If you notice GTK4 apps disagreeing with GTK3, run that gsetting once per machine; it is intentionally not stowed because it is per-user state, not config.
+## Stow Packages
 
-## Stow Notes
-
-The Fedora stow packages under this directory are:
-
-- `containers`
-- `gtk-3.0`
-- `systemd`
-
-From the repo root, the helper script `./dotfiles-sync` handles Fedora-only stow logic automatically.
-
-If you need to stow the Fedora packages directly:
+Fedora stow packages: `containers`, `gtk-3.0`, `systemd`. From the repo root,
+`./dotfiles-sync --apply` handles the Fedora-only logic. Manual equivalent:
 
 ```bash
 stow -d fedora -t ~ containers gtk-3.0 systemd
@@ -62,26 +70,14 @@ stow -d fedora -t ~ containers gtk-3.0 systemd
 
 ## Containers And User Services
 
-This directory also carries user-scoped container and systemd assets:
+User-scoped Quadlet/systemd assets:
 
 - `containers/.config/containers/systemd/postgres.container`
-- `systemd/.config/systemd/user/sway-session.target`
-- `systemd/.config/systemd/user/sway-clipman-watcher.service`
-- `systemd/.config/systemd/user/sway-kanshi.service`
-- `systemd/.config/systemd/user/sway-mako.service`
-- `systemd/.config/systemd/user/swaybg.service`
-- `systemd/.config/systemd/user/swayidle.service`
-- `systemd/.config/systemd/user/sway-waybar.service`
-- `systemd/.config/systemd/user/toolbox-dev.service`
-- `systemd/.config/systemd/user/ollama-toolbox.service`
+- `systemd/.config/systemd/user/` — `sway-session.target`,
+  `sway-clipman-watcher`, `sway-kanshi`, `sway-mako`, `swaybg`, `swayidle`,
+  `sway-waybar`, `toolbox-dev`, `ollama-toolbox` services.
 
-The intended flow is:
-
-1. Stow `containers` and `systemd` into `~/.config/...`
-2. Reload the user systemd manager
-3. Enable and start the units you want
-
-Typical commands:
+Flow: stow → reload → enable units:
 
 ```bash
 ./dotfiles-sync --apply
@@ -93,10 +89,13 @@ systemctl --user enable --now ollama-toolbox.service
 
 Notes:
 
-- `postgres.container` is a Quadlet file under `~/.config/containers/systemd/`, so systemd generates `postgres.service` from it after reload.
-- `sway-session.target` is started by `~/.config/sway/scripts/session-start`, after importing the Sway session environment. It owns the desktop services, including `sway-waybar.service` for `waybar/config.jsonc`, `sway-mako.service` for notifications, and `swayidle.service` for Sway monitor power commands.
-- Vendor user units for `mako`, `waybar`, `kanshi`, and `foot-server` are masked by `dotfiles-sync --apply` so D-Bus activation or accidental enables cannot start duplicates alongside the `sway-*` units.
-- Desktop daemons tied to `sway-session.target` follow the same lifecycle and are stopped by `~/.config/sway/scripts/session-quit`.
-- If you change `*.service` or `*.container` files later, run `systemctl --user daemon-reload` again before restarting them.
-- `toolbox-dev.service` assumes a toolbox named `dev` already exists.
-- `ollama-toolbox.service` assumes a toolbox named `ollama` exists and that `ollama` is installed inside it.
+- `postgres.container` is a Quadlet file; systemd generates `postgres.service`
+  from it after reload.
+- `sway-session.target` is started by `~/.config/sway/scripts/session-start`
+  (after importing the Sway session env) and owns the desktop services
+  (waybar, mako, swayidle, …); `session-quit` stops them. Vendor user units for
+  `mako`, `waybar`, `kanshi`, `foot-server` are masked by `dotfiles-sync --apply`
+  so D-Bus activation can't start duplicates.
+- Re-run `systemctl --user daemon-reload` after editing `*.service`/`*.container`.
+- `toolbox-dev.service` / `ollama-toolbox.service` assume toolboxes named `dev` /
+  `ollama` already exist (with `ollama` installed inside the latter).

@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""Launcher + installer for OptiScaler Client (the GUI OptiScaler manager).
+
+OptiScaler Client is a self-contained Avalonia/.NET GUI for installing and
+updating the OptiScaler mod across a Steam library. Upstream:
+https://github.com/Agustinm28/Optiscaler-Client
+
+The binary is large (~60 MB) and updates often, so it is NOT vendored in this
+repo. This script installs it on demand into ``$XDG_DATA_HOME/optiscaler-client``
+from the official GitHub release assets, and launches it.
+
+Subcommands
+-----------
+  run        (default) Launch the client, installing the latest release first
+             if nothing is installed yet.
+  update     Download and install the latest release, replacing any existing
+             install. Use ``--tag <tag>`` to pin a specific release.
+  status     Print the installed version (and the latest available) as text.
+  path       Print the install directory.
+
+The installed version is tracked in a ``.version`` file in the install dir, so
+``update`` is a no-op when already current unless ``--force`` is given.
+
+Why this is Python: GitHub API JSON parsing, arch detection, tarball extraction
+and version bookkeeping are well past the "thin wrapper" bar for shell.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import platform
+import shutil
+import sys
+import tarfile
+import tempfile
+import urllib.request
+from pathlib import Path
+
+REPO = "Agustinm28/Optiscaler-Client"
+API_LATEST = f"https://api.github.com/repos/{REPO}/releases/latest"
+API_TAG = f"https://api.github.com/repos/{REPO}/releases/tags/{{tag}}"
+
+XDG_DATA_HOME = Path(
+    os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
+)
+XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+INSTALL_DIR = XDG_DATA_HOME / "optiscaler-client"
+VERSION_FILE = INSTALL_DIR / ".version"
+BINARY_NAME = "OptiscalerClient"
+
+# Sanitized seed config + profiles shipped in the repo. Copied into the app's
+# config dir on first run only (never clobbering live state, which the app
+# rewrites with window geometry/timestamps/library data). __file__ resolves
+# through the stow symlink back into the repo; the seed lives at
+# fedora/optiscaler-client-seed/ (outside the bin stow package, so it is not
+# itself stowed into $HOME). Relative to fedora/bin/.local/bin/<script>, that
+# is parents[3] == fedora/.
+SEED_DIR = Path(__file__).resolve().parents[3] / "optiscaler-client-seed"
+APP_CONFIG_DIR = XDG_CONFIG_HOME / "OptiscalerClient"
+
+
+def _seed_config() -> None:
+    """Copy seed files into the app config dir, skipping any that already exist.
+
+    The seed lives in the repo (sanitized: no library, no window geometry, no
+    timestamps). We only ever create missing files so a live, app-managed
+    config is never overwritten.
+    """
+    if not SEED_DIR.is_dir():
+        return
+    for src in SEED_DIR.rglob("*"):
+        if not src.is_file():
+            continue
+        dest = APP_CONFIG_DIR / src.relative_to(SEED_DIR)
+        if dest.exists():
+            continue
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+        print(f"Seeded {dest}")
+
+
+def _arch_token() -> str:
+    machine = platform.machine().lower()
+    if machine in {"x86_64", "amd64"}:
+        return "linux-x64"
+    if machine in {"aarch64", "arm64"}:
+        return "linux-arm64"
+    sys.exit(f"Unsupported architecture: {machine}")
+
+
+def _fetch_release(tag: str | None) -> dict:
+    url = API_TAG.format(tag=tag) if tag else API_LATEST
+    req = urllib.request.Request(
+        url, headers={"Accept": "application/vnd.github+json", "User-Agent": "dotfiles"}
+    )
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.load(resp)
+
+
+def _pick_asset(release: dict) -> tuple[str, str]:
+    """Return (asset_name, download_url) for this host's .tar.gz."""
+    want = f"-{_arch_token()}.tar.gz"
+    for asset in release.get("assets", []):
+        name = asset.get("name", "")
+        if name.endswith(want):
+            return name, asset["browser_download_url"]
+    sys.exit(f"No release asset matching '*{want}' in {release.get('tag_name')}")
+
+
+def _installed_version() -> str | None:
+    if VERSION_FILE.is_file():
+        return VERSION_FILE.read_text().strip() or None
+    return None
+
+
+def _install(tag: str | None, force: bool) -> str:
+    release = _fetch_release(tag)
+    version = release["tag_name"]
+    if not force and _installed_version() == version and _binary_path().is_file():
+        print(f"Already up to date: {version}")
+        return version
+
+    asset_name, url = _pick_asset(release)
+    print(f"Downloading {asset_name} ...")
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        archive = tmp_path / asset_name
+        _download(url, archive)
+
+        extract_root = tmp_path / "extract"
+        extract_root.mkdir()
+        with tarfile.open(archive) as tar:
+            _safe_extract(tar, extract_root)
+
+        src = _locate_payload(extract_root)
+        # Replace install dir atomically-ish: stage then swap.
+        if INSTALL_DIR.exists():
+            shutil.rmtree(INSTALL_DIR)
+        INSTALL_DIR.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(src), str(INSTALL_DIR))
+
+    binary = _binary_path()
+    if not binary.is_file():
+        sys.exit(f"Install finished but {binary} is missing")
+    binary.chmod(binary.stat().st_mode | 0o111)
+    VERSION_FILE.write_text(version + "\n")
+    print(f"Installed OptiScaler Client {version} -> {INSTALL_DIR}")
+    return version
+
+
+def _download(url: str, dest: Path) -> None:
+    req = urllib.request.Request(url, headers={"User-Agent": "dotfiles"})
+    with urllib.request.urlopen(req, timeout=120) as resp, dest.open("wb") as fh:
+        shutil.copyfileobj(resp, fh)
+
+
+def _safe_extract(tar: tarfile.TarFile, dest: Path) -> None:
+    dest_resolved = dest.resolve()
+    for member in tar.getmembers():
+        target = (dest / member.name).resolve()
+        if not str(target).startswith(str(dest_resolved)):
+            sys.exit(f"Refusing path traversal in archive: {member.name}")
+    tar.extractall(dest)
+
+
+def _locate_payload(root: Path) -> Path:
+    """Find the dir containing the OptiscalerClient binary inside the archive."""
+    direct = root / BINARY_NAME
+    if direct.is_file():
+        return root
+    for path in root.rglob(BINARY_NAME):
+        if path.is_file():
+            return path.parent
+    sys.exit("Could not find OptiscalerClient binary in the downloaded archive")
+
+
+def _binary_path() -> Path:
+    return INSTALL_DIR / BINARY_NAME
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    if not _binary_path().is_file():
+        print("OptiScaler Client not installed; fetching latest ...")
+        _install(tag=None, force=False)
+    _seed_config()
+    # exec so the GUI owns the process; pass through any extra args.
+    os.execv(str(_binary_path()), [str(_binary_path()), *args.extra])
+
+
+def cmd_update(args: argparse.Namespace) -> int:
+    _install(tag=args.tag, force=args.force)
+    return 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    installed = _installed_version() or "(not installed)"
+    print(f"installed: {installed}")
+    try:
+        latest = _fetch_release(None)["tag_name"]
+        print(f"latest:    {latest}")
+    except Exception as exc:  # status is best-effort
+        print(f"latest:    (unavailable: {exc})")
+    return 0
+
+
+def cmd_path(args: argparse.Namespace) -> int:
+    print(INSTALL_DIR)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Install/update/launch OptiScaler Client.",
+    )
+    sub = parser.add_subparsers(dest="cmd")
+
+    p_run = sub.add_parser("run", help="launch (install latest if needed)")
+    p_run.add_argument("extra", nargs=argparse.REMAINDER)
+    p_run.set_defaults(func=cmd_run)
+
+    p_update = sub.add_parser("update", help="download/install latest release")
+    p_update.add_argument("--tag", help="pin a specific release tag")
+    p_update.add_argument(
+        "--force", action="store_true", help="reinstall even if current"
+    )
+    p_update.set_defaults(func=cmd_update)
+
+    sub.add_parser("status", help="show installed/latest version").set_defaults(
+        func=cmd_status
+    )
+    sub.add_parser("path", help="print install dir").set_defaults(func=cmd_path)
+
+    args = parser.parse_args(argv)
+    if args.cmd is None:
+        args = parser.parse_args(["run"])
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
