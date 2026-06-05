@@ -6,7 +6,7 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
-from .config import SCRIPT_DIR
+from .config import SCRIPT_DIR, relative_symlink_target
 from .pins import TPM, TPM_DEST, ZSH_PLUGINS, ZSH_PLUGINS_DEST
 
 LOGGER = logging.getLogger("dotfiles-sync")
@@ -152,7 +152,7 @@ def _agent_link_apply(
     for name in sorted(expected_names):
         source = src_dir / name
         dest = dest_dir / name
-        relative = os.path.relpath(source, dest.parent)
+        relative = relative_symlink_target(source, dest)
         if dest.is_symlink():
             if os.readlink(dest) == relative:
                 if verbose:

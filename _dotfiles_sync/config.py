@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Final
@@ -8,6 +9,18 @@ from typing import Final
 from .model import TaskPolicy
 
 SCRIPT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
+
+
+def relative_symlink_target(source: Path, dest: Path) -> str:
+    """Relative target for a symlink at `dest` pointing to `source`.
+
+    Resolves `dest`'s parent first so the `..` count is correct even when
+    HOME contains symlinked components (e.g. /home -> var/home on Fedora
+    Silverblue), since the kernel resolves `..` physically, not lexically.
+    """
+    return os.path.relpath(source, dest.parent.resolve())
+
+
 LOGGER: Final[logging.Logger] = logging.getLogger("dotfiles-sync")
 BACKUP_DIR_NAME: Final[str] = ".dotfiles-sync-backups"
 
