@@ -174,13 +174,13 @@ shutting down the daemons before the compositor itself terminates.
 
 ## Lock Screen
 
-`~/.config/sway/scripts/lock-screen` is a small (~140 line) wrapper
-around `swaylock`. All the picture work — blur, banner stamp, accent
-color pluck, cache management — lives in the [`wallpaper`](../../fedora/bin/.local/bin/wallpaper)
+`~/.config/sway/scripts/lock-screen` is a small wrapper around
+`swaylock`. Image work — blur, banner stamp, and cache management —
+lives in the [`wallpaper`](../../fedora/bin/.local/bin/wallpaper)
 helper. The lock-screen script just:
 
 1. Calls `wallpaper status`, which returns JSON like
-   `{"path": ..., "lock_image": ..., "accent": "9b8c32"}`.
+   `{"path": "...", "lock_image": "..."}`.
 2. Builds `swaylock --image <lock_image> --scaling fill <passthrough-args>`.
 3. exec's into `swaylock`.
 
@@ -192,13 +192,9 @@ Locking must always succeed, so there's a fallback chain:
   was set) but `path` present → raw wallpaper, no blur or banner.
 - `path` also missing → solid color again.
 
-The wallpaper accent is deliberately scoped to the banner text *inside*
-the rendered lock image — it doesn't bleed into the swaylock chrome.
-All five state ring colors (rest, clear, caps-lock, ver, wrong) plus
-`key-hl-color` come from `swaylock/.config/swaylock/config` so the
-chrome stays theme-coherent across wallpapers. The status JSON still
-emits `accent` for future consumers (e.g. propagating into waybar/mako
-at wallpaper-set time).
+Swaylock chrome colors (ring, key-hl, state colors) come from
+`swaylock/.config/swaylock/config`, keeping the lock UI theme-coherent
+across wallpapers.
 
 Unknown flags pass through to swaylock verbatim (`parse_known_args`),
 which is why `session-swayidle` can keep calling `lock-screen --daemonize`.
@@ -213,12 +209,15 @@ The rendering recipe (blurred wallpaper + banner stamp) lives in
 - via `wallpaper rebuild-cache` to force a fresh render (used after
   editing the render constants in `wallpaper`).
 
-The blur (sigma 18), banner geometry, font (`JetBrainsMono-NF-Bold`),
-and saturation scale (0.85) are constants at the top of the script.
+The blur (sigma 8), lock render cap (2560×1440), banner geometry,
+banner color, and font candidates (`SF Compact Text`, then
+JetBrains/Noto/DejaVu fallbacks) are constants at the top of the
+script. If no ImageMagick-readable font is available, rendering falls
+back to a blurred image without the banner.
 Change them and bump `RENDER_VERSION` next to the constants — that
 invalidates all cached entries automatically.
 
-Results are cached under `$XDG_CACHE_HOME/wallpaper/<sha1(path+mtime+RENDER_VERSION)>.{png,color,sixel-WxH}`.
+Results are cached under `$XDG_CACHE_HOME/wallpaper/<sha1(path+mtime+RENDER_VERSION)>.{png,sixel-WxH}`.
 The warm path (cache hit during `wallpaper status`) is essentially
 instant. Cold render is ~3–6 s depending on wallpaper size. Cache
 entries are kept for the lifetime of the source archive entry — when
