@@ -79,7 +79,7 @@ def build_swaylock_cmd(passthrough: list[str]) -> list[str]:
       - wallpaper helper missing OR no current wallpaper      -> solid color
       - lock_image present and on disk                         -> -i lock_image
       - lock_image missing but wallpaper path present and OK   -> -i wallpaper
-        (raw wallpaper, no blur/banner — degraded but still locked)
+        (raw wallpaper, no blur — degraded but still locked)
       - everything missing                                     -> solid color
     """
     status = wallpaper_status()
