@@ -1,58 +1,13 @@
 #!/usr/bin/env python3
-"""Wallpaper helper for sway/swaybg + lock-screen.
-
-Owns everything to do with wallpapers: storage, the `current` symlink
-that swaybg consumes, and the rendered "lock" image (blurred + banner-
-stamped + accent-colored) that lock-screen consumes via the JSON
-emitted by `wallpaper status`.
-
-Subcommands
------------
-  set <url-or-file>     Download (curl) or copy a wallpaper into the
-                        archive, snapshot the previous current if it
-                        wasn't already an archive entry, activate,
-                        restart swaybg.service, and pre-render the
-                        lock image so the next lock is instant.
-  use [archive-file]    Activate an existing archive entry. Without an
-                        argument: open an fzf picker. Argument can be a
-                        bare basename or a full path. Also pre-renders
-                        the lock image.
-  current               Print the resolved path of the active wallpaper
-                        as plain text. Used by swaybg / scripts that
-                        only want the source path. Fast (pure symlink
-                        read).
-  status                Print JSON describing the active wallpaper plus
-                        derived state for the lock screen:
-                          { "path": ..., "lock_image": ..., "accent": ... }
-                        Returns exit 1 with empty JSON if no wallpaper.
-                        Pure cache read; doesn't render on demand. Used
-                        by lock-screen.
-  restart               Restart swaybg.service.
-  preview <file>        Render via ImageMagick (sixel) for fzf's preview pane.
-  rebuild-cache         Force-rebuild the lock image + accent for the
-                        current wallpaper. Useful after editing the
-                        render constants in this file.
-
-Why this is Python
-------------------
-Was 305 lines of bash with `declare -g` global contracts, `set -u`
-tripping on `local`-shadowed-globals, tab-separated `mktemp` templates
-parsed by `read`, and quoted-eval gymnastics for filename sanitization.
-Per AGENTS.md "Shell vs Python rule": got moved to Python. Then absorbed
-the lock-image rendering + accent-color picking from sway/scripts/
-lock-screen so all ImageMagick code lives here — lock-screen just calls
-`wallpaper status` and execs swaylock with the result.
-"""
+"""Manage sway wallpapers, lock-screen render cache, and fzf previews."""
 
 from __future__ import annotations
 
 import argparse
-import colorsys
 import contextlib
 import hashlib
 import json
 import os
-import re
 import shutil
 import socket
 import string
@@ -72,48 +27,50 @@ XDG_DATA_HOME = Path(
     os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
 )
 XDG_CACHE_HOME = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
-XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
 
 TARGET_DIR = XDG_DATA_HOME / "wallpapers"
 ARCHIVE_DIR = TARGET_DIR / "archive"
 CURRENT_LINK = TARGET_DIR / "current"
 CACHE_DIR = XDG_CACHE_HOME / "wallpaper"
 
-# Fallback location read by `wallpaper current` only (legacy compat).
-FALLBACK_CURRENT = XDG_CONFIG_HOME / "wallpapers" / "current"
-
 
 # ----------------------------------------------------------------------
-# Lock-image render recipe (was previously flags on lock-screen).
-#
-# Bake-in instead of expose because pillar #4 — the flags weren't
-# earning their keep, the values stabilized months ago, and tweaking
-# requires editing this file (which invalidates the cache via
-# RENDER_VERSION below).
+# Lock-image render recipe
 # ----------------------------------------------------------------------
 
-BLUR_SIGMA = 12.0
-# Multiply plucked-color saturation by this so the accent reads as
-# wallpaper-derived rather than neon. 1.0 = take what the wallpaper
-# gives you; 0.85 takes the edge off without losing identity.
-SATURATION_SCALE = 0.85
-# ImageMagick `-font` takes a PostScript / fontconfig pattern, not
-# the family-name form used in sway/waybar/fuzzel/swaylock configs.
-# Same font asset, different lookup mechanism, different spelling.
-FONT = "SF-Compact-Text-Bold"
+BLUR_SIGMA = 8.0
+# ImageMagick `-font` is happiest with a concrete font file in this
+# environment: the mise-built ImageMagick has FreeType support, but
+# `magick -list font` is empty and family/pattern lookups fail even
+# though fontconfig can see the font. Try concrete bundled/user/system
+# font paths first, then fall back to names for installs where
+# ImageMagick's font registry works.
+FONT_CANDIDATES = (
+    XDG_DATA_HOME / "fonts" / "SF-Compact-Text-Bold.otf",
+    XDG_DATA_HOME / "fonts" / "JetBrainsMono" / "JetBrainsMono-Bold.ttf",
+    XDG_DATA_HOME / "fonts" / "JetBrainsMonoNerd" / "JetBrainsMonoNerdFont-Bold.ttf",
+    Path("/usr/share/fonts/google-noto-sans-vf/NotoSans[wght].ttf"),
+    Path("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf"),
+    "SF-Compact-Text-Bold",
+    "JetBrainsMono-NF-Bold",
+    "DejaVu-Sans-Bold",
+)
 # Banner geometry as fractions of wallpaper height (back-derived from
 # the prior fixed 1080p values: 42/30 pt, 152/100 px from south).
 LINE1_PT_FRAC, LINE2_PT_FRAC = 0.039, 0.028
 LINE1_Y_FRAC, LINE2_Y_FRAC = 0.141, 0.093
 SHADOW_OFFSET_FRAC = 0.0019
-# WCAG AA contrast for large text. Accents below this against the
-# blurred bottom band get rejected in favor of FALLBACK_TEXT_COLOR.
-MIN_ACCENT_CONTRAST = 3.0
 # Bump when changing anything that affects a cached artifact (font,
 # pointsizes, blur recipe, banner geometry, sixel encoding). The cache
 # key folds this in, so changes invalidate every <key>.* entry in one
-# go — lock PNG, accent file, and per-pane-size sixels alike.
-RENDER_VERSION = 10
+# go — lock PNG and per-pane-size sixels alike.
+RENDER_VERSION = 17
+# Lock images are display artifacts, not archival copies. Downscale very
+# large wallpapers before blur/banner rendering so cache rebuilds stay
+# fast and do not hit subprocess timeouts on 5K/8K sources.
+LOCK_MAX_WIDTH = 2560
+LOCK_MAX_HEIGHT = 1440
+LOCK_RENDER_TIMEOUT = 20
 # Catppuccin Mocha base — sixel preview canvas fill. The fixed canvas
 # matters because fzf/foot don't reliably clear old sixel pixels when
 # consecutive previews have different intrinsic sizes.
@@ -124,13 +81,10 @@ PREVIEW_BACKGROUND_COLOR = "#1e1e2e"
 # produced no image even though the sixel bytes were valid. `+dither`
 # avoids noisy diffusion patterns that compress poorly in sixel output.
 PREVIEW_COLORS = 48
-# Catppuccin Mocha 'text' — banner fallback when accent pluck fails.
+# Catppuccin Mocha 'text' — banner color.
 # THEME BEGIN: wallpaper-fallback-color
-FALLBACK_TEXT_COLOR = "cdd6f4"
+BANNER_TEXT_COLOR = "cdd6f4"
 # THEME END: wallpaper-fallback-color
-
-# Match lines like:  "  1962: (92,37,12) #5C250C srgb(...)"
-_HIST_RE = re.compile(r"^\s*(\d+):.*#([0-9A-Fa-f]{6})")
 
 
 # ----------------------------------------------------------------------
@@ -216,43 +170,44 @@ def restart_swaybg() -> None:
 
 
 # ----------------------------------------------------------------------
-# Cache: lock image + accent color + per-pane-size sixel previews
+# Cache: lock image + per-pane-size sixel previews
 #
-# Files live at $XDG_CACHE_HOME/wallpaper/<sha>.{png,color,sixel-WxH}.
+# Files live at $XDG_CACHE_HOME/wallpaper/<sha>.{png,sixel-WxH}.
 # Key is wallpaper path + mtime + RENDER_VERSION; bumping the version
 # (or editing the source wallpaper) invalidates the entry automatically.
 # Entries are removed when the source archive entry is deleted; there
 # is no time-based pruning, so a wallpaper kept around for years keeps
 # its warm lock-screen cache for years.
 #
-# Lock-screen reads {png,color} via `wallpaper status`. Wallpaper
-# set/use pre-render those so the next lock is instant. Sixels are
-# rendered on demand by `wallpaper preview` (used by the fzf picker)
-# and cached per (cols x lines) pane size on first paint.
+# Lock-screen reads the PNG via `wallpaper status`. Wallpaper set/use
+# pre-render it so the next lock is instant. Sixels are rendered on
+# demand by `wallpaper preview` (used by the fzf picker) and cached per
+# (cols x lines) pane size on first paint.
 # ----------------------------------------------------------------------
 
 
 def _cache_key(wallpaper: Path) -> str | None:
-    """Stable key derived from absolute path + mtime + RENDER_VERSION."""
+    """Stable key derived from canonical path + mtime + RENDER_VERSION."""
     try:
-        mtime = wallpaper.stat().st_mtime_ns
+        source = wallpaper.resolve(strict=True)
+        mtime = source.stat().st_mtime_ns
     except OSError:
         return None
-    raw = f"{wallpaper}\0{mtime}\0v={RENDER_VERSION}".encode()
+    raw = f"{source}\0{mtime}\0v={RENDER_VERSION}".encode()
     return hashlib.sha1(raw).hexdigest()[:16]
 
 
-def _cache_paths(wallpaper: Path) -> tuple[Path, Path] | None:
+def _cache_path(wallpaper: Path) -> Path | None:
     key = _cache_key(wallpaper)
     if key is None:
         return None
-    return CACHE_DIR / f"{key}.png", CACHE_DIR / f"{key}.color"
+    return CACHE_DIR / f"{key}.png"
 
 
 def _sixel_cache_path(wallpaper: Path, cols: int, lines: int) -> Path | None:
     """Cache path for a (wallpaper, cols x lines) sixel render.
 
-    Shares the wallpaper's `_cache_key` with the lock PNG/accent so
+    Shares the wallpaper's `_cache_key` with the lock PNG so
     `cmd__delete_archive` can glob `<key>.*` and clean every artifact
     derived from one archive entry in a single pass. Returns None if
     the wallpaper's mtime can't be stat'd.
@@ -303,159 +258,113 @@ def _atomic_write(path: Path, data: bytes) -> None:
             tmp_path.unlink()
 
 
-def _luminance(r: float, g: float, b: float) -> float:
-    """WCAG relative luminance for sRGB inputs in [0,1]."""
-
-    def chan(c: float) -> float:
-        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
-
-    return 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b)
+def _font_args(font: str | Path) -> list[str]:
+    return ["-font", str(font)]
 
 
-def _bottom_band_luminance(src: Path) -> float | None:
-    """Mean luminance of the blurred bottom 25% (where the banner lands)."""
-    if not shutil.which("magick"):
-        return None
-    try:
-        res = subprocess.run(
-            [
-                "magick",
-                str(src),
-                "-blur",
-                f"0x{BLUR_SIGMA}",
-                "-gravity",
-                "south",
-                "-crop",
-                "100%x25%+0+0",
-                "+repage",
-                "-resize",
-                "1x1!",
-                "-format",
-                "%[fx:r] %[fx:g] %[fx:b]",
-                "info:-",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15,
-            check=False,
-        )
-        r, g, b = (float(x) for x in res.stdout.split())
-    except (OSError, subprocess.SubprocessError, ValueError):
-        return None
-    return _luminance(r, g, b) if res.returncode == 0 else None
+def _available_fonts() -> list[str | Path]:
+    """Return ImageMagick font candidates that are plausible here.
 
-
-def _pick_accent(src: Path) -> str | None:
-    """Quantize wallpaper to 16 colors; pick the most-prominent vivid one
-    that also contrasts against the banner zone.
-
-    Score = count * saturation^1.5 * brightness-near-mid. Top candidates
-    are then filtered by WCAG contrast against the (blurred) bottom
-    band so we don't pick a near-background color (e.g. plucking dark
-    navy from a cosmic wallpaper and rendering invisible text on dark
-    blur). Winner is desaturated by SATURATION_SCALE so it reads as an
-    accent rather than a neon stripe. Returns 6-char hex (no #) or None
-    on failure / no candidate clears the contrast bar.
+    Path candidates must exist. Name candidates are kept as a final
+    fallback for systems where ImageMagick's own font registry works.
     """
-    if not shutil.which("magick"):
-        return None
+    fonts: list[str | Path] = []
+    for candidate in FONT_CANDIDATES:
+        if isinstance(candidate, Path):
+            if candidate.is_file():
+                fonts.append(candidate)
+        else:
+            fonts.append(candidate)
+    return fonts
+
+
+def _is_font_error(stderr: bytes) -> bool:
+    text = stderr.decode(errors="ignore").lower()
+    return "unable to read font" in text or "renderfreetype" in text
+
+
+def _summarize_stderr(stderr: bytes) -> str:
+    text = stderr.decode(errors="ignore").strip()
+    if not text:
+        return "no error output"
+    return " ".join(text.split())[:240]
+
+
+def _lock_render_tmp(dst: Path) -> Path | None:
     try:
-        res = subprocess.run(
-            [
-                "magick",
-                str(src),
-                "-resize",
-                "200x200",
-                "-colors",
-                "16",
-                "-depth",
-                "8",
-                "-format",
-                "%c",
-                "histogram:info:-",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15,
-            check=False,
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_str = tempfile.mkstemp(
+            dir=str(dst.parent), prefix=f".{dst.name}.", suffix=".tmp.png"
         )
-    except (OSError, subprocess.SubprocessError):
+        os.close(fd)
+    except OSError:
         return None
-    if res.returncode != 0:
-        return None
+    return Path(tmp_str)
 
-    # Collect viable candidates; walk by score desc taking the first
-    # that clears MIN_ACCENT_CONTRAST against the bottom band.
-    candidates: list[tuple[float, float, float, float]] = []  # (score,h,l,s)
-    for line in res.stdout.splitlines():
-        m = _HIST_RE.match(line)
-        if not m:
-            continue
-        count = int(m.group(1))
-        hexv = m.group(2).lower()
-        r, g, b = (int(hexv[i : i + 2], 16) / 255 for i in (0, 2, 4))
-        hue, lightness, sat = colorsys.rgb_to_hls(r, g, b)
-        bright = max(0.0, 1 - abs(lightness - 0.55) * 1.4)
-        score = count * (sat**1.5) * bright
-        if score > 0:
-            candidates.append((score, hue, lightness, sat))
 
-    candidates.sort(key=lambda t: t[0], reverse=True)
-    bg_lum = _bottom_band_luminance(src)
-    for _, hue, lightness, sat in candidates:
-        r, g, b = colorsys.hls_to_rgb(hue, lightness, sat * SATURATION_SCALE)
-        if bg_lum is not None:
-            fg_lum = _luminance(r, g, b)
-            ratio = (max(fg_lum, bg_lum) + 0.05) / (min(fg_lum, bg_lum) + 0.05)
-            if ratio < MIN_ACCENT_CONTRAST:
-                continue
-        return f"{round(r * 255):02x}{round(g * 255):02x}{round(b * 255):02x}"
+def _publish_lock_render(tmp_path: Path, dst: Path) -> str | None:
+    if not tmp_path.is_file():
+        return "renderer produced no output file"
+    if tmp_path.stat().st_size <= 0:
+        return "renderer produced an empty output file"
+    try:
+        os.replace(tmp_path, dst)
+    except OSError as exc:
+        return f"failed to publish cache image: {exc}"
     return None
 
 
-def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
-    """Render blurred + banner-stamped wallpaper to dst.
-
-    Blur is applied first so the banner stays sharp. Banner is two
-    centered stacked lines (LOCKED / user@host) with a 2px dark drop-
-    shadow underneath each line so the text stays legible against light
-    wallpapers. Banner fill is the plucked accent (falls back to
-    Catppuccin text color).
-    """
+def _build_lock_image(src: Path, dst: Path) -> tuple[bool, str | None]:
+    """Render blurred + banner-stamped wallpaper to dst."""
     if not shutil.which("magick"):
-        return False
-    # Pull height to scale geometry; bail rather than render illegibly.
+        return False, "magick not found on PATH"
+    # Pull dimensions to scale geometry; bail rather than render illegibly.
     try:
         dim = subprocess.run(
-            ["magick", "identify", "-format", "%h", str(src)],
+            ["magick", "identify", "-format", "%w %h", str(src)],
             capture_output=True,
             text=True,
             timeout=10,
             check=False,
         )
-        height = int(dim.stdout.strip())
-    except (OSError, subprocess.SubprocessError, ValueError):
-        return False
-    if height <= 0:
-        return False
+        if dim.returncode != 0:
+            return (
+                False,
+                f"failed to identify source image: {_summarize_stderr(dim.stderr.encode())}",
+            )
+        width, height = (int(part) for part in dim.stdout.split())
+    except subprocess.TimeoutExpired:
+        return False, "timed out identifying source image after 10s"
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        return False, f"failed to identify source image: {exc}"
+    if width <= 0 or height <= 0:
+        return False, f"invalid source dimensions: {width}x{height}"
+
+    scale = min(1.0, LOCK_MAX_WIDTH / width, LOCK_MAX_HEIGHT / height)
+    render_height = max(1, round(height * scale))
 
     line1 = "LOCKED"
     line2 = f"{os.environ.get('USER', 'user')}@{socket.gethostname().split('.')[0]}"
     # y-offsets are from the bottom (gravity south); larger y = higher up.
-    line1_y = round(height * LINE1_Y_FRAC)
-    line2_y = round(height * LINE2_Y_FRAC)
-    line1_pt = str(round(height * LINE1_PT_FRAC))
-    line2_pt = str(round(height * LINE2_PT_FRAC))
-    shadow_off = max(1, round(height * SHADOW_OFFSET_FRAC))
-    if accent and re.fullmatch(r"[0-9a-fA-F]{6}", accent):
-        fill = f"#{accent}ff"
-    else:
-        fill = f"#{FALLBACK_TEXT_COLOR}ff"
+    line1_y = round(render_height * LINE1_Y_FRAC)
+    line2_y = round(render_height * LINE2_Y_FRAC)
+    line1_pt = str(round(render_height * LINE1_PT_FRAC))
+    line2_pt = str(round(render_height * LINE2_PT_FRAC))
+    shadow_off = max(1, round(render_height * SHADOW_OFFSET_FRAC))
+    fill = f"#{BANNER_TEXT_COLOR}ff"
     shadow = "#00000099"
-    cmd: list[str] = ["magick", str(src), "-blur", f"0x{BLUR_SIGMA}"]
-    cmd += ["-gravity", "south", "-font", FONT]
+    base_cmd: list[str] = [
+        "magick",
+        str(src),
+        "-sample",
+        f"{LOCK_MAX_WIDTH}x{LOCK_MAX_HEIGHT}>",
+        "-blur",
+        f"0x{BLUR_SIGMA}",
+    ]
+    base_cmd += ["-gravity", "south"]
+    annotate_args: list[str] = []
     for text, y, pt in ((line1, line1_y, line1_pt), (line2, line2_y, line2_pt)):
-        cmd += [
+        annotate_args += [
             "-pointsize",
             pt,
             "-fill",
@@ -469,68 +378,138 @@ def _build_lock_image(src: Path, dst: Path, *, accent: str | None) -> bool:
             f"+0+{y}",
             text,
         ]
-    cmd.append(str(dst))
-    try:
-        res = subprocess.run(cmd, capture_output=True, timeout=30, check=False)
-    except (OSError, subprocess.SubprocessError):
-        return False
-    return res.returncode == 0 and dst.is_file() and dst.stat().st_size > 0
+
+    saw_font_error = False
+    for font in _available_fonts():
+        tmp_path = _lock_render_tmp(dst)
+        if tmp_path is None:
+            return False, f"failed to create temporary render file under {dst.parent}"
+        cmd = [
+            *base_cmd,
+            *_font_args(font),
+            *annotate_args,
+            "-alpha",
+            "remove",
+            "-strip",
+            "-define",
+            "png:compression-level=1",
+            str(tmp_path),
+        ]
+        try:
+            res = subprocess.run(
+                cmd,
+                capture_output=True,
+                timeout=LOCK_RENDER_TIMEOUT,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(OSError):
+                tmp_path.unlink()
+            return False, f"timed out rendering lock image after {LOCK_RENDER_TIMEOUT}s"
+        except (OSError, subprocess.SubprocessError) as exc:
+            with contextlib.suppress(OSError):
+                tmp_path.unlink()
+            return False, f"failed to run ImageMagick: {exc}"
+        publish_error = (
+            _publish_lock_render(tmp_path, dst) if res.returncode == 0 else None
+        )
+        if publish_error is None and res.returncode == 0:
+            return True, None
+        with contextlib.suppress(OSError):
+            tmp_path.unlink()
+        if _is_font_error(res.stderr):
+            saw_font_error = True
+            continue
+        if publish_error is not None:
+            return False, publish_error
+        return (
+            False,
+            f"ImageMagick exited {res.returncode}: {_summarize_stderr(res.stderr)}",
+        )
+
+    # Last-resort graceful fallback: produce the blurred image without
+    # banner text. Lock-screen still gets the important part (blurred
+    # wallpaper) even on hosts where no ImageMagick-readable font can be
+    # found. Only use this path for font failures; other ImageMagick
+    # errors may mean the source image itself is unreadable.
+    if saw_font_error:
+        tmp_path = _lock_render_tmp(dst)
+        if tmp_path is None:
+            return False, f"failed to create temporary render file under {dst.parent}"
+        try:
+            res = subprocess.run(
+                [
+                    "magick",
+                    str(src),
+                    "-sample",
+                    f"{LOCK_MAX_WIDTH}x{LOCK_MAX_HEIGHT}>",
+                    "-blur",
+                    f"0x{BLUR_SIGMA}",
+                    "-alpha",
+                    "remove",
+                    "-strip",
+                    "-define",
+                    "png:compression-level=1",
+                    str(tmp_path),
+                ],
+                capture_output=True,
+                timeout=LOCK_RENDER_TIMEOUT,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(OSError):
+                tmp_path.unlink()
+            return False, f"timed out rendering lock image after {LOCK_RENDER_TIMEOUT}s"
+        except (OSError, subprocess.SubprocessError) as exc:
+            with contextlib.suppress(OSError):
+                tmp_path.unlink()
+            return False, f"failed to run ImageMagick fallback: {exc}"
+        publish_error = (
+            _publish_lock_render(tmp_path, dst) if res.returncode == 0 else None
+        )
+        if publish_error is None and res.returncode == 0:
+            return True, None
+        with contextlib.suppress(OSError):
+            tmp_path.unlink()
+        if publish_error is not None:
+            return False, publish_error
+        return (
+            False,
+            f"ImageMagick fallback exited {res.returncode}: {_summarize_stderr(res.stderr)}",
+        )
+
+    return False, "all configured fonts failed"
 
 
 def build_lock_cache(
     wallpaper: Path, *, force: bool = False, verbose: bool = False
 ) -> tuple[Path | None, str | None]:
-    """Pluck accent + render lock image for `wallpaper`. Idempotent.
-
-    Returns (image_path, accent_hex). Either may be None if the
-    corresponding step failed (no `magick` on PATH, etc.). Lock-screen
-    handles those Nones via its solid-color fallback.
-    """
-    paths = _cache_paths(wallpaper)
-    if paths is None:
-        return None, None
-    img_path, color_path = paths
+    """Render the lock image for `wallpaper` if missing or forced."""
+    img_path = _cache_path(wallpaper)
+    if img_path is None:
+        return None, "wallpaper path could not be stat'd"
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-    cache_hit = (
-        not force
-        and img_path.is_file()
-        and img_path.stat().st_size > 0
-        and color_path.is_file()
-        and color_path.stat().st_size > 0
-    )
+    cache_hit = not force and img_path.is_file() and img_path.stat().st_size > 0
     if verbose and not cache_hit:
         print("Generating lock-screen image... ", end="", flush=True)
 
-    # Accent first — the rendered image bakes it into the banner, so a
-    # cached image without the accent stored is meaningless.
-    accent: str | None = None
     if force:
-        for p in (img_path, color_path):
-            p.unlink(missing_ok=True)
-    if color_path.is_file() and color_path.stat().st_size > 0:
-        try:
-            cached = color_path.read_text().strip()
-            if re.fullmatch(r"[0-9a-fA-F]{6}", cached):
-                accent = cached
-        except OSError:
-            pass
-    if accent is None:
-        accent = _pick_accent(wallpaper)
-        if accent:
-            with contextlib.suppress(OSError):
-                color_path.write_text(accent + "\n")
+        img_path.unlink(missing_ok=True)
 
     image: Path | None = None
-    if (img_path.is_file() and img_path.stat().st_size > 0) or _build_lock_image(
-        wallpaper, img_path, accent=accent
-    ):
+    error: str | None = None
+    if img_path.is_file() and img_path.stat().st_size > 0:
         image = img_path
+    else:
+        ok, error = _build_lock_image(wallpaper, img_path)
+        if ok:
+            image = img_path
 
     if verbose and not cache_hit:
-        print("done" if image else "failed", flush=True)
+        print("done" if image else f"failed: {error or 'unknown error'}", flush=True)
 
-    return image, accent
+    return image, error
 
 
 # ----------------------------------------------------------------------
@@ -661,13 +640,12 @@ def cmd_current(_args: argparse.Namespace) -> int:
 
 def _resolve_current() -> Path | None:
     """Return the active wallpaper's resolved path, or None if not set."""
-    for candidate in (CURRENT_LINK, FALLBACK_CURRENT):
-        if candidate.is_file():
-            try:
-                return candidate.resolve(strict=True)
-            except OSError:
-                return candidate
-    return None
+    if not CURRENT_LINK.is_file():
+        return None
+    try:
+        return CURRENT_LINK.resolve(strict=True)
+    except OSError:
+        return CURRENT_LINK
 
 
 def cmd_status(_args: argparse.Namespace) -> int:
@@ -683,26 +661,15 @@ def cmd_status(_args: argparse.Namespace) -> int:
         return 1
 
     lock_image: str | None = None
-    accent: str | None = None
-    paths = _cache_paths(path)
-    if paths is not None:
-        img_path, color_path = paths
-        if img_path.is_file() and img_path.stat().st_size > 0:
-            lock_image = str(img_path)
-        if color_path.is_file() and color_path.stat().st_size > 0:
-            try:
-                cached = color_path.read_text().strip()
-                if re.fullmatch(r"[0-9a-fA-F]{6}", cached):
-                    accent = cached
-            except OSError:
-                pass
+    img_path = _cache_path(path)
+    if img_path is not None and img_path.is_file() and img_path.stat().st_size > 0:
+        lock_image = str(img_path)
 
     print(
         json.dumps(
             {
                 "path": str(path),
                 "lock_image": lock_image,
-                "accent": accent,
             }
         )
     )
@@ -710,19 +677,18 @@ def cmd_status(_args: argparse.Namespace) -> int:
 
 
 def cmd_rebuild_cache(_args: argparse.Namespace) -> int:
-    """Force-rebuild the lock image + accent for the current wallpaper."""
+    """Force-rebuild the lock image for the current wallpaper."""
     path = _resolve_current()
     if path is None:
         die("no current wallpaper to rebuild cache for")
-    image, accent = build_lock_cache(path, force=True)
-    if image is None and accent is None:
-        die("rebuild failed (is `magick` on PATH?)")
+    image, error = build_lock_cache(path, force=True)
+    if image is None:
+        die(f"lock image rebuild failed: {error or 'unknown error'}")
     print(
         json.dumps(
             {
                 "path": str(path),
                 "lock_image": str(image) if image else None,
-                "accent": accent,
             }
         )
     )
@@ -769,7 +735,7 @@ def cmd_preview(args: argparse.Namespace) -> int:
     # ~200-400ms magick startup + decode + sixel encode cost, subsequent
     # cursor moves over the same entry at the same pane size are a
     # bytes-to-stdout pass. Cache entries share <key>.* with the lock
-    # PNG/accent and get cleaned together when the archive entry is
+    # PNG and get cleaned together when the archive entry is
     # deleted.
     if shutil.which("magick") is not None:
         cols = _env_positive_int("FZF_PREVIEW_COLUMNS", 80)
@@ -938,7 +904,7 @@ def cmd__delete_archive(args: argparse.Namespace) -> int:
 
     # Compute the cache key before unlinking — once the file is gone we
     # can't stat its mtime. Then glob <key>.* under CACHE_DIR to scoop
-    # up the lock PNG, accent file, and every per-pane-size sixel in
+    # up the lock PNG and every per-pane-size sixel in
     # one pass.
     key = _cache_key(target)
 
@@ -987,13 +953,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_status = sub.add_parser(
         "status",
-        help="print JSON {path, lock_image, accent} for the active wallpaper",
+        help="print JSON {path, lock_image} for the active wallpaper",
     )
     p_status.set_defaults(func=cmd_status)
 
     p_rebuild = sub.add_parser(
         "rebuild-cache",
-        help="force-rebuild the lock image + accent for the current wallpaper",
+        help="force-rebuild the lock image for the current wallpaper",
     )
     p_rebuild.set_defaults(func=cmd_rebuild_cache)
 

@@ -6,10 +6,7 @@ swaylock command, and exec's into it. Falls back to a solid Catppuccin
 base if anything's missing — locking must always succeed.
 
 All swaylock colors (ring, key-hl, state colors) come from
-`swaylock/config`. The wallpaper accent is baked into the banner text
-inside the lock image by the `wallpaper` helper; it does not bleed
-into the swaylock chrome, so theme coherence is preserved across
-wallpapers.
+`swaylock/config`, so theme coherence is preserved across wallpapers.
 
 Unknown flags pass through to swaylock (`parse_known_args`), so
 `session-swayidle` can pass e.g. `--daemonize`.
