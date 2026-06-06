@@ -9,7 +9,6 @@ import hashlib
 import json
 import os
 import shutil
-import socket
 import string
 import subprocess
 import sys
@@ -39,35 +38,14 @@ CACHE_DIR = XDG_CACHE_HOME / "wallpaper"
 # ----------------------------------------------------------------------
 
 BLUR_SIGMA = 8.0
-# ImageMagick `-font` is happiest with a concrete font file in this
-# environment: the mise-built ImageMagick has FreeType support, but
-# `magick -list font` is empty and family/pattern lookups fail even
-# though fontconfig can see the font. Try concrete bundled/user/system
-# font paths first, then fall back to names for installs where
-# ImageMagick's font registry works.
-FONT_CANDIDATES = (
-    XDG_DATA_HOME / "fonts" / "SF-Compact-Text-Bold.otf",
-    XDG_DATA_HOME / "fonts" / "JetBrainsMono" / "JetBrainsMono-Bold.ttf",
-    XDG_DATA_HOME / "fonts" / "JetBrainsMonoNerd" / "JetBrainsMonoNerdFont-Bold.ttf",
-    Path("/usr/share/fonts/google-noto-sans-vf/NotoSans[wght].ttf"),
-    Path("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf"),
-    "SF-Compact-Text-Bold",
-    "JetBrainsMono-NF-Bold",
-    "DejaVu-Sans-Bold",
-)
-# Banner geometry as fractions of wallpaper height (back-derived from
-# the prior fixed 1080p values: 42/30 pt, 152/100 px from south).
-LINE1_PT_FRAC, LINE2_PT_FRAC = 0.039, 0.028
-LINE1_Y_FRAC, LINE2_Y_FRAC = 0.141, 0.093
-SHADOW_OFFSET_FRAC = 0.0019
-# Bump when changing anything that affects a cached artifact (font,
-# pointsizes, blur recipe, banner geometry, sixel encoding). The cache
-# key folds this in, so changes invalidate every <key>.* entry in one
-# go — lock PNG and per-pane-size sixels alike.
-RENDER_VERSION = 17
+# Bump when changing anything that affects a cached artifact (blur
+# recipe, render size, sixel encoding). The cache key folds this in, so
+# changes invalidate every <key>.* entry in one go — lock PNG and
+# per-pane-size sixels alike.
+RENDER_VERSION = 18
 # Lock images are display artifacts, not archival copies. Downscale very
-# large wallpapers before blur/banner rendering so cache rebuilds stay
-# fast and do not hit subprocess timeouts on 5K/8K sources.
+# large wallpapers before blur rendering so cache rebuilds stay fast and
+# do not hit subprocess timeouts on 5K/8K sources.
 LOCK_MAX_WIDTH = 2560
 LOCK_MAX_HEIGHT = 1440
 LOCK_RENDER_TIMEOUT = 20
@@ -81,10 +59,6 @@ PREVIEW_BACKGROUND_COLOR = "#1e1e2e"
 # produced no image even though the sixel bytes were valid. `+dither`
 # avoids noisy diffusion patterns that compress poorly in sixel output.
 PREVIEW_COLORS = 48
-# Catppuccin Mocha 'text' — banner color.
-# THEME BEGIN: wallpaper-fallback-color
-BANNER_TEXT_COLOR = "cdd6f4"
-# THEME END: wallpaper-fallback-color
 
 
 # ----------------------------------------------------------------------
@@ -258,31 +232,6 @@ def _atomic_write(path: Path, data: bytes) -> None:
             tmp_path.unlink()
 
 
-def _font_args(font: str | Path) -> list[str]:
-    return ["-font", str(font)]
-
-
-def _available_fonts() -> list[str | Path]:
-    """Return ImageMagick font candidates that are plausible here.
-
-    Path candidates must exist. Name candidates are kept as a final
-    fallback for systems where ImageMagick's own font registry works.
-    """
-    fonts: list[str | Path] = []
-    for candidate in FONT_CANDIDATES:
-        if isinstance(candidate, Path):
-            if candidate.is_file():
-                fonts.append(candidate)
-        else:
-            fonts.append(candidate)
-    return fonts
-
-
-def _is_font_error(stderr: bytes) -> bool:
-    text = stderr.decode(errors="ignore").lower()
-    return "unable to read font" in text or "renderfreetype" in text
-
-
 def _summarize_stderr(stderr: bytes) -> str:
     text = stderr.decode(errors="ignore").strip()
     if not text:
@@ -290,195 +239,76 @@ def _summarize_stderr(stderr: bytes) -> str:
     return " ".join(text.split())[:240]
 
 
-def _lock_render_tmp(dst: Path) -> Path | None:
+def _build_lock_image(src: Path, dst: Path) -> tuple[bool, str | None]:
+    """Render a downscaled blurred wallpaper to dst."""
+    if not shutil.which("magick"):
+        return False, "magick not found on PATH"
+
     try:
         dst.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp_str = tempfile.mkstemp(
             dir=str(dst.parent), prefix=f".{dst.name}.", suffix=".tmp.png"
         )
         os.close(fd)
-    except OSError:
-        return None
-    return Path(tmp_str)
-
-
-def _publish_lock_render(tmp_path: Path, dst: Path) -> str | None:
-    if not tmp_path.is_file():
-        return "renderer produced no output file"
-    if tmp_path.stat().st_size <= 0:
-        return "renderer produced an empty output file"
-    try:
-        os.replace(tmp_path, dst)
     except OSError as exc:
-        return f"failed to publish cache image: {exc}"
-    return None
+        return (
+            False,
+            f"failed to create temporary render file under {dst.parent}: {exc}",
+        )
+    tmp_path = Path(tmp_str)
 
-
-def _build_lock_image(src: Path, dst: Path) -> tuple[bool, str | None]:
-    """Render blurred + banner-stamped wallpaper to dst."""
-    if not shutil.which("magick"):
-        return False, "magick not found on PATH"
-    # Pull dimensions to scale geometry; bail rather than render illegibly.
     try:
-        dim = subprocess.run(
-            ["magick", "identify", "-format", "%w %h", str(src)],
+        res = subprocess.run(
+            [
+                "magick",
+                str(src),
+                "-sample",
+                f"{LOCK_MAX_WIDTH}x{LOCK_MAX_HEIGHT}>",
+                "-blur",
+                f"0x{BLUR_SIGMA}",
+                "-alpha",
+                "remove",
+                "-strip",
+                "-define",
+                "png:compression-level=1",
+                str(tmp_path),
+            ],
             capture_output=True,
-            text=True,
-            timeout=10,
+            timeout=LOCK_RENDER_TIMEOUT,
             check=False,
         )
-        if dim.returncode != 0:
-            return (
-                False,
-                f"failed to identify source image: {_summarize_stderr(dim.stderr.encode())}",
-            )
-        width, height = (int(part) for part in dim.stdout.split())
     except subprocess.TimeoutExpired:
-        return False, "timed out identifying source image after 10s"
-    except (OSError, subprocess.SubprocessError, ValueError) as exc:
-        return False, f"failed to identify source image: {exc}"
-    if width <= 0 or height <= 0:
-        return False, f"invalid source dimensions: {width}x{height}"
-
-    scale = min(1.0, LOCK_MAX_WIDTH / width, LOCK_MAX_HEIGHT / height)
-    render_height = max(1, round(height * scale))
-
-    line1 = "LOCKED"
-    line2 = f"{os.environ.get('USER', 'user')}@{socket.gethostname().split('.')[0]}"
-    # y-offsets are from the bottom (gravity south); larger y = higher up.
-    line1_y = round(render_height * LINE1_Y_FRAC)
-    line2_y = round(render_height * LINE2_Y_FRAC)
-    line1_pt = str(round(render_height * LINE1_PT_FRAC))
-    line2_pt = str(round(render_height * LINE2_PT_FRAC))
-    shadow_off = max(1, round(render_height * SHADOW_OFFSET_FRAC))
-    fill = f"#{BANNER_TEXT_COLOR}ff"
-    shadow = "#00000099"
-    base_cmd: list[str] = [
-        "magick",
-        str(src),
-        "-sample",
-        f"{LOCK_MAX_WIDTH}x{LOCK_MAX_HEIGHT}>",
-        "-blur",
-        f"0x{BLUR_SIGMA}",
-    ]
-    base_cmd += ["-gravity", "south"]
-    annotate_args: list[str] = []
-    for text, y, pt in ((line1, line1_y, line1_pt), (line2, line2_y, line2_pt)):
-        annotate_args += [
-            "-pointsize",
-            pt,
-            "-fill",
-            shadow,
-            "-annotate",
-            f"+{shadow_off}+{y - shadow_off}",
-            text,
-            "-fill",
-            fill,
-            "-annotate",
-            f"+0+{y}",
-            text,
-        ]
-
-    saw_font_error = False
-    for font in _available_fonts():
-        tmp_path = _lock_render_tmp(dst)
-        if tmp_path is None:
-            return False, f"failed to create temporary render file under {dst.parent}"
-        cmd = [
-            *base_cmd,
-            *_font_args(font),
-            *annotate_args,
-            "-alpha",
-            "remove",
-            "-strip",
-            "-define",
-            "png:compression-level=1",
-            str(tmp_path),
-        ]
-        try:
-            res = subprocess.run(
-                cmd,
-                capture_output=True,
-                timeout=LOCK_RENDER_TIMEOUT,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            with contextlib.suppress(OSError):
-                tmp_path.unlink()
-            return False, f"timed out rendering lock image after {LOCK_RENDER_TIMEOUT}s"
-        except (OSError, subprocess.SubprocessError) as exc:
-            with contextlib.suppress(OSError):
-                tmp_path.unlink()
-            return False, f"failed to run ImageMagick: {exc}"
-        publish_error = (
-            _publish_lock_render(tmp_path, dst) if res.returncode == 0 else None
-        )
-        if publish_error is None and res.returncode == 0:
-            return True, None
         with contextlib.suppress(OSError):
             tmp_path.unlink()
-        if _is_font_error(res.stderr):
-            saw_font_error = True
-            continue
-        if publish_error is not None:
-            return False, publish_error
+        return False, f"timed out rendering lock image after {LOCK_RENDER_TIMEOUT}s"
+    except (OSError, subprocess.SubprocessError) as exc:
+        with contextlib.suppress(OSError):
+            tmp_path.unlink()
+        return False, f"failed to run ImageMagick: {exc}"
+
+    if res.returncode != 0:
+        with contextlib.suppress(OSError):
+            tmp_path.unlink()
         return (
             False,
             f"ImageMagick exited {res.returncode}: {_summarize_stderr(res.stderr)}",
         )
 
-    # Last-resort graceful fallback: produce the blurred image without
-    # banner text. Lock-screen still gets the important part (blurred
-    # wallpaper) even on hosts where no ImageMagick-readable font can be
-    # found. Only use this path for font failures; other ImageMagick
-    # errors may mean the source image itself is unreadable.
-    if saw_font_error:
-        tmp_path = _lock_render_tmp(dst)
-        if tmp_path is None:
-            return False, f"failed to create temporary render file under {dst.parent}"
-        try:
-            res = subprocess.run(
-                [
-                    "magick",
-                    str(src),
-                    "-sample",
-                    f"{LOCK_MAX_WIDTH}x{LOCK_MAX_HEIGHT}>",
-                    "-blur",
-                    f"0x{BLUR_SIGMA}",
-                    "-alpha",
-                    "remove",
-                    "-strip",
-                    "-define",
-                    "png:compression-level=1",
-                    str(tmp_path),
-                ],
-                capture_output=True,
-                timeout=LOCK_RENDER_TIMEOUT,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            with contextlib.suppress(OSError):
-                tmp_path.unlink()
-            return False, f"timed out rendering lock image after {LOCK_RENDER_TIMEOUT}s"
-        except (OSError, subprocess.SubprocessError) as exc:
-            with contextlib.suppress(OSError):
-                tmp_path.unlink()
-            return False, f"failed to run ImageMagick fallback: {exc}"
-        publish_error = (
-            _publish_lock_render(tmp_path, dst) if res.returncode == 0 else None
-        )
-        if publish_error is None and res.returncode == 0:
-            return True, None
+    if not tmp_path.is_file():
         with contextlib.suppress(OSError):
             tmp_path.unlink()
-        if publish_error is not None:
-            return False, publish_error
-        return (
-            False,
-            f"ImageMagick fallback exited {res.returncode}: {_summarize_stderr(res.stderr)}",
-        )
-
-    return False, "all configured fonts failed"
+        return False, "renderer produced no output file"
+    if tmp_path.stat().st_size <= 0:
+        with contextlib.suppress(OSError):
+            tmp_path.unlink()
+        return False, "renderer produced an empty output file"
+    try:
+        os.replace(tmp_path, dst)
+    except OSError as exc:
+        with contextlib.suppress(OSError):
+            tmp_path.unlink()
+        return False, f"failed to publish cache image: {exc}"
+    return True, None
 
 
 def build_lock_cache(
@@ -688,7 +518,7 @@ def cmd_rebuild_cache(_args: argparse.Namespace) -> int:
         json.dumps(
             {
                 "path": str(path),
-                "lock_image": str(image) if image else None,
+                "lock_image": str(image),
             }
         )
     )

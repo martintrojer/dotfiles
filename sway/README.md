@@ -175,9 +175,9 @@ shutting down the daemons before the compositor itself terminates.
 ## Lock Screen
 
 `~/.config/sway/scripts/lock-screen` is a small wrapper around
-`swaylock`. Image work — blur, banner stamp, and cache management —
-lives in the [`wallpaper`](../../fedora/bin/.local/bin/wallpaper)
-helper. The lock-screen script just:
+`swaylock`. Image work — blur and cache management — lives in the
+[`wallpaper`](../../fedora/bin/.local/bin/wallpaper) helper. The
+lock-screen script just:
 
 1. Calls `wallpaper status`, which returns JSON like
    `{"path": "...", "lock_image": "..."}`.
@@ -189,7 +189,7 @@ Locking must always succeed, so there's a fallback chain:
 - `wallpaper` helper missing or status JSON malformed → solid Catppuccin
   base color (`swaylock --color 1e1e2e`).
 - `lock_image` missing (e.g. magick not installed when the wallpaper
-  was set) but `path` present → raw wallpaper, no blur or banner.
+  was set) but `path` present → raw wallpaper, no blur.
 - `path` also missing → solid color again.
 
 Swaylock chrome colors (ring, key-hl, state colors) come from
@@ -201,7 +201,7 @@ which is why `session-swayidle` can keep calling `lock-screen --daemonize`.
 
 ### Lock image rendering (lives in `wallpaper`)
 
-The rendering recipe (blurred wallpaper + banner stamp) lives in
+The rendering recipe (downscaled blurred wallpaper) lives in
 `fedora/bin/.local/bin/wallpaper`. It runs:
 
 - as part of `wallpaper set <url-or-file>` and `wallpaper use [archive-file]`,
@@ -209,13 +209,9 @@ The rendering recipe (blurred wallpaper + banner stamp) lives in
 - via `wallpaper rebuild-cache` to force a fresh render (used after
   editing the render constants in `wallpaper`).
 
-The blur (sigma 8), lock render cap (2560×1440), banner geometry,
-banner color, and font candidates (`SF Compact Text`, then
-JetBrains/Noto/DejaVu fallbacks) are constants at the top of the
-script. If no ImageMagick-readable font is available, rendering falls
-back to a blurred image without the banner.
-Change them and bump `RENDER_VERSION` next to the constants — that
-invalidates all cached entries automatically.
+The blur (sigma 8) and lock render cap (2560×1440) are constants at
+the top of the script. Change them and bump `RENDER_VERSION` next to
+the constants — that invalidates all cached entries automatically.
 
 Results are cached under `$XDG_CACHE_HOME/wallpaper/<sha1(path+mtime+RENDER_VERSION)>.{png,sixel-WxH}`.
 The warm path (cache hit during `wallpaper status`) is essentially
