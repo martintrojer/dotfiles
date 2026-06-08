@@ -124,10 +124,6 @@ CONSUMERS: tuple[Consumer, ...] = (
         ("tms-palette",),
     ),
     Consumer(
-        repo("fedora/bin/.local/bin/wallpaper"),
-        ("wallpaper-fallback-color",),
-    ),
-    Consumer(
         repo("sway/.config/sway/scripts/lock-screen"),
         ("lock-screen-fallback-color",),
     ),
