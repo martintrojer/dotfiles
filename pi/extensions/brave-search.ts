@@ -522,6 +522,12 @@ function registerMediaTool(
 }
 
 export default function (pi: ExtensionAPI) {
+	if (!asString(process.env[API_KEY_ENV_VAR])) {
+		// No API key configured: skip registering Brave tools so they don't
+		// appear in the system prompt or get offered to the LLM.
+		return;
+	}
+
 	pi.registerTool({
 		name: "brave_search",
 		label: "Brave Search",
