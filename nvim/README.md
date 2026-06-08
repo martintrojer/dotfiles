@@ -31,7 +31,7 @@ lua/
   history.lua                   — message and notification history viewers
   todos.lua                     — TODO grep + markdown todo toggle
   timestamps.lua                — elapsed time utility (markdown notes)
-  markdown_read_mode.lua        — glow-like read mode (window-scoped, follows links)
+  markdown_read_mode.lua        — glow-like read mode (buffer-scoped, follows links)
   async_run.lua                 — `:Sh` async shell with streaming output split
   git_diff.lua                  — side-by-side git diff helpers (used by `<leader>gD`)
   format_on_save.lua            — LSP -> CLI fallback (prettier/stylua/shfmt) -> trim
