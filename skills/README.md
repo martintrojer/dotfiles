@@ -27,7 +27,6 @@ Skills are auto-discovered and can be invoked explicitly with `/skill:name` or l
 |-------|---------|-------------|
 | `/skill:code-reviewer` | "review this code", after refactors | Find dead code, duplication, unnecessary complexity, non-idiomatic patterns |
 | `/skill:test-reviewer` | "review tests", after writing tests | Catch false confidence, excessive mocking, meaningless assertions |
-| `/skill:changelog` | "generate a changelog", "release notes" | Document changes between versions using git history and tags |
 
 ### Multi-Agent
 
