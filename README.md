@@ -58,7 +58,7 @@ Most top-level directories are Stow packages mirroring `$HOME`. The notable exce
 
 The repo doubles as a multi-target agent plugin. Distribution model:
 
-- **Universal (handled by `--apply`):** `skills/<name>/` and `pi/extensions/*.ts` are plain symlinks into `~/.agents/skills/` and `~/.pi/agent/extensions/` respectively. Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw all read these paths natively. Edits in the repo show up live.
+- **Universal (handled by `--apply`):** `skills/<name>/` and top-level `pi/extensions/*.ts` are plain symlinks into `~/.agents/skills/` and `~/.pi/agent/extensions/` respectively. Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw all read these paths natively. Edits in the repo show up live. Pi helper modules (such as `_lib.ts`) are also top-level `.ts` files and must export a harmless default because pi may auto-load them.
 - **Claude (manual):** `claude plugin marketplace add martintrojer/dotfiles && claude plugin install mtrojer@dotfiles`. Re-run `claude plugin install mtrojer@dotfiles` after each push to refresh. `--apply` prints these two commands at the end as a reminder.
 
 Why this split: `~/.agents/skills/` is the universal path *all* the agents already read, so a plain symlink covers everyone except Claude in one move. Only Claude wants its own plugin cache, so it gets the github marketplace treatment.

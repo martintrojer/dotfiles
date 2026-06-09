@@ -4,30 +4,77 @@ Extensions for [Pi coding agent](https://buildwithpi.ai/).
 
 ## Install
 
-`./dotfiles-sync --apply` symlinks each `*.ts` from this directory into `~/.pi/agent/extensions/`. Pi auto-discovers extensions there (with `/reload` support) — no `pi install`, no `package.json` manifest. Edits propagate live.
+`./dotfiles-sync --apply` symlinks each top-level `*.ts` from this directory into `~/.pi/agent/extensions/`. Pi auto-discovers extensions there (with `/reload` support) — no `pi install`, no `package.json` manifest. Edits propagate live. Helper modules should also be top-level `*.ts` files with a safe no-op default export (for example `_lib.ts`), because pi/pi-meta may auto-load every top-level file while other extensions import it.
 
 Skills (in the repo-root `skills/` directory) are similarly symlinked into `~/.agents/skills/` and read by pi from there.
 
-Source: cherry-picked from [mitsuhiko/agent-stuff](https://github.com/mitsuhiko/agent-stuff).
+Some extensions originated from [mitsuhiko/agent-stuff](https://github.com/mitsuhiko/agent-stuff); the local command clones are maintained here.
 
 ## Extensions
 
-### `/answer` — Interactive Q&A
+### `agent-attention` — tmux status signaling
 
-Extracts questions from the last assistant message and presents an interactive TUI to answer them one by one.
+Reflects the agent's run state into the surrounding tmux window so a glance at the status bar shows which panes need attention.
 
-1. Agent asks multiple questions in a response
-2. Run `/answer`
-3. Navigate questions with ↑/↓, type answers in an editor per question
-4. Submit all answers at once when done
+- On `agent_start`: marks the window `working` (records the pid via `~/.config/tmux/scripts/agent-attention` for crash reaping).
+- On `agent_end`: clears the state if the pane is focused, otherwise marks it `blocked` (waiting on you).
+- Under `mu` (`MU_MANAGED_AGENT=1`) it uses lightweight direct tmux calls that survive container reaping.
 
-### `/btw` — Side-chat popover
+No-op when not running inside tmux.
 
-Quick side-thread for tangential questions without polluting the main conversation.
+### `/loop` — recurring prompt scheduler
 
-- `/btw <text>` — ask something immediately in a side-chat
-- `/btw` — open an empty side-thread
-- Optionally injects a summary back into the main chat on close
+Clone of Claude Code's `/loop`. Re-sends a prompt on an interval within the current session, as if you typed it each time.
+
+- `/loop 5m check if the deploy on staging finished` — run every 5 minutes
+- `/loop 30s /some-command` — the prompt can be another slash command
+- `/loop summarize new errors` — no interval defaults to 10m
+- `/loop list` — show active loops
+- `/loop stop` — cancel all loops; `/loop stop 2` cancels loop #2
+
+Intervals accept `s`/`m`/`h` suffixes (bare numbers are minutes), with a 5s floor. Ticks are skipped while the agent is busy or has queued work, so loops never stack up. Loops are session-scoped — they stop on session switch (`/new`, `/resume`, `/fork`) and on quit.
+
+### `/goal` — autonomous work toward a verifiable condition
+
+Clone of Claude Code's `/goal`. You state a verifiable end condition; pi keeps taking turns toward it without you prompting each step. After every turn, the session model checks the recent transcript and answers one yes/no: is the condition met? "no" feeds the checker's reason back as the next instruction; "yes" clears the goal and returns control to you.
+
+- `/goal until \`npm test\` exits 0 and tsc --noEmit is clean, max 20 turns`
+- `/goal` — show the active goal, turns spent, and the last checker reason
+- `/goal clear` — stop the goal (aliases: `stop`, `off`, `reset`, `cancel`)
+
+The checker has no tools, so it can only judge what the agent surfaced in the conversation — make conditions verifiable and have the agent print the evidence (test output, file counts, grep results). A trailing `max N turns` / `stop after N turns` is parsed out as a safety net (default 25). Goals are session-scoped.
+
+**`/goal` vs `/loop`:** `/loop` is timer-driven and re-sends a fixed prompt on an interval; `/goal` is turn-driven and continues until an evaluator confirms a condition. They're kept as separate commands, mirroring Claude Code.
+
+### `/btw` — quick side question, no history pollution
+
+Clone of Claude Code's `/btw` ("by the way"). Opens an interactive, multi-turn, no-tools side thread that sees the current session context, and never writes to the main session history. The inverse of a subagent: full context, no tools.
+
+- `/btw what does calculate_metrics return here?`
+- `/btw` — open an empty side-thread and type the first question in the modal
+
+Context handed to the side agent: structured main-session messages from pi's session context (preserving roles/tool-results better than a flattened transcript) **and** the project context the main agent sees — cwd, any custom/appended system prompt, and loaded context files (AGENTS.md / CLAUDE.md). It cannot see the half-written in-flight turn (not yet finalized into the session) and long project context is trimmed.
+
+In the overlay:
+
+- **Enter** with text — ask a follow-up (the side thread keeps its own history for continuity)
+- **Enter** on an empty input — paste the **last answer** into the main editor and close
+- **Esc** — close without pasting (cancels any in-flight turn)
+
+An animated `⠹ Answering…` indicator shows while a turn runs. The overlay is modal (captures input), so there's only ever one `/btw` at a time. The main agent task keeps running in the background regardless, and the side thread has its own abort signal: pressing Esc to stop the main turn won't cancel `/btw`, and vice versa. Outside the TUI it falls back to a single-shot answer via notification.
+
+Uses the current session model for full context awareness, falling back to any model with configured auth.
+
+### `/answer` — answer the agent's questions interactively
+
+When the agent ends a turn by asking you several questions, `/answer` (or `Ctrl+.`) extracts them and walks you through answering them in a modal, then sends the compiled answers back as one message. A fast model extracts the questions as JSON; the modal (same look/feel as `/btw` — framing rules, title bar, progress dots) shows one question at a time with a multi-line editor.
+
+- **Enter** — next question (or submit on the last)
+- **Shift+Enter** — newline in the answer
+- **Tab / ↑↓** — move between questions (↑↓ only when the answer is empty)
+- **Esc** — cancel
+
+Uses the current session model, falling back to any model with configured auth. TUI-only.
 
 ### `brave_search` — Brave LLM Context tool
 
