@@ -207,6 +207,21 @@ clue.setup({
 	window = { delay = 300 },
 })
 
+-- Native 0.12 `gx`/`gf` are callbacks with no `desc`, so mini.clue shows them
+-- blank. Rewrite the mapping desc (what the clue window reads) on VimEnter,
+-- since these mappings are created after this file loads.
+vim.api.nvim_create_autocmd("VimEnter", {
+	callback = function()
+		for _, m in ipairs({
+			{ mode = "n", lhs = "gx", desc = "Open URL/file under cursor" },
+			{ mode = "n", lhs = "gf", desc = "Open file path under cursor" },
+			{ mode = "n", lhs = "g%", desc = "Jump to prev matching pair (matchit)" },
+		}) do
+			pcall(clue.set_mapping_desc, m.mode, m.lhs, m.desc)
+		end
+	end,
+})
+
 require("mini.statusline").setup({
 	content = {
 		active = statusline_content,
