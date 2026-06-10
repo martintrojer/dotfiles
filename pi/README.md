@@ -36,13 +36,13 @@ Intervals accept `s`/`m`/`h` suffixes (bare numbers are minutes), with a 5s floo
 
 ### `/goal` — autonomous work toward a verifiable condition
 
-Clone of Claude Code's `/goal`. You state a verifiable end condition; pi keeps taking turns toward it without you prompting each step. After every turn, the session model checks the recent transcript and answers one yes/no: is the condition met? "no" feeds the checker's reason back as the next instruction; "yes" clears the goal and returns control to you.
+Clone of Claude Code's `/goal`. You state a verifiable end condition; pi keeps taking turns toward it without you prompting each step. After every turn, a small/fast checker model checks the recent transcript and answers one yes/no: is the condition met? "no" feeds the checker's reason (including checker model name) back as the next instruction; "yes" clears the goal and returns control to you.
 
 - `/goal until \`npm test\` exits 0 and tsc --noEmit is clean, max 20 turns`
 - `/goal` — show the active goal, turns spent, and the last checker reason
 - `/goal clear` — stop the goal (aliases: `stop`, `off`, `reset`, `cancel`)
 
-The checker has no tools, so it can only judge what the agent surfaced in the conversation — make conditions verifiable and have the agent print the evidence (test output, file counts, grep results). A trailing `max N turns` / `stop after N turns` is parsed out as a safety net (default 25). Goals are session-scoped.
+The checker has no tools, so it can only judge what the agent surfaced in the conversation — make conditions verifiable and have the agent print the evidence (test output, file counts, grep results). A trailing `max N turns` / `stop after N turns` is parsed out as a safety net (default 25). The checker prefers a small/fast model and falls back through ranked candidates (including the current session model). Goals are session-scoped.
 
 **`/goal` vs `/loop`:** `/loop` is timer-driven and re-sends a fixed prompt on an interval; `/goal` is turn-driven and continues until an evaluator confirms a condition. They're kept as separate commands, mirroring Claude Code.
 
@@ -67,14 +67,14 @@ Uses the current session model for full context awareness, falling back to any m
 
 ### `/answer` — answer the agent's questions interactively
 
-When the agent ends a turn by asking you several questions, `/answer` (or `Ctrl+.`) extracts them and walks you through answering them in a modal, then sends the compiled answers back as one message. A fast model extracts the questions as JSON; the modal (same look/feel as `/btw` — framing rules, title bar, progress dots) shows one question at a time with a multi-line editor.
+When the agent ends a turn by asking you several questions, `/answer` (or `Ctrl+.`) extracts them and walks you through answering them in a modal, then sends the compiled answers back as one message. A small/fast model extracts the questions as JSON (chosen model shown in loader/notification, with serial fallback on failure); the modal (same look/feel as `/btw` — framing rules, title bar, progress dots) shows one question at a time with a multi-line editor.
 
 - **Enter** — next question (or submit on the last)
 - **Shift+Enter** — newline in the answer
 - **Tab / ↑↓** — move between questions (↑↓ only when the answer is empty)
 - **Esc** — cancel
 
-Uses the current session model, falling back to any model with configured auth. TUI-only.
+Extraction prefers a small/fast model, falls back through ranked candidates (including the current session model), and reports the chosen model. TUI-only.
 
 ### `brave_search` — Brave LLM Context tool
 

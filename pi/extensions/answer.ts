@@ -5,7 +5,9 @@
  * A clean reimplementation: a fast model extracts questions as JSON, then a
  * modal (same look/feel as /btw — framing rules, title bar, themed colors)
  * walks you through them one at a time with a multi-line editor. On submit it
- * sends a single user message with all the Q/A pairs.
+ * sends a single user message with all the Q/A pairs. Extraction prefers a
+ * small/fast model and falls back across ranked candidates on failure. The model
+ * used is reported in the loader/notification.
  *
  * Navigation:
  *   - Enter        → next question (or submit on the last)
@@ -31,7 +33,7 @@ import {
 	type TUI,
 	truncateToWidth,
 } from "@earendil-works/pi-tui";
-import { lastCompletedAssistantText, pickSessionModel, textContent } from "./_lib.ts";
+import { FastModelCancelled, lastCompletedAssistantText, textContent, withFastModelFallback } from "./_lib.ts";
 
 interface Question {
 	question: string;
@@ -106,19 +108,14 @@ function parseQuestions(text: string): Question[] | null {
 }
 
 type ExtractOutcome =
-	| { kind: "ok"; questions: Question[] }
+	| { kind: "ok"; questions: Question[]; model: string }
 	| { kind: "cancelled" }
 	| { kind: "error"; message: string };
 
 /** Run the extractor behind a cancellable loader overlay. */
 async function extractQuestions(ctx: ExtensionContext, source: string): Promise<ExtractOutcome> {
-	const picked = await pickSessionModel(ctx);
-	if (!picked) return { kind: "error", message: "No model with configured auth is available." };
-
 	return ctx.ui.custom<ExtractOutcome>((tui, theme, _kb, done) => {
-		const loader = new BorderedLoader(tui, theme, `Extracting questions using ${picked.model.id}…`, {
-			cancellable: true,
-		});
+		const loader = new BorderedLoader(tui, theme, "Extracting questions…", { cancellable: true });
 		let settled = false;
 		const finish = (outcome: ExtractOutcome): void => {
 			if (settled) return;
@@ -128,23 +125,31 @@ async function extractQuestions(ctx: ExtensionContext, source: string): Promise<
 		loader.onAbort = () => finish({ kind: "cancelled" });
 
 		void (async () => {
-			try {
-				const response = await complete(
-					picked.model,
-					{
-						systemPrompt: SYSTEM_PROMPT,
-						messages: [{ role: "user", content: [{ type: "text", text: source }], timestamp: Date.now() }],
-					},
-					{ apiKey: picked.apiKey, headers: picked.headers, signal: loader.signal },
-				);
-				if (response.stopReason === "aborted") return finish({ kind: "cancelled" });
+			const outcome = await withFastModelFallback(ctx, "answer.extract", async (picked) => {
+				if (loader.signal.aborted) throw new FastModelCancelled();
+				let response;
+				try {
+					response = await complete(
+						picked.model,
+						{
+							systemPrompt: SYSTEM_PROMPT,
+							messages: [{ role: "user", content: [{ type: "text", text: source }], timestamp: Date.now() }],
+						},
+						{ apiKey: picked.apiKey, headers: picked.headers, signal: loader.signal },
+					);
+				} catch (err) {
+					if (loader.signal.aborted) throw new FastModelCancelled();
+					throw err;
+				}
+				if (response.stopReason === "aborted") throw new FastModelCancelled();
 				const text = textContent(response.content);
 				const questions = parseQuestions(text);
-				if (!questions) return finish({ kind: "error", message: "Extractor returned invalid JSON." });
-				finish({ kind: "ok", questions });
-			} catch (err) {
-				finish({ kind: "error", message: err instanceof Error ? err.message : String(err) });
-			}
+				if (!questions) throw new Error("Extractor returned invalid JSON.");
+				return questions;
+			});
+
+			if (outcome.kind === "ok") return finish({ kind: "ok", questions: outcome.result, model: outcome.model });
+			finish(outcome);
 		})();
 
 		return loader;
@@ -323,9 +328,10 @@ export default function (pi: ExtensionAPI) {
 			return;
 		}
 		if (outcome.questions.length === 0) {
-			ctx.ui.notify("No questions found in the last message", "info");
+			ctx.ui.notify(`No questions found in the last message (${outcome.model})`, "info");
 			return;
 		}
+		ctx.ui.notify(`Extracted questions using ${outcome.model}`, "info");
 
 		const result = await ctx.ui.custom<AnswerResult>((tui, theme, _kb, done) =>
 			buildQnA(outcome.questions)(tui, theme, done),

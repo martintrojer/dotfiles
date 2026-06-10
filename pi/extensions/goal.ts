@@ -2,9 +2,9 @@
  * `/goal` — keep working toward a verifiable completion condition.
  *
  * A clone of Claude Code's `/goal`. You state an end condition; pi keeps taking
- * turns toward it without you prompting each step. After every agent turn, the
- * session model checks the recent transcript and answers a single yes/no: is
- * yes/no: is the condition met? "no" injects the checker's reason as the next
+ * turns toward it without you prompting each step. After every agent turn, a
+ * small/fast checker model checks the recent transcript and answers one yes/no:
+ * is the condition met? "no" injects the checker's reason as the next
  * instruction and the agent keeps going; "yes" clears the goal and hands
  * control back to you.
  *
@@ -18,8 +18,9 @@
  *   /goal clear           # stop the goal (aliases: stop, off, reset, cancel)
  *
  * Notes:
- *   - The checker uses the current session model and has no tools; it can only
- *     judge what the agent surfaced in the conversation. Make conditions verifiable and have the agent print
+ *   - The checker prefers a small/fast model (falls back to the current session
+ *     model) and has no tools; it can only judge what the agent surfaced in the
+ *     conversation. Make conditions verifiable and have the agent print
  *     the evidence (test output, file counts, grep results).
  *   - A turn limit is a safety net against impossible conditions.
  *   - Goals are session-scoped: cleared on session switch and on quit.
@@ -27,7 +28,7 @@
 
 import { complete } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { conversationTranscript, pickSessionModel, textContent } from "./_lib.ts";
+import { conversationTranscript, FastModelCancelled, textContent, withFastModelFallback } from "./_lib.ts";
 
 const DEFAULT_MAX_TURNS = 25;
 // How many trailing transcript chars to show the checker.
@@ -67,20 +68,15 @@ function recentTranscript(ctx: ExtensionContext): string {
 interface CheckResult {
 	met: boolean;
 	reason: string;
+	model: string;
 }
 
-/** Ask the session model whether the condition holds. */
+/** Ask a ranked checker model whether the condition holds, falling back on failure. */
 async function runChecker(
 	ctx: ExtensionContext,
 	condition: string,
 	transcript: string,
 ): Promise<CheckResult | { error: string }> {
-	const picked = await pickSessionModel(ctx);
-	if (!picked) {
-		return { error: "No checker model available (no model has configured auth)." };
-	}
-	const { model, apiKey, headers } = picked;
-
 	const prompt = [
 		"You are a strict completion checker for an autonomous coding agent.",
 		"Decide whether the COMPLETION CONDITION is verifiably satisfied by the",
@@ -96,30 +92,46 @@ async function runChecker(
 		`<transcript>\n${transcript}\n</transcript>`,
 	].join("\n");
 
-	// Pass ctx.signal on purpose (unlike btw.ts): the checker IS part of the main
-	// goal loop, so if the user aborts the agent the checker should abort too.
-	const response = await complete(
-		model,
-		{ messages: [{ role: "user", content: [{ type: "text", text: prompt }], timestamp: Date.now() }] },
-		{ apiKey, headers, signal: ctx.signal },
-	);
-
-	const text = textContent(response.content);
-
-	const jsonMatch = /\{[\s\S]*\}/.exec(text);
-	if (jsonMatch) {
+	const outcome = await withFastModelFallback(ctx, "goal.check", async (picked) => {
+		const { model, apiKey, headers } = picked;
+		if (ctx.signal?.aborted) throw new FastModelCancelled();
+		// Pass ctx.signal on purpose (unlike btw.ts): the checker IS part of the main
+		// goal loop, so if the user aborts the agent the checker should abort too.
+		let response;
 		try {
-			const parsed = JSON.parse(jsonMatch[0]) as { met?: unknown; reason?: unknown };
-			return {
-				met: parsed.met === true,
-				reason: typeof parsed.reason === "string" ? parsed.reason : text,
-			};
-		} catch {
-			// fall through to heuristic
+			response = await complete(
+				model,
+				{ messages: [{ role: "user", content: [{ type: "text", text: prompt }], timestamp: Date.now() }] },
+				{ apiKey, headers, signal: ctx.signal },
+			);
+		} catch (err) {
+			if (ctx.signal?.aborted) throw new FastModelCancelled();
+			throw err;
 		}
-	}
-	// Heuristic fallback if the model didn't return clean JSON.
-	return { met: /\bmet\b|\byes\b|\btrue\b/i.test(text) && !/not met|\bno\b/i.test(text), reason: text };
+
+		const text = textContent(response.content);
+
+		const jsonMatch = /\{[\s\S]*\}/.exec(text);
+		if (jsonMatch) {
+			try {
+				const parsed = JSON.parse(jsonMatch[0]) as { met?: unknown; reason?: unknown };
+				return {
+					met: parsed.met === true,
+					reason: typeof parsed.reason === "string" ? parsed.reason : text,
+				};
+			} catch {
+				// fall through to heuristic
+			}
+		}
+		// Heuristic fallback if the model didn't return clean JSON.
+		return {
+			met: /\bmet\b|\byes\b|\btrue\b/i.test(text) && !/not met|\bno\b/i.test(text),
+			reason: text,
+		};
+	});
+
+	if (outcome.kind === "ok") return { ...outcome.result, model: outcome.model };
+	return { error: outcome.kind === "cancelled" ? "Cancelled." : outcome.message };
 }
 
 function updateStatus(ctx: ExtensionContext): void {
@@ -219,10 +231,10 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			active.lastReason = result.reason;
+			active.lastReason = `${result.reason} (${result.model})`;
 
 			if (result.met) {
-				ctx.ui.notify(`✓ Goal met: ${result.reason}`, "info");
+				ctx.ui.notify(`✓ Goal met (${result.model}): ${result.reason}`, "info");
 				goal = null;
 				updateStatus(ctx);
 				return;
@@ -231,7 +243,7 @@ export default function (pi: ExtensionAPI) {
 			// Not met: feed the reason back as the next instruction.
 			updateStatus(ctx);
 			pi.sendUserMessage(
-				`The goal is not yet met. Checker feedback: ${result.reason}\n` +
+				`The goal is not yet met. Checker (${result.model}) feedback: ${result.reason}\n` +
 					`Keep working toward the goal and show evidence of progress.`,
 				{ deliverAs: "followUp" },
 			);
