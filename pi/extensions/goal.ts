@@ -191,10 +191,13 @@ export default function (pi: ExtensionAPI) {
 			};
 			updateStatus(ctx);
 			ctx.ui.notify(`Goal set (max ${maxTurns} turns). Working toward:\n${condition}\nStop with /goal clear.`, "info");
-			// Setting the goal is the first directive; kick off work now.
+			// Setting the goal is the first directive; kick off work now. If the agent
+			// is mid-turn (e.g. /goal was invoked while it was streaming), queue the
+			// kickoff as a follow-up so the runtime doesn't reject it.
 			pi.sendUserMessage(
 				`Work autonomously toward this goal until it is verifiably met. ` +
 					`Show concrete evidence (command output, file state) as you go.\n\nGoal: ${condition}`,
+				{ deliverAs: "followUp" },
 			);
 		},
 	});
