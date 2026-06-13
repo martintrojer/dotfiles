@@ -13,6 +13,29 @@ This machine: **Radeon RX 7700/7800 XT (Navi 32, RDNA3)**.
 > Change **one** variable at a time, test, and write the result down before the
 > next step. The log at the bottom is the point of this doc.
 
+## Repo snapshot & drift
+
+The daemon owns `/etc/lact/config.yaml` and **rewrites it on every GUI tweak**
+(`apply_settings_timer`), so it is *not* stowed or symlinked. Instead the repo
+keeps a plain snapshot at [`fedora/lact/config.yaml`](../lact/config.yaml) as the
+committed source of truth, and `dotfiles-sync --check` compares the live file
+against it (semantic YAML compare, fedora-only, issue id `lact-drift:config`).
+
+Workflow — "recreate, don't restore":
+
+```bash
+# After tuning in LACT, adopt the live values into the repo and commit:
+sudo cp /etc/lact/config.yaml fedora/lact/config.yaml
+
+# On a fresh machine, push the repo profile back to the daemon:
+sudo cp fedora/lact/config.yaml /etc/lact/config.yaml && sudo systemctl restart lactd
+```
+
+`dotfiles-sync --check` prints both commands (plus a `diff`) whenever it detects
+drift. Suppress with `--ignore lact-drift:config` if you're mid-experiment.
+The snapshot is intentionally a manual `cp`, not a live sync: it should only
+capture a value you've **decided** to keep, never a transient slider position.
+
 ## Background (RDNA3 specifics)
 
 - RDNA3 has **no absolute voltage slider** — you set a negative *voltage offset*
@@ -156,6 +179,9 @@ stock SCLK ceiling 2625, stock MCLK 2438 (1219 real), voltage offset range
 | 2026-06-05 | −75 | 3000 | 2550 | 280 | Cyberpunk bench | ✅ stable, another FPS bump; survived a clean reboot (lactd re-applied) |
 | 2026-06-05 | −75 | 3000 | 2550 | 280 | extended play (multiple titles, incl. suspend/resume) | ⚠️ occasional driver reset under longer real-world load — −75 not bulletproof |
 | 2026-06-05 | −65 | 3000 | 2550 | 280 | extended play (multiple titles, suspend/resume) | ✅ stable — chosen edge with safety margin |
+| 2026-06-13 | −65 | 3000 | 2550 | 280 | daily driver (sway desktop) | ❌ hard lock / freeze — no log trail (session died mid-journal, `last` shows `crash`); −65 not bulletproof over weeks |
+| 2026-06-13 | −55 | 3000 | 2550 | 280 | daily driver | ⏳ backed off from −65 after the freeze; Windows ran −50 stable for a year, so −55 is a conservative re-entry. Soak-testing. |
+| 2026-06-13 | −50 | 3000 | 2550 | 280 | daily driver | ❌ −55 still crashed; dropped to −50 to match the year-long Windows-stable floor (1100 mV absolute). Soak-testing. |
 
 Found an existing Windows Adrenalin profile mid-session
 (`~/Downloads/over_under_7800.xml`, DevID 747E): 1100 mV, mem 2550, max core
@@ -164,34 +190,28 @@ in **Current locked-in profile** below.
 
 ### Current locked-in profile
 
-_Source of truth for what LACT applies. Verified re-applied after a clean reboot._
+**The applied values live in [`fedora/lact/config.yaml`](../lact/config.yaml) —
+that committed snapshot is the source of truth, not this doc.** `dotfiles-sync
+--check` flags drift between it and the live `/etc/lact/config.yaml` (see
+[Repo snapshot & drift](#repo-snapshot--drift)). Read the offset / clocks /
+power cap there rather than duplicating them here.
 
 Windows reference = the old Adrenalin profile (`~/Downloads/over_under_7800.xml`,
 DevID 747E) this tune was cross-checked against. Note the unit differences:
 voltage on Windows is an **absolute** value (mV), Linux is an **offset**; power
 on Windows is **TBP** (+%), Linux is **TGP** (absolute W) and reads ~20 W lower
-for the same state; memory clock matches in LACT's effective scale.
-
-| Knob | Linux (LACT, applied) | Windows (Adrenalin ref) |
-| --- | --- | --- |
-| GPU voltage | **−65 mV** offset | 1100 mV absolute (≈ −50 mV offset) |
-| Max Core Clock | **3000 MHz** | 3000 MHz |
-| Max Memory Clock | **2550 eff = 1275 MHz sysfs** | 2550 |
-| Power cap | **280 W TGP** | +15% TBP |
-| Fan curve | stock/automatic | — |
-
-The Linux tune **beats** the Windows profile: a deeper undervolt (−65 vs ≈−50)
-at the same core/memory/effective power. The 2550 memory sweet spot and 3000
-core ceiling were both confirmed by the Windows profile. −75 benched clean but
-threw an occasional driver reset under longer real-world play, so the locked-in
-value is **−65** for headroom.
+for the same state; memory clock matches in LACT's effective scale. The Windows
+profile confirmed the 2550 memory sweet spot and 3000 core ceiling; its ≈−50 mV
+offset (1100 mV absolute) is the proven-stable floor the Linux undervolt is
+tuned around.
 
 - Fan curve: **stock/automatic** (not tuned; idle fans-off, temps fine)
 - Applied on boot via `lactd`: **yes** (`systemctl is-enabled lactd` = enabled;
   values verified present in `pp_od_clk_voltage` on a fresh boot)
-- Last verified stable: **2026-06-05** (Cyberpunk bench + clean reboot + extended
-  multi-title play incl. suspend/resume). −75 benched clean but reset under
-  longer load, so settled on **−65** for margin.
+- History: −65 was the 2026-06-05 chosen edge but **hard-froze under weeks of
+  daily use (2026-06-13)**; −55 still crashed, so backed off to −50 — the
+  year-long Windows-stable floor (1100 mV absolute). See the tuning journal
+  above for the full climb.
 
 ## References
 

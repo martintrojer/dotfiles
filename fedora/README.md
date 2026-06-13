@@ -28,6 +28,11 @@ Setup scripts are thin wrappers around shared package arrays; all call
   gated behind RPM Fusion + the LACT COPR. A deliberate break from the
   COPR-free baseline; see [`docs/DECISIONS.md`](../docs/DECISIONS.md).
 
+GPU tuning state lives in `lact/config.yaml` (a committed snapshot of the live
+`/etc/lact/config.yaml`; not stowed, since the daemon rewrites the system file).
+`dotfiles-sync --check` flags drift between the two — see
+[`docs/LACT.md`](./docs/LACT.md#repo-snapshot--drift).
+
 Related docs: GPU tuning with LACT in [`docs/LACT.md`](./docs/LACT.md); gaming
 session/per-game helpers (`steam-session`, `optirun`, `optiscaler-client`) in
 [`bin/README.md`](./bin/README.md); HDR gaming in
