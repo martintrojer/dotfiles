@@ -1,0 +1,20 @@
+version: 5
+daemon:
+  log_level: info
+  admin_group: wheel
+  disable_clocks_cleanup: false
+apply_settings_timer: 5
+profiles:
+  Over/Under:
+    gpus:
+      1002:747E-1458:2413-0000:0c:00.0:
+        fan_control_enabled: false
+        pmfw_options:
+          zero_rpm: true
+        power_cap: 280.0
+        performance_level: auto
+        max_core_clock: 3000
+        max_memory_clock: 1275
+        voltage_offset: -50
+current_profile: Over/Under
+auto_switch_profiles: false
