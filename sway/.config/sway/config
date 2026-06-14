@@ -165,6 +165,9 @@ bindsym $mod+Page_Down workspace next
 bindsym $mod+Page_Up workspace prev
 # mod+g: toggle to last workspace (mirrors tmux prefix+g for last session).
 bindsym $mod+g workspace back_and_forth
+# NB: next/prev only cycle through workspaces that already exist, so these
+# won't move to an empty (not-yet-created) adjacent workspace. Use the
+# numbered $mod+Shift+1..6 bindings to reach an empty target.
 bindsym $mod+Ctrl+Page_Down move container to workspace next; workspace next
 bindsym $mod+Ctrl+Page_Up move container to workspace prev; workspace prev
 # Workspace-to-output is letter-based only (u=left, i=right); the
@@ -179,12 +182,12 @@ bindsym $mod+3 workspace number 3
 bindsym $mod+4 workspace number 4
 bindsym $mod+5 workspace number 5
 bindsym $mod+6 workspace number 6
-bindsym $mod+Shift+1 move container to workspace number 1
-bindsym $mod+Shift+2 move container to workspace number 2
-bindsym $mod+Shift+3 move container to workspace number 3
-bindsym $mod+Shift+4 move container to workspace number 4
-bindsym $mod+Shift+5 move container to workspace number 5
-bindsym $mod+Shift+6 move container to workspace number 6
+bindsym $mod+Shift+1 move container to workspace number 1; workspace number 1
+bindsym $mod+Shift+2 move container to workspace number 2; workspace number 2
+bindsym $mod+Shift+3 move container to workspace number 3; workspace number 3
+bindsym $mod+Shift+4 move container to workspace number 4; workspace number 4
+bindsym $mod+Shift+5 move container to workspace number 5; workspace number 5
+bindsym $mod+Shift+6 move container to workspace number 6; workspace number 6
 
 # Brackets for splits: [ = splitv (list, top/bottom), ] = splith (row).
 # Sway's upstream idiom uses mod+b/v but those are browser/clipboard here.
