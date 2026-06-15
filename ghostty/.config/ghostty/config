@@ -5,8 +5,8 @@ background-blur = 25
 macos-titlebar-style = transparent
 unfocused-split-opacity = 0.75
 
-font-family = "GeistMono NF"
-# font-family = "JetBrainsMono NF"
+font-family = "GeistMono Nerd Font Mono"
+# font-family = "JetBrainsMono Nerd Font Mono"
 # font-family = "Hack Nerd Font Mono"
 font-size = 15
 font-feature = -liga
