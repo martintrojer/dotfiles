@@ -1,0 +1,4 @@
+# Give the i2c group access to i2c-dev nodes so OpenRGB can drive
+# motherboard / RAM / GPU SMBus RGB controllers without running as root.
+# Installed to /etc/udev/rules.d/99-i2c.rules by setup-openrgb.sh.
+SUBSYSTEM=="i2c-dev", KERNEL=="i2c-[0-9]*", GROUP="i2c", MODE="0660"

@@ -24,4 +24,6 @@ steam_packages=(
   mangohud
   # AMD GPU control daemon (fan curves, power limits); needs the LACT COPR.
   lact
+  # RGB lighting control (so it can run system-wide, e.g. turn off at boot).
+  openrgb
 )

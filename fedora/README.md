@@ -13,7 +13,10 @@ variants are not supported.
    LACT COPR enabled first (see `steam-packages.sh`).
 5. `setup-gamescope-session.sh` (optional) — install the "Steam (gamescope)"
    embedded HDR session selectable at SDDM (see `docs/HDR-GAMING.md`).
-6. `setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
+6. `setup-openrgb.sh` (optional) — wire i2c/SMBus access for OpenRGB (loads
+   `i2c-dev`, creates the `i2c` group + udev rule, adds you to it). Needs the
+   `openrgb` rpm from `setup-steam.sh`. See "OpenRGB / RGB" below.
+7. `setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
 
 ## Package Lists
 
@@ -82,6 +85,8 @@ User-scoped Quadlet/systemd assets:
   `sway-clipman-watcher`, `sway-kanshi`, `sway-mako`, `swaybg`, `swayidle`,
   `sway-waybar`, `toolbox-dev`, `ollama-toolbox` services.
 
+(RGB runs as a **system** service, not a user one — see "OpenRGB / RGB" below.)
+
 Flow: stow → reload → enable units:
 
 ```bash
@@ -104,3 +109,25 @@ Notes:
 - Re-run `systemctl --user daemon-reload` after editing `*.service`/`*.container`.
 - `toolbox-dev.service` / `ollama-toolbox.service` assume toolboxes named `dev` /
   `ollama` already exist (with `ollama` installed inside the latter).
+
+## OpenRGB / RGB
+
+`openrgb` (from `steam-packages.sh`) controls motherboard / RAM / GPU RGB. To
+reach those over SMBus it needs i2c access, which is the common gotcha — without
+it the i2c nodes stay `root:root 0600` and OpenRGB sees no controllers.
+`setup-openrgb.sh` wires up everything (run it after layering `openrgb`):
+
+- `openrgb/i2c-dev.conf` → `/etc/modules-load.d/i2c-dev.conf` — load `i2c-dev`
+  at boot so `/dev/i2c-*` nodes exist.
+- creates the `i2c` system group and adds the invoking user to it.
+- `openrgb/99-i2c.rules` → `/etc/udev/rules.d/99-i2c.rules` — give the `i2c`
+  group `rw` on the i2c-dev nodes.
+- `openrgb/rgb.service` → `/etc/systemd/system/rgb.service` — a **system**
+  oneshot that sets the color on boot (the OpenRGB analog of `lactd`, not a
+  user/login service). Edit `--color` in the unit; `000000` turns lighting off.
+
+```bash
+fedora/setup-openrgb.sh
+# log out/in (or: newgrp i2c) so the group membership applies, then verify:
+getent group i2c && ls -l /dev/i2c-*   # expect: root i2c, crw-rw----
+```
