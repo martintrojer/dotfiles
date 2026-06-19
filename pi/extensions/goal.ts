@@ -15,7 +15,7 @@
  * Usage:
  *   /goal until `npm test` exits 0 and tsc --noEmit is clean, max 20 turns
  *   /goal                 # show the active goal, turns spent, last reason
- *   /goal clear           # stop the goal (aliases: stop, off, reset, cancel)
+ *   /goal clear           # stop the active goal
  *
  * Notes:
  *   - The checker prefers a small/fast model (falls back to the current session
@@ -28,7 +28,13 @@
 
 import { complete } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { conversationTranscript, FastModelCancelled, textContent, withFastModelFallback } from "./_lib.ts";
+import {
+	conversationTranscript,
+	FastModelCancelled,
+	setGoalFooterMarker,
+	textContent,
+	withFastModelFallback,
+} from "./_lib.ts";
 
 const DEFAULT_MAX_TURNS = 25;
 // How many trailing transcript chars to show the checker.
@@ -136,25 +142,31 @@ async function runChecker(
 
 function updateStatus(ctx: ExtensionContext): void {
 	if (!goal) {
-		ctx.ui.setStatus("goal", "");
+		setGoalFooterMarker(ctx, null);
 		return;
 	}
 	const mins = Math.round((Date.now() - goal.startedAt) / 60000);
-	ctx.ui.setStatus("goal", `◎ goal active · turn ${goal.turns}/${goal.maxTurns} · ${mins}m`);
+	setGoalFooterMarker(ctx, `◎ goal ${goal.turns}/${goal.maxTurns} · ${mins}m`);
 }
 
 export default function (pi: ExtensionAPI) {
 	pi.registerCommand("goal", {
 		description: "Work autonomously toward a verifiable condition (clone of Claude Code /goal)",
 		getArgumentCompletions: (prefix: string) => {
-			const items = [{ value: "clear", label: "clear — stop the active goal" }];
-			const filtered = items.filter((i) => i.value.startsWith(prefix));
+			const items = [{ value: "clear", label: "clear", description: "stop the active goal" }];
+			const trimmed = prefix.trimStart();
+			if (trimmed === "")
+				return [
+					{ value: "", label: "/goal <verifiable condition>", description: "set a new goal to work toward" },
+					...items,
+				];
+			const filtered = items.filter((i) => i.value.startsWith(trimmed));
 			return filtered.length > 0 ? filtered : null;
 		},
 		handler: async (args, ctx) => {
 			const trimmed = (args ?? "").trim();
 
-			if (/^(clear|stop|off|reset|none|cancel)$/i.test(trimmed)) {
+			if (/^clear$/i.test(trimmed)) {
 				if (!goal) {
 					ctx.ui.notify("No active goal.", "info");
 					return;
@@ -255,7 +267,8 @@ export default function (pi: ExtensionAPI) {
 		}
 	});
 
-	pi.on("session_shutdown", async () => {
+	pi.on("session_shutdown", async (_event, ctx) => {
 		goal = null;
+		setGoalFooterMarker(ctx, null);
 	});
 }
