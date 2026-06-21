@@ -3,12 +3,13 @@ type = "sftp"
 host = "bubba"
 user = "martintrojer"
 port = 22
-key_file = "~/.ssh/id_ed25519"
+# Authenticate via the ssh-agent ($SSH_AUTH_SOCK); the RSA key loaded there
+# is what actually authorizes against bubba.
 
 [services.pizero2]
 type = "sftp"
 host = "pzero2"
 user = "martintrojer"
 port = 22
-key_file = "~/.ssh/id_ed25519"
+# Authenticate via the ssh-agent ($SSH_AUTH_SOCK).
 
