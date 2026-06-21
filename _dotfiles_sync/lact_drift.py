@@ -24,7 +24,8 @@ def check_lact_drift(*, verbose: bool, ignore: set[str]) -> bool:
 
     Compares semantically (parsed YAML), since the daemon reorders/reformats
     the file when it rewrites it. Missing system file (LACT not installed) is
-    not an issue; a missing repo snapshot is.
+    not an issue; a missing repo snapshot is. On a LACT host, a missing pyyaml
+    is also an issue: we'd otherwise silently fail to detect drift.
     """
     if ISSUE_ID in ignore:
         return False
@@ -43,15 +44,19 @@ def check_lact_drift(*, verbose: bool, ignore: set[str]) -> bool:
             LOGGER.debug(f"SKIP: no system config at {SYSTEM_CONFIG}")
         return False
 
+    # We only get here when the live config exists, i.e. this is a LACT host.
+    # pyyaml is then a hard requirement: skipping silently would mask real
+    # drift, so a missing dependency is itself an issue worth surfacing.
     try:
         import yaml  # noqa: F401
     except ModuleNotFoundError:
         LOGGER.warning("\n[lact-drift]")
         LOGGER.warning(
-            f"SKIP: pyyaml not available, cannot compare LACT config "
+            f"MISSING-DEP: pyyaml not installed but {SYSTEM_CONFIG} exists; "
+            f"cannot verify LACT config drift. Install python3-pyyaml "
             f"(--ignore {ISSUE_ID})"
         )
-        return False
+        return True
 
     try:
         repo_data = _load_yaml(REPO_CONFIG)
@@ -67,9 +72,7 @@ def check_lact_drift(*, verbose: bool, ignore: set[str]) -> bool:
         return False
 
     LOGGER.warning("\n[lact-drift]")
-    LOGGER.warning(
-        f"DRIFT: {SYSTEM_CONFIG} differs from repo snapshot {REPO_CONFIG}"
-    )
+    LOGGER.warning(f"DRIFT: {SYSTEM_CONFIG} differs from repo snapshot {REPO_CONFIG}")
     LOGGER.warning(f"  diff:    diff {REPO_CONFIG} {SYSTEM_CONFIG}")
     LOGGER.warning(
         f"  adopt:   sudo cp {SYSTEM_CONFIG} {REPO_CONFIG}  "

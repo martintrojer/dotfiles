@@ -484,7 +484,7 @@ def main() -> int:
         return 1
 
     tmpdir = tempfile.mkdtemp(prefix="tmux-status-tools-test-")
-    env = {
+    env: dict[str, str] = {
         **os.environ,
         "XDG_STATE_HOME": tmpdir,
         "TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY": "1",
