@@ -42,7 +42,12 @@ return function(map)
 	map("n", "<leader>fF", function()
 		util.fzf_with_cwd("vcs_files", util.vcs_dir)
 	end, { desc = "VCS files" })
-	map("n", "<leader>fb", "<cmd>FzfLua buffers<cr>", { desc = "Buffers" })
+	-- Disable inherited `--multi`; `--no-multi` would conflict after option merge.
+	map("n", "<leader>fb", function()
+		require("fzf-lua").buffers({
+			fzf_opts = { ["--multi"] = false },
+		})
+	end, { desc = "Buffers" })
 	map("n", "<leader>fB", "<cmd>FzfLua tmux_buffers<cr>", { desc = "Tmux clipboard" })
 	map("n", "<leader>fc", "<cmd>FzfLua commands<cr>", { desc = "Commands" })
 	map("n", "<leader>fh", "<cmd>FzfLua help_tags<cr>", { desc = "Help tags" })

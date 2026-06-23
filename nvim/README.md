@@ -16,13 +16,15 @@ Minimal Neovim 0.12 config. No framework, no plugin manager plugin — just `vim
 init.lua                        — options, colorscheme, diagnostics, commands, autocommands
 lua/
   plugins.lua                   — vim.pack.add + build hooks
-  mini_setup.lua                — 17 mini modules + clue + statusline + notify
+  mini_setup.lua                — 18 mini modules + clue + statusline + notify
   starter.lua                   — start screen + logo + greeting
+  sessions.lua                  — mini.sessions wrapper: project-root sessions in state dir + fzf picker
   keymaps/                      — keymaps split by domain
     init.lua                    — dispatcher: loads each submodule with shared `map` helper
     core.lua                    — editor, terminal, tmux nav, buffer mgmt
     find.lua                    — fzf-lua pickers
     git.lua                     — source control (lazygit, mini.git, jj-fugitive)
+    sessions.lua                — session save/load/pick/delete keymaps
     search.lua                  — grep, search & replace, vecgrep
     notes.lua                   — zk + markdown helpers
     lsp.lua                     — LSP actions (definitions, references, code actions)
@@ -44,7 +46,7 @@ after/ftplugin/
 
 ## Plugins (13 vim.pack entries)
 
-### mini.nvim (17 modules from one repo)
+### mini.nvim (18 modules from one repo)
 
 | Module | Purpose |
 |--------|---------|
@@ -59,6 +61,7 @@ after/ftplugin/
 | mini.move | Move lines/selections with Alt-h/j/k/l |
 | mini.notify | Floating notifications |
 | mini.pairs | Auto-close brackets/quotes |
+| mini.sessions | Project-root session management via `:mksession` |
 | mini.splitjoin | Toggle single-line / multi-line args |
 | mini.starter | Start screen with recent files and actions |
 | mini.statusline | Statusline (mode, git, diagnostics, LSP, position) |
@@ -155,6 +158,10 @@ Then run `:TSSync` in nvim to install treesitter parsers.
 
 | Command | What it does |
 |---------|-------------|
+| `:SessionSave [label]` | Save current-root session label to `~/.local/state/nvim/sessions/` (`default` when omitted) |
+| `:SessionLoad [label]` | Load current-root session label (`default` when omitted) |
+| `:SessionPick` | Pick/load current-root session labels with fzf (`ctrl-d` deletes) |
+| `:SessionDelete [label]` | Delete current-root session label, or active session when omitted |
 | `:PackUpdate` | Update all plugins (review diff, `:w` to confirm) |
 | `:LspInfo` | Show LSP clients for current buffer |
 | `:TSSync` | Install missing treesitter parsers |
@@ -206,6 +213,12 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `<leader>fD` | Workspace diagnostics |
 | `<leader>fs` | Document symbols |
 | `<leader>fS` | Workspace symbols |
+| **Sessions (`<leader>S`)** | |
+| `<leader>Sp` | Pick/load current-root session label (fzf; `ctrl-d` deletes) |
+| `<leader>Ss` | Save current-root `default` session |
+| `<leader>Sl` | Load current-root `default` session |
+| `<leader>Sd` | Delete active session, or current-root `default` |
+| `<leader>Sn` | Save named label for current root |
 | **Search (`<leader>s`)** | |
 | `<leader>sg` | Live grep (rg) |
 | `<leader>s/` | Resume live grep |
