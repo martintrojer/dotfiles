@@ -60,6 +60,10 @@ local function style_indentscope()
 	set_hl("MiniIndentscopeSymbol", { fg = palette.surface1 })
 end
 
+local function style_session()
+	set_hl("MiniStatuslineSession", { fg = palette.peach, bg = palette.surface1 })
+end
+
 local function style_tabline()
 	apply_highlights({
 		MiniTablineFill = { fg = palette.overlay0, bg = palette.mantle },
@@ -79,6 +83,7 @@ local function apply_theme_overrides()
 	style_diff()
 	style_hipatterns()
 	style_indentscope()
+	style_session()
 	style_tabline()
 end
 
@@ -88,6 +93,7 @@ end
 local function statusline_content()
 	local mode, mode_hl = MiniStatusline.section_mode({ trunc_width = 120 })
 	local git = MiniStatusline.section_git({ trunc_width = 75 })
+	local session = require("sessions").status()
 	local diff = MiniStatusline.section_diff({ trunc_width = 75 })
 	local diagnostics = MiniStatusline.section_diagnostics({ trunc_width = 75 })
 	local filename = MiniStatusline.section_filename({ trunc_width = 140 })
@@ -98,7 +104,7 @@ local function statusline_content()
 
 	return MiniStatusline.combine_groups({
 		{ hl = mode_hl, strings = { mode } },
-		{ hl = "MiniStatuslineDevinfo", strings = { git, diff, diagnostics } },
+		{ hl = "MiniStatuslineDevinfo", strings = { git, session, diff, diagnostics } },
 		"%<",
 		{ hl = "MiniStatuslineFilename", strings = { filename } },
 		"%=",
@@ -198,6 +204,7 @@ local clue_clues = {
 	{ mode = "x", keys = "<leader>e", desc = "+diagnostics" },
 	{ mode = "n", keys = "<leader>u", desc = "+undo" },
 	{ mode = "x", keys = "<leader>u", desc = "+undo" },
+	{ mode = "n", keys = "<leader>S", desc = "+sessions" },
 	{ mode = "n", keys = "<leader>g", desc = "+git/vcs" },
 }
 

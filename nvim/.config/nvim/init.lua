@@ -51,6 +51,7 @@ vim.cmd.colorscheme("catppuccin")
 -- Plugin setup
 ----------------------------------------------------------------------
 require("mini_setup")
+require("sessions").setup()
 require("starter")
 
 require("fzf-lua").setup({
