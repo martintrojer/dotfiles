@@ -76,6 +76,13 @@ When the agent ends a turn by asking you several questions, `/answer` (or `Ctrl+
 
 Extraction prefers a small/fast model, falls back through ranked candidates (including the current session model), and reports the chosen model. TUI-only.
 
+### `/namesession` — generated `/resume` title
+
+Uses a small/fast model to generate a short friendly title for the current session, then persists it with pi's built-in session-name mechanism so `/resume` shows it instead of the first prompt. Unnamed persisted sessions are also auto-named just before `/new`, `/resume`, `/fork`, or quit. `/reload` is skipped.
+
+- `/namesession` — generate/replace a title from the current transcript
+- `/namesession auth cleanup` — optional hint to steer the title
+
 ### `brave_search` — Brave LLM Context tool
 
 Adds model-callable Brave tools:
