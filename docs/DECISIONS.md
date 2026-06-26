@@ -302,23 +302,19 @@ Resolution fixed at launch, not per-client — no new script, no duplicated logi
   `gamescope-session-plus@steam.service` user unit, which this hand-rolled
   SDDM-launched session does not have.
 
-Scoping to the stream session only: the rpm's user unit
-(`app-dev.lizardbyte.app.Sunshine.service`) is never `enable`d, so `GS_SUNSHINE=1`
-in the stream `.desktop` is the sole trigger — `steam-session` does `systemctl
---user start` before gamescope (no `exec`, EXIT trap to stop it). The HDR session
-and Sway desktop never touch it.
+Non-obvious traps that took real digging, each documented with the fix in
+[`fedora/docs/STREAMING.md`](../fedora/docs/STREAMING.md):
 
-KMS-capture gotcha (the last thing that actually made it work): the shared
-per-user systemd env keeps `WAYLAND_DISPLAY=wayland-1` from whichever Sway
-session last imported it. Started from the gamescope session, Sunshine inherited
-that, auto-picked wlr (Wayland) capture, and died with `Couldn't connect to
-Wayland display: wayland-1`. gamescope owns the DRM scanout and exposes no
-wlr-screencopy, so the fix is a tracked systemd drop-in
-(`app-dev.lizardbyte.app.Sunshine.service.d/override.conf`) forcing
-`capture=kms` + `UnsetEnvironment=WAYLAND_DISPLAY DISPLAY`. KMS uses the binary's
-`cap_sys_admin` file-cap. Also needs `mesa-va-drivers-freeworld` (stock mesa
-strips the VAAPI encoders) and the firewall opened (`setup-sunshine.sh`).
-Verified butter-smooth to a Legion Go S (hevc_vaapi, ~15 Mbps, 1080p).
+- **Session scoping** — the rpm unit is never `enable`d; `GS_SUNSHINE=1` in the
+  stream `.desktop` is the sole trigger, so Sunshine runs only there.
+- **KMS-capture vs stale `WAYLAND_DISPLAY`** — a tracked systemd drop-in forces
+  `capture=kms` and clears the Sway-inherited Wayland env, else capture dies.
+- **`mesa-va-drivers-freeworld`** — stock mesa strips the VAAPI encoders.
+- **Firewall** — the rpm ships no firewalld rule (`setup-sunshine.sh`).
+- **Washed-out colors** — Moonlight's VAAPI renderer hardcodes BT.601; fixed
+  client-side with a `COLOR_SPACE_OVERRIDE=1` flatpak override, not on the host.
+
+Verified butter-smooth to a Legion Go S (hevc_vaapi, BT.709, ~15 Mbps, 1080p).
 
 **Pillar fit:** #4 (Remote Play was the no-infra first try; Sunshine earns its
 layering tax only after Remote Play actually failed, not speculatively), #7 (the

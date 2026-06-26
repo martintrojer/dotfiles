@@ -87,14 +87,37 @@ auto-discovery fails), and it shows a 4-digit PIN. Enter that PIN on the web
 UI's **PIN** page to pair. Pairing persists in
 `~/.config/sunshine/sunshine_state.json` across reboots.
 
+## Washed-out colors fix (client-side BT.601)
+
+Colors looked desaturated/washed over the stream but vibrant on the handheld
+locally. Cause: Moonlight's VAAPI renderer **hardcodes BT.601**
+(`vaapi.cpp: getDecoderColorspace() return COLORSPACE_REC_601`, citing a 2019
+Mesa bug that's long-fixed on Mesa 26). Moonlight requests 601 via
+`encoderCscMode`; Sunshine's colorspace is **100% client-driven** (no host
+override -- `sunshine.conf color_range` is inert), so it encodes 601 and the
+colors shift. Confirmed in the host log: `Color coding: SDR (Rec. 601)`.
+
+Fix on the **handheld** (Moonlight is the Flatpak), force BT.709:
+
+```bash
+flatpak override --user --env=COLOR_SPACE_OVERRIDE=1 com.moonlight_stream.Moonlight
+```
+
+(`COLOR_SPACE_OVERRIDE`: 0=601, 1=709, 2=2020; there's also
+`COLOR_RANGE_OVERRIDE` 0=limited/1=full if blacks look grey.) After relaunch the
+host log shows `Color coding: SDR (Rec. 709)` and colors are correct. Host needs
+nothing.
+
 ## Test
 
 Verified butter-smooth with a Legion Go S paired: KMS capture, `hevc_vaapi`,
 ~15 Mbps, 1080p. Host (in the stream session): web UI at https://localhost:47990;
 confirm VAAPI hardware encoder, host wired to ethernet.
 
-Handheld (Moonlight): 1080p, ~15-50 Mbps LAN, perf overlay on. Codec is
-client-negotiated -- the Go S picked HEVC on Auto; force AV1 in Moonlight if you
-want marginally better quality-per-bit. Verify stream is 1080p (not 4K boxed),
-low single-digit ms network latency, VAAPI (not software) encode, and OK frame
-pacing (cap fps to client refresh; Sunshine needs manual vsync/gsync-off tuning).
+Handheld (Moonlight): 1080p, ~15-50 Mbps LAN, perf overlay on, plus the
+`COLOR_SPACE_OVERRIDE=1` flatpak override (see above -- else colors wash out).
+Codec is client-negotiated -- the Go S picked HEVC on Auto; force AV1 in Moonlight
+if you want marginally better quality-per-bit. Verify stream is 1080p (not 4K
+boxed), low single-digit ms network latency, VAAPI (not software) encode, and OK
+frame pacing (cap fps to client refresh; Sunshine needs manual vsync/gsync-off
+tuning).
