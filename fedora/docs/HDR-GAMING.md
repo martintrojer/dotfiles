@@ -4,11 +4,13 @@ Box: AMD RX 7800 XT + HDR LG 4K on `DP-1`.
 
 ## Model
 
-Use two separate environments:
+Use these environments:
 
 - **Sway desktop**: light SDR gaming. Launch games normally. No nested gamescope.
 - **Steam (gamescope) SDDM session**: real HDR. gamescope uses the DRM backend,
   owns KMS/DP-1, starts Steam Big Picture, and draws MangoHud with `--mangoapp`.
+- **Steam (gamescope stream) SDDM session**: same launcher, 1080p SDR + Sunshine
+  for handheld streaming. See [STREAMING.md](./STREAMING.md).
 
 Sway 1.11 lacks the color-management protocol needed for HDR. For real HDR, log
 into the gamescope session instead of nesting gamescope inside Sway. Background:
@@ -23,7 +25,8 @@ Run `setup-gamescope-session.sh` after `setup-steam.sh` and
 It installs:
 
 - `/usr/local/bin/steam-session` → stowed `~/.local/bin/steam-session`
-- `/usr/local/share/wayland-sessions/steam.desktop`
+- `/usr/local/share/wayland-sessions/steam.desktop` (couch HDR)
+- `/usr/local/share/wayland-sessions/steam-stream.desktop` (1080p SDR streaming)
 
 ## Use
 
@@ -88,5 +91,6 @@ OPTIRUN_DLL=winmm optirun %command%
 | Goal | How |
 | --- | --- |
 | HDR session | Steam (gamescope) in SDDM |
+| Stream to handheld (1080p SDR, Sunshine) | Steam (gamescope stream) in SDDM |
 | SDR desktop gaming | Sway; launch normally |
 | OptiScaler/FSR4/GameMode for one game | `optirun %command%` |

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Steam (gamescope stream)
+Comment=SteamOS-style session on gamescope at 1080p SDR with Sunshine, for streaming to a handheld
+Exec=env GS_OUT_W=1920 GS_OUT_H=1080 GS_HDR=0 GS_SUNSHINE=1 /usr/local/bin/steam-session
+Type=Application
+DesktopNames=gamescope

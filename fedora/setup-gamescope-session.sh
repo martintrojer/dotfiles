@@ -1,16 +1,21 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install the "Steam (gamescope)" SteamOS-style session so it can be picked from
-# the SDDM login screen. This is the embedded/DRM gamescope session (true HDR);
-# see fedora/docs/HDR-GAMING.md.
+# Install the SteamOS-style gamescope sessions so they can be picked from the
+# SDDM login screen. Both are embedded/DRM gamescope sessions that exec the same
+# stowed launcher; only env knobs differ. See fedora/docs/HDR-GAMING.md.
 #
-# It wires two system paths (writable + persistent on Atomic via the
+#   steam.desktop         4K HDR for couch PC gaming (launcher defaults)
+#   steam-stream.desktop  1080p SDR + Sunshine for streaming to a handheld
+#                         (GS_OUT_W=1920 GS_OUT_H=1080 GS_HDR=0 GS_SUNSHINE=1)
+#
+# It wires system paths (writable + persistent on Atomic via the
 # /usr/local -> /var/usrlocal symlink), which SDDM already searches
 # (SessionDir=/usr/local/share/wayland-sessions,...):
 #
-#   /usr/local/bin/steam-session                  -> the stowed launcher
-#   /usr/local/share/wayland-sessions/steam.desktop  the session entry
+#   /usr/local/bin/steam-session                        -> the stowed launcher
+#   /usr/local/share/wayland-sessions/steam.desktop        couch HDR entry
+#   /usr/local/share/wayland-sessions/steam-stream.desktop streaming entry
 #
 # Prereqs: steam + gamescope layered (setup-steam.sh) and the dotfiles stowed
 # (dotfiles-sync --apply), so ~/.local/bin/steam-session exists. Run as your
@@ -19,7 +24,10 @@ set -euo pipefail
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 launcher="$HOME/.local/bin/steam-session"
-desktop_src="$script_dir/gamescope-session/steam.desktop"
+desktop_srcs=(
+  "$script_dir/gamescope-session/steam.desktop"
+  "$script_dir/gamescope-session/steam-stream.desktop"
+)
 
 if [[ ! -x "$launcher" ]]; then
   echo "error: $launcher not found or not executable." >&2
@@ -27,14 +35,19 @@ if [[ ! -x "$launcher" ]]; then
   exit 1
 fi
 
-if [[ ! -f "$desktop_src" ]]; then
-  echo "error: $desktop_src not found." >&2
-  exit 1
-fi
+for desktop_src in "${desktop_srcs[@]}"; do
+  if [[ ! -f "$desktop_src" ]]; then
+    echo "error: $desktop_src not found." >&2
+    exit 1
+  fi
+done
 
 sudo install -d -m 0755 /usr/local/bin /usr/local/share/wayland-sessions
 sudo ln -sf "$launcher" /usr/local/bin/steam-session
-sudo install -m 0644 "$desktop_src" /usr/local/share/wayland-sessions/steam.desktop
+for desktop_src in "${desktop_srcs[@]}"; do
+  sudo install -m 0644 "$desktop_src" \
+    "/usr/local/share/wayland-sessions/$(basename "$desktop_src")"
+done
 
-echo "Installed 'Steam (gamescope)' session."
-echo "Pick it at the SDDM login screen; quit Steam to return to SDDM."
+echo "Installed 'Steam (gamescope)' and 'Steam (gamescope stream)' sessions."
+echo "Pick one at the SDDM login screen; quit Steam to return to SDDM."
