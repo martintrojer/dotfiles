@@ -33,6 +33,9 @@ Gaming:
 - **Steam (gamescope) SDDM session**: HDR gaming. `steam-session` owns the
   display via gamescope DRM, enables HDR, draws MangoHud (`--mangoapp`), and
   exports only HDR WSI env: `DXVK_HDR=1 ENABLE_GAMESCOPE_WSI=1`.
+- **Steam (gamescope stream) SDDM session**: same launcher with
+  `GS_OUT_W=1920 GS_OUT_H=1080 GS_HDR=0 GS_SUNSHINE=1` for streaming to a
+  handheld via Sunshine. See [../docs/STREAMING.md](../docs/STREAMING.md).
 - **Per-game OptiScaler/FSR4/GameMode**: use `optirun %command%`. It sets
   `WINEDLLOVERRIDES=dxgi=n,b`, `PROTON_FSR4_UPGRADE=1`,
   `DXIL_SPIRV_CONFIG=wmma_rdna3_workaround`, then runs the game via

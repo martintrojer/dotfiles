@@ -256,6 +256,85 @@ gaming profile that supersedes the manual COPR/RPM-Fusion dance.
 
 ---
 
+### Handheld streaming: a 1080p gamescope session, Remote Play tried then Sunshine (accepted 2026-06-26)
+
+Goal: stream Steam games to a SteamOS handheld (1920x1200 native) from this box.
+Two parts settled separately: the **session** (stable) and the **transport**
+(Remote Play first, Sunshine after it proved unreliable). Full procedure in
+[`fedora/docs/STREAMING.md`](../fedora/docs/STREAMING.md).
+
+**The session** is a second gamescope SDDM entry, `Steam (gamescope stream)`:
+the `steam-session` launcher with env overrides
+(`GS_OUT_W=1920 GS_OUT_H=1080 GS_HDR=0 GS_SUNSHINE=1`). 1080p because the LG 4K
+panel is **16:9 only** (no native 1920x1200); the handheld letterboxes it.
+Resolution fixed at launch, not per-client — no new script, no duplicated logic.
+
+**The transport**, alternatives walked:
+
+- **Steam Remote Play (tried first, reverted).** Built into the `steam` rpm,
+  negotiates client resolution natively, does proper frame pacing — the
+  zero-infra option. Tried on the wired LAN; proved **unreliable** in practice
+  (drops/instability), so it didn't stick. Kept as the easy first thing anyone
+  should try, but not the answer here.
+- **Sunshine (Flatpak).** Dead end: KMS capture needs `CAP_SYS_ADMIN`, which the
+  Flatpak sandbox cannot hold. Confirmed across LizardByte issues #2948/#3953.
+- **Sunshine (COPR rpm, layered) — accepted.** Older guides describe a painful
+  Atomic workaround (rpm `%post` `setcap` aborts the layer on read-only `/usr`,
+  #2972; rebuild the rpm to strip `%post`; copy-and-cap in `/usr/local`,
+  Sunshine#1075). **Verified obsolete** by inspecting the current
+  `lizardbyte/beta` rpm in the dev toolbox: `%post` now detects rpm-ostree and
+  skips its steps, `cap_sys_admin,cap_sys_nice` ship as file capabilities that
+  rpm-ostree preserves into `/usr`, and the rpm ships its own udev rule + user
+  unit. So Sunshine is just a `steam-packages.sh` entry (COPR repo file +
+  `rpm-ostree install`, exactly like `lact`); no setup script, no rpmrebuild, no
+  cap-on-copy, no tracked udev/unit. Lesson: read the package, not just the
+  issue tracker. `beta` not `stable` (stable lags the newest Fedora, #4395).
+  Sunshine's quality edge (lower latency, AV1) comes with *manual* per-game
+  frame-pacing tuning.
+- **Virtual display / EDID-injection / headless gamescope / headless Sway.** All
+  aimed at the handheld's true 1920x1200 (16:10). Rejected: the 16:9 panel needs
+  an EDID/kernel-arg hack or a separate headless compositor — the fragile,
+  black-screen-after-reboot territory the Bazzite/Reddit threads warn about, and
+  it breaks the "pure gamescope, no nesting, launch options just work" property.
+- **Dynamic per-client resolution swap in one session.** Rejected: restarting
+  gamescope mid-stream to re-mode segfaults (the documented Bazzite
+  `sunshine-swap.sh` failure), and the trick assumes Bazzite's
+  `gamescope-session-plus@steam.service` user unit, which this hand-rolled
+  SDDM-launched session does not have.
+
+Scoping to the stream session only: the rpm's user unit
+(`app-dev.lizardbyte.app.Sunshine.service`) is never `enable`d, so `GS_SUNSHINE=1`
+in the stream `.desktop` is the sole trigger — `steam-session` does `systemctl
+--user start` before gamescope (no `exec`, EXIT trap to stop it). The HDR session
+and Sway desktop never touch it.
+
+KMS-capture gotcha (the last thing that actually made it work): the shared
+per-user systemd env keeps `WAYLAND_DISPLAY=wayland-1` from whichever Sway
+session last imported it. Started from the gamescope session, Sunshine inherited
+that, auto-picked wlr (Wayland) capture, and died with `Couldn't connect to
+Wayland display: wayland-1`. gamescope owns the DRM scanout and exposes no
+wlr-screencopy, so the fix is a tracked systemd drop-in
+(`app-dev.lizardbyte.app.Sunshine.service.d/override.conf`) forcing
+`capture=kms` + `UnsetEnvironment=WAYLAND_DISPLAY DISPLAY`. KMS uses the binary's
+`cap_sys_admin` file-cap. Also needs `mesa-va-drivers-freeworld` (stock mesa
+strips the VAAPI encoders) and the firewall opened (`setup-sunshine.sh`).
+Verified butter-smooth to a Legion Go S (hevc_vaapi, ~15 Mbps, 1080p).
+
+**Pillar fit:** #4 (Remote Play was the no-infra first try; Sunshine earns its
+layering tax only after Remote Play actually failed, not speculatively), #7 (the
+stream session is a thin env-override of the existing launcher), #8 (this is the
+gaming box — the gaming-layer entry
+[above](#the-gaming-layer-deliberately-breaks-the-copr-free--minimal-rules-accepted-2026-06-05)
+already accepted COPR + layering here).
+
+**Reconsider only if:** Sunshine stops earning its keep (then `rpm-ostree
+uninstall Sunshine` and revert the `GS_SUNSHINE` wiring — Remote Play remains the
+zero-cost fallback), OR the monitor is replaced with a 16:10/native-1920x1200
+panel (then the true-native-res virtual-display routes become worth
+re-evaluating).
+
+---
+
 ### Cmd+C / Cmd+V everywhere via Rainy75 firmware layer, not xremap (accepted 2026-05-28)
 
 MacOS muscle memory wants one chord for copy/paste everywhere. Linux gives two: `Ctrl+C` in GUI apps, `Ctrl+Shift+C` in terminals (because `Ctrl+C` is SIGINT). Living with both was a constant low-grade annoyance — different motor program per focused-app type, no way for the brain to fork it cleanly.

@@ -26,6 +26,7 @@ set -euo pipefail
 #   GS_REFRESH refresh rate   (default 60)
 #   GS_HDR     HDR output (default on); set GS_HDR=0 to disable
 #   GS_ARGS    extra gamescope args appended verbatim
+#   GS_SUNSHINE  start the Sunshine stream host for this session (default off)
 
 # Refuse to run nested: the DRM backend needs to own the display. This only makes
 # sense as an SDDM session, not from inside Sway.
@@ -64,8 +65,25 @@ args=(--backend drm
 # shellcheck disable=SC2206  # word-splitting GS_ARGS is intentional
 [[ -n "${GS_ARGS:-}" ]] && args+=($GS_ARGS)
 
-# Let Vulkan clients (Proton/DXVK) negotiate HDR via the gamescope WSI layer.
+# Build the gamescope command. HDR sessions negotiate HDR via the gamescope WSI
+# layer; SDR sessions don't set the HDR WSI env.
 if [[ "${GS_HDR:-1}" != "0" ]]; then
-  exec gamescope "${args[@]}" -- env DXVK_HDR=1 ENABLE_GAMESCOPE_WSI=1 steam -gamepadui
+  cmd=(gamescope "${args[@]}" -- env DXVK_HDR=1 ENABLE_GAMESCOPE_WSI=1 steam -gamepadui)
+else
+  cmd=(gamescope "${args[@]}" -- steam -gamepadui)
 fi
-exec gamescope "${args[@]}" -- steam -gamepadui
+
+# Stream session (GS_SUNSHINE=1): run Sunshine so a Moonlight client can
+# KMS-capture this session's scanout. The rpm's unit is never `enable`d, so it
+# runs only when started here. No `exec`: the script must outlive gamescope to
+# stop Sunshine on quit. See fedora/docs/STREAMING.md.
+sunshine_unit=app-dev.lizardbyte.app.Sunshine.service
+if [[ "${GS_SUNSHINE:-0}" == "1" ]]; then
+  systemctl --user start "$sunshine_unit" || \
+    echo "steam-session: failed to start $sunshine_unit" >&2
+  trap 'systemctl --user stop "$sunshine_unit"' EXIT
+  "${cmd[@]}"
+  exit $?
+fi
+
+exec "${cmd[@]}"
