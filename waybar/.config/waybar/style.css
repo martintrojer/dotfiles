@@ -70,7 +70,7 @@ window#waybar,
 #waybar.first #clock,
 #waybar.first #custom-weather {
 	padding-left: 8pt;
-	padding-right: 8pt;
+	padding-right: 2pt;
 	margin-top: 1px;
 	margin-bottom: 1px;
 	margin-left: 3px;
@@ -115,7 +115,7 @@ window#waybar,
 	background: transparent;
 	margin-top: 2px;
 	margin-bottom: 0;
-	margin-left: 1px;
+	margin-left: 4px;
 	margin-right: 2px;
 }
 
