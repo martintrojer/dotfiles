@@ -152,8 +152,32 @@ local function gappedFrame(sf, unit)
 	)
 end
 
+-- Chromium/Electron apps (Chrome, VS Code, ...) set the AX attribute
+-- AXEnhancedUserInterface, which makes hs.window:setFrame() crawl: each
+-- resize triggers a slow accessibility relayout. Toggling the attribute off
+-- around the setFrame call restores instant resizing, then we restore the
+-- original value so VoiceOver/automation aren't permanently affected.
+-- Known Hammerspoon issue #3224.
+local function setFrameFast(win, frame)
+	local app = win:application()
+	local ax = app and hs.axuielement.applicationElement(app)
+	local wasEnhanced = nil
+	if ax then
+		wasEnhanced = ax.AXEnhancedUserInterface
+		if wasEnhanced then
+			ax.AXEnhancedUserInterface = false
+		end
+	end
+
+	win:setFrame(frame)
+
+	if wasEnhanced then
+		ax.AXEnhancedUserInterface = true
+	end
+end
+
 local function moveToUnit(win, unit)
-	win:setFrame(gappedFrame(win:screen():frame(), unit))
+	setFrameFast(win, gappedFrame(win:screen():frame(), unit))
 end
 
 local function isAtUnit(win, unit)
