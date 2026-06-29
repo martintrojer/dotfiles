@@ -13,6 +13,10 @@ Skills are auto-discovered and can be invoked explicitly with `/skill:name` or l
 
 ## Skills
 
+> `ponytail` is vendored from
+> [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
+> Keep edits minimal so it stays easy to re-sync against upstream.
+
 ### Planning & Execution
 
 | Skill | Trigger | Description |
@@ -39,6 +43,7 @@ Skills are auto-discovered and can be invoked explicitly with `/skill:name` or l
 | Skill | Trigger | Description |
 |-------|---------|-------------|
 | `/skill:caveman` | "caveman mode", "be brief" | Ultra-compressed communication (~75% token savings). Levels: lite, full, ultra |
+| `/skill:ponytail` | "ponytail", "be lazy", "yagni", "simplest solution" | Forces the laziest solution that works: YAGNI, stdlib/native first, shortest diff. Levels: lite, full, ultra |
 
 ### Tools & Integrations
 

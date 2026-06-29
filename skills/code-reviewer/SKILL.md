@@ -24,9 +24,13 @@ Provide direct, actionable code-quality review focused on maintainability, simpl
 - Near-duplicate blocks that should be shared
 - Cases where DRY improves clarity without over-abstraction
 
-### 3. Unnecessary Complexity
+### 3. Unnecessary Complexity (Over-Engineering)
 - Over-engineered abstractions and indirection
 - Premature generalization or pattern cargo-culting
+- Abstractions with a single implementation, config nobody sets, layers with one caller (YAGNI)
+- Hand-rolled code the standard library already ships
+- Dependencies or code doing what the platform/language already does natively
+- Speculative features and dead flexibility kept "for later"
 - Functions/classes with too many responsibilities
 - Clever code that hurts readability
 
@@ -62,6 +66,12 @@ For each finding:
 - Explain why it is a problem
 - Propose a concrete fix
 - Note the principle being applied
+
+## Related
+
+For build-time discipline (writing the simplest thing that works), pair this
+with the `ponytail` skill. The over-engineering checks above are the review-time
+mirror of that ladder: deletion is the highest-value outcome.
 
 ## Principles
 
