@@ -32,9 +32,13 @@ Evaluate whether tests provide real safety signals or merely appear to do so.
 
 ### 4. Test Smells and Coverage Quality
 - Excessive irrelevant setup
+- Speculative scaffolding, redundant fixtures, or reinvented stdlib bloating the suite
 - Brittle tests tightly coupled to implementation details
 - Order-dependent or global-state-dependent tests
 - Critical paths and edge cases untested
+
+When trimming bloat, keep a single smoke / `assert` self-check as the minimum —
+never delete the last line that fails when the logic breaks.
 
 ## Review Process
 
@@ -62,6 +66,11 @@ For each finding:
 - Explain what bug could slip through
 - Provide a concrete improved test
 - State what behavior the improved test verifies
+
+## Related
+
+For build-time discipline (write the smallest test that catches the bug), pair
+this with the `ponytail` skill.
 
 ## Principles
 
