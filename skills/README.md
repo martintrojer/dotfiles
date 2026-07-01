@@ -15,7 +15,11 @@ Skills are auto-discovered and can be invoked explicitly with `/skill:name` or l
 
 > `ponytail` is vendored from
 > [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
-> Keep edits minimal so it stays easy to re-sync against upstream.
+> `avoid-ai-writing` is vendored from
+> [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing)
+> (MIT, v3.10.0 @ `6e1369d`) — `SKILL.md` plus the zero-dependency `detector/`
+> engine (`node detector/patterns.js`).
+> Keep edits to vendored skills minimal so they stay easy to re-sync against upstream.
 
 ### Planning & Execution
 
@@ -24,6 +28,12 @@ Skills are auto-discovered and can be invoked explicitly with `/skill:name` or l
 | `/skill:brainstorm` | "brainstorm", "design a feature", "think through" | Collaborative dialogue to refine vague ideas into technical specs |
 | `/skill:write-plan` | "write a plan", "plan this feature" | Break an approved design into executable implementation tasks |
 | `/skill:execute-plan` | "execute the plan", "run the plan" | Follow through on a plan created by `/skill:write-plan` |
+
+### Writing
+
+| Skill | Trigger | Description |
+|-------|---------|-------------|
+| `/skill:avoid-ai-writing` | "remove AI-isms", "clean up AI writing", "make this sound less like AI" | Audit/rewrite text to strip AI writing patterns. Detect, rewrite, and edit-in-place modes; optional voice profiles; bundled deterministic `detector/patterns.js` |
 
 ### Code Quality
 
