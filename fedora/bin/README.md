@@ -46,6 +46,23 @@ Gaming:
   `~/.local/bin` to PATH, exports `MANGOHUD_CONFIGFILE`, and accepts
   `GS_OUT_W/H`, `GS_REFRESH`, `GS_HDR`, `GS_ARGS`. See
   [../docs/HDR-GAMING.md](../docs/HDR-GAMING.md).
+- `steam-pause {pause,resume,list}` finds running Steam games (their
+  `reaper ... AppId=` processes), walks each child tree, and `SIGSTOP`/`SIGCONT`s
+  the children (leaving the reaper alive so Steam doesn't see the game as
+  exited). Extracted from the SDH-PauseGames Decky plugin, no Decky needed.
+  `../setup-steam-pause.sh` copies it to `/usr/local/bin` and enables a oneshot
+  unit (`../systemd-system/steam-pause-games.service`) ordered around
+  `sleep.target` that runs `pause` before suspend and `resume` on wake,
+  avoiding crackling audio and frozen emulators in the "Steam (gamescope)"
+  session. A `system-sleep` hook can't be used (Atomic `/usr/lib` is read-only
+  and `systemd-sleep` reads only that dir); the script is copied, not symlinked
+  to `~/.local/bin`, since the root unit can't exec under `$HOME` (SELinux
+  `user_home_t`, 203/EXEC). Stopped games hold RAM/VRAM, so best for short
+  suspends.
+- `../setup-power-key.sh` installs a global logind drop-in so the power button
+  suspends: short press = sleep, long press = power off. Applies to all sessions
+  (Sway, gamescope, SDDM greeter). Pairs with the pause unit and with Steam's
+  own "Suspend" menu item (same `systemctl suspend` path).
 
 OptiScaler manager (GUI):
 - `optiscaler-client` installs/updates/runs upstream OptiScaler Client into
