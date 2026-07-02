@@ -10,12 +10,7 @@
 #        https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
 #        https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 #
-# 2. LACT COPR for AMD GPU control (lact):
-#      https://copr.fedorainfracloud.org/coprs/ilyaz/LACT/
-#      -> drop the repo file at /etc/yum.repos.d/lact.repo
-#      after install: sudo systemctl enable --now lactd
-#
-# 3. Sunshine COPR (beta) for Moonlight game streaming (Sunshine):
+# 2. Sunshine COPR (beta) for Moonlight game streaming (Sunshine):
 #      https://copr.fedorainfracloud.org/coprs/g/lizardbyte/beta/
 #      -> drop the repo file at /etc/yum.repos.d/sunshine.repo
 #      beta not stable: stable often lags the newest Fedora. The rpm is
@@ -31,8 +26,6 @@ steam_packages=(
   gamescope
   # In-game performance overlay.
   mangohud
-  # AMD GPU control daemon (fan curves, power limits); needs the LACT COPR.
-  lact
   # RGB lighting control (so it can run system-wide, e.g. turn off at boot).
   openrgb
   # Moonlight game-stream host for the gamescope stream session; needs the

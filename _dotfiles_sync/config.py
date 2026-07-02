@@ -35,7 +35,6 @@ CHECK_TASKS: Final[tuple[TaskPolicy, ...]] = (
     TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
     TaskPolicy("agent-notify", full_run_only=True),
     TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
-    TaskPolicy("lact-drift", full_run_only=True),
     TaskPolicy("repo-backlinks", full_run_only=True),
 )
 

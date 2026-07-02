@@ -52,8 +52,8 @@ the right path.
 
 ## Install
 
-`Sunshine` is an `os/steam-packages.sh` entry layered by `os/setup-steam.sh`, like
-`lact`: drop the COPR repo file at `/etc/yum.repos.d/sunshine.repo` (group COPR
+`Sunshine` is an `os/steam-packages.sh` entry layered by `os/setup-steam.sh`:
+drop the COPR repo file at `/etc/yum.repos.d/sunshine.repo` (group COPR
 `lizardbyte/beta` -- stable lags the newest Fedora, #4395), then `rpm-ostree
 install` + reboot.
 

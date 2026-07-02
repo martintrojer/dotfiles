@@ -1,14 +1,6 @@
 [terminal]
 error-on-warning = true
 
-[analysis]
-# pyyaml is the repo's only third-party dep, used optionally in
-# _dotfiles_sync/lact_drift.py behind a ModuleNotFoundError guard. It is present
-# on LACT hosts but not in toolbox/CI envs, so allow the unresolved import in
-# both environments rather than relying on inline ignores (which would flip to
-# unused-ignore-comment errors wherever pyyaml *is* installed).
-allowed-unresolved-imports = ["yaml"]
-
 [rules]
 ambiguous-protocol-member = "error"
 deprecated = "error"

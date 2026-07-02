@@ -17,17 +17,16 @@ Scripts split into two buckets by what they do:
 - `setup-mise.sh` (top level) — userland tool install via `mise`; no root, no
   reboot, no packages layered.
 - **`data/`** — committed tool state read at runtime, not scripts to run:
-  `data/lact/config.yaml` (GPU-tuning snapshot, drift-checked by
-  `dotfiles-sync`) and `data/optiscaler-client-seed/` (first-run prefs the
-  `optiscaler-client` helper seeds into `~/.config`).
+  `data/optiscaler-client-seed/` (first-run prefs the `optiscaler-client`
+  helper seeds into `~/.config`).
 
 Order for a fresh install:
 
 1. `os/setup-base.sh` — layer base packages (`rpm-ostree`).
 2. `os/setup-sway.sh` — layer extra Sway session packages.
 3. `setup-mise.sh` — install userland tools with `mise`.
-4. `os/setup-steam.sh` (optional) — gaming/Steam packages; needs RPM Fusion +
-   the LACT COPR enabled first (see `os/steam-packages.sh`).
+4. `os/setup-steam.sh` (optional) — gaming/Steam packages; needs RPM Fusion
+   enabled first (see `os/steam-packages.sh`).
 5. `config/setup-gamescope-session.sh` (optional) — install the "Steam
    (gamescope)" embedded HDR session selectable at SDDM (see
    `docs/HDR-GAMING.md`).
@@ -51,15 +50,10 @@ call `rpm-ostree install`:
   already ships: sway, foot, kanshi, swaybg/idle/lock, waybar, wl-clipboard,
   pipewire, xdg-desktop-portal-wlr, etc.).
 - `os/steam-packages.sh` — gaming/Steam packages (single `steam_packages` array),
-  gated behind RPM Fusion + the LACT COPR. A deliberate break from the
-  COPR-free baseline; see [`docs/DECISIONS.md`](../docs/DECISIONS.md).
+  gated behind RPM Fusion. A deliberate break from the COPR-free baseline; see
+  [`docs/DECISIONS.md`](../docs/DECISIONS.md).
 
-GPU tuning state lives in `data/lact/config.yaml` (a committed snapshot of the live
-`/etc/lact/config.yaml`; not stowed, since the daemon rewrites the system file).
-`dotfiles-sync --check` flags drift between the two — see
-[`docs/LACT.md`](./docs/LACT.md#repo-snapshot--drift).
-
-Related docs: GPU tuning with LACT in [`docs/LACT.md`](./docs/LACT.md); gaming
+Related docs: gaming
 session/per-game helpers (`steam-session`, `optirun`, `optiscaler-client`) in
 [`bin/README.md`](./bin/README.md); HDR gaming in
 [`docs/HDR-GAMING.md`](./docs/HDR-GAMING.md).
@@ -70,9 +64,9 @@ session/per-game helpers (`steam-session`, `optirun`, `optiscaler-client`) in
   repos. `google-chrome-stable` is the one exception (assumes Google's Chrome
   repo is enabled).
 - The **gaming layer is a deliberate, scoped break**: `steam-packages.sh` layers
-  RPM Fusion + the `ilyaz/LACT` COPR plus graphical packages that don't fit the
-  minimal baseline. Kept in its own array so non-gaming hosts never pull it in.
-  Enable RPM Fusion + LACT COPR manually before `os/setup-steam.sh`. See
+  RPM Fusion plus graphical packages that don't fit the minimal baseline. Kept
+  in its own array so non-gaming hosts never pull it in. Enable RPM Fusion
+  manually before `os/setup-steam.sh`. See
   [`docs/DECISIONS.md`](../docs/DECISIONS.md).
 - `mise` is core bootstrap, so the base keeps a small build toolchain
   (`binutils`, `gcc`, `gcc-c++`, `make`). `git`, `git-lfs`, `stow`, `tmux`, `zsh`
@@ -146,9 +140,8 @@ it the i2c nodes stay `root:root 0600` and OpenRGB sees no controllers.
 - `config/openrgb/99-i2c.rules` → `/etc/udev/rules.d/99-i2c.rules` — give the
   `i2c` group `rw` on the i2c-dev nodes.
 - `config/openrgb/rgb.service` → `/etc/systemd/system/rgb.service` — a
-  **system** oneshot that sets the color on boot (the OpenRGB analog of
-  `lactd`, not a user/login service). Edit `--color` in the unit; `000000`
-  turns lighting off.
+  **system** oneshot that sets the color on boot (not a user/login service).
+  Edit `--color` in the unit; `000000` turns lighting off.
 
 ```bash
 fedora/config/setup-openrgb.sh

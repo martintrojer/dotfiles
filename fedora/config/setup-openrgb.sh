@@ -12,8 +12,8 @@ set -euo pipefail
 #   5. install + enable rgb.service (system unit) to set the color on boot
 #
 # Without 1-4 the i2c-* nodes stay root:root 0600 and OpenRGB sees no SMBus
-# controllers. rgb.service is the early-boot RGB setter (the OpenRGB analog of
-# lactd). Run as your normal user; it uses sudo for the system paths.
+# controllers. rgb.service is the early-boot RGB setter. Run as your normal
+# user; it uses sudo for the system paths.
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
