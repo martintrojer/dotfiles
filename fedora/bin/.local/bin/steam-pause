@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""Pause/resume running Steam games by signalling their process trees.
+
+Extracted from the reaper/AppId logic of the SDH-PauseGames Decky plugin
+(https://github.com/popsUlfr/SDH-PauseGames) so it works without Decky. Steam
+launches every game under a `reaper SteamLaunch AppId=<id> -- ...` process; we
+find those reapers, walk their child trees, and send SIGSTOP (pause) or SIGCONT
+(resume) to the children. The reaper itself is left running so Steam does not
+treat the game as exited.
+
+Intended for the "Steam (gamescope)" SDDM session: a sleep-ordered systemd unit
+runs `pause` before suspend and `resume` on wake, which avoids crackling audio
+and frozen emulators on resume. See fedora/bin/README.md.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import signal
+import sys
+from pathlib import Path
+
+PROC = Path("/proc")
+
+
+def read_cmdline(pid: int) -> list[str]:
+    try:
+        raw = (PROC / str(pid) / "cmdline").read_bytes()
+    except OSError:
+        return []
+    return [arg.decode("utf-8", "replace") for arg in raw.split(b"\0") if arg]
+
+
+def all_pids() -> list[int]:
+    return sorted(int(p.name) for p in PROC.iterdir() if p.name.isdigit())
+
+
+def children_map() -> dict[int, list[int]]:
+    """Map ppid -> [child pids] from /proc/*/stat."""
+    kids: dict[int, list[int]] = {}
+    for pid in all_pids():
+        try:
+            stat = (PROC / str(pid) / "stat").read_text()
+        except OSError:
+            continue
+        # field 4 (ppid) follows the "(comm)" which may contain spaces/parens
+        rparen = stat.rfind(")")
+        if rparen < 0:
+            continue
+        fields = stat[rparen + 2 :].split()
+        try:
+            ppid = int(fields[1])
+        except (IndexError, ValueError):
+            continue
+        kids.setdefault(ppid, []).append(pid)
+    return kids
+
+
+def descendants(root: int, kids: dict[int, list[int]]) -> list[int]:
+    out: list[int] = []
+    stack = list(kids.get(root, []))
+    while stack:
+        pid = stack.pop()
+        out.append(pid)
+        stack.extend(kids.get(pid, []))
+    return out
+
+
+def reaper_appid(pid: int) -> int | None:
+    args = read_cmdline(pid)
+    if not args or "reaper" not in Path(args[0]).name:
+        return None
+    for arg in args:
+        if arg.startswith("AppId="):
+            value = arg[len("AppId=") :]
+            if value.isdigit():
+                return int(value)
+    return None
+
+
+def game_reapers() -> list[tuple[int, int]]:
+    """Return [(reaper_pid, appid)] for every running Steam game."""
+    found: list[tuple[int, int]] = []
+    for pid in all_pids():
+        appid = reaper_appid(pid)
+        if appid is not None:
+            found.append((pid, appid))
+    return found
+
+
+def is_paused(pids: list[int]) -> bool:
+    for pid in pids:
+        try:
+            stat = (PROC / str(pid) / "stat").read_text()
+        except OSError:
+            continue
+        rparen = stat.rfind(")")
+        state = stat[rparen + 2 : rparen + 3] if rparen >= 0 else ""
+        return state == "T"
+    return False
+
+
+def signal_tree(reaper: int, sig: int, kids: dict[int, list[int]]) -> int:
+    count = 0
+    for pid in descendants(reaper, kids):
+        try:
+            os.kill(pid, sig)
+            count += 1
+        except ProcessLookupError:
+            pass
+        except PermissionError:
+            print(f"steam-pause: no permission to signal pid {pid}", file=sys.stderr)
+    return count
+
+
+def cmd_list(_: argparse.Namespace) -> int:
+    reapers = game_reapers()
+    if not reapers:
+        print("No running Steam games found.")
+        return 0
+    kids = children_map()
+    for reaper, appid in reapers:
+        procs = descendants(reaper, kids)
+        state = "paused" if is_paused(procs) else "running"
+        print(f"AppId={appid} reaper={reaper} {state} ({len(procs)} procs)")
+    return 0
+
+
+def apply_signal(sig: int, verb: str) -> int:
+    reapers = game_reapers()
+    if not reapers:
+        print(f"steam-pause: no running Steam games to {verb}.")
+        return 0
+    kids = children_map()
+    total = 0
+    for reaper, appid in reapers:
+        n = signal_tree(reaper, sig, kids)
+        total += n
+        print(f"steam-pause: {verb}d AppId={appid} ({n} procs)")
+    return 0 if total else 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("pause", help="SIGSTOP all running Steam games")
+    sub.add_parser("resume", help="SIGCONT all running Steam games")
+    sub.add_parser("list", help="list running Steam games and pause state")
+    args = parser.parse_args(argv)
+
+    if args.cmd == "pause":
+        return apply_signal(signal.SIGSTOP, "pause")
+    if args.cmd == "resume":
+        return apply_signal(signal.SIGCONT, "resume")
+    return cmd_list(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

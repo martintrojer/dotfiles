@@ -1,0 +1,25 @@
+# Pause running Steam games across suspend/hibernate, then resume on wake.
+#
+# On Fedora Atomic /usr/lib is read-only ostree, so the usual
+# /usr/lib/systemd/system-sleep/ hook can't be installed (systemd-sleep reads
+# only that path, not /usr/local/lib). Instead this is a oneshot unit in the
+# writable /etc tree, wired into the sleep sequence the way the systemd docs
+# recommend: it is pulled in Before=sleep.target and stopped once nothing needs
+# it, so ExecStart runs going down and ExecStop runs coming back up.
+#
+# RemainAfterExit keeps the unit "active" after ExecStart so ExecStop fires on
+# resume. StopWhenUnneeded lets sleep.target (also StopWhenUnneeded) release it.
+# See fedora/bin/README.md.
+[Unit]
+Description=Pause Steam games before sleep, resume after
+Before=sleep.target
+StopWhenUnneeded=yes
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/steam-pause pause
+ExecStop=/usr/local/bin/steam-pause resume
+
+[Install]
+WantedBy=sleep.target
