@@ -19,7 +19,7 @@ into the gamescope session instead of nesting gamescope inside Sway. Background:
 
 ## Setup
 
-Run `setup-gamescope-session.sh` after `setup-steam.sh` and
+Run `config/setup-gamescope-session.sh` after `os/setup-steam.sh` and
 `dotfiles-sync --apply`.
 
 It installs:

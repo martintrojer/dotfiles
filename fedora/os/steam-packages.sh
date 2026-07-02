@@ -3,7 +3,7 @@
 # Gaming/Steam packages layered on top of Fedora Sway Atomic (Sericea).
 #
 # These require extra repos that are NOT part of the COPR-free host baseline,
-# so they must be enabled before running setup-steam.sh:
+# so they must be enabled before running os/setup-steam.sh:
 #
 # 1. RPM Fusion (free + nonfree) for steam, gamescope, mangohud, gamemode:
 #      rpm-ostree install \
@@ -37,7 +37,7 @@ steam_packages=(
   openrgb
   # Moonlight game-stream host for the gamescope stream session; needs the
   # Sunshine COPR. Started on demand by steam-session (GS_SUNSHINE=1). Run
-  # setup-sunshine.sh afterwards to open the firewall ports.
+  # config/setup-sunshine.sh afterwards to open the firewall ports.
   Sunshine
   # AMD VAAPI hardware video encoders (H264/HEVC/AV1), stripped from stock mesa
   # for patent reasons. Without this, Sunshine falls back to software x264 --

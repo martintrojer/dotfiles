@@ -8,7 +8,7 @@ LOGGER = logging.getLogger("dotfiles-sync")
 # Repo copy is the source of truth; the live daemon owns the system path and
 # rewrites it on every GUI tweak (apply_settings_timer), so we never symlink —
 # we just check for drift and let the human re-snapshot deliberately.
-REPO_CONFIG = Path(__file__).resolve().parent.parent / "fedora" / "lact" / "config.yaml"
+REPO_CONFIG = Path(__file__).resolve().parent.parent / "fedora" / "data" / "lact" / "config.yaml"
 SYSTEM_CONFIG = Path("/etc/lact/config.yaml")
 ISSUE_ID = "lact-drift:config"
 

@@ -17,7 +17,7 @@ set -euo pipefail
 #   /usr/local/share/wayland-sessions/steam.desktop        couch HDR entry
 #   /usr/local/share/wayland-sessions/steam-stream.desktop streaming entry
 #
-# Prereqs: steam + gamescope layered (setup-steam.sh) and the dotfiles stowed
+# Prereqs: steam + gamescope layered (os/setup-steam.sh) and the dotfiles stowed
 # (dotfiles-sync --apply), so ~/.local/bin/steam-session exists. Run as your
 # normal user; it uses sudo for the system paths.
 

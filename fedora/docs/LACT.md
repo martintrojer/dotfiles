@@ -17,7 +17,7 @@ This machine: **Radeon RX 7700/7800 XT (Navi 32, RDNA3)**.
 
 The daemon owns `/etc/lact/config.yaml` and **rewrites it on every GUI tweak**
 (`apply_settings_timer`), so it is *not* stowed or symlinked. Instead the repo
-keeps a plain snapshot at [`fedora/lact/config.yaml`](../lact/config.yaml) as the
+keeps a plain snapshot at [`fedora/data/lact/config.yaml`](../data/lact/config.yaml) as the
 committed source of truth, and `dotfiles-sync --check` compares the live file
 against it (semantic YAML compare, fedora-only, issue id `lact-drift:config`).
 
@@ -25,10 +25,10 @@ Workflow — "recreate, don't restore":
 
 ```bash
 # After tuning in LACT, adopt the live values into the repo and commit:
-sudo cp /etc/lact/config.yaml fedora/lact/config.yaml
+sudo cp /etc/lact/config.yaml fedora/data/lact/config.yaml
 
 # On a fresh machine, push the repo profile back to the daemon:
-sudo cp fedora/lact/config.yaml /etc/lact/config.yaml && sudo systemctl restart lactd
+sudo cp fedora/data/lact/config.yaml /etc/lact/config.yaml && sudo systemctl restart lactd
 ```
 
 `dotfiles-sync --check` prints both commands (plus a `diff`) whenever it detects
@@ -190,7 +190,7 @@ in **Current locked-in profile** below.
 
 ### Current locked-in profile
 
-**The applied values live in [`fedora/lact/config.yaml`](../lact/config.yaml) —
+**The applied values live in [`fedora/data/lact/config.yaml`](../data/lact/config.yaml) —
 that committed snapshot is the source of truth, not this doc.** `dotfiles-sync
 --check` flags drift between it and the live `/etc/lact/config.yaml` (see
 [Repo snapshot & drift](#repo-snapshot--drift)). Read the offset / clocks /

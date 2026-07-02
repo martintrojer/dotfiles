@@ -6,32 +6,55 @@ variants are not supported.
 
 ## Setup Flow
 
-1. `setup-base.sh` — layer base packages (`rpm-ostree`).
-2. `setup-sway.sh` — layer extra Sway session packages.
+Scripts split into two buckets by what they do:
+
+- **`os/`** — package layering (`rpm-ostree`/`dnf`). Re-run these on a cadence:
+  after a major-version rebase or when rebuilding the system clean. They need a
+  reboot to take effect.
+- **`config/`** — one-shot config installers (udev rules, systemd units, logind
+  drop-ins, firewall ports, SDDM sessions). Run once after a clean install;
+  they don't layer packages and rarely need re-running.
+- `setup-mise.sh` (top level) — userland tool install via `mise`; no root, no
+  reboot, no packages layered.
+- **`data/`** — committed tool state read at runtime, not scripts to run:
+  `data/lact/config.yaml` (GPU-tuning snapshot, drift-checked by
+  `dotfiles-sync`) and `data/optiscaler-client-seed/` (first-run prefs the
+  `optiscaler-client` helper seeds into `~/.config`).
+
+Order for a fresh install:
+
+1. `os/setup-base.sh` — layer base packages (`rpm-ostree`).
+2. `os/setup-sway.sh` — layer extra Sway session packages.
 3. `setup-mise.sh` — install userland tools with `mise`.
-4. `setup-steam.sh` (optional) — gaming/Steam packages; needs RPM Fusion + the
-   LACT COPR enabled first (see `steam-packages.sh`).
-5. `setup-gamescope-session.sh` (optional) — install the "Steam (gamescope)"
-   embedded HDR session selectable at SDDM (see `docs/HDR-GAMING.md`).
-6. `setup-openrgb.sh` (optional) — wire i2c/SMBus access for OpenRGB (loads
-   `i2c-dev`, creates the `i2c` group + udev rule, adds you to it). Needs the
-   `openrgb` rpm from `setup-steam.sh`. See "OpenRGB / RGB" below.
-7. `setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
+4. `os/setup-steam.sh` (optional) — gaming/Steam packages; needs RPM Fusion +
+   the LACT COPR enabled first (see `os/steam-packages.sh`).
+5. `config/setup-gamescope-session.sh` (optional) — install the "Steam
+   (gamescope)" embedded HDR session selectable at SDDM (see
+   `docs/HDR-GAMING.md`).
+6. `config/setup-openrgb.sh` (optional) — wire i2c/SMBus access for OpenRGB
+   (loads `i2c-dev`, creates the `i2c` group + udev rule, adds you to it).
+   Needs the `openrgb` rpm from `os/setup-steam.sh`. See "OpenRGB / RGB" below.
+7. `os/setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
+
+Other `config/` installers, run as needed: `setup-power-key.sh` (power button
+suspends), `setup-steam-pause.sh` (pause games across suspend),
+`setup-wake-usb.sh` (only the power button wakes the tower), `setup-sunshine.sh`
+(open Sunshine firewall ports). See `bin/README.md` for the first three.
 
 ## Package Lists
 
-Setup scripts are thin wrappers around shared package arrays; all call
-`rpm-ostree install`:
+The `os/` setup scripts are thin wrappers around shared package arrays; all
+call `rpm-ostree install`:
 
-- `base-packages.sh` — minimal bootstrap + CLI tooling on top of Sericea.
-- `sway-packages.sh` — extra desktop/session packages only (nothing Sericea
+- `os/base-packages.sh` — minimal bootstrap + CLI tooling on top of Sericea.
+- `os/sway-packages.sh` — extra desktop/session packages only (nothing Sericea
   already ships: sway, foot, kanshi, swaybg/idle/lock, waybar, wl-clipboard,
   pipewire, xdg-desktop-portal-wlr, etc.).
-- `steam-packages.sh` — gaming/Steam packages (single `steam_packages` array),
+- `os/steam-packages.sh` — gaming/Steam packages (single `steam_packages` array),
   gated behind RPM Fusion + the LACT COPR. A deliberate break from the
   COPR-free baseline; see [`docs/DECISIONS.md`](../docs/DECISIONS.md).
 
-GPU tuning state lives in `lact/config.yaml` (a committed snapshot of the live
+GPU tuning state lives in `data/lact/config.yaml` (a committed snapshot of the live
 `/etc/lact/config.yaml`; not stowed, since the daemon rewrites the system file).
 `dotfiles-sync --check` flags drift between the two — see
 [`docs/LACT.md`](./docs/LACT.md#repo-snapshot--drift).
@@ -49,7 +72,7 @@ session/per-game helpers (`steam-session`, `optirun`, `optiscaler-client`) in
 - The **gaming layer is a deliberate, scoped break**: `steam-packages.sh` layers
   RPM Fusion + the `ilyaz/LACT` COPR plus graphical packages that don't fit the
   minimal baseline. Kept in its own array so non-gaming hosts never pull it in.
-  Enable RPM Fusion + LACT COPR manually before `setup-steam.sh`. See
+  Enable RPM Fusion + LACT COPR manually before `os/setup-steam.sh`. See
   [`docs/DECISIONS.md`](../docs/DECISIONS.md).
 - `mise` is core bootstrap, so the base keeps a small build toolchain
   (`binutils`, `gcc`, `gcc-c++`, `make`). `git`, `git-lfs`, `stow`, `tmux`, `zsh`
@@ -112,22 +135,23 @@ Notes:
 
 ## OpenRGB / RGB
 
-`openrgb` (from `steam-packages.sh`) controls motherboard / RAM / GPU RGB. To
+`openrgb` (from `os/steam-packages.sh`) controls motherboard / RAM / GPU RGB. To
 reach those over SMBus it needs i2c access, which is the common gotcha — without
 it the i2c nodes stay `root:root 0600` and OpenRGB sees no controllers.
-`setup-openrgb.sh` wires up everything (run it after layering `openrgb`):
+`config/setup-openrgb.sh` wires up everything (run it after layering `openrgb`):
 
-- `openrgb/i2c-dev.conf` → `/etc/modules-load.d/i2c-dev.conf` — load `i2c-dev`
-  at boot so `/dev/i2c-*` nodes exist.
+- `config/openrgb/i2c-dev.conf` → `/etc/modules-load.d/i2c-dev.conf` — load
+  `i2c-dev` at boot so `/dev/i2c-*` nodes exist.
 - creates the `i2c` system group and adds the invoking user to it.
-- `openrgb/99-i2c.rules` → `/etc/udev/rules.d/99-i2c.rules` — give the `i2c`
-  group `rw` on the i2c-dev nodes.
-- `openrgb/rgb.service` → `/etc/systemd/system/rgb.service` — a **system**
-  oneshot that sets the color on boot (the OpenRGB analog of `lactd`, not a
-  user/login service). Edit `--color` in the unit; `000000` turns lighting off.
+- `config/openrgb/99-i2c.rules` → `/etc/udev/rules.d/99-i2c.rules` — give the
+  `i2c` group `rw` on the i2c-dev nodes.
+- `config/openrgb/rgb.service` → `/etc/systemd/system/rgb.service` — a
+  **system** oneshot that sets the color on boot (the OpenRGB analog of
+  `lactd`, not a user/login service). Edit `--color` in the unit; `000000`
+  turns lighting off.
 
 ```bash
-fedora/setup-openrgb.sh
+fedora/config/setup-openrgb.sh
 # log out/in (or: newgrp i2c) so the group membership applies, then verify:
 getent group i2c && ls -l /dev/i2c-*   # expect: root i2c, crw-rw----
 ```

@@ -4,7 +4,7 @@ Stow package for the [MangoHud](https://github.com/flightlessmango/MangoHud)
 Vulkan/OpenGL performance overlay used with the Steam/gaming layer.
 
 - Config: `mangohud/.config/MangoHud/MangoHud.conf` → `~/.config/MangoHud/MangoHud.conf`
-- Installed via `fedora/steam-packages.sh` (the `mangohud` package).
+- Installed via `fedora/os/steam-packages.sh` (the `mangohud` package).
 - Enable per-game by adding `mangohud %command%` to a title's Steam launch
   options, or run `mangohud <program>` directly.
 - Default in-overlay toggle is `Shift_R+F12`.
