@@ -63,6 +63,11 @@ Gaming:
   suspends: short press = sleep, long press = power off. Applies to all sessions
   (Sway, gamescope, SDDM greeter). Pairs with the pause unit and with Steam's
   own "Suspend" menu item (same `systemctl suspend` path).
+- `../setup-wake-usb.sh` installs a udev rule
+  (`../wake-usb/99-disable-usb-wakeup.rules`) pinning `power/wakeup=disabled`
+  for the desktop keyboard/mouse (and BT dongle) by USB vendor:product ID, so
+  only the power button wakes the tower — a bumped mouse won't. Matched by ID
+  so it survives reboots and re-plugging; add devices by editing the rule.
 
 OptiScaler manager (GUI):
 - `optiscaler-client` installs/updates/runs upstream OptiScaler Client into

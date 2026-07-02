@@ -1,0 +1,17 @@
+# Stop the desktop keyboard/mouse from waking the tower out of suspend, so only
+# the power button (and Steam's "Suspend") drive the sleep/resume cycle. Without
+# this a bumped mouse or a stray keypress wakes the machine.
+#
+# Matches by USB idVendor:idProduct so it survives reboots and re-plugging into
+# any port (the per-device power/wakeup sysfs value otherwise resets each boot).
+# Installed to /etc/udev/rules.d/ by setup-wake-usb.sh. To add another device,
+# find its IDs with `lsusb` and add a line here.
+#
+#   046d:c539  Logitech Lightspeed Receiver (wireless mouse/keyboard dongle)
+#   320f:5055  Rainy 75 mechanical keyboard
+#   2357:0604  TP-Link UB500 Bluetooth adapter (already off by default; pinned
+#              here so a paired BT device or a firmware/kernel change can't
+#              silently re-arm it)
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="046d", ATTR{idProduct}=="c539", ATTR{power/wakeup}="disabled"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="320f", ATTR{idProduct}=="5055", ATTR{power/wakeup}="disabled"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2357", ATTR{idProduct}=="0604", ATTR{power/wakeup}="disabled"
