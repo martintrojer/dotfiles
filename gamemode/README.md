@@ -46,4 +46,4 @@ gamemoded -s   # while a game is running
 ## Caveat
 
 `[gpu]` settings such as `amd_performance_level` are ignored from the user-local
-config; keep GPU policy in LACT.
+config.

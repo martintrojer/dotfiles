@@ -22,7 +22,6 @@ from .integration_checks import (
     check_zsh_plugins,
 )
 from .inventory import build_specs, group_active_packages, resolve_requested_packages
-from .lact_drift import check_lact_drift
 from .model import Args, PackageSpec
 from .pins import GITHUB_SLUG
 from .repo_checks import (
@@ -151,7 +150,6 @@ def run_check_tasks(
         "fedora-systemd-masks": lambda: check_fedora_systemd_masks(
             target, verbose=verbose, ignore=ignore
         ),
-        "lact-drift": lambda: check_lact_drift(verbose=verbose, ignore=ignore),
         "repo-backlinks": _check_repo_backlinks,
     }
 
