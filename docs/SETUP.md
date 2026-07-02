@@ -238,8 +238,8 @@ Bringing the actual session up:
 
 ```bash
 # Install sway and friends if not already present:
-cd ~/dotfiles && ./fedora/setup-sway.sh    # Fedora
-# (No automated path on other distros — see fedora/sway-packages.sh for the list.)
+cd ~/dotfiles && ./fedora/os/setup-sway.sh    # Fedora
+# (No automated path on other distros — see fedora/os/sway-packages.sh for the list.)
 
 # Log out of niri, pick "Sway" at the display manager (or start sway from a TTY).
 # Verify the WM is sway:

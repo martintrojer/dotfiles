@@ -50,8 +50,8 @@ Gaming:
   `reaper ... AppId=` processes), walks each child tree, and `SIGSTOP`/`SIGCONT`s
   the children (leaving the reaper alive so Steam doesn't see the game as
   exited). Extracted from the SDH-PauseGames Decky plugin, no Decky needed.
-  `../setup-steam-pause.sh` copies it to `/usr/local/bin` and enables a oneshot
-  unit (`../systemd-system/steam-pause-games.service`) ordered around
+  `../config/setup-steam-pause.sh` copies it to `/usr/local/bin` and enables a
+  oneshot unit (`../config/systemd-system/steam-pause-games.service`) ordered around
   `sleep.target` that runs `pause` before suspend and `resume` on wake,
   avoiding crackling audio and frozen emulators in the "Steam (gamescope)"
   session. A `system-sleep` hook can't be used (Atomic `/usr/lib` is read-only
@@ -59,12 +59,12 @@ Gaming:
   to `~/.local/bin`, since the root unit can't exec under `$HOME` (SELinux
   `user_home_t`, 203/EXEC). Stopped games hold RAM/VRAM, so best for short
   suspends.
-- `../setup-power-key.sh` installs a global logind drop-in so the power button
+- `../config/setup-power-key.sh` installs a global logind drop-in so the power button
   suspends: short press = sleep, long press = power off. Applies to all sessions
   (Sway, gamescope, SDDM greeter). Pairs with the pause unit and with Steam's
   own "Suspend" menu item (same `systemctl suspend` path).
-- `../setup-wake-usb.sh` installs a udev rule
-  (`../wake-usb/99-disable-usb-wakeup.rules`) pinning `power/wakeup=disabled`
+- `../config/setup-wake-usb.sh` installs a udev rule
+  (`../config/wake-usb/99-disable-usb-wakeup.rules`) pinning `power/wakeup=disabled`
   for the desktop keyboard/mouse (and BT dongle) by USB vendor:product ID, so
   only the power button wakes the tower — a bumped mouse won't. Matched by ID
   so it survives reboots and re-plugging; add devices by editing the rule.
@@ -76,7 +76,7 @@ OptiScaler manager (GUI):
 - `optiscaler-client.desktop` exposes it to `drun` launchers.
 - `optirun %command%` loads installed proxy DLLs for a game; override manually
   with `WINEDLLOVERRIDES=... %command%` if needed.
-- First run seeds stable prefs from `fedora/optiscaler-client-seed/` only when
+- First run seeds stable prefs from `fedora/data/optiscaler-client-seed/` only when
   missing. Private/volatile state (`games.json`, `Cache/`, geometry, timestamps)
   stays untracked.
 - `fix-steam-games` checks/fixes OptiScaler games: stamps `ShortcutKey=0x24`,

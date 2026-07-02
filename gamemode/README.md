@@ -5,7 +5,7 @@ Stow package for Feral GameMode.
 - Config: `gamemode/.config/gamemode.ini` → `~/.config/gamemode.ini`.
 - GameMode reads `$XDG_CONFIG_HOME/gamemode.ini`, not
   `~/.config/gamemode/gamemode.ini`.
-- Install package via `fedora/steam-packages.sh`.
+- Install package via `fedora/os/steam-packages.sh`.
 - Use directly with `gamemoderun %command%`, or use `optirun %command%` for the
   OptiScaler/FSR4/GameMode bundle.
 

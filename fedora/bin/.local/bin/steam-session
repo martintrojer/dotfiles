@@ -6,7 +6,7 @@ set -euo pipefail
 # desktop can't do under Sway < 1.12. See fedora/docs/HDR-GAMING.md.
 #
 # Picked as "Steam (gamescope)" at the SDDM login screen; the session entry
-# (steam.desktop) execs this script. Installed by setup-gamescope-session.sh.
+# (steam.desktop) execs this script. Installed by config/setup-gamescope-session.sh.
 # Quitting Steam exits gamescope and returns to SDDM.
 #
 # This session runs Steam's gamepad UI cleanly under gamescope. Per-game Proton,

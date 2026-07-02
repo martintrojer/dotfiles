@@ -30,7 +30,7 @@ the handheld's 16:10 mode. Target **1080p**; the handheld letterboxes it. True
 ## The session
 
 `Steam (gamescope stream)` runs the `steam-session` launcher with env overrides
-(installed by `setup-gamescope-session.sh`):
+(installed by `config/setup-gamescope-session.sh`):
 
 ```bash
 GS_OUT_W=1920 GS_OUT_H=1080 GS_HDR=0 GS_SUNSHINE=1 /usr/local/bin/steam-session
@@ -52,7 +52,7 @@ the right path.
 
 ## Install
 
-`Sunshine` is a `steam-packages.sh` entry layered by `setup-steam.sh`, like
+`Sunshine` is an `os/steam-packages.sh` entry layered by `os/setup-steam.sh`, like
 `lact`: drop the COPR repo file at `/etc/yum.repos.d/sunshine.repo` (group COPR
 `lizardbyte/beta` -- stable lags the newest Fedora, #4395), then `rpm-ostree
 install` + reboot.
@@ -69,7 +69,7 @@ Hardware encode also needs `mesa-va-drivers-freeworld` (also in
 stripped, so without it Sunshine falls back to software x264 -- unusable at 4K.
 Verify with `vainfo` showing `VAEntrypointEncSlice`.
 
-Then `setup-sunshine.sh` opens the firewall: the rpm ships no firewalld rule and
+Then `config/setup-sunshine.sh` opens the firewall: the rpm ships no firewalld rule and
 the default `public` zone blocks the stream ports, so Moonlight can't reach the
 host until they're opened (TCP 47984/47989/47990/48010, UDP
 47998/47999/48000/48002/48010, plus the `mdns` service for auto-discovery).
