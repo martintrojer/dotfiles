@@ -38,7 +38,8 @@ Order for a fresh install:
 Other `config/` installers, run as needed: `setup-power-key.sh` (power button
 suspends), `setup-steam-pause.sh` (pause games across suspend),
 `setup-wake-usb.sh` (only the power button wakes the tower), `setup-sunshine.sh`
-(open Sunshine firewall ports). See `bin/README.md` for the first three.
+(open Sunshine firewall ports), `setup-bt-firmware.sh` (fix Xbox controller BT
+drops — see "Bluetooth Controller" below). See `bin/README.md` for the first three.
 
 ## Package Lists
 
@@ -83,6 +84,24 @@ session/per-game helpers (`steam-session`, `optirun`, `optiscaler-client`) in
 apps (Sway doesn't push a GTK theme). GTK4 apps instead follow
 `gsettings set org.gnome.desktop.interface color-scheme prefer-dark` — run once
 per machine if GTK4 apps disagree with GTK3; it's per-user state, not stowed.
+
+## Bluetooth Controller
+
+The TP-Link UB500 (Realtek RTL8761BU) ships firmware `0xdfc6d922`, which causes
+mid-session Xbox controller disconnects ([xpadneo](https://atar-axis.github.io/xpadneo/)).
+`config/setup-bt-firmware.sh` downgrades to the known-good `0x09a98a6b`:
+
+- copies `config/firmware/rtl_bt/*.xz` (extracted from linux-firmware history,
+  recompressed xz/CRC32) to `/etc/firmware/rtl_bt/` — `/usr/lib/firmware` is
+  read-only on ostree.
+- relabels them `lib_t` (SELinux Enforcing denies the loader reading `etc_t`).
+- adds `firmware_class.path=/etc/firmware` via `rpm-ostree kargs` so the kernel
+  searches there first (BT firmware loads at boot, before userspace).
+
+Survives `rpm-ostree upgrade` since it lives in `/etc` + kargs, not `/usr`.
+Reboot, then verify: `dmesg | grep 'RTL: fw version'` shows `0x09a98a6b`.
+Revert: `sudo rpm-ostree kargs --delete=firmware_class.path=/etc/firmware &&
+sudo rm -rf /etc/firmware/rtl_bt` (then reboot).
 
 ## Stow Packages
 
