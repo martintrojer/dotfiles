@@ -81,9 +81,7 @@ export function conversationTranscript(branch: BranchEntryLike[], budget: number
 }
 
 export type LastAssistantTextResult =
-	| { kind: "ok"; text: string }
-	| { kind: "incomplete"; stopReason: string }
-	| { kind: "none" };
+	{ kind: "ok"; text: string } | { kind: "incomplete"; stopReason: string } | { kind: "none" };
 
 export function lastCompletedAssistantText(branch: BranchEntryLike[]): LastAssistantTextResult {
 	for (let i = branch.length - 1; i >= 0; i--) {
@@ -120,7 +118,10 @@ export interface ModelPickerContext {
 // Ollama models that are cheap but less reliable for strict JSON/judgment.
 // Note: "-mini" is anchored so it matches gpt-*-mini / o*-mini but NOT gemini
 // (which contains the substring "mini").
-const FAST_MODEL_TIERS = [["-mini"], ["sonnet"], ["haiku"], ["flash"], ["small", "lite", "nano"]] as const;
+// Sonnet leads: Claude Sonnet 5 is near-Opus capability at Sonnet cost with a
+// 1M context, so it's the preferred fast/reliable meta-work model here. Within
+// the sonnet tier the picker prefers the newest version (sonnet-5 > 4.6).
+const FAST_MODEL_TIERS = [["sonnet"], ["-mini"], ["haiku"], ["flash"], ["small", "lite", "nano"]] as const;
 
 function modelTier(m: Model<Api>): number {
 	const id = modelLabel(m).toLowerCase();
@@ -326,9 +327,7 @@ export class FastModelCancelled extends Error {
 }
 
 export type FastModelFallbackResult<T> =
-	| { kind: "ok"; model: string; result: T }
-	| { kind: "cancelled" }
-	| { kind: "error"; message: string };
+	{ kind: "ok"; model: string; result: T } | { kind: "cancelled" } | { kind: "error"; message: string };
 
 export async function withFastModelFallback<T>(
 	ctx: ModelPickerContext,

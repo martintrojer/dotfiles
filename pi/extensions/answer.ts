@@ -108,9 +108,7 @@ function parseQuestions(text: string): Question[] | null {
 }
 
 type ExtractOutcome =
-	| { kind: "ok"; questions: Question[]; model: string }
-	| { kind: "cancelled" }
-	| { kind: "error"; message: string };
+	{ kind: "ok"; questions: Question[]; model: string } | { kind: "cancelled" } | { kind: "error"; message: string };
 
 /** Run the extractor behind a cancellable loader overlay. */
 async function extractQuestions(ctx: ExtensionContext, source: string): Promise<ExtractOutcome> {
