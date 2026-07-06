@@ -121,8 +121,6 @@ User-scoped Quadlet/systemd assets:
   `sway-clipman-watcher`, `sway-kanshi`, `sway-mako`, `swaybg`, `swayidle`,
   `sway-waybar`, `toolbox-dev`, `ollama-toolbox` services.
 
-(RGB runs as a **system** service, not a user one — see "OpenRGB / RGB" below.)
-
 Flow: stow → reload → enable units:
 
 ```bash
@@ -158,12 +156,22 @@ it the i2c nodes stay `root:root 0600` and OpenRGB sees no controllers.
 - creates the `i2c` system group and adds the invoking user to it.
 - `config/openrgb/99-i2c.rules` → `/etc/udev/rules.d/99-i2c.rules` — give the
   `i2c` group `rw` on the i2c-dev nodes.
-- `config/openrgb/rgb.service` → `/etc/systemd/system/rgb.service` — a
-  **system** oneshot that sets the color on boot (not a user/login service).
-  Edit `--color` in the unit; `000000` turns lighting off.
 
 ```bash
 fedora/config/setup-openrgb.sh
 # log out/in (or: newgrp i2c) so the group membership applies, then verify:
 getent group i2c && ls -l /dev/i2c-*   # expect: root i2c, crw-rw----
 ```
+
+**Turning lighting off (no boot service).** OpenRGB persists the lighting
+*mode* into the GPU/board firmware, so a single command sticks across full
+power cycles — no `rgb.service` needed. This box shipped with the GPU stuck in
+a rainbow cycle; setting it to direct/off once fixed it permanently:
+
+```bash
+openrgb --list-devices              # find the device index
+openrgb --device 0 --mode direct --color 000000
+```
+
+Run once. Re-run only if a BIOS update or "restore defaults" ever brings the
+rainbow back.
