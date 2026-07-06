@@ -9,11 +9,19 @@ set -euo pipefail
 #   2. create the `i2c` system group
 #   3. a udev rule giving that group rw on the i2c-dev nodes
 #   4. add the invoking user to the group
-#   5. install + enable rgb.service (system unit) to set the color on boot
 #
 # Without 1-4 the i2c-* nodes stay root:root 0600 and OpenRGB sees no SMBus
-# controllers. rgb.service is the early-boot RGB setter. Run as your normal
-# user; it uses sudo for the system paths.
+# controllers. Run as your normal user; it uses sudo for the system paths.
+#
+# There is intentionally no boot-time RGB service. OpenRGB persists the
+# lighting *mode* into the GPU/board firmware, so a one-off command sticks
+# across full power cycles. To turn lighting off (e.g. if the GPU reverts to a
+# rainbow cycle):
+#
+#   openrgb --device 0 --mode direct --color 000000
+#
+# Run once; the off state survives shutdowns. Re-run only if the firmware
+# default ever comes back. `--list-devices` shows the device indexes.
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
@@ -32,11 +40,6 @@ sudo udevadm trigger --subsystem-match=i2c-dev --action=change
 # 4. Add the current user to the group.
 sudo usermod -aG i2c "$USER"
 
-# 5. Install and enable the boot-time RGB setter (system service).
-sudo install -m 0644 "$script_dir/openrgb/rgb.service" /etc/systemd/system/rgb.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now rgb.service
-
-echo "OpenRGB i2c access + rgb.service configured."
+echo "OpenRGB i2c access configured."
 echo "Log out/in (or run 'newgrp i2c') for the group membership to take effect."
 echo "Verify: getent group i2c && ls -l /dev/i2c-*  (expect root i2c, crw-rw----)"
