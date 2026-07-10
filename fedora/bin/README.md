@@ -79,12 +79,25 @@ OptiScaler manager (GUI):
 - First run seeds stable prefs from `fedora/data/optiscaler-client-seed/` only when
   missing. Private/volatile state (`games.json`, `Cache/`, geometry, timestamps)
   stays untracked.
-- `fix-steam-games` checks/fixes OptiScaler games: stamps `ShortcutKey=0x24`,
-  applies `optirun %command%` to installed games with OptiScaler, and removes
-  stale old wrappers from installed games without OptiScaler. Dry-run by default;
-  write with `--apply` (refuses while Steam is running unless `--force`). Limit
-  with `--only shortcut` or `--only launch-options`; override the key with
-  `--key 0xNN`.
+- `fix-steam-games` checks/fixes OptiScaler games in three passes: `ShortcutKey`
+  (Home / `0x24`), Steam launch options (`optirun %command%`, clearing stale
+  wrappers), and the FSR 4 backend. Dry-run by default; `--apply` to write
+  (refuses while Steam runs unless `--force`). Scope with
+  `--only {shortcut,launch-options,fsr4}`; override the key with `--key 0xNN`.
+  Run with games closed so an in-game "Save" can't race INI edits.
+- **FSR4 pass** (`--only fsr4`): harvests the newest `amdxcffx64.dll` from
+  installed Proton (nothing downloaded/vendored, so newer Proton → newer FSR),
+  caches it under `~/.local/share/fsr4-backend/<version>/`, drops it next to
+  each game's OptiScaler, and sets `Fsr4Update=true` so the version (e.g.
+  4.1.1) shows in the OptiScaler menu (`--watermark` also burns it into the
+  frame). Only touches complete OptiScaler installs; edits `OptiScaler.ini` in
+  place, writing only keys that version already knows (future flags degrade
+  gracefully). Also detects the client's stale "Extras"
+  `amd_fidelityfx_upscaler_dx12.dll` (e.g. 4.0.2c) — via hash against
+  `~/.config/OptiscalerClient/Cache/Extras/*/` and embedded FSR version — and
+  restores OptiScaler's clean DLL from `Cache/OptiScaler/<ver>/`, keeping the
+  upscaler DLL and backend a matched pair. `--revert` restores both DLLs from
+  `.bak` and resets flags to `auto`.
 
 Wallpaper helpers:
 - `wallpaper set <url-or-file>` stores the wallpaper under `~/.local/share/wallpapers/archive/`, updates `~/.local/share/wallpapers/current`, and restarts `swaybg.service`

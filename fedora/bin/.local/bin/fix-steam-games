@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
 """Check/fix Steam games that use OptiScaler.
 
-Default action fixes both:
+Default action fixes three things:
 - OptiScaler.ini ShortcutKey drift (Home / 0x24 by default)
 - Steam launch options for games with OptiScaler.ini (`optirun %command%`)
+- FSR 4 backend: harvest the newest amdxcffx64.dll from installed Proton
+  builds, copy it next to OptiScaler, and set the FSR4 INI flags so the
+  in-game overlay reports the correct version (e.g. 4.1.1).
+
+The FSR4 step never hardcodes a version and never downloads or bundles the
+DLL: it takes whatever AMD FSR4 backend your installed Proton ships and caches
+it under ~/.local/share/fsr4-backend/<version>/. INI edits are in-place and
+key-preserving, and only touch keys the game's OptiScaler version already
+knows (so a newer OptiScaler that renames/adds flags is handled gracefully).
 
 Default action is a dry run. Use `--apply` to write changes.
 """
@@ -11,6 +20,7 @@ Default action is a dry run. Use `--apply` to write changes.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -347,6 +357,354 @@ def backup(path: Path) -> None:
         shutil.copy2(path, bak)
 
 
+# --- FSR4 backend (amdxcffx64.dll) injection -------------------------------
+
+FSR4_BACKEND = "amdxcffx64.dll"
+FSR4_CACHE = XDG_DATA_HOME / "fsr4-backend"
+# Proxy DLL names OptiScaler installs itself as (any one means it is hooked).
+PROXY_DLLS = (
+    "dxgi.dll",
+    "winmm.dll",
+    "version.dll",
+    "dbghelp.dll",
+    "d3d12.dll",
+    "wininet.dll",
+    "winhttp.dll",
+)
+# OptiScaler's own FFX upscaler DLL; its presence confirms a real install.
+OPTI_FFX_DLL = "amd_fidelityfx_upscaler_dx12.dll"
+# OptiScaler-Client's local component cache (source of clean/known-bad DLLs).
+OPTI_CACHE = APP_CONFIG_DIR / "Cache"
+# FSR 4.x version tokens embedded in the backend DLL (e.g. b"4.1.1").
+AMDXC_VERSION_RE = re.compile(rb"(?<![\d.])4\.\d{1,2}\.\d{1,3}(?![\d.])")
+# INI keys we manage; each is only written if it already exists in the file.
+FSR4_REVERT_KEYS = ("Fsr4Update", "Fsr4EnableWatermark")
+
+
+def ver_tuple(version: str) -> tuple[int, ...]:
+    try:
+        return tuple(int(part) for part in version.split("."))
+    except ValueError:
+        return (0,)
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def files_identical(a: Path, b: Path) -> bool:
+    try:
+        if a.stat().st_size != b.stat().st_size:
+            return False
+    except OSError:
+        return False
+    return sha256(a) == sha256(b)
+
+
+def amdxc_version(path: Path) -> str | None:
+    """Highest FSR 4.x version string embedded in an amdxcffx64.dll."""
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    found = {match.group().decode() for match in AMDXC_VERSION_RE.finditer(data)}
+    if not found:
+        return None
+    return max(found, key=ver_tuple)
+
+
+def amdxc_candidates() -> list[Path]:
+    """All amdxcffx64.dll files shipped by installed Proton builds."""
+    seen: set[Path] = set()
+    out: list[Path] = []
+
+    def add(path: Path) -> None:
+        if path.is_file():
+            real = path.resolve()
+            if real not in seen:
+                seen.add(real)
+                out.append(path)
+
+    for root in steam_roots():
+        compat = root / "compatibilitytools.d"
+        if compat.is_dir():
+            for proton in compat.iterdir():
+                if proton.is_dir():
+                    for found in proton.rglob(FSR4_BACKEND):
+                        add(found)
+        common = root / "steamapps/common"
+        if common.is_dir():
+            for proton in common.glob("Proton*"):
+                add(proton / "contrib" / FSR4_BACKEND)
+    cache = Path.home() / ".cache/protonfixes/upscalers"
+    if cache.is_dir():
+        for found in cache.glob("amdxcffx64*.dll"):
+            add(found)
+    return out
+
+
+def harvest_best() -> tuple[str, Path] | None:
+    """Newest (version, source-path) amdxcffx64.dll across Proton installs."""
+    best: tuple[str, Path] | None = None
+    for candidate in amdxc_candidates():
+        version = amdxc_version(candidate)
+        if version and (best is None or ver_tuple(version) > ver_tuple(best[0])):
+            best = (version, candidate)
+    return best
+
+
+def ensure_cached(version: str, source: Path, apply: bool) -> Path:
+    """Copy the harvested backend into the central cache (idempotent)."""
+    dest = FSR4_CACHE / version / FSR4_BACKEND
+    if dest.is_file():
+        return dest
+    if apply:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, dest)
+    return dest
+
+
+def verify_optiscaler(game_dir: Path) -> list[str]:
+    """Return the list of missing pieces of a correct OptiScaler install."""
+    missing: list[str] = []
+    if not any((game_dir / dll).is_file() for dll in PROXY_DLLS):
+        missing.append("proxy dll")
+    if not (game_dir / OPTI_FFX_DLL).is_file():
+        missing.append(OPTI_FFX_DLL)
+    return missing
+
+
+def extras_hashes() -> set[str]:
+    """SHA256s of every FSR4 Extras upscaler DLL in OptiScaler-Client's cache.
+
+    These are the known-bad injections (e.g. the outdated 4.0.2c) that the
+    client's 'Extras' feature copies over OptiScaler's own clean upscaler DLL.
+    """
+    out: set[str] = set()
+    root = OPTI_CACHE / "Extras"
+    if root.is_dir():
+        for dll in root.glob(f"*/{OPTI_FFX_DLL}"):
+            out.add(sha256(dll))
+    return out
+
+
+def clean_ffx_source() -> tuple[str, Path] | None:
+    """Newest OptiScaler-bundled upscaler DLL as (fsr_version, path).
+
+    OptiScaler ships a clean amd_fidelityfx_upscaler_dx12.dll in each release;
+    the client caches these under Cache/OptiScaler/<ver>/. We pick the one with
+    the highest embedded FSR 4.x version to restore stale injections with.
+    """
+    best: tuple[str, Path] | None = None
+    root = OPTI_CACHE / "OptiScaler"
+    if root.is_dir():
+        for dll in root.glob(f"*/{OPTI_FFX_DLL}"):
+            version = amdxc_version(dll)
+            if version and (best is None or ver_tuple(version) > ver_tuple(best[0])):
+                best = (version, dll)
+    return best
+
+
+def ini_key_re(key: str) -> re.Pattern[str]:
+    return re.compile(rf"^(\s*{re.escape(key)}\s*=\s*)(.*?)(\s*)$", re.IGNORECASE)
+
+
+def ini_value(ini: Path, key: str) -> tuple[bool, str | None]:
+    """(present, value). present=False means this OptiScaler version lacks the key."""
+    rex = ini_key_re(key)
+    try:
+        for line in ini.read_text(errors="replace").splitlines():
+            match = rex.match(line)
+            if match:
+                return True, match.group(2)
+    except OSError:
+        return False, None
+    return False, None
+
+
+def ini_write_key(ini: Path, key: str, value: str) -> bool:
+    """Set an existing key in place, preserving spacing/comments. No-op if absent."""
+    rex = ini_key_re(key)
+    lines = ini.read_text(errors="replace").splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        match = rex.match(line.rstrip("\n"))
+        if match:
+            if match.group(2) == value:
+                return False
+            newline = "\n" if line.endswith("\n") else ""
+            lines[index] = f"{match.group(1)}{value}{match.group(3)}{newline}"
+            ini.write_text("".join(lines))
+            return True
+    return False
+
+
+def fsr4_ini_targets(args: argparse.Namespace, key: str) -> dict[str, str]:
+    # Watermark is opt-in (--watermark); otherwise reset to auto so a
+    # previously-injected true gets turned back off.
+    return {
+        "Fsr4Update": "true",
+        "Fsr4EnableWatermark": "true" if args.watermark else "auto",
+        "ShortcutKey": key,
+    }
+
+
+def revert_fsr4(inis: list[Path], apps: dict[str, SteamApp], apply: bool) -> int:
+    reverted = 0
+    for ini in inis:
+        game_dir = ini.parent
+        label = label_ini(ini, apps)
+        dest = game_dir / FSR4_BACKEND
+        ffx = game_dir / OPTI_FFX_DLL
+        ffx_bak = ffx.with_suffix(ffx.suffix + ".bak")
+        actions: list[str] = []
+        if dest.is_file():
+            actions.append(f"remove {FSR4_BACKEND}")
+        if ffx_bak.exists():
+            actions.append(f"restore {OPTI_FFX_DLL} from backup")
+        for tkey in FSR4_REVERT_KEYS:
+            present, current = ini_value(ini, tkey)
+            if present and current != "auto":
+                actions.append(f"{tkey} {current} -> auto")
+        if not actions:
+            print(f"  ok       {label}: nothing to revert")
+            continue
+        if not apply:
+            reverted += 1
+            print(f"  revert   {label}: {'; '.join(actions)}")
+            continue
+        if dest.is_file():
+            bak = dest.with_suffix(dest.suffix + ".bak")
+            if bak.exists():
+                shutil.move(str(bak), str(dest))
+            else:
+                dest.unlink()
+        if ffx_bak.exists():
+            shutil.move(str(ffx_bak), str(ffx))
+        for tkey in FSR4_REVERT_KEYS:
+            ini_write_key(ini, tkey, "auto")
+        reverted += 1
+        print(f"  reverted {label}: {', '.join(actions)}")
+    if not apply and reverted:
+        print(f"FSR4 revert: {reverted} game(s) affected.")
+    return 0
+
+
+def check_fsr4(args: argparse.Namespace) -> int:
+    apply = args.apply
+    apps = steam_apps()
+    inis = optiscaler_inis()
+
+    if args.revert:
+        if not inis:
+            print("No OptiScaler.ini files found.")
+            return 0
+        return revert_fsr4(inis, apps, apply)
+
+    best = harvest_best()
+    if not best:
+        print("FSR4: no amdxcffx64.dll found in any installed Proton build.")
+        print("      Install/enable a recent Proton (Experimental, GE, CachyOS) first.")
+        return 1
+    version, source = best
+    print(f"FSR4 backend: {version}  (source: {source})")
+    if not inis:
+        print("No OptiScaler.ini files found.")
+        return 0
+
+    cached = ensure_cached(version, source, apply)
+    inject_source = cached if cached.is_file() else source
+    targets = fsr4_ini_targets(args, desired_key(args.key))
+    bad_hashes = extras_hashes()
+    clean = clean_ffx_source()
+
+    changed = 0
+    issues = 0
+    for ini in inis:
+        game_dir = ini.parent
+        label = label_ini(ini, apps)
+        missing = verify_optiscaler(game_dir)
+        if missing:
+            issues += 1
+            print(f"  skip     {label}: OptiScaler incomplete ({', '.join(missing)})")
+            continue
+
+        dest = game_dir / FSR4_BACKEND
+        need_dll = not dest.is_file() or not files_identical(dest, inject_source)
+        actions: list[str] = []
+        if not dest.is_file():
+            actions.append(f"add {FSR4_BACKEND} {version}")
+        elif need_dll:
+            actions.append(f"update {FSR4_BACKEND} -> {version}")
+
+        # Detect a stale/known-bad OptiScaler upscaler DLL (e.g. the client's
+        # 4.0.2c Extras injection sitting over OptiScaler's own clean DLL).
+        game_ffx = game_dir / OPTI_FFX_DLL
+        ffx_ver = amdxc_version(game_ffx)
+        ffx_is_extras = bool(bad_hashes) and sha256(game_ffx) in bad_hashes
+        ffx_outdated = (
+            clean is not None
+            and ffx_ver is not None
+            and ver_tuple(ffx_ver) < ver_tuple(clean[0])
+        )
+        ffx_stale = ffx_is_extras or ffx_outdated
+        ffx_restore = ffx_stale and clean is not None
+        if ffx_stale:
+            tag = "Extras 4.0.2c" if ffx_is_extras else (ffx_ver or "old")
+            if ffx_restore:
+                actions.append(f"restore {OPTI_FFX_DLL} ({tag} -> {clean[0]})")
+            else:
+                actions.append(
+                    f"stale {OPTI_FFX_DLL} ({tag}); no clean OptiScaler cache "
+                    f"- reinstall via GUI"
+                )
+
+        for tkey, tval in targets.items():
+            present, current = ini_value(ini, tkey)
+            if not present:
+                actions.append(f"{tkey} absent (OptiScaler too old)")
+            elif current != tval:
+                actions.append(f"{tkey} {current} -> {tval}")
+
+        if not actions:
+            print(f"  ok       {label}: {version}")
+            continue
+        if not apply:
+            changed += 1
+            print(f"  drift    {label}: {'; '.join(actions)}")
+            continue
+
+        did: list[str] = []
+        if need_dll:
+            if dest.is_file():
+                backup(dest)
+            shutil.copy2(inject_source, dest)
+            did.append(FSR4_BACKEND)
+        if ffx_restore:
+            backup(game_ffx)
+            shutil.copy2(clean[1], game_ffx)
+            did.append(f"{OPTI_FFX_DLL}->{clean[0]}")
+        for tkey, tval in targets.items():
+            if ini_write_key(ini, tkey, tval):
+                did.append(tkey)
+        if did:
+            changed += 1
+            print(f"  fixed    {label}: {', '.join(did)}")
+        else:
+            print(f"  ok       {label}: {version}")
+
+    if not apply and changed:
+        print(f"FSR4: {changed} game(s) need changes.")
+        return 1
+    if apply:
+        ok = len(inis) - issues - changed
+        print(f"FSR4: {changed} updated, {ok} already ok, {issues} skipped.")
+    return 0
+
+
 def check_shortcuts(args: argparse.Namespace) -> int:
     key = desired_key(args.key)
     apps = steam_apps()
@@ -488,9 +846,19 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--only",
-        choices=("all", "shortcut", "launch-options"),
+        choices=("all", "shortcut", "launch-options", "fsr4"),
         default="all",
         help="limit what to check/fix",
+    )
+    parser.add_argument(
+        "--watermark",
+        action="store_true",
+        help="set Fsr4EnableWatermark=true (default: off, reset to auto)",
+    )
+    parser.add_argument(
+        "--revert",
+        action="store_true",
+        help="fsr4 step only: remove injected amdxcffx64.dll and reset FSR4 flags",
     )
     return parser.parse_args(argv)
 
@@ -526,6 +894,10 @@ def main(argv: list[str] | None = None) -> int:
         print()
     if args.only in ("all", "launch-options"):
         rc |= check_launch_options(args)
+    if args.only == "all":
+        print()
+    if args.only in ("all", "fsr4"):
+        rc |= check_fsr4(args)
     return rc
 
 
