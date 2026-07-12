@@ -52,14 +52,10 @@ case ":$PATH:" in
   *) export PATH="$HOME/.local/bin:$PATH" ;;
 esac
 
-# An embedded login has a more minimal environment than the Sway session, so
-# mangoapp (from gamescope's --mangoapp) may not resolve the MangoHud config via
-# its normal XDG search path. Point it at the stowed config explicitly. The whole
-# session tree (including every game) inherits this.
-if [[ -z "${MANGOHUD_CONFIGFILE:-}" ]]; then
-  cfg="${XDG_CONFIG_HOME:-$HOME/.config}/MangoHud/MangoHud.conf"
-  [[ -r "$cfg" ]] && export MANGOHUD_CONFIGFILE="$cfg"
-fi
+# No MANGOHUD_CONFIGFILE here: in SteamOS game mode (-steamos3) Steam drives the
+# --mangoapp overlay via its control socket (the Quick Access "Performance"
+# panel), rewriting the config at runtime. We used to point mangoapp at a stowed
+# config, but Steam clobbers it, so the overlay is Steam's to own now.
 
 args=(--backend drm
   -W "${GS_OUT_W:-3840}" -H "${GS_OUT_H:-2160}" -r "${GS_REFRESH:-60}"
@@ -72,10 +68,25 @@ args=(--backend drm
 
 # Build the gamescope command. HDR sessions negotiate HDR via the gamescope WSI
 # layer; SDR sessions don't set the HDR WSI env.
+#
+# Launch flags: `-steamos3` (not just `-gamepadui`) is required for the power
+# menu's "Desktop Mode" to work. That button's handler only runs the legacy
+# `steam-runtime-launch-client -- steamos-session-select` exec when Steam
+# believes it's in SteamOS game mode (Plat_IsSteamOSGameMode); with `-gamepadui`
+# alone the button opens its modal but execs nothing and hangs. `-steamos3`
+# selects the SteamOS 3 game-mode behaviour (in-UI network/Bluetooth, the
+# session lifecycle, the Switch-to-Desktop exec); our steamos-session-select
+# shim is the fallback taken because no SteamOSManager1 D-Bus service exists.
+#
+# We deliberately do NOT pass `-steamdeck`: that's the handheld hardware profile
+# (battery UI, deck controller/OSK, LCD/OLED/fan assumptions), wrong for this
+# couch "Steam Machine". If Desktop Mode still no-ops without `-steamdeck`, add
+# it back — but `-steamos3` alone should gate the game-mode exec path.
+steam_args=(-steamos3 -gamepadui)
 if [[ "${GS_HDR:-1}" != "0" ]]; then
-  cmd=(gamescope "${args[@]}" -- env DXVK_HDR=1 ENABLE_GAMESCOPE_WSI=1 steam -gamepadui)
+  cmd=(gamescope "${args[@]}" -- env DXVK_HDR=1 ENABLE_GAMESCOPE_WSI=1 steam "${steam_args[@]}")
 else
-  cmd=(gamescope "${args[@]}" -- steam -gamepadui)
+  cmd=(gamescope "${args[@]}" -- steam "${steam_args[@]}")
 fi
 
 # Stream session (GS_SUNSHINE=1): run Sunshine so a Moonlight client can

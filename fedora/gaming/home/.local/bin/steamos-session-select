@@ -1,18 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Shim for Steam's gamepad UI "Desktop Mode" button, which shells out to
-# `steamos-session-select <target>` on $PATH (no plain "Exit Steam" exists in
-# gamepad UI). We have no desktop-in-gamescope target, so ignore the target and
-# just end the session to land back at SDDM. steam-session puts ~/.local/bin on
-# PATH so the gamepad UI finds this. See fedora/gaming/docs/HDR-GAMING.md.
+# Shim for Steam's gamepad UI "Desktop Mode" button. In SteamOS game mode
+# (steam -steamdeck -steamos3, set by steam-session) the button runs
+#   steam-runtime-launch-client --alongside-steam -- steamos-session-select <target>
+# and BLOCKS until it returns. We have no desktop-in-gamescope target, so we
+# tear the session down and return to SDDM. (This is the fallback path, taken
+# because no com.steampowered.SteamOSManager1 D-Bus service exists here.)
+#
+# The teardown must be detached: a synchronous `steam -shutdown` would deadlock,
+# since Steam can't quit while blocked waiting for this to return. Fork with
+# setsid and return 0 immediately to unblock the gamepad UI.
+#
+# steam-session runs `gamescope -e ... -- steam ...`; in embed mode (-e)
+# gamescope exits when its Steam child dies, so `steam -shutdown` alone ends the
+# session. The pkill is a fallback and must match by full command line, since
+# gamescope's comm is truncated to "gamescope-wl" (pkill -x gamescope misses).
+#
+# This is the stow source; setup-gamescope-session.sh symlinks it into
+# /usr/local/bin (always on PATH). See fedora/gaming/docs/GAMESCOPE-SESSION.md.
 
-# Ask Steam to shut down cleanly first (flushes cloud saves, closes the UI).
-steam -shutdown >/dev/null 2>&1 || true
+# shellcheck disable=SC2016  # body runs in the detached child, not now
+setsid --fork bash -c '
+  steam -shutdown >/dev/null 2>&1 || true
+  for _ in $(seq 1 10); do
+    pgrep -x steam >/dev/null 2>&1 || break
+    sleep 1
+  done
+  # Fallback if Steam lingered: end gamescope by full-cmdline match.
+  if pgrep -x steam >/dev/null 2>&1; then
+    pkill -f "gamescope .*-- .*steam " >/dev/null 2>&1 || true
+  fi
+' >/dev/null 2>&1 </dev/null &
 
-# End the graphical session so SDDM takes back the seat. Prefer the specific
-# session id; fall back to terminating the user's sessions.
-if [[ -n "${XDG_SESSION_ID:-}" ]]; then
-  loginctl terminate-session "$XDG_SESSION_ID" 2>/dev/null && exit 0
-fi
-loginctl terminate-user "$USER" 2>/dev/null || true
+exit 0
