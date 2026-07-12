@@ -54,9 +54,9 @@ BINARY_NAME = "OptiscalerClient"
 # config dir on first run only (never clobbering live state, which the app
 # rewrites with window geometry/timestamps/library data). __file__ resolves
 # through the stow symlink back into the repo; the seed lives at
-# fedora/data/optiscaler-client-seed/ (outside the bin stow package, so it is
-# not itself stowed into $HOME). Relative to fedora/bin/.local/bin/<script>,
-# that is parents[3] == fedora/.
+# fedora/gaming/data/optiscaler-client-seed/ (outside the home stow package, so
+# it is not itself stowed into $HOME). Relative to
+# fedora/gaming/home/.local/bin/<script>, that is parents[3] == fedora/gaming/.
 SEED_DIR = Path(__file__).resolve().parents[3] / "data" / "optiscaler-client-seed"
 APP_CONFIG_DIR = XDG_CONFIG_HOME / "OptiscalerClient"
 

@@ -9,7 +9,7 @@
 #
 # RemainAfterExit keeps the unit "active" after ExecStart so ExecStop fires on
 # resume. StopWhenUnneeded lets sleep.target (also StopWhenUnneeded) release it.
-# See fedora/bin/README.md.
+# See fedora/gaming/README.md.
 [Unit]
 Description=Pause Steam games before sleep, resume after
 Before=sleep.target

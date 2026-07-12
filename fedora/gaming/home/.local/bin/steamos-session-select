@@ -5,7 +5,7 @@ set -euo pipefail
 # `steamos-session-select <target>` on $PATH (no plain "Exit Steam" exists in
 # gamepad UI). We have no desktop-in-gamescope target, so ignore the target and
 # just end the session to land back at SDDM. steam-session puts ~/.local/bin on
-# PATH so the gamepad UI finds this. See fedora/docs/HDR-GAMING.md.
+# PATH so the gamepad UI finds this. See fedora/gaming/docs/HDR-GAMING.md.
 
 # Ask Steam to shut down cleanly first (flushes cloud saves, closes the UI).
 steam -shutdown >/dev/null 2>&1 || true

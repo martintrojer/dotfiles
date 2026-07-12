@@ -44,7 +44,7 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behaviour is 
 |---|---|
 | Portable core (stow packages) | [`zsh/`](./zsh), [`nvim/`](./nvim), [`tmux/`](./tmux), [`git/`](./git), [`ssh/`](./ssh), [`local-bin/`](./local-bin) |
 | Linux desktop stack (stow packages) | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`foot/`](./foot) (terminal), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaylock/`](./swaylock) |
-| Linux gaming stack (stow packages) | [`mangohud/`](./mangohud), [`gamemode/`](./gamemode) — gaming layer for this Windows→Linux box; see [`fedora/`](./fedora) (`os/steam-packages.sh`, `bin/`) and [`docs/DECISIONS.md`](./docs/DECISIONS.md) |
+| Linux gaming layer | [`fedora/gaming/`](./fedora/gaming) — quarantined, opt-out (`--skip-gaming`) stack for the main Windows→Linux gaming rig (Steam, gamescope, Sunshine, OptiScaler, MangoHud, GameMode, OpenRGB); see [`fedora/gaming/README.md`](./fedora/gaming/README.md) and [`docs/DECISIONS.md`](./docs/DECISIONS.md) |
 | macOS desktop stack (stow packages) | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) (terminal) |
 | Fedora setup namespace | [`fedora/`](./fedora) (special case: nested stow packages + setup wrappers) |
 | Universal agent sources | [`skills/`](./skills), [`pi/`](./pi) |

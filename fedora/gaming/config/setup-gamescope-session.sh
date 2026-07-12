@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Install the SteamOS-style gamescope sessions so they can be picked from the
 # SDDM login screen. Both are embedded/DRM gamescope sessions that exec the same
-# stowed launcher; only env knobs differ. See fedora/docs/HDR-GAMING.md.
+# stowed launcher; only env knobs differ. See fedora/gaming/docs/HDR-GAMING.md.
 #
 #   steam.desktop         4K HDR for couch PC gaming (launcher defaults)
 #   steam-stream.desktop  1080p SDR + Sunshine for streaming to a handheld

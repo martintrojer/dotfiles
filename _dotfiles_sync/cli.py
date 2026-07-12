@@ -92,6 +92,15 @@ def parse_args() -> Args:
         help="Suppress a specific check failure by ID (repeatable)",
     )
     parser.add_argument(
+        "--skip-gaming",
+        action="store_true",
+        help=(
+            "Drop the Fedora gaming layer (fedora/gaming/). Use on work/laptop "
+            "hosts that want a pure Sway baseline with no gaming footprint. "
+            "On by default; the main gaming rig needs no flag."
+        ),
+    )
+    parser.add_argument(
         "packages",
         nargs="*",
         metavar="PACKAGE",
@@ -109,6 +118,7 @@ def parse_args() -> Args:
         target=namespace.target,
         ignore=set(namespace.ignore),
         packages=tuple(namespace.packages),
+        skip_gaming=namespace.skip_gaming,
     )
 
 
@@ -203,7 +213,7 @@ def main() -> int:
 
     system = detect_system()
     specs = build_specs()
-    scopes = active_scopes(system)
+    scopes = active_scopes(system, skip_gaming=args.skip_gaming)
     active_names = resolve_requested_packages(specs, args.packages, scopes)
     full_run = not args.packages
     backup_root = None
