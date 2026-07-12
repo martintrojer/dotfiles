@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import filecmp
 import logging
+import os
 import shlex
 import shutil
 import subprocess
@@ -9,7 +10,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from .config import CONFLICT_RE, SCRIPT_DIR
+from .config import CONFLICT_RE, FOREIGN_TARGET_RE, SCRIPT_DIR
 from .model import Conflict
 
 LOGGER = logging.getLogger("dotfiles-sync")
@@ -112,6 +113,47 @@ def show_conflict_diffs(output: str, target: Path) -> None:
             )
 
 
+def parse_foreign_targets(output: str) -> list[str]:
+    """Target-relative paths stow refuses because it does not own them."""
+    targets: list[str] = []
+    seen: set[str] = set()
+    for line in output.splitlines():
+        match = FOREIGN_TARGET_RE.match(line)
+        if not match:
+            continue
+        rel = match.group(1)
+        if rel in seen:
+            continue
+        targets.append(rel)
+        seen.add(rel)
+    return targets
+
+
+def clear_stale_repo_links(output: str, target: Path) -> None:
+    """Remove stale symlinks that point back into the repo at a dead path.
+
+    stow reports pre-existing symlinks it did not create as "not owned by
+    stow" and aborts. The common cause is an intra-repo file move: an old
+    managed link now points at a path that no longer exists. Under
+    --force-overwrite, drop exactly those (a symlink into SCRIPT_DIR whose
+    resolved target is missing). Anything else -- real files, or links
+    outside the repo -- is left untouched so stow still aborts on it.
+    """
+    script_real = SCRIPT_DIR.resolve()
+    for rel in parse_foreign_targets(output):
+        path = target / rel
+        if not path.is_symlink():
+            continue
+        raw = Path(os.readlink(path))
+        resolved = (path.parent / raw).resolve(strict=False)
+        if not resolved.is_relative_to(script_real):
+            continue
+        if resolved.exists():
+            continue
+        path.unlink()
+        LOGGER.warning(f"CLEARED STALE: {path} -> {raw}")
+
+
 def backup_conflict_path(rel_path: str, target: Path, backup_root: Path) -> None:
     target_path = target / rel_path
     if not target_path.exists() and not target_path.is_symlink():
@@ -207,6 +249,9 @@ def run_apply_group(
             for _, target_rel in conflicts:
                 if f"conflict:{target_rel}" not in ignore:
                     backup_conflict_path(target_rel, target, backup_root)
+
+    if force_overwrite:
+        clear_stale_repo_links(probe.stdout + probe.stderr, target)
 
     result = run_stow_command(
         stow_dir,
