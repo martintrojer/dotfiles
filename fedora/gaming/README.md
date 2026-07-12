@@ -22,10 +22,11 @@ history is in [`docs/DECISIONS.md`](./docs/DECISIONS.md) here.
 - **`data/`** — committed tool state read at runtime, not scripts to run:
   `data/optiscaler-client-seed/` (first-run prefs the `optiscaler-client`
   helper seeds into `~/.config`).
-- **`docs/`** — [HDR gaming](./docs/HDR-GAMING.md) and
-  [streaming](./docs/STREAMING.md) procedures.
+- **`docs/`** — [gamescope session](./docs/GAMESCOPE-SESSION.md),
+  [HDR gaming](./docs/HDR-GAMING.md), and [streaming](./docs/STREAMING.md)
+  procedures.
 - **`home/`** — the single stow package. Everything gaming that lands in `$HOME`
-  (bin helpers, MangoHud/GameMode configs, the Sunshine unit override). Stowed
+  (bin helpers, GameMode config, the Sunshine unit override). Stowed
   by default, skipped with `--skip-gaming`.
 
 ## Setup Flow
@@ -37,8 +38,8 @@ Order for a fresh install (after the baseline `os/` + `setup-mise.sh`):
    repo-setup commands.
 2. `os/setup-steam.sh` — layer gaming/Steam packages.
 3. `config/setup-gamescope-session.sh` — install the "Steam (gamescope)"
-   embedded HDR session selectable at SDDM (see
-   [`docs/HDR-GAMING.md`](./docs/HDR-GAMING.md)).
+   embedded session selectable at SDDM (see
+   [`docs/GAMESCOPE-SESSION.md`](./docs/GAMESCOPE-SESSION.md)).
 4. `config/setup-openrgb.sh` — wire i2c/SMBus access for OpenRGB (loads
    `i2c-dev`, creates the `i2c` group + udev rule, adds you to it). Needs the
    `openrgb` rpm from step 2. See "OpenRGB / RGB" below.
@@ -68,7 +69,7 @@ Gaming modes:
 
 - **Sway desktop**: light SDR gaming. Launch games normally.
 - **Steam (gamescope) SDDM session**: HDR gaming. `steam-session` owns the
-  display via gamescope DRM, enables HDR, draws MangoHud (`--mangoapp`), and
+  display via gamescope DRM, enables HDR, shows the `--mangoapp` overlay, and
   exports only HDR WSI env: `DXVK_HDR=1 ENABLE_GAMESCOPE_WSI=1`.
 - **Steam (gamescope stream) SDDM session**: same launcher with
   `GS_OUT_W=1920 GS_OUT_H=1080 GS_HDR=0 GS_SUNSHINE=1` for streaming to a
@@ -80,9 +81,10 @@ Gaming modes:
   `OPTIRUN_RDNA3=0`, or `OPTIRUN_GAMEMODE=0`; use `OPTIRUN_DLL=<name>` for a
   non-`dxgi` proxy DLL.
 - `steam-session` refuses to run inside another graphical session, prepends
-  `~/.local/bin` to PATH, exports `MANGOHUD_CONFIGFILE`, and accepts
+  `~/.local/bin` to PATH, and accepts
   `GS_OUT_W/H`, `GS_REFRESH`, `GS_HDR`, `GS_ARGS`. See
-  [docs/HDR-GAMING.md](./docs/HDR-GAMING.md).
+  [docs/GAMESCOPE-SESSION.md](./docs/GAMESCOPE-SESSION.md) for the session and
+  [docs/HDR-GAMING.md](./docs/HDR-GAMING.md) for the HDR env.
 - `steam-pause {pause,resume,list}` finds running Steam games (their
   `reaper ... AppId=` processes), walks each child tree, and `SIGSTOP`/`SIGCONT`s
   the children (leaving the reaper alive so Steam doesn't see the game as
@@ -139,16 +141,17 @@ OptiScaler manager (GUI):
 
 ## MangoHud
 
-Config: `home/.config/MangoHud/MangoHud.conf` → `~/.config/MangoHud/MangoHud.conf`.
+Installed via the `mangohud` package in `os/steam-packages.sh`. No config is
+tracked in this repo.
 
-- Installed via the `mangohud` package in `os/steam-packages.sh`.
 - Enable per-game by adding `mangohud %command%` to a title's Steam launch
-  options, or run `mangohud <program>` directly.
-- Default in-overlay toggle is `Shift_R+F12`.
-- In the Steam (gamescope) session, gamescope draws this config with
-  `--mangoapp`. The `gamemode` widget is intentionally disabled there: `optirun`
-  applies GameMode to the game process, but mangoapp is session-level and would
-  report its own context instead.
+  options, or run `mangohud <program>` directly. These use MangoHud's own
+  defaults / your ad-hoc `~/.config/MangoHud/MangoHud.conf` if you make one.
+- In the Steam (gamescope) session, gamescope shows the overlay with
+  `--mangoapp`, and in SteamOS game mode (`-steamos3`) Steam **owns** it: the
+  Quick Access "Performance" panel drives mangoapp over its control socket and
+  rewrites `~/.config/MangoHud/MangoHud.conf` at runtime. That's why the config
+  isn't stowed — Steam would clobber it every session.
 
 ## GameMode (Feral)
 

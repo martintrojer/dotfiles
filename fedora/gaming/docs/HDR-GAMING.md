@@ -17,24 +17,13 @@ into the gamescope session instead of nesting gamescope inside Sway. Background:
 [gamescope#2008](https://github.com/ValveSoftware/gamescope/issues/2008),
 [ArchWiki HDR](https://wiki.archlinux.org/title/HDR_monitor_support).
 
-## Setup
+## Session
 
-Run `config/setup-gamescope-session.sh` after `os/setup-steam.sh` and
-`dotfiles-sync --apply`.
+HDR runs in the **Steam (gamescope)** SDDM session. Installing it, entering it,
+and the "Desktop Mode" exit are covered in
+[GAMESCOPE-SESSION.md](./GAMESCOPE-SESSION.md).
 
-It installs:
-
-- `/usr/local/bin/steam-session` → stowed `~/.local/bin/steam-session`
-- `/usr/local/share/wayland-sessions/steam.desktop` (couch HDR)
-- `/usr/local/share/wayland-sessions/steam-stream.desktop` (1080p SDR streaming)
-
-## Use
-
-Pick **Steam (gamescope)** in SDDM. In gamepad UI the power menu has no "Exit
-Steam"; use **Desktop Mode** to return to SDDM. That button calls
-`steamos-session-select` on `PATH`, and the stowed shim
-(`~/.local/bin/steamos-session-select`) shuts Steam down and ends the session so
-you land back at the SDDM greeter (we have no desktop-in-gamescope target).
+## HDR env
 
 `steam-session` is intentionally narrow:
 
@@ -82,9 +71,6 @@ OPTIRUN_DLL=winmm optirun %command%
 
 ## Notes
 
-- `steam-session` refuses to run inside an existing graphical session.
-- SDDM starts it from a minimal environment, so it prepends `~/.local/bin` and
-  exports `MANGOHUD_CONFIGFILE` itself.
 - Games with pre-launchers may need skip flags, e.g. Cyberpunk:
   `%command% --launcher-skip`.
 - OptiScaler overlay is remapped from Insert to Home (`0x24`). If it drifts,
