@@ -4,10 +4,7 @@ Shared agent skills following the [Agent Skills standard](https://agentskills.io
 
 ## Distribution
 
-Two paths:
-
-- **Universal path (Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, generic):** `./dotfiles-sync --apply` symlinks each `<name>/` into `~/.agents/skills/<name>`. All these agents read that path natively. Edits propagate live (symlink, not copy).
-- **Claude Code:** the same `skills/` tree is bundled into the dotfiles Claude plugin. Install via `claude plugin marketplace add martintrojer/dotfiles && claude plugin install mtrojer@dotfiles`. Re-run `claude plugin install mtrojer@dotfiles` after each push to refresh — `./dotfiles-sync --apply` prints these commands as a closing hint.
+This is a Stow package: skills live at `.agents/skills/<name>/` so the in-package path mirrors `$HOME`. `./dotfiles-sync --apply` stows each `<name>/` into `~/.agents/skills/<name>` as a single directory symlink (stow folds this package, so each skill links as an opaque bundle and vendored `README`/`LICENSE` files ride along). Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, and other generic agents read that path natively. Edits propagate live.
 
 Skills are auto-discovered and can be invoked explicitly with `/skill:name` or loaded automatically when the agent detects a matching task.
 

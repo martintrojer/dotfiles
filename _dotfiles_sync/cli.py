@@ -10,8 +10,6 @@ from time import monotonic
 
 from .config import APPLY_TASKS, BACKUP_DIR_NAME, CHECK_TASKS, task_enabled
 from .external import (
-    apply_pi_extensions_symlinks,
-    apply_skills_symlinks,
     apply_tmux_tpm,
     apply_zsh_plugins,
 )
@@ -23,7 +21,6 @@ from .integration_checks import (
 )
 from .inventory import build_specs, group_active_packages, resolve_requested_packages
 from .model import Args, PackageSpec
-from .pins import GITHUB_SLUG
 from .repo_checks import (
     check_package_coverage,
     check_private_env_mistakes,
@@ -191,8 +188,6 @@ def run_apply_tasks(
         ),
         "zsh-plugins": lambda: apply_zsh_plugins(target, verbose=verbose),
         "tmux-tpm": lambda: apply_tmux_tpm(target, verbose=verbose),
-        "skills": lambda: apply_skills_symlinks(target, verbose=verbose),
-        "pi-extensions": lambda: apply_pi_extensions_symlinks(target, verbose=verbose),
     }
 
     for task in APPLY_TASKS:
@@ -233,7 +228,10 @@ def main() -> int:
     groups = group_active_packages(specs, active_names)
 
     has_issues = False
-    for (label, stow_dir), packages in groups.items():
+    for (label, stow_dir, fold), packages in groups.items():
+        fold_anchors = tuple(
+            anchor for name in packages for anchor in specs[name].fold_anchors
+        )
         if args.action == "check":
             has_issues |= run_check_group(
                 label,
@@ -243,6 +241,7 @@ def main() -> int:
                 args.show_diffs,
                 args.verbose,
                 ignore=args.ignore,
+                fold=fold,
             )
         else:
             run_apply_group(
@@ -254,6 +253,8 @@ def main() -> int:
                 force_overwrite=args.force_overwrite,
                 backup_root=backup_root,
                 ignore=args.ignore,
+                fold=fold,
+                fold_anchors=fold_anchors,
             )
 
     if args.action == "check":
@@ -295,14 +296,9 @@ def print_post_apply_hints() -> None:
         "paths automatically."
     )
     print()
-    print("Two manual steps remain:")
+    print("One manual step remains:")
     print()
-    print("  # 1. Claude Code plugin (one-time marketplace add, then")
-    print("  #    re-run `plugin install` after every push to refresh):")
-    print(f"  claude plugin marketplace add {GITHUB_SLUG}")
-    print("  claude plugin install mtrojer@dotfiles")
-    print()
-    print("  # 2. Codex notify hook — add this line to ~/.codex/config.toml:")
+    print("  # Codex notify hook — add this line to ~/.codex/config.toml:")
     print(
         '  notify = ["/bin/sh", "-lc", "python3 \\"$HOME/.config/tmux/scripts/'
         'agent-attention\\" notify --source codex --event-type notify --title Codex"]'

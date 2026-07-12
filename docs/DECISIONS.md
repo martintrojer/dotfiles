@@ -2,7 +2,7 @@
 
 Past decisions about this setup — rejected alternatives and non-obvious "yes" choices. Read before relitigating.
 
-Each entry: context, key points, what would justify revisiting. Pillars from [`README.md`](../README.md#zen-of-this-setup); daily editing rules in [`CLAUDE.md`](../CLAUDE.md).
+Each entry: context, key points, what would justify revisiting. Pillars from [`README.md`](../README.md#zen-of-this-setup); daily editing rules in [`AGENTS.md`](../AGENTS.md).
 
 ---
 
@@ -210,6 +210,20 @@ Even if you never re-enable SwayFX, these bit on first setup:
 
 ---
 
+### Drop the Claude Code plugin; make `skills/` and `pi/` plain stow packages (accepted 2026-07-12)
+
+Removed the Claude Code integration surface (`.claude-plugin/`, `hooks/`, the marketplace install flow) entirely, and converted the two agent source trees from a custom symlink fan-out to normal stow packages.
+
+- **Claude removal:** Claude Code is no longer a supported harness. The universal `~/.agents/skills/` path already reaches every other agent (Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw); only Claude wanted its own plugin cache, and that special case earned its keep only while Claude was in use. `CLAUDE.md` became the canonical `AGENTS.md` (all agents read it).
+- **Fan-out → stow:** `_dotfiles_sync/external.py` grew an ~88-line `_agent_link_apply` helper that hand-rolled per-item symlinks with pruning for skills and pi extensions. Both are now stow packages: `skills/.agents/skills/<name>/` and `pi/.pi/agent/extensions/*.ts` mirror `$HOME`, so `--restow` produces the same links with automatic pruning. Deleted the helper, both wrapper functions, the two apply-tasks, and the now-unused `relative_symlink_target`.
+- **Why the skills refactor was blocked until now:** the Claude plugin bundled `skills/` with the plugin-relative shape `skills/<name>/SKILL.md` — a published marketplace contract. Restructuring to the `$HOME`-mirroring `skills/.agents/skills/<name>/` would have broken Claude's in-bundle skill discovery. Claude pinned the top-level `skills/<name>/` shape; removing Claude unpinned it, which is what made the stow conversion possible.
+- **The one subtlety — folding:** the repo stows everything `--no-folding` (per-leaf) to avoid the shared-target fold bug. But skills *must* fold so each skill links as one opaque directory symlink — otherwise stow descends per-file and `.stowrc`'s global `README.md`/`LICENSE.*` ignore drops `avoid-ai-writing/LICENSE` and `detector/README.md`. So `skills` opts back into folding via `PackageSpec.fold`, and a `fold_anchors` mkdir (`~/.agents/skills/`) pins the fold level (without a pre-existing real dir, stow folds `~/.agents` into a single repo symlink). Pi extensions are all `.ts`, so the ignore never fires and they stow per-file under plain `--no-folding`.
+- Net: fewer moving parts (one mechanism, stow, instead of stow + bespoke fan-out), and `pi`/`skills` now show up in `--check` package coverage like every other package.
+
+**Reconsider only if:** Claude Code comes back as a daily driver (re-add the plugin surface), OR stow's folding behavior changes such that the `fold_anchors` mkdir is no longer needed.
+
+---
+
 ### Quarantine the Fedora gaming layer into `fedora/gaming/` as an opt-out scope (accepted 2026-07-12)
 
 The main rig's gaming/streaming/RGB stack (Steam, gamescope, Sunshine,
@@ -410,7 +424,7 @@ Only test runner is `tmux/.config/tmux/scripts/test-status-tools`. `_dotfiles_sy
 Replaced a ~1300-line bootstrap script with a root entrypoint (`dotfiles-sync`) and a repo-local Python package (`_dotfiles_sync/{cli,config,system,stow,checks,external,model}.py`). Cross-cutting repo docs moved to `docs/`; the tiny `vscode/` pseudo-package was demoted to `docs/VSCODE.md`.
 
 - Driver: the old script mixed stow orchestration, package inventory, pinned clones, agent fan-out, drift checks. No longer read like intentional software.
-- Top-level stow packages, `fedora/`, `skills/`, `pi/`, and the Claude marketplace baggage (`hooks/`, `.claude-plugin/`) all stayed put — the marketplace layout is an external integration contract.
+- Top-level stow packages, `fedora/`, `skills/`, and `pi/` all stayed put.
 - Improves #1, #3, #10. Tax is one new directory.
 
 **Reconsider only if:** control plane shrinks below ~300 lines (collapse the split), OR grows into a genuinely reusable tool (promote to standalone).
@@ -439,10 +453,10 @@ Evaluated it against the existing tmux setup. Decision: stay on tmux, port the o
 - **What we'd lose:** `vim-tmux-navigator` (seamless nvim↔tmux pane movement), `tmux-fingers-rs` (hint picking), `tms` session recipes, the TPM plugin ecosystem, 17 years of tmux stability, and full control over the status bar. herdr's always-visible left sidebar wastes screen real estate for information you only need occasionally — `prefix+A` surfaces the same data on demand without a permanent column tax. herdr is v0.x, one maintainer, AGPL, with active churn.
 - **What we built instead:** upgraded `agent-attention` from a binary attention flag to a three-state push model (`working / blocked / crashed`) using an `IntEnum` with urgency as the value. Pi's extension pushes state on `agent_start`, `agent_end`, and `session_shutdown`. A pid-liveness reaper detects crashes (zero-fork `os.kill(pid, 0)`). Events are stored in SQLite WAL for crash detection and picker history; `@agent_state` tmux window option is the authoritative display state, written by the extension (direct tmux calls for `agent_end`/`session_shutdown`, Python script for `agent_start` which records the pid). Status pill and window glyphs color by state. `prefix+a` popup groups by urgency with idle agents at the bottom.
 - **Design rule applied:** port the idea, keep the substrate. tmux is the substrate. herdr is a collection of ideas, one of which was worth stealing.
-- **Scope guard:** push-only, no terminal scraping. Pi extension resolves the tmux pane at load time via `tmux display-message` (works across toolbox/container boundaries where `TMUX_PANE` is stripped). Other agents (claude, codex) still emit the old single-bit `blocked` signal via `hooks.json` — they don't get `working` because they don't push `agent_start`.
+- **Scope guard:** push-only, no terminal scraping. Pi extension resolves the tmux pane at load time via `tmux display-message` (works across toolbox/container boundaries where `TMUX_PANE` is stripped). Other agents (codex, opencode) still emit the old single-bit `blocked` signal via the `notify` subcommand — they don't get `working` because they don't push `agent_start`.
 
 **Reconsider if:** something extraordinary happens. tmux has been the terminal substrate for 17 years and the switching cost is total.
 
 ---
 
-*(Promote entries from `README.md § Zen Of This Setup` or `CLAUDE.md` to here when they need longer-form than a pillar bullet.)*
+*(Promote entries from `README.md § Zen Of This Setup` or `AGENTS.md` to here when they need longer-form than a pillar bullet.)*

@@ -31,7 +31,7 @@ If a new toy violates more than one of these, it does not belong here — no mat
 git clone https://github.com/martintrojer/dotfiles ~/dotfiles
 cd ~/dotfiles
 ./dotfiles-sync --apply
-# Then follow the two manual steps it prints (Claude plugin + Codex notify hook).
+# Then follow the manual step it prints (Codex notify hook).
 ```
 
 Full install steps, the update flow, recipes for testing changes without clobbering your real `$HOME`, and cleanup steps for machines running an older version of this repo all live in [`docs/SETUP.md`](./docs/SETUP.md).
@@ -47,21 +47,19 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behaviour is 
 | Linux gaming layer | [`fedora/gaming/`](./fedora/gaming) — quarantined, opt-out (`--skip-gaming`) stack for the main Windows→Linux gaming rig (Steam, gamescope, Sunshine, OptiScaler, MangoHud, GameMode, OpenRGB); see [`fedora/gaming/README.md`](./fedora/gaming/README.md) and [`docs/DECISIONS.md`](./docs/DECISIONS.md) |
 | macOS desktop stack (stow packages) | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) (terminal) |
 | Fedora setup namespace | [`fedora/`](./fedora) (special case: nested stow packages + setup wrappers) |
-| Universal agent sources | [`skills/`](./skills), [`pi/`](./pi) |
-| Claude marketplace surface | [`hooks/`](./hooks), [`.claude-plugin/`](./.claude-plugin) — ugly but intentional; this is the published plugin contract Claude consumes |
+| Universal agent sources (stow packages) | [`skills/`](./skills), [`pi/`](./pi) |
 | Repo control plane | [`dotfiles-sync`](./dotfiles-sync), [`_dotfiles_sync/`](./_dotfiles_sync), [`.stowrc`](./.stowrc) |
 | Cross-cutting docs/policy | [`docs/`](./docs) — [`SETUP.md`](./docs/SETUP.md), [`DECISIONS.md`](./docs/DECISIONS.md), [`THEME.md`](./docs/THEME.md), [`LAYOUT.md`](./docs/LAYOUT.md), [`VSCODE.md`](./docs/VSCODE.md) |
 
-Most top-level directories are Stow packages mirroring `$HOME`. The notable exceptions are the Fedora namespace, agent source trees, the Claude marketplace surface, and the repo control-plane files. `skills/` and `pi/` stay top-level because they are real source trees consumed directly by external tools, not bootstrap internals.
+Most top-level directories are Stow packages mirroring `$HOME`. The notable exceptions are the Fedora namespace and the repo control-plane files. `skills/` and `pi/` are Stow packages too (their inner `.agents/` and `.pi/` trees mirror `$HOME`), but they double as source trees consumed directly by external tools.
 
 ## Agent payloads
 
-The repo doubles as a multi-target agent plugin. Distribution model:
+The repo doubles as a multi-target agent source. Distribution model:
 
-- **Universal (handled by `--apply`):** `skills/<name>/` and top-level `pi/extensions/*.ts` are plain symlinks into `~/.agents/skills/` and `~/.pi/agent/extensions/` respectively. Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw all read these paths natively. Edits in the repo show up live. Pi helper modules (such as `_lib.ts`) are also top-level `.ts` files and must export a harmless default because pi may auto-load them.
-- **Claude (manual):** `claude plugin marketplace add martintrojer/dotfiles && claude plugin install mtrojer@dotfiles`. Re-run `claude plugin install mtrojer@dotfiles` after each push to refresh. `--apply` prints these two commands at the end as a reminder.
+- **Handled by `--apply` (stow):** `skills/.agents/skills/<name>/` and `pi/.pi/agent/extensions/*.ts` stow into `~/.agents/skills/` and `~/.pi/agent/extensions/`. Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw all read these paths natively. Edits in the repo show up live. Skills use stow folding so each skill links as one directory symlink (vendored README/LICENSE ride along); pi extensions link per-file. Pi helper modules (such as `_lib.ts`) must export a harmless default because pi may auto-load them.
 
-Why this split: `~/.agents/skills/` is the universal path *all* the agents already read, so a plain symlink covers everyone except Claude in one move. Only Claude wants its own plugin cache, so it gets the github marketplace treatment.
+Why this works: `~/.agents/skills/` is the universal path *all* the agents already read, so stowing there covers everyone in one move.
 
 See [`docs/SETUP.md`](./docs/SETUP.md) for the install + update flow.
 

@@ -12,15 +12,13 @@ Owns:
 - OS/distro scope selection
 - Conflict handling and backlink checks
 - Pinned third-party clones (zsh plugins, TPM)
-- Symlink fan-out for shared skills and Pi extensions
-- Post-apply hints for the manual Claude/Codex steps
+- Per-package stow folding (`skills/` folds; everything else is `--no-folding`)
+- Post-apply hints for the manual Codex notify step
 
 Does **not** own:
 
-- Top-level stow packages (`zsh/`, `nvim/`, `tmux/`, ...)
+- Top-level stow packages (`zsh/`, `nvim/`, `tmux/`, `skills/`, `pi/`, ...)
 - The `fedora/` namespace, which stays a special-case package subtree plus setup wrappers
-- The universal agent source trees (`skills/`, `pi/`)
-- The Claude marketplace surface (`hooks/`, `.claude-plugin/`), which stays at repo root because that published layout is the integration contract Claude consumes
 
 ## Module map
 
@@ -32,7 +30,7 @@ Does **not** own:
 - `stow.py` — Stow command execution, conflict parsing, apply/check helpers
 - `repo_checks.py` — package coverage, private-env guardrails, ignore-driven cleanup, backlink checks
 - `integration_checks.py` — external drift checks (zsh plugins, TPM, Codex notify)
-- `external.py` — pinned clone management plus skills / Pi symlink fan-out
+- `external.py` — pinned third-party clone management (zsh plugins, TPM)
 - `model.py` — typed dataclasses and shared aliases
 
 ## Design rules
@@ -40,7 +38,7 @@ Does **not** own:
 - Keep abstractions boring and explicit.
 - Prefer plain functions and typed data over framework-y indirection.
 - Keep repo-specific facts in `inventory.py`, `pins.py`, or `config.py`; do not hide them in control flow.
-- If a concern only exists because of one external integration (Claude marketplace, TPM, Pi auto-discovery), say so plainly in code and docs.
+- If a concern only exists because of one external integration (Codex notify, TPM, Pi auto-discovery), say so plainly in code and docs.
 - If a split would only create a fake reusable layer, do not do it.
 
 ## Operator commands

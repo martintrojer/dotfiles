@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
 from pathlib import Path
 from typing import Final
@@ -9,17 +8,6 @@ from typing import Final
 from .model import TaskPolicy
 
 SCRIPT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
-
-
-def relative_symlink_target(source: Path, dest: Path) -> str:
-    """Relative target for a symlink at `dest` pointing to `source`.
-
-    Resolves `dest`'s parent first so the `..` count is correct even when
-    HOME contains symlinked components (e.g. /home -> var/home on Fedora
-    Silverblue), since the kernel resolves `..` physically, not lexically.
-    """
-    return os.path.relpath(source, dest.parent.resolve())
-
 
 LOGGER: Final[logging.Logger] = logging.getLogger("dotfiles-sync")
 BACKUP_DIR_NAME: Final[str] = ".dotfiles-sync-backups"
@@ -51,8 +39,6 @@ APPLY_TASKS: Final[tuple[TaskPolicy, ...]] = (
     TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
     TaskPolicy("zsh-plugins", packages=frozenset({"zsh"})),
     TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
-    TaskPolicy("skills", full_run_only=True),
-    TaskPolicy("pi-extensions", full_run_only=True),
 )
 
 

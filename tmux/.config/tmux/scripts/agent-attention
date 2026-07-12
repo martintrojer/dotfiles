@@ -9,7 +9,7 @@ State model:
 
 The pi extension is the authoritative writer of @agent_state for
 normal transitions.  This script handles:
-  - ``notify``: legacy path for non-pi agents (Claude hooks.json)
+  - ``notify``: legacy path for non-pi agents (codex/opencode)
   - ``status``: crash reaper + state counting for the status pill
   - ``clear-current`` / ``clear-target``: focus-clear hooks
   - ``menu``: the prefix+a picker
@@ -446,7 +446,7 @@ def resolve_target(target: str) -> tuple[str | None, str] | None:
 
 
 def cmd_notify(args: argparse.Namespace) -> int:
-    """Legacy notify path for non-pi agents (e.g. Claude hooks.json).
+    """Legacy notify path for non-pi agents (e.g. codex/opencode).
 
     Sets @agent_state=blocked and inserts a DB event.  Pi agents
     bypass this entirely and write tmux options + DB rows directly
@@ -918,7 +918,7 @@ def build_parser() -> argparse.ArgumentParser:
     notify.add_argument(
         "--pane", help="Explicit tmux pane target (defaults to TMUX_PANE)"
     )
-    notify.add_argument("--source", help="Event source, e.g. claude/codex/opencode/pi")
+    notify.add_argument("--source", help="Event source, e.g. codex/opencode/pi")
     notify.add_argument("--event-type", help="Event type")
     notify.add_argument("--title", help="Event title")
     notify.add_argument("--message", help="Event message")

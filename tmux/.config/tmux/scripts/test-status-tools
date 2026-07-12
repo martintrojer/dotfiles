@@ -200,7 +200,7 @@ def clear_agent_state(env: dict[str, str], target: str) -> None:
 
 
 def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
-    print("\n[agent-attention: legacy notify (Claude path)]")
+    print("\n[agent-attention: legacy notify (non-pi path)]")
 
     expect("status starts empty", attention(env, ["status"]), "")
 
@@ -300,12 +300,12 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
         "idle\t2",
     )
 
-    # --- JSON payload via stdin (legacy Claude path) ---
+    # --- JSON payload via stdin (legacy non-pi path) ---
 
     print("\n[agent-attention: JSON stdin]")
     json_proc = subprocess.run(
         ["python3", str(AGENT_ATTENTION), "notify"],
-        input='{"source":"claude","type":"notification","title":"Claude","message":"done"}',
+        input='{"source":"codex","type":"notification","title":"Codex","message":"done"}',
         capture_output=True,
         text=True,
         env={**env, "TMUX_PANE": panes["w1p2"]},
@@ -354,13 +354,13 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     )
     expect(
         "agent window with no detected child falls back to title",
-        label("claude", "Python", "✳ Claude Code", "/tmp/x", host, fake_pid),
-        "✳ Claude Code",
+        label("codex", "Python", "✳ Codex", "/tmp/x", host, fake_pid),
+        "✳ Codex",
     )
     expect(
         "agent window with wrapper but no title falls back to window name",
-        label("claude", "Python", "", "/tmp/x", host, fake_pid),
-        "claude",
+        label("codex", "Python", "", "/tmp/x", host, fake_pid),
+        "codex",
     )
     expect(
         "non-agent generic command fallback",
