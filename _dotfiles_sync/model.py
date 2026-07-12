@@ -26,6 +26,16 @@ class PackageSpec:
     name: str
     stow_dir: Path
     scope: PackageScope
+    # Most packages stow with --no-folding (per-leaf symlinks) to avoid the
+    # "two scopes share a target dir" folding bug. A few packages instead want
+    # stow's default folding so a whole source subtree becomes one directory
+    # symlink (e.g. skills/, where each skill must link as an opaque bundle so
+    # vendored README/LICENSE files ride along past the .stowrc ignore rules).
+    fold: bool = False
+    # Target dirs to mkdir before stowing. For folded packages this pins the
+    # fold level: without a pre-existing real dir, stow folds one level too
+    # high (e.g. ~/.agents instead of ~/.agents/skills/<name>).
+    fold_anchors: tuple[Path, ...] = ()
 
     @property
     def package_dir(self) -> Path:

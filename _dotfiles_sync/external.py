@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import logging
-import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
-from .config import SCRIPT_DIR, relative_symlink_target
 from .pins import TPM, TPM_DEST, ZSH_PLUGINS, ZSH_PLUGINS_DEST
 
 LOGGER = logging.getLogger("dotfiles-sync")
@@ -128,94 +126,4 @@ def apply_tmux_tpm(target: Path, *, verbose: bool) -> None:
         dest=dest,
         verbose=verbose,
         print_header=_print_header,
-    )
-
-
-def _agent_link_apply(
-    *,
-    label: str,
-    src_dir: Path,
-    dest_dir: Path,
-    expected_names: set[str],
-    verbose: bool,
-) -> None:
-    """Symlink each name in expected_names from src_dir into dest_dir."""
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    header_printed = False
-
-    def _print_header() -> None:
-        nonlocal header_printed
-        if not header_printed:
-            LOGGER.warning(f"\n[{label}]")
-            header_printed = True
-
-    for name in sorted(expected_names):
-        source = src_dir / name
-        dest = dest_dir / name
-        relative = relative_symlink_target(source, dest)
-        if dest.is_symlink():
-            if os.readlink(dest) == relative:
-                if verbose:
-                    LOGGER.debug(f"OK: {dest} -> {relative}")
-                continue
-            dest.unlink()
-        elif dest.exists():
-            _print_header()
-            LOGGER.warning(
-                f"BLOCKED: {dest} exists and is not a symlink; leaving alone"
-            )
-            continue
-        dest.symlink_to(relative)
-        _print_header()
-        LOGGER.warning(f"LINKED: {dest.name}")
-
-    if not dest_dir.is_dir():
-        return
-    for entry in sorted(dest_dir.iterdir()):
-        if not entry.is_symlink() or entry.name in expected_names:
-            continue
-        target_str = os.readlink(entry)
-        target_path = (dest_dir / target_str).resolve()
-        try:
-            target_path.relative_to(src_dir.resolve())
-        except ValueError:
-            continue
-        entry.unlink()
-        _print_header()
-        LOGGER.warning(f"PRUNED: {entry.name} (no source in {src_dir.name}/)")
-
-
-def apply_skills_symlinks(target: Path, *, verbose: bool) -> None:
-    src_dir = SCRIPT_DIR / "skills"
-    if not src_dir.is_dir():
-        return
-    expected_names = {
-        path.name
-        for path in src_dir.iterdir()
-        if path.is_dir() and not path.name.startswith(".")
-    }
-    _agent_link_apply(
-        label="skills",
-        src_dir=src_dir,
-        dest_dir=target / ".agents" / "skills",
-        expected_names=expected_names,
-        verbose=verbose,
-    )
-
-
-def apply_pi_extensions_symlinks(target: Path, *, verbose: bool) -> None:
-    src_dir = SCRIPT_DIR / "pi" / "extensions"
-    if not src_dir.is_dir():
-        return
-    expected_names = {
-        path.name
-        for path in src_dir.iterdir()
-        if path.is_file() and path.suffix == ".ts"
-    }
-    _agent_link_apply(
-        label="pi-extensions",
-        src_dir=src_dir,
-        dest_dir=target / ".pi" / "agent" / "extensions",
-        expected_names=expected_names,
-        verbose=verbose,
     )

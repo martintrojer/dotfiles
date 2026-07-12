@@ -23,7 +23,7 @@ from collections import deque
 
 # Known agent command basenames.  Override via env var (space-separated).
 AGENT_COMMANDS: tuple[str, ...] = tuple(
-    os.environ.get("TMUX_LABEL_AGENTS", "claude codex pi opencode").split()
+    os.environ.get("TMUX_LABEL_AGENTS", "codex pi opencode").split()
 )
 # Interpreter wrappers that may host an agent child process.
 AGENT_WRAPPERS: tuple[str, ...] = tuple(

@@ -13,7 +13,7 @@ Usage:
 Customise the agent/editor/shell lists by exporting the matching env
 vars before tmux starts (space-separated):
 
-    export TMUX_LABEL_AGENTS="claude codex pi opencode aider"
+    export TMUX_LABEL_AGENTS="codex pi opencode aider"
 
 Why a Python rewrite of a former /bin/sh script: the bash version
 embedded an awk BFS over ps output to find an agent in a pane's

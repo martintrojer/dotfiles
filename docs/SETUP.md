@@ -15,8 +15,7 @@ Pick the section that matches your starting state:
 git clone https://github.com/martintrojer/dotfiles ~/dotfiles
 cd ~/dotfiles
 ./dotfiles-sync --apply
-# Then run the two manual commands the script prints:
-#   - Claude Code plugin install
+# Then run the manual command the script prints:
 #   - Codex notify hook (one TOML line in ~/.codex/config.toml)
 ```
 
@@ -29,22 +28,13 @@ That covers the happy path on a fresh machine. The sections below expand each pi
 - Stows the dotfile packages that match the current OS and distro.
 - Clones the pinned zsh plugins into `~/.local/share/zsh-plugins/`.
 - Clones TPM (tmux plugin manager) into `~/.tmux/plugins/tpm/` at the pinned ref. Tmux plugins listed in `.tmux.conf` still need a one-time `prefix + I` inside tmux to install — TPM owns that step.
-- Symlinks `dotfiles/skills/*` into `~/.agents/skills/` (the universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw).
-- Symlinks `dotfiles/pi/extensions/*.ts` into `~/.pi/agent/extensions/` (Pi auto-discovers these).
-- Prunes stale symlinks when you remove a skill or Pi extension from the repo.
+- Stows `dotfiles/skills/.agents/skills/*` into `~/.agents/skills/` (the universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw). This package folds, so each skill lands as one directory symlink.
+- Stows `dotfiles/pi/.pi/agent/extensions/*.ts` into `~/.pi/agent/extensions/` (Pi auto-discovers these).
+- Prunes stale links when you remove a skill or Pi extension from the repo (stow `--restow`).
 
-After `--apply` completes it prints two manual follow-ups, both of which `--apply` deliberately does **not** automate:
+After `--apply` completes it prints one manual follow-up, which `--apply` deliberately does **not** automate:
 
-1. **Claude Code plugin** — Claude wants its own plugin cache (it copies the marketplace content into `~/.claude/plugins/cache/...`); there is no symlink path in. Run once per machine:
-
-   ```bash
-   claude plugin marketplace add martintrojer/dotfiles
-   claude plugin install mtrojer@dotfiles
-   ```
-
-   Re-run just the second command (`claude plugin install mtrojer@dotfiles`) after every push to refresh.
-
-2. **Codex notify hook** — add the single `notify = [...]` line the closing hint prints into `~/.codex/config.toml`. Editing the user's TOML in-place would mean parsing/rewriting their schema; not worth it for one line.
+1. **Codex notify hook** — add the single `notify = [...]` line the closing hint prints into `~/.codex/config.toml`. Editing the user's TOML in-place would mean parsing/rewriting their schema; not worth it for one line.
 
 ## Upgrading from an older setup
 
@@ -57,14 +47,11 @@ cd ~/dotfiles
 git pull
 ./dotfiles-sync --check    # surface stow conflicts before they bite
 ./dotfiles-sync --apply
-# Then re-run the Claude plugin install if you want the latest marketplace
-# payload on this machine:
-#   claude plugin install mtrojer@dotfiles
 # (The universal ~/.agents/skills and ~/.pi/agent/extensions symlinks are
 # already live after --apply.)
 ```
 
-`--apply` is idempotent and handles most of the common cases automatically (stows the new packages, clones zsh-plugins + TPM, symlinks skills + Pi extensions). The cleanup steps below cover the things `--apply` deliberately doesn't touch — vestigial files left by the old layout that aren't actively harmful but waste disk and confuse future-you.
+`--apply` is idempotent and handles most of the common cases automatically (stows the new packages including skills + Pi extensions, clones zsh-plugins + TPM). The cleanup steps below cover the things `--apply` deliberately doesn't touch — vestigial files left by the old layout that aren't actively harmful but waste disk and confuse future-you.
 
 ### 1. oh-my-zsh leftovers
 
@@ -110,7 +97,7 @@ rm -rf ~/.zsh/plugins
 
 ### 3. Per-agent skill copies (the old fan-out)
 
-Older versions of the repo bootstrap (~1370 lines before the `_dotfiles_sync/` split, see commit `b29b3003`) copied each skill into per-agent locations: `~/.codex/skills/`, `~/.agents/skills/`, the Claude plugin bundle. The new model is a single set of symlinks at `~/.agents/skills/` that the supported non-Claude agents read natively. Old per-agent copies are now stale — they won't get updates from the repo, and they may shadow the canonical symlinks.
+Older versions of the repo bootstrap (~1370 lines before the `_dotfiles_sync/` split, see commit `b29b3003`) copied each skill into per-agent locations: `~/.codex/skills/`, `~/.agents/skills/`, and others. The new model is a single set of symlinks at `~/.agents/skills/` that all supported agents read natively. Old per-agent copies are now stale — they won't get updates from the repo, and they may shadow the canonical symlinks.
 
 Detect:
 
@@ -141,34 +128,26 @@ cd ~/dotfiles && ./dotfiles-sync --apply
 
 # Verify symlinks now point into the repo:
 ls -la ~/.agents/skills/ | head
-# Expect each line to be: lrwxrwxrwx ... <name> -> /path/to/dotfiles/skills/<name>
+# Expect each line to be: lrwxrwxrwx ... <name> -> .../dotfiles/skills/.agents/skills/<name>
 ```
 
-### 4. Old Claude plugin install (local bundle)
+### 4. Old Claude plugin install
 
-The Claude plugin used to be installed as a local bundle (filesystem path). The new model is the GitHub marketplace (`claude plugin marketplace add martintrojer/dotfiles`).
+This repo no longer ships a Claude Code plugin. If a machine still has the `mtrojer`/`dotfiles` Claude plugin installed from an earlier version of this repo, remove it.
 
 Detect:
 
 ```bash
 claude plugin list 2>/dev/null
-# Look for any "mtrojer" or "dotfiles" plugin installed from a local path
-# rather than from the GitHub marketplace.
+# Look for any "mtrojer" or "dotfiles" plugin.
 ```
 
 Action:
 
 ```bash
-# Remove the old local install (replace <name> with whatever `claude plugin list`
-# shows for the local install):
+# Remove the stale install (replace <name> with whatever `claude plugin list` shows):
 claude plugin uninstall <name>
-
-# Install fresh from the GitHub marketplace:
-claude plugin marketplace add martintrojer/dotfiles
-claude plugin install mtrojer@dotfiles
 ```
-
-If you already ran the marketplace add as part of step 0's post-apply hint, only the *removal* of the old local install is needed here.
 
 ### 5. Manual TPM clone
 
@@ -285,9 +264,8 @@ cd ~/dotfiles && ./dotfiles-sync --check
 
 When any of the agent-side content changes in this repo:
 
-- **Skills and Pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` symlinks point straight at the repo source; edits propagate live.
-- **New / removed skills or Pi extensions:** re-run `./dotfiles-sync --apply` to create new symlinks or prune stale ones.
-- **Claude (any change to `hooks/`, `skills/`, or `.claude-plugin/`):** push to `origin`, then run `claude plugin install mtrojer@dotfiles` on each consumer machine. (The marketplace add from the fresh-install step is one-time — only the `plugin install` needs to be re-run.)
+- **Skills and Pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` stow symlinks point straight at the repo source; edits propagate live.
+- **New / removed skills or Pi extensions:** re-run `./dotfiles-sync --apply` to stow new entries or prune stale ones.
 
 ## Testing and debugging the bootstrap
 
@@ -296,7 +274,7 @@ Two recipes. Different intents:
 - **Recipe 1** (`--target=` against a temporary path): a fast dry-run of the install path. No container, no shell, just inspect what `--apply` would write into a fake `$HOME`.
 - **Recipe 2** (podman with fake `$HOME`): an interactive debug shell with `--apply` already done. Use when something is broken and you want to poke at it on a clean machine.
 
-Neither recipe exercises the manual Claude/Codex follow-ups. The Claude/Pi/Codex CLIs resolve home-relative paths internally and would still touch your real `~/.claude/`, `~/.pi/`, etc. — plus they're not in the bare `fedora:latest` image. If you want to test that flow, install the CLIs first inside the container, run the two `claude plugin ...` commands from the post-apply hint, and add the Codex `notify = [...]` line by hand inside the container.
+Neither recipe exercises the manual Codex follow-up. The Pi/Codex CLIs resolve home-relative paths internally and would still touch your real `~/.pi/`, `~/.codex/`, etc. — plus they're not in the bare `fedora:latest` image. If you want to test that flow, install the CLIs first inside the container and add the Codex `notify = [...]` line by hand inside the container.
 
 ### Recipe 1: `--target` against a temporary path (5 seconds)
 

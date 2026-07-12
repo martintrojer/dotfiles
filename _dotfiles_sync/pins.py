@@ -3,9 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Final
 
-# Repo slug used in the post-apply Claude plugin instructions.
-GITHUB_SLUG: Final[str] = "martintrojer/dotfiles"
-
 # Zsh plugins managed by clone-on-apply. Same model as nvim's vim.pack:
 # pinned commit refs live here, .zshrc sources the checked-out plugin trees
 # directly, and updates are "bump ref, re-run dotfiles-sync --apply".

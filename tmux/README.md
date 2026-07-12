@@ -44,7 +44,7 @@ From your current `tmux/.tmux.conf`:
 - Cross-platform RAM usage is provided by `$HOME/.config/tmux/scripts/status-ram`.
 - The `agent-attention` integration is not a plugin. It is a local script in this repo that tracks per-window agent state (`working / blocked / crashed`) via push events from the pi extension, with a pid-liveness reaper for crash detection. See [`docs/DECISIONS.md` § Agent state awareness](../docs/DECISIONS.md).
 - Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
-- Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `claude`, `π - ...`, or a cwd basename.
+- Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `codex`, `π - ...`, or a cwd basename.
 - The AI badge is rendered by `$HOME/.config/tmux/scripts/status-ai`, which sets `@ai_status` and `@ai_status_state` tmux options; `.tmux.conf` conditionals handle the coloring.
 
 ## Status Bar Layout
@@ -92,7 +92,7 @@ This config does not save or restore tmux state across reboots. The workflow is 
 - `detach-on-destroy off` keeps sessions sticky within a running tmux server, so accidental window closes don't kick you out.
 - Neovim's `shada` restores oldfiles, registers, global marks, and command/search history across restarts. Buffer lists and window layouts are **not** persisted — use `<leader>fo` (recent files) or `mini.starter` to re-enter.
 - Shell history is global via zsh.
-- Agent CLIs (`claude`, `codex`, `opencode`, `pi`) keep their conversation state in their own session stores, not in tmux pane state.
+- Agent CLIs (`codex`, `opencode`, `pi`) keep their conversation state in their own session stores, not in tmux pane state.
 
 ### `tms` config
 
@@ -208,10 +208,6 @@ Runtime state is stored in:
 ## Hook Setup
 
 Each agent harness calls `agent-attention notify --source <name>` when it needs attention. The script resolves the current tmux target from `--pane`, then `TMUX_PANE`, then the controlling TTY, which makes hook subprocesses more reliable.
-
-### Claude Code (auto — ships in the repo's Claude plugin)
-
-The `Notification` hook lives in [`hooks/hooks.json`](../hooks/hooks.json) at the repo root, alongside the existing post-action `Stop` quality-reminder hook. When users install the Claude plugin (`claude plugin install mtrojer@dotfiles`), Claude wires the hook up automatically.
 
 ### Codex CLI (manual — `$HOME/.codex/config.toml`)
 

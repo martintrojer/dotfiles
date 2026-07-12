@@ -25,6 +25,8 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "local-bin",
             "nvim",
             "opencode",
+            "pi",
+            "skills",
             "ssh",
             "summarize",
             "tmux",
@@ -77,22 +79,34 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
 
 # Top-level directories that exist on disk but are not stow packages and should
 # not trip the package-coverage check. Dot-prefixed dirs are auto-skipped, so
-# .git/.jj/.claude-plugin/.ruff_cache/.vecgrep don't need to be listed here.
+# .git/.jj/.ruff_cache/.vecgrep don't need to be listed here.
 IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
     "__pycache__",
     "_dotfiles_sync",
     "docs",  # cross-cutting documentation hosted at repo root
     "fedora",  # contains its own stow packages, scope-driven
     "guides",  # interactive learning guides, rendered by guides/build.py
-    "hooks",  # Claude plugin asset, consumed via `claude plugin install`
-    "pi",  # source for pi/extensions/, symlinked by --apply
-    "skills",  # source for shared skills, symlinked by --apply
+}
+
+# Packages that stow with folding instead of the global --no-folding, mapping
+# each to the fold-anchor dirs that must exist before stowing so the fold lands
+# at the right level. See PackageSpec.fold / .fold_anchors.
+FOLDED_PACKAGES: Final[dict[str, tuple[Path, ...]]] = {
+    # skills/<name>/ must link as one opaque directory symlink so each skill's
+    # vendored README/LICENSE ride along past the .stowrc ignore rules.
+    "skills": (Path(".agents") / "skills",),
 }
 
 
 def build_specs() -> dict[str, PackageSpec]:
     return {
-        name: PackageSpec(name=name, stow_dir=stow_dir, scope=scope)
+        name: PackageSpec(
+            name=name,
+            stow_dir=stow_dir,
+            scope=scope,
+            fold=name in FOLDED_PACKAGES,
+            fold_anchors=FOLDED_PACKAGES.get(name, ()),
+        )
         for scope, stow_dir, names in PACKAGE_GROUPS
         for name in names
     }
@@ -126,10 +140,12 @@ def resolve_requested_packages(
 
 def group_active_packages(
     specs: dict[str, PackageSpec], active_names: set[str]
-) -> dict[tuple[PackageScope, Path], list[str]]:
-    groups: dict[tuple[PackageScope, Path], list[str]] = {}
+) -> dict[tuple[PackageScope, Path, bool], list[str]]:
+    # Folding differs per package and is a stow-invocation flag, so it joins
+    # scope+stow_dir in the group key: folded packages get their own stow run.
+    groups: dict[tuple[PackageScope, Path, bool], list[str]] = {}
     for name in sorted(active_names):
         spec = specs[name]
-        key = (spec.scope, spec.stow_dir)
+        key = (spec.scope, spec.stow_dir, spec.fold)
         groups.setdefault(key, []).append(name)
     return groups

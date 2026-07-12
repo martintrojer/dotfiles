@@ -1,5 +1,5 @@
 # Cherry-picked from oh-my-zsh jj plugin. Only the aliases that
-# actually appeared in zsh history (>= 5 uses; see CLAUDE.md
+# actually appeared in zsh history (>= 5 uses; see AGENTS.md
 # "Audit usage with shell history" rule). OMZ ships ~35 jj aliases;
 # we use 15.
 

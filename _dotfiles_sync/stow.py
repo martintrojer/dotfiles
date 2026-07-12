@@ -47,15 +47,22 @@ def run_stow_command(
     *,
     simulate: bool,
     verbose: bool,
+    fold: bool = False,
 ) -> subprocess.CompletedProcess[str]:
-    # --no-folding: always create per-leaf symlinks; never fold a
+    # --no-folding (default): always create per-leaf symlinks; never fold a
     # directory into a single symlink. Folding was responsible for the
     # "two scopes share a target dir" class of bugs (e.g. local-bin and
     # fedora/bin both contributing to ~/.local/bin/, where the first
     # scope's stow run folded .local/ into a symlink and the second
     # refused to merge). Per-leaf is more verbose but predictable, and
     # `ls -la ~/.config/foo/` always shows where each entry points.
-    cmd = ["stow", "--restow", "--no-folding"]
+    #
+    # fold=True opts a package back into stow's default folding, where a whole
+    # source subtree becomes one directory symlink. Used by packages like
+    # skills/ that must link each subtree as an opaque bundle (see PackageSpec).
+    cmd = ["stow", "--restow"]
+    if not fold:
+        cmd.append("--no-folding")
     if simulate:
         cmd.append("--no")
     if verbose:
@@ -177,10 +184,13 @@ def run_check_group(
     verbose: bool,
     *,
     ignore: set[str],
+    fold: bool = False,
 ) -> bool:
     if not packages:
         return False
-    result = run_stow_command(stow_dir, packages, target, simulate=True, verbose=True)
+    result = run_stow_command(
+        stow_dir, packages, target, simulate=True, verbose=True, fold=fold
+    )
     raw = result.stdout + result.stderr
     output = meaningful_output(raw)
     if not output:
@@ -220,11 +230,22 @@ def run_apply_group(
     backup_root: Path | None,
     *,
     ignore: set[str],
+    fold: bool = False,
+    fold_anchors: tuple[Path, ...] = (),
 ) -> None:
     if not packages:
         return
 
-    probe = run_stow_command(stow_dir, packages, target, simulate=True, verbose=True)
+    # Pin the fold level for folded packages: stow only folds a source subtree
+    # into a directory symlink when the parent target dir already exists as a
+    # real directory. Without this, ~/.agents would become a single symlink
+    # instead of ~/.agents/skills/<name> links. Harmless for non-folded runs.
+    for anchor in fold_anchors:
+        (target / anchor).mkdir(parents=True, exist_ok=True)
+
+    probe = run_stow_command(
+        stow_dir, packages, target, simulate=True, verbose=True, fold=fold
+    )
     conflicts = parse_conflicts(probe.stdout + probe.stderr)
     if conflicts:
         ignored = {
@@ -259,6 +280,7 @@ def run_apply_group(
         target,
         simulate=False,
         verbose=verbose,
+        fold=fold,
     )
     if result.returncode != 0:
         sys.stdout.write(result.stdout)
