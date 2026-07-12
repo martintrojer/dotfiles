@@ -1,0 +1,15 @@
+[Unit]
+Description=LM Studio Local Server (flatpak, headless)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# `lms server start` forks a detached server and returns, so this is a
+# oneshot that flips the toggle; the actual server lives in the flatpak.
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=%h/.local/bin/lms server start
+ExecStop=%h/.local/bin/lms server stop
+
+[Install]
+WantedBy=default.target

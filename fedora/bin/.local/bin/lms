@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Host-side wrapper for the LM Studio CLI shipped inside the flatpak.
+#
+# `lms` is a bundled Electron binary that only runs inside the flatpak
+# sandbox, so we shell into it. `flatpak run --command=lms` fails (bwrap
+# cannot find it on PATH), hence the explicit sandbox path.
+set -euo pipefail
+
+exec flatpak run --command=sh ai.lmstudio.lm-studio \
+	-c '"$HOME/.lmstudio/bin/lms" "$@"' lms "$@"
