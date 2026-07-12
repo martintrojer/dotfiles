@@ -17,7 +17,7 @@
 #      Atomic-correct (caps ship as file capabilities, %post skips under
 #      rpm-ostree, ships its own udev rule + user unit). The user unit is
 #      started on demand by the gamescope stream session, NOT enabled. See
-#      fedora/docs/STREAMING.md.
+#      fedora/gaming/docs/STREAMING.md.
 steam_packages=(
   # Steam client and controller/device udev rules.
   steam

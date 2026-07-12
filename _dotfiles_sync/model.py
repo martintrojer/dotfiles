@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Literal, TypeAlias
 
 Action: TypeAlias = Literal["check", "apply"]
-PackageScope: TypeAlias = Literal["common", "darwin", "linux", "fedora"]
+PackageScope: TypeAlias = Literal["common", "darwin", "linux", "fedora", "gaming"]
 Conflict: TypeAlias = tuple[str, str]
 
 
@@ -18,6 +18,7 @@ class Args:
     target: str
     ignore: set[str]
     packages: tuple[str, ...]
+    skip_gaming: bool
 
 
 @dataclass(frozen=True)

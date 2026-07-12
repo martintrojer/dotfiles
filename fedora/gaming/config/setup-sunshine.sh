@@ -4,7 +4,7 @@ set -euo pipefail
 # Open the firewall ports Sunshine needs for Moonlight clients. The Sunshine rpm
 # (steam-packages.sh) ships no firewalld rule, and the default `public` zone
 # blocks the stream ports -- so Moonlight can't discover or reach the host until
-# these are opened. See fedora/docs/STREAMING.md.
+# these are opened. See fedora/gaming/docs/STREAMING.md.
 #
 # The rpm install, file caps, udev rule, and user unit are all handled by the
 # package itself; only the firewall and one-time web-UI pairing are left, and

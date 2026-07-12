@@ -30,12 +30,21 @@ def detect_system() -> SystemInfo:
     )
 
 
-def active_scopes(system: SystemInfo) -> set[PackageScope]:
-    """Canonical scope selection — all activation rules live here."""
+def active_scopes(
+    system: SystemInfo, *, skip_gaming: bool = False
+) -> set[PackageScope]:
+    """Canonical scope selection — all activation rules live here.
+
+    The gaming scope is active by default on Fedora (the main rig runs it) and
+    suppressed with `--skip-gaming` for work/laptop hosts that want a pure Sway
+    baseline.
+    """
     scopes: set[PackageScope] = {"common"}
     if system.os_name == "Darwin":
         scopes.add("darwin")
     elif system.is_fedora:
         scopes.add("linux")
         scopes.add("fedora")
+        if not skip_gaming:
+            scopes.add("gaming")
     return scopes

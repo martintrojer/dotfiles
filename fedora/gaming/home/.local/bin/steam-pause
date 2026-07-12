@@ -10,7 +10,7 @@ treat the game as exited.
 
 Intended for the "Steam (gamescope)" SDDM session: a sleep-ordered systemd unit
 runs `pause` before suspend and `resume` on wake, which avoids crackling audio
-and frozen emulators on resume. See fedora/bin/README.md.
+and frozen emulators on resume. See fedora/gaming/README.md.
 """
 
 from __future__ import annotations

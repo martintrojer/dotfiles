@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Embedded "SteamOS Gaming Mode" session: a gamescope session on the DRM/KMS
 # backend that owns the display directly and drives true HDR10 — what the Sway
-# desktop can't do under Sway < 1.12. See fedora/docs/HDR-GAMING.md.
+# desktop can't do under Sway < 1.12. See fedora/gaming/docs/HDR-GAMING.md.
 #
 # Picked as "Steam (gamescope)" at the SDDM login screen; the session entry
 # (steam.desktop) execs this script. Installed by config/setup-gamescope-session.sh.
@@ -81,7 +81,7 @@ fi
 # Stream session (GS_SUNSHINE=1): run Sunshine so a Moonlight client can
 # KMS-capture this session's scanout. The rpm's unit is never `enable`d, so it
 # runs only when started here. No `exec`: the script must outlive gamescope to
-# stop Sunshine on quit. See fedora/docs/STREAMING.md.
+# stop Sunshine on quit. See fedora/gaming/docs/STREAMING.md.
 sunshine_unit=app-dev.lizardbyte.app.Sunshine.service
 if [[ "${GS_SUNSHINE:-0}" == "1" ]]; then
   systemctl --user start "$sunshine_unit" || \

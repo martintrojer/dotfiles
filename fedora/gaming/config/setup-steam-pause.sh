@@ -5,7 +5,7 @@ set -euo pipefail
 # session: a oneshot unit ordered around sleep.target that pauses running games
 # before suspend and resumes them on wake (avoids crackling audio and frozen
 # emulators). Logic is extracted from the SDH-PauseGames Decky plugin, no Decky
-# needed. See fedora/bin/README.md. It wires:
+# needed. See fedora/gaming/README.md. It wires:
 #
 #   /usr/local/bin/steam-pause                       a copy of the stowed script
 #   /etc/systemd/system/steam-pause-games.service        the sleep-ordered unit
