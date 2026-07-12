@@ -50,4 +50,4 @@ for desktop_src in "${desktop_srcs[@]}"; do
 done
 
 echo "Installed 'Steam (gamescope)' and 'Steam (gamescope stream)' sessions."
-echo "Pick one at the SDDM login screen; quit Steam to return to SDDM."
+echo "Pick one at the SDDM login screen; use gamepad UI 'Desktop Mode' to return to SDDM."

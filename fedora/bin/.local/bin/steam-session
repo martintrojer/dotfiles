@@ -7,7 +7,12 @@ set -euo pipefail
 #
 # Picked as "Steam (gamescope)" at the SDDM login screen; the session entry
 # (steam.desktop) execs this script. Installed by config/setup-gamescope-session.sh.
-# Quitting Steam exits gamescope and returns to SDDM.
+#
+# In gamepad UI the power menu has no "Exit Steam"; the way out is "Desktop
+# Mode", which calls `steamos-session-select` on PATH. The stowed shim
+# (~/.local/bin/steamos-session-select) ends the session and returns to SDDM,
+# since we have no desktop-in-gamescope target. The PATH export below makes the
+# gamepad UI find it.
 #
 # This session runs Steam's gamepad UI cleanly under gamescope. Per-game Proton,
 # OptiScaler, and FSR4 tweaks should stay in Steam launch options; applying them
