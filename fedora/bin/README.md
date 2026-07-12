@@ -24,12 +24,29 @@ For ad-hoc commands, use `tbx <command> [args...]` to run the command in the
 
 ```sh
 tbx python --version
-tbx -c ollama ollama serve
 ```
 
 Set `TBX_DEFAULT_TOOLBOX` to change the default. Pass `--prefer-host` to `tbx`
 when you want wrapper-like behavior that uses a host binary if one exists before
 falling back to the toolbox.
+
+## lms
+
+`lms` is the LM Studio CLI. The bundled binary only runs inside the LM Studio
+flatpak sandbox, so the wrapper shells into it via
+`flatpak run --command=sh ai.lmstudio.lm-studio`. Use it exactly like the
+native CLI:
+
+```sh
+lms server start          # start the headless OpenAI-compatible server (:1234)
+lms server status
+lms ls                    # list downloaded models
+lms ps                    # list loaded models
+lms load <model>
+```
+
+The headless server is normally managed by `lmstudio-server.service` (see
+[../README.md](../README.md)); the wrapper is for ad-hoc use.
 
 ## Wallpaper helpers
 

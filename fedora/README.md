@@ -84,7 +84,7 @@ User-scoped Quadlet/systemd assets:
 - `containers/.config/containers/systemd/postgres.container`
 - `systemd/.config/systemd/user/` — `sway-session.target`,
   `sway-clipman-watcher`, `sway-kanshi`, `sway-mako`, `swaybg`, `swayidle`,
-  `sway-waybar`, `toolbox-dev`, `ollama-toolbox` services.
+  `sway-waybar`, `toolbox-dev`, `lmstudio-server` services.
 
 Flow: stow → reload → enable units:
 
@@ -93,7 +93,7 @@ Flow: stow → reload → enable units:
 systemctl --user daemon-reload
 systemctl --user enable --now postgres.service
 systemctl --user enable --now toolbox-dev.service
-systemctl --user enable --now ollama-toolbox.service
+systemctl --user enable --now lmstudio-server.service
 ```
 
 Notes:
@@ -106,5 +106,8 @@ Notes:
   `mako`, `waybar`, `kanshi`, `foot-server` are masked by `dotfiles-sync --apply`
   so D-Bus activation can't start duplicates.
 - Re-run `systemctl --user daemon-reload` after editing `*.service`/`*.container`.
-- `toolbox-dev.service` / `ollama-toolbox.service` assume toolboxes named `dev` /
-  `ollama` already exist (with `ollama` installed inside the latter).
+- `toolbox-dev.service` assumes a toolbox named `dev` already exists.
+- `lmstudio-server.service` runs LM Studio's headless server (`lms server
+  start`) via the `lms` wrapper, which shells into the LM Studio flatpak
+  (`ai.lmstudio.lm-studio`). The OpenAI-compatible API is served on
+  `http://localhost:1234/v1`.
