@@ -30,7 +30,11 @@ It installs:
 
 ## Use
 
-Pick **Steam (gamescope)** in SDDM. Quitting Steam returns to SDDM.
+Pick **Steam (gamescope)** in SDDM. In gamepad UI the power menu has no "Exit
+Steam"; use **Desktop Mode** to return to SDDM. That button calls
+`steamos-session-select` on `PATH`, and the stowed shim
+(`~/.local/bin/steamos-session-select`) shuts Steam down and ends the session so
+you land back at the SDDM greeter (we have no desktop-in-gamescope target).
 
 `steam-session` is intentionally narrow:
 
