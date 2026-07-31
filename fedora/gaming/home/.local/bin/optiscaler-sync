@@ -31,7 +31,6 @@ VDF_PATH_RE = re.compile(r'"path"\s*"([^"]+)"')
 VDF_STR_RE = re.compile(r'"([^"]+)"\s*"([^"]*)"')
 LAUNCH_RE = re.compile(r'^(\s*"LaunchOptions"\s*")((?:\\.|[^"\\])*)(".*)$')
 OVERRIDES_FILE = Path(__file__).resolve().parents[3] / "data/optiscaler-overrides.json"
-SKIPPED_APPIDS = {"835960"}  # The Talos Principle 2: target remains ambiguous.
 
 
 @dataclass(frozen=True)
@@ -114,15 +113,23 @@ def load_overrides(path: Path = OVERRIDES_FILE) -> dict[str, dict[str, str]]:
             or not isinstance(value, dict)
         ):
             raise ValueError("invalid override entry")
+        if set(value) == {"skip"}:
+            reason = value["skip"]
+            if not isinstance(reason, str) or not reason.strip():
+                raise ValueError(f"invalid skip for AppID {appid}")
+            checked[appid] = {"skip": reason}
+            continue
         target = value.get("target")
         proxy = value.get("proxy")
-        if not isinstance(target, str) or not isinstance(proxy, str):
+        if (
+            set(value) != {"target", "proxy"}
+            or not isinstance(target, str)
+            or not isinstance(proxy, str)
+        ):
             raise ValueError(f"invalid override for AppID {appid}")
         safe_relative(target)
-        if Path(proxy).name != proxy or not re.fullmatch(
-            r"[A-Za-z0-9_.-]+\.dll", proxy, re.IGNORECASE
-        ):
-            raise ValueError(f"unsafe proxy for AppID {appid}")
+        if proxy != "dxgi.dll":
+            raise ValueError(f"unsupported proxy for AppID {appid}: {proxy}")
         checked[appid] = {"target": target, "proxy": proxy}
     return checked
 
@@ -271,8 +278,9 @@ def detect_target(
     managed = managed_target(app)
     if managed:
         return managed, None
-    if app.appid in SKIPPED_APPIDS:
-        return None, "tracked skip"
+    override = overrides.get(app.appid)
+    if override and "skip" in override:
+        return None, f"tracked skip: {override['skip']}"
     candidates = sorted(
         {
             path.parent
@@ -284,7 +292,6 @@ def detect_target(
     )
     if not candidates:
         return None, "no recognized upscaler DLL"
-    override = overrides.get(app.appid)
     if override:
         directory = app.path / safe_relative(override["target"])
         if not directory.is_dir() or not directory.resolve().is_relative_to(
