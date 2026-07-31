@@ -30,7 +30,8 @@ Order for a fresh install:
 For gaming, streaming, RGB, and controller/hardware fixes, see
 [`gaming/README.md`](./gaming/README.md).
 
-For daily automatic flatpak updates (no stock Fedora timer on Sway Atomic), see
+For daily automatic flatpak updates (no stock Fedora timer on Sway Atomic) and
+per-app flatpak fixes (e.g. the Cider Apple Music client), see
 [`flatpak/README.md`](./flatpak/README.md).
 
 ## Package Lists

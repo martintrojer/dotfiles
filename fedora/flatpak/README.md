@@ -25,6 +25,13 @@ This copies `flatpak-update.service` and `flatpak-update.timer` into
 - `flatpak-update.timer` — `OnCalendar=daily`, `Persistent=true` (catches up
   after downtime), `RandomizedDelaySec=1h`.
 
+## Per-app fixes
+
+- [`cider/`](cider/README.md) — install + fix for the Cider (`sh.cider.Cider`)
+  Apple Music flatpak: download from Taproom, `flatpak install --user`, then run
+  `cider/setup-cider.sh` to add the `xdg-settings` shim + overrides that clear
+  the `write EPIPE` JavaScript error on launch.
+
 ## Check / Run
 
 ```bash
