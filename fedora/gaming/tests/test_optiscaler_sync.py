@@ -356,7 +356,9 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.sync.install_game(self.target(app), self.payload(app.path), release)
         managed = self.sync.managed_target(app)
         assert managed is not None
-        backup = app.path / self.sync.STATE_DIR / managed.manifest["backups"]["dxgi.dll"]
+        backup = (
+            app.path / self.sync.STATE_DIR / managed.manifest["backups"]["dxgi.dll"]
+        )
         backup.write_bytes(b"corrupt")
 
         with self.assertRaisesRegex(ValueError, "corrupt backup"):
@@ -391,7 +393,9 @@ class OptiscalerSyncTests(unittest.TestCase):
 
         (app.path / "dxgi.dll").write_bytes(b"original")
         with (
-            mock.patch.object(self.sync, "update_launch_option", side_effect=OSError("VDF failure")),
+            mock.patch.object(
+                self.sync, "update_launch_option", side_effect=OSError("VDF failure")
+            ),
             self.assertRaisesRegex(OSError, "VDF failure"),
         ):
             self.sync.install_game(target, self.payload(app.path, b"v2"), release)
@@ -429,9 +433,7 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.assertEqual(manifest_path.read_bytes(), manifest_before)
         self.assertEqual(
             (
-                app.path
-                / self.sync.STATE_DIR
-                / managed.manifest["backups"]["dxgi.dll"]
+                app.path / self.sync.STATE_DIR / managed.manifest["backups"]["dxgi.dll"]
             ).read_bytes(),
             backup_before,
         )
@@ -491,9 +493,7 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.assertTrue(did_change)
         self.assertTrue(found)
         self.assertFalse(removed)
-        self.assertIn(
-            '"env FOO=\\"x y\\" optirun %command% --skip"', quoted_changed
-        )
+        self.assertIn('"env FOO=\\"x y\\" optirun %command% --skip"', quoted_changed)
         unchanged, did_change, found, removed = self.sync.edit_launch(before, "999")
         self.assertEqual(unchanged, before)
         self.assertFalse(did_change)
@@ -516,7 +516,9 @@ class OptiscalerSyncTests(unittest.TestCase):
         release = self.sync.Release("v1", "https://example.invalid", "0" * 64)
         self.sync.install_game(self.target(app), self.payload(app.path), release)
         self.assertIn("optirun %command%", second.read_text())
-        self.config.write_text(self.config.read_text().replace("optirun %command%", "%command%"))
+        self.config.write_text(
+            self.config.read_text().replace("optirun %command%", "%command%")
+        )
 
         managed = self.sync.managed_target(app)
         assert managed is not None
@@ -529,7 +531,9 @@ class OptiscalerSyncTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "externally modified"):
             self.sync.uninstall_game(managed, force=False)
         self.config.write_text(
-            self.config.read_text().replace("%command% --skip", "optirun %command% --skip")
+            self.config.read_text().replace(
+                "%command% --skip", "optirun %command% --skip"
+            )
         )
         self.sync.uninstall_game(managed, force=False)
         self.assertIn('"%command% --skip"', self.config.read_text())

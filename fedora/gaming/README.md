@@ -54,7 +54,12 @@ drops — see "Bluetooth Controller" below).
 
 `os/steam-packages.sh` — gaming/Steam packages (single `steam_packages` array),
 gated behind RPM Fusion + the Sunshine COPR. `os/setup-steam.sh` is a thin
-wrapper that sources the array and calls `rpm-ostree install`.
+wrapper that sources the array and calls `rpm-ostree install --allow-inactive`.
+
+`gamemode` and `7zip` already ship in the Sericea base image. They stay listed
+because this stack depends on them, and `--allow-inactive` is what makes that
+listable: without it `rpm-ostree` fails with "already provided by" and installs
+none of the array. `os/tests/test_steam_packages.py` guards the pairing.
 
 ## bin Helpers
 

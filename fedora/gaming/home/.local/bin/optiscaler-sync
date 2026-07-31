@@ -409,7 +409,9 @@ def extract_archive(
         text=True,
     )
     if extracted.stderr.strip():
-        raise ValueError(f"7z reported an extraction warning: {extracted.stderr.strip()}")
+        raise ValueError(
+            f"7z reported an extraction warning: {extracted.stderr.strip()}"
+        )
     for path in destination.rglob("*"):
         if path.is_symlink() or not (path.is_file() or path.is_dir()):
             raise ValueError(f"unsafe extracted file: {path}")
@@ -577,7 +579,9 @@ def update_launch_option(
 ) -> set[str]:
     found: set[str] = set()
     changed_configs: set[str] = set()
-    installed = set(target.manifest.get("launch_configs", [])) if target.manifest else set()
+    installed = (
+        set(target.manifest.get("launch_configs", [])) if target.manifest else set()
+    )
     if not remove and only is None:
         only = installed or None
     manually_removed: set[str] = set()
@@ -595,7 +599,9 @@ def update_launch_option(
             manually_removed.add(relative)
         if did_change:
             if not remove and relative in installed:
-                raise ValueError(f"managed Steam launch option was externally modified: {relative}")
+                raise ValueError(
+                    f"managed Steam launch option was externally modified: {relative}"
+                )
             tx.capture(config)
             backup = config.with_suffix(config.suffix + ".optiscaler-sync.bak")
             if backup.exists() and (backup.is_symlink() or not backup.is_file()):
@@ -607,7 +613,9 @@ def update_launch_option(
             changed_configs.add(relative)
     missing = (only or set()) - found
     if missing:
-        raise ValueError("AppID missing from Steam config: " + ", ".join(sorted(missing)))
+        raise ValueError(
+            "AppID missing from Steam config: " + ", ".join(sorted(missing))
+        )
     if not installed and only is None and not found:
         raise ValueError("AppID has no Steam localconfig.vdf entry")
     if manually_removed:
@@ -698,7 +706,9 @@ def install_game(
                         or not backup.is_file()
                         or sha256(backup) != backup_hashes.get(key)
                     ):
-                        raise ValueError(f"missing or corrupt backup for obsolete {key}")
+                        raise ValueError(
+                            f"missing or corrupt backup for obsolete {key}"
+                        )
                     shutil.copy2(backup, path)
                     tx.capture(backup)
                     backup.unlink()
