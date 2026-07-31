@@ -1,0 +1,10 @@
+#!/bin/sh
+# Proxy xdg-settings to the host.
+#
+# Cider (sh.cider.Cider) shells out to `xdg-settings` to register itself as the
+# default handler for music/itms URL schemes. The flatpak runtime does not ship
+# xdg-settings, so the spawn fails and Cider's write to its stdin throws
+# `write EPIPE`, surfacing as a JavaScript error dialog on launch.
+#
+# This shim (placed on PATH inside the sandbox) forwards to the host copy.
+exec flatpak-spawn --host xdg-settings "$@"
