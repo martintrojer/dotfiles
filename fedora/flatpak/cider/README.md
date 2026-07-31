@@ -63,6 +63,18 @@ cover: launch Cider, play a track, confirm the Waybar MPRIS module updates, and
 use the play/pause, previous, and next media keys. Also open an `itms://` or
 `music://` link and confirm that Cider receives it.
 
+Verified working on 2026-07-31 after removing the shim and the unfiltered
+session bus, including across a reboot. `org.mpris.MediaPlayer2.cider` is owned
+by `xdg-dbus-proxy` rather than by Cider itself — the app reaches D-Bus only
+through Flatpak's filtered proxy, which is the hardening working as intended.
+Check it with:
+
+```bash
+busctl --user list | grep mpris   # name owned by xdg-dbus-proxy
+playerctl -l                      # cider listed
+playerctl metadata
+```
+
 ## Limitations
 
 - Setup deliberately makes Cider the host default for all five schemes.
