@@ -34,8 +34,8 @@ This copies `flatpak-update.service` and `flatpak-update.timer` into
 - [`cider/`](cider/README.md) — install, manual upgrade, and safe URL-handler
   fix for the user-scoped Cider (`sh.cider.Cider`) Apple Music flatpak: download
   its bundle from Taproom, install it for the user, then run
-  `cider/setup-cider.sh`. The narrow in-sandbox compatibility shim does not
-  grant host command execution.
+  `cider/setup-cider.sh`. It configures the host URL handlers and replaces the
+  unfiltered session bus socket with Flatpak's filtered proxy.
 
 ## Check / Run
 
