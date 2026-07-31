@@ -99,9 +99,9 @@ skipped with `--skip-gaming`; see [`gaming/README.md`](./gaming/README.md).
 
 ## User Services
 
-`systemd/.config/systemd/user/` contains `sway-session.target`,
-`sway-clipman-watcher`, `sway-kanshi`, `sway-mako`, `swaybg`, `swayidle`,
-`sway-waybar`, and `lmstudio-server` services.
+`systemd/.config/systemd/user/` contains `sway-session.target` and the
+`lmstudio-server`, `sway-clipman-watcher`, `sway-foot-server`, `sway-kanshi`,
+`sway-mako`, `sway-waybar`, `swaybg`, and `swayidle` services.
 
 Flow: stow → reload → enable units:
 
@@ -110,35 +110,6 @@ Flow: stow → reload → enable units:
 systemctl --user daemon-reload
 systemctl --user enable --now lmstudio-server.service
 ```
-
-To retire the deleted Toolbox service on a host that previously stowed it, run:
-
-```bash
-systemctl --user disable --now toolbox-dev.service
-rm -f ~/.config/systemd/user/toolbox-dev.service
-systemctl --user daemon-reload
-```
-
-This removes only the obsolete unit; the `dev` container remains available on
-demand and is not stopped or removed.
-
-To finish removing the retired PostgreSQL Quadlet from a host after syncing
-this repo, run:
-
-```bash
-systemctl --user disable --now postgres.service
-rm -f ~/.config/containers/systemd/postgres.container
-systemctl --user daemon-reload
-systemctl --user reset-failed postgres.service
-systemctl --user is-active postgres.service || true
-systemctl --user is-enabled postgres.service || true
-systemctl --user cat postgres.service || true
-ss -ltn '( sport = :5432 )'
-```
-
-The final checks should report no active/enabled `postgres.service`, no listener
-on port 5432, and no generated unit. Keep the `pg_data` Podman volume and cached
-PostgreSQL image unless destructive cleanup is separately approved.
 
 Notes:
 
