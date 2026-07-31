@@ -42,8 +42,31 @@ firewall() {
   sudo firewall-cmd "$@"
 }
 
+# firewall-cmd exits 1 both when a rule is absent and when sudo cannot
+# authenticate, so every query would otherwise read as "missing" on a host
+# whose firewall is fine. Establish sudo once, up front, and fail loudly if we
+# cannot -- reporting an unprotected host that is actually configured is the
+# worst direction for this script to be wrong in.
+require_sudo() {
+  if sudo -n true 2>/dev/null; then
+    return 0
+  fi
+  if [[ ! -t 0 ]]; then
+    echo "error: sudo credentials are not cached and there is no terminal to prompt on." >&2
+    echo "Run this from an interactive shell, or pre-authenticate with 'sudo -v'." >&2
+    return 1
+  fi
+  sudo -v || {
+    echo "error: could not obtain sudo; firewall state is unknown." >&2
+    return 1
+  }
+}
+
 check_interface_zone() {
   local actual_zone
+  # `|| true` keeps a nonzero firewall-cmd from aborting the script under
+  # `set -e` before the diagnostic below can print. require_sudo has already
+  # ruled out the auth-failure case, so an empty result really means "no zone".
   actual_zone=$(firewall --get-zone-of-interface="$interface" || true)
   if [[ "$actual_zone" != "$zone" ]]; then
     echo "error: $interface is in firewalld zone '${actual_zone:-none}', expected '$zone'." >&2
@@ -75,6 +98,8 @@ verify() {
   fi
   return "$status"
 }
+
+require_sudo
 
 if [[ "$action" == --verify ]]; then
   verify

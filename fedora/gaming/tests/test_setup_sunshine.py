@@ -74,7 +74,20 @@ class SetupSunshineTests(unittest.TestCase):
             firewall.write_text(FAKE_FIREWALL)
             firewall.chmod(0o755)
             sudo = bin_dir / "sudo"
-            sudo.write_text('#!/bin/sh\nexec "$@"\n')
+            # Mimic real sudo's flag handling: -n/-v are the credential probes
+            # the script uses to tell "no auth" apart from "no such rule".
+            sudo.write_text(
+                "#!/bin/sh\n"
+                "while [ $# -gt 0 ]; do\n"
+                "  case $1 in\n"
+                "    -n) shift ;;\n"
+                "    -v) exit 0 ;;\n"
+                "    *) break ;;\n"
+                "  esac\n"
+                "done\n"
+                "[ $# -eq 0 ] && exit 0\n"
+                'exec "$@"\n'
+            )
             sudo.chmod(0o755)
 
             env = {
@@ -172,6 +185,43 @@ class SetupSunshineTests(unittest.TestCase):
                 unassigned_zone.stderr,
             )
             self.assertEqual((state / "permanent").read_text(), "")
+
+    def test_unavailable_sudo_is_reported_not_read_as_missing_rules(self) -> None:
+        """Auth failure must not masquerade as an unconfigured firewall.
+
+        firewall-cmd exits 1 both when a rule is absent and when sudo cannot
+        authenticate. Without an explicit credential probe, --verify reports a
+        correctly configured host as having zero rules -- the worst direction
+        for a firewall check to be wrong in.
+        """
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            bin_dir = Path(raw_tmp) / "bin"
+            bin_dir.mkdir()
+            # sudo that can never authenticate, like a non-interactive shell
+            # with no cached credentials.
+            sudo = bin_dir / "sudo"
+            sudo.write_text(
+                "#!/bin/sh\necho 'sudo: a password is required' >&2\nexit 1\n"
+            )
+            sudo.chmod(0o755)
+            firewall = bin_dir / "firewall-cmd"
+            firewall.write_text("#!/bin/sh\nexit 0\n")
+            firewall.chmod(0o755)
+
+            result = subprocess.run(
+                [str(SCRIPT), "--verify"],
+                env={**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"},
+                stdin=subprocess.DEVNULL,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("sudo", result.stderr.lower())
+            self.assertNotIn("missing runtime rule", result.stderr)
+            self.assertNotIn("missing permanent rule", result.stderr)
+            self.assertNotIn("zone 'none'", result.stderr)
 
 
 if __name__ == "__main__":
