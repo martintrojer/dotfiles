@@ -26,6 +26,8 @@ steam_packages=(
   gamescope
   # In-game performance overlay.
   mangohud
+  # Per-game performance tuning used by gamemoderun and optirun.
+  gamemode
   # RGB lighting control (so it can run system-wide, e.g. turn off at boot).
   openrgb
   # Moonlight game-stream host for the gamescope stream session; needs the
