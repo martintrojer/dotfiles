@@ -56,25 +56,15 @@ optirun %command%
 
 - `WINEDLLOVERRIDES=dxgi=n,b`
 - `PROTON_FSR4_UPGRADE=1`
-- `DXIL_SPIRV_CONFIG=wmma_rdna3_workaround` for RDNA3/RX 7000
-- `gamemoderun`
-
-Opt-outs:
-
-```text
-OPTIRUN_OPTI=0 optirun %command%
-OPTIRUN_FSR4=0 optirun %command%
-OPTIRUN_RDNA3=0 optirun %command%
-OPTIRUN_GAMEMODE=0 optirun %command%
-OPTIRUN_DLL=winmm optirun %command%
-```
+- `gamemoderun` when installed
 
 ## Notes
 
 - Games with pre-launchers may need skip flags, e.g. Cyberpunk:
   `%command% --launcher-skip`.
-- OptiScaler overlay is remapped from Insert to Home (`0x24`). If it drifts,
-  run `fix-steam-games` to inspect or `fix-steam-games --apply` to fix.
+- `optiscaler-sync` previews bulk installation/update and
+  `optiscaler-sync --apply` performs it, including remapping the OptiScaler
+  overlay from Insert to Home (`0x24`).
 
 ## Quick reference
 

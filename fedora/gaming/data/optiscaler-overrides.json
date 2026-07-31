@@ -1,0 +1,14 @@
+{
+	"1649240": {
+		"proxy": "dxgi.dll",
+		"target": "Returnal/Binaries/Win64"
+	},
+	"1903340": {
+		"proxy": "dxgi.dll",
+		"target": "Sandfall/Binaries/Win64"
+	},
+	"2677660": {
+		"proxy": "dxgi.dll",
+		"target": "."
+	}
+}
