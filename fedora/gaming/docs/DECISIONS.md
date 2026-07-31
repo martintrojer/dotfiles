@@ -12,6 +12,33 @@ Each entry: context, key points, what would justify revisiting.
 ## Accepted (non-obvious)
 
 
+### RDNA3 FSR4 no longer carries the WMMA workaround (accepted 2026-07-31)
+
+Commit `202012a` removed `DXIL_SPIRV_CONFIG=wmma_rdna3_workaround` from
+`optirun` and its documentation. That is intentional for this RX 7800 XT, but
+only while its OptiScaler path uses FSR 4.1.1 or newer. Upstream says RDNA3 on
+Linux needed the variable with older FSR4 models; FSR 4.1.1 officially supports
+RDNA3 desktop GPUs through its INT8 model and no longer needs the workaround.
+
+Check the FSR version in use on the OptiScaler overlay's status line; it must
+show FSR 4.1.1 or newer. Then verify the active model rather than inferring it
+from that version: enable **Watermark** under the upscaler selection (or set
+`Fsr4EnableWatermark=true` in `OptiScaler.ini`), save, and restart the game. The
+watermark must report `FSR4-i8`, not `FSR3`; OptiScaler v0.9.4 is the first
+release whose bundled FFX 2.3 SDK supplies FSR 4.1.1. This also requires a
+current Proton/VKD3D with FFX 2.3 support. White-screen flashes, flickering, or
+artifacting are the warning signs of a broken FSR4 image path, although
+unsupported Ultra Quality presets can cause the same symptoms.
+
+**Reconsider only if:** a game is pinned to FSR 4.1.0 or older (restore the
+variable for that game, not globally), OR the watermark does not report
+`FSR4-i8` on RDNA3, OR those visual failures appear and persist on a supported
+preset. Check the [upstream FSR4 compatibility list](https://github.com/optiscaler/OptiScaler/wiki/FSR4-Compatibility-List)
+before changing the wrapper because the requirement is model- and
+version-dependent.
+
+---
+
 ### The gaming layer deliberately breaks the COPR-free + minimal-overlay rules (accepted 2026-06-05)
 
 This box stopped dual-booting: the Windows partition is gone and Windows-era PC
