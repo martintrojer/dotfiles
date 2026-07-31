@@ -108,6 +108,29 @@ class SetupSunshineTests(unittest.TestCase):
             self.assertTrue(mutations)
             self.assertTrue(all("--zone=home" in call for call in mutations))
 
+            (state / "log").write_text("")
+            subprocess.run(
+                [str(SCRIPT), "--verify"],
+                env=env,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            verify_calls = [
+                json.loads(line) for line in (state / "log").read_text().splitlines()
+            ]
+            rich_rule_queries = [
+                call
+                for call in verify_calls
+                if any(arg.startswith("--query-rich-rule=") for arg in call)
+            ]
+            self.assertEqual(
+                sum("--permanent" not in call for call in rich_rule_queries), 10
+            )
+            self.assertEqual(
+                sum("--permanent" in call for call in rich_rule_queries), 10
+            )
+
             subprocess.run(
                 [str(SCRIPT), "--revert"],
                 env=env,

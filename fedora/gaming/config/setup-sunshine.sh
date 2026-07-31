@@ -54,21 +54,19 @@ check_interface_zone() {
 
 verify() {
   local rule scope status=0
+  local scope_args=()
 
   check_interface_zone || status=1
   for scope in runtime permanent; do
+    scope_args=()
+    if [[ "$scope" == permanent ]]; then
+      scope_args=(--permanent)
+    fi
     for rule in "${rules[@]}"; do
-      if [[ "$scope" == permanent ]]; then
-        firewall --permanent --zone="$zone" --query-rich-rule="$rule" >/dev/null || {
-          echo "missing $scope rule: $rule" >&2
-          status=1
-        }
-      else
-        firewall --zone="$zone" --query-rich-rule="$rule" >/dev/null || {
-          echo "missing $scope rule: $rule" >&2
-          status=1
-        }
-      fi
+      firewall "${scope_args[@]}" --zone="$zone" --query-rich-rule="$rule" >/dev/null || {
+        echo "missing $scope rule: $rule" >&2
+        status=1
+      }
     done
   done
 
