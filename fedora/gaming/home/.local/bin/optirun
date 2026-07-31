@@ -10,12 +10,8 @@ set -euo pipefail
 # not inherit Proton/DLL override/GameMode preload tweaks. Apply them only to
 # games that need them.
 #
-# Knobs:
-#   OPTIRUN_GAMEMODE  1/0 (default 1) wrap the game in gamemoderun
-#   OPTIRUN_OPTI      1/0 (default 1) add WINEDLLOVERRIDES for OptiScaler
-#   OPTIRUN_DLL       proxy DLL name without .dll (default dxgi)
-#   OPTIRUN_FSR4      1/0 (default 1) enable Proton FSR4 upgrade
-#   OPTIRUN_RDNA3     1/0 (default 1) add RX 7000/RDNA3 SPIR-V workaround
+# Keep the launch contract fixed: OptiScaler's dxgi proxy, Proton's FSR4
+# upgrade path, and GameMode when installed.
 
 if [[ $# -eq 0 ]]; then
   echo "optirun: missing command" >&2
@@ -23,24 +19,15 @@ if [[ $# -eq 0 ]]; then
   exit 64
 fi
 
-if [[ "${OPTIRUN_OPTI:-1}" != "0" ]]; then
-  dll="${OPTIRUN_DLL:-dxgi}"
-  override="${dll}=n,b"
-  if [[ -n "${WINEDLLOVERRIDES:-}" ]]; then
-    export WINEDLLOVERRIDES="${WINEDLLOVERRIDES};${override}"
-  else
-    export WINEDLLOVERRIDES="$override"
-  fi
+override="dxgi=n,b"
+if [[ -n "${WINEDLLOVERRIDES:-}" ]]; then
+  export WINEDLLOVERRIDES="${WINEDLLOVERRIDES};${override}"
+else
+  export WINEDLLOVERRIDES="$override"
 fi
+export PROTON_FSR4_UPGRADE=1
 
-if [[ "${OPTIRUN_FSR4:-1}" != "0" ]]; then
-  export PROTON_FSR4_UPGRADE=1
-  if [[ "${OPTIRUN_RDNA3:-1}" != "0" ]]; then
-    export DXIL_SPIRV_CONFIG=wmma_rdna3_workaround
-  fi
-fi
-
-if [[ "${OPTIRUN_GAMEMODE:-1}" != "0" ]] && command -v gamemoderun >/dev/null 2>&1; then
+if command -v gamemoderun >/dev/null 2>&1; then
   exec gamemoderun "$@"
 fi
 

@@ -8,8 +8,8 @@ interactive shells) via `fedora/systemd/.config/environment.d/10-local-bin.conf`
 which the systemd user manager applies at login. Without it, apps launched from
 fuzzel inherit only the bare login PATH and fail with "command not found".
 
-Gaming helpers (`steam-session`, `optirun`, `optiscaler-client`,
-`fix-steam-games`, `steam-pause`, `steamos-session-select`) live in the
+Gaming helpers (`steam-session`, `optirun`, `optiscaler-sync`, `steam-pause`,
+`steamos-session-select`) live in the
 quarantined gaming layer at
 [`fedora/gaming/home/.local/bin/`](../gaming/README.md), not here.
 

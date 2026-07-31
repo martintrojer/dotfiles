@@ -28,6 +28,8 @@ steam_packages=(
   mangohud
   # Per-game performance tuning used by gamemoderun and optirun.
   gamemode
+  # Extract official OptiScaler release archives for optiscaler-sync.
+  7zip
   # RGB lighting control (so it can run system-wide, e.g. turn off at boot).
   openrgb
   # Moonlight game-stream host for the gamescope stream session; needs the

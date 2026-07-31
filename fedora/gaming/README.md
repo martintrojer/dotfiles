@@ -19,9 +19,8 @@ history is in [`docs/DECISIONS.md`](./docs/DECISIONS.md) here.
 - **`config/`** — one-shot config installers (udev rules, systemd units, logind
   drop-ins, firewall ports, SDDM sessions, controller firmware). Run once after
   a clean install; they don't layer packages and rarely need re-running.
-- **`data/`** — committed tool state read at runtime, not scripts to run:
-  `data/optiscaler-client-seed/` (first-run prefs the `optiscaler-client`
-  helper seeds into `~/.config`).
+- **`data/`** — tracked tool policy read at runtime:
+  `data/optiscaler-overrides.json` contains reviewed AppID target overrides.
 - **`docs/`** — [gamescope session](./docs/GAMESCOPE-SESSION.md),
   [HDR gaming](./docs/HDR-GAMING.md), and [streaming](./docs/STREAMING.md)
   procedures.
@@ -76,11 +75,8 @@ Gaming modes:
   `GS_OUT_W=1920 GS_OUT_H=1080 GS_HDR=0 GS_SUNSHINE=1` for streaming to a
   handheld via Sunshine. See [docs/STREAMING.md](./docs/STREAMING.md).
 - **Per-game OptiScaler/FSR4/GameMode**: use `optirun %command%`. It sets
-  `WINEDLLOVERRIDES=dxgi=n,b`, `PROTON_FSR4_UPGRADE=1`,
-  `DXIL_SPIRV_CONFIG=wmma_rdna3_workaround`, then runs the game via
-  `gamemoderun`. Opt out with `OPTIRUN_OPTI=0`, `OPTIRUN_FSR4=0`,
-  `OPTIRUN_RDNA3=0`, or `OPTIRUN_GAMEMODE=0`; use `OPTIRUN_DLL=<name>` for a
-  non-`dxgi` proxy DLL.
+  `WINEDLLOVERRIDES=dxgi=n,b` and `PROTON_FSR4_UPGRADE=1`, then runs the game
+  via `gamemoderun` when available.
 - `steam-session` refuses to run inside another graphical session, prepends
   `~/.local/bin` to PATH, and accepts
   `GS_OUT_W/H`, `GS_REFRESH`, `GS_HDR`, `GS_ARGS`. See
@@ -109,39 +105,27 @@ Gaming modes:
   only the power button wakes the tower — a bumped mouse won't. Matched by ID
   so it survives reboots and re-plugging; add devices by editing the rule.
 
-OptiScaler manager (GUI):
+OptiScaler sync:
 
-- `optiscaler-client` installs/updates/runs upstream OptiScaler Client into
-  `~/.local/share/optiscaler-client/` (binary not vendored). Commands: `run`,
-  `update [--tag TAG] [--force]`, `status`, `path`. Updates verify the SHA-256
-  digest published by GitHub's release API when present, reject archive links
-  and unsafe paths, and stage the complete payload before replacing the current
-  install. Upstream does not currently publish a separate checksum or signature.
-- `optiscaler-client.desktop` exposes it to `drun` launchers.
-- `optirun %command%` loads installed proxy DLLs for a game; override manually
-  with `WINEDLLOVERRIDES=... %command%` if needed.
-- First run seeds stable prefs from `data/optiscaler-client-seed/` only when
-  missing. Private/volatile state (`games.json`, `Cache/`, geometry, timestamps)
-  stays untracked.
-- `fix-steam-games` checks/fixes OptiScaler games in three passes: `ShortcutKey`
-  (Home / `0x24`), Steam launch options (`optirun %command%`, clearing stale
-  wrappers), and the FSR 4 backend. Dry-run by default; `--apply` to write
-  (refuses while Steam runs unless `--force`). Scope with
-  `--only {shortcut,launch-options,fsr4}`; override the key with `--key 0xNN`.
-  Run with games closed so an in-game "Save" can't race INI edits.
-- **FSR4 pass** (`--only fsr4`): harvests the newest `amdxcffx64.dll` from
-  installed Proton (nothing downloaded/vendored, so newer Proton → newer FSR),
-  caches it under `~/.local/share/fsr4-backend/<version>/`, drops it next to
-  each game's OptiScaler, and sets `Fsr4Update=true` so the version (e.g.
-  4.1.1) shows in the OptiScaler menu (`--watermark` also burns it into the
-  frame). Only touches complete OptiScaler installs; edits `OptiScaler.ini` in
-  place, writing only keys that version already knows (future flags degrade
-  gracefully). Also detects the client's stale "Extras"
-  `amd_fidelityfx_upscaler_dx12.dll` (e.g. 4.0.2c) — via hash against
-  `~/.config/OptiscalerClient/Cache/Extras/*/` and embedded FSR version — and
-  restores OptiScaler's clean DLL from `Cache/OptiScaler/<ver>/`, keeping the
-  upscaler DLL and backend a matched pair. `--revert` restores both DLLs from
-  `.bak` and resets flags to `auto`.
+- `optiscaler-sync` discovers every installed Steam game containing a recognized
+  DLSS, XeSS, or FidelityFX upscaler DLL and reports what it would install or
+  update. It is a dry run unless `--apply` is passed.
+- `optiscaler-sync --apply` downloads the latest stable official
+  `optiscaler/OptiScaler` release, requires its GitHub API SHA-256 digest,
+  validates and extracts the `.7z` with Fedora's `7zip`, then installs its full
+  payload for every unambiguous game. Multiple candidate directories are
+  skipped unless `data/optiscaler-overrides.json` selects a reviewed target;
+  Talos Principle 2 is explicitly skipped pending one.
+- Each install owns `.optiscaler-sync/manifest.json`, backs up pre-existing
+  collisions, preserves a game's existing `OptiScaler.ini`, sets only
+  `ShortcutKey=0x24` and `Fsr4Update=auto`, and ensures the Steam launch option
+  contains `optirun %command%` without dropping suffix arguments.
+- `optiscaler-sync uninstall` previews removal for every managed game;
+  `optiscaler-sync uninstall --apply` restores backups and refuses externally
+  modified managed files. Add `--force` only when those files should be
+  replaced or removed. Mutation always refuses to run while Steam is running.
+- A failed game transaction rolls back that game and does not stop the remaining
+  games. Run with all games closed so they cannot race INI or DLL updates.
 
 ## MangoHud
 
