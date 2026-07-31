@@ -5,6 +5,7 @@
 # sway, foot, kanshi, swaybg, swayidle, swaylock, waybar, wl-clipboard,
 # grim, slurp, jq, brightnessctl, playerctl, pipewire, xdg-desktop-portal-wlr,
 # and xdg-desktop-portal-gtk.
+# shellcheck disable=SC2034  # consumed by the setup-*.sh script that sources this.
 sway_packages=(
   # Session/UI pieces not already shipped by the Sericea base image.
   # Application launcher used across desktop scripts.

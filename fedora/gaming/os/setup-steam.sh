@@ -2,6 +2,7 @@
 set -euo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=fedora/gaming/os/steam-packages.sh
 source "$script_dir/steam-packages.sh"
 
 # Requires RPM Fusion (free + nonfree) to be enabled first.

@@ -6,5 +6,6 @@
 # cannot find it on PATH), hence the explicit sandbox path.
 set -euo pipefail
 
+# shellcheck disable=SC2016  # $HOME and $@ must expand inside the sandbox, not here.
 exec flatpak run --command=sh ai.lmstudio.lm-studio \
 	-c '"$HOME/.lmstudio/bin/lms" "$@"' lms "$@"
