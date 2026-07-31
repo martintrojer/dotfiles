@@ -18,6 +18,14 @@
 #      rpm-ostree, ships its own udev rule + user unit). The user unit is
 #      started on demand by the gamescope stream session, NOT enabled. See
 #      fedora/gaming/docs/STREAMING.md.
+#
+# Not listed, because the Sericea base image already ships them: gamemode
+# (used by gamemoderun/optirun) and 7zip (used by optiscaler-sync). Listing a
+# base-image package makes `rpm-ostree install` fail with "already provided
+# by" and layer NOTHING, taking the whole array down. If a future rebase drops
+# either one, add it back here together with --allow-inactive in
+# setup-steam.sh. Check with: rpm-ostree db list "$(rpm-ostree status --json |
+# jq -r '.deployments[]|select(.booted)."base-checksum"')" | grep -E '^ (gamemode|7zip)-'
 steam_packages=(
   # Steam client and controller/device udev rules.
   steam
@@ -26,10 +34,6 @@ steam_packages=(
   gamescope
   # In-game performance overlay.
   mangohud
-  # Per-game performance tuning used by gamemoderun and optirun.
-  gamemode
-  # Extract official OptiScaler release archives for optiscaler-sync.
-  7zip
   # RGB lighting control (so it can run system-wide, e.g. turn off at boot).
   openrgb
   # Moonlight game-stream host for the gamescope stream session; needs the

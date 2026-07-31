@@ -6,8 +6,8 @@ from __future__ import annotations
 import importlib.machinery
 import importlib.util
 import os
+import re
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
@@ -15,12 +15,43 @@ import types
 import unittest
 from pathlib import Path
 from typing import Any, cast
-from unittest import mock
 
 ROOT = Path(__file__).parents[2]
 WALLPAPER = ROOT / "fedora/bin/.local/bin/wallpaper"
 TBX = ROOT / "fedora/bin/.local/bin/tbx"
-STEAM_PAUSE = ROOT / "fedora/gaming/home/.local/bin/steam-pause"
+FEDORA_SETUPS = [
+    (ROOT / "fedora/os/base-packages.sh", ROOT / "fedora/os/setup-base.sh"),
+    (ROOT / "fedora/os/sway-packages.sh", ROOT / "fedora/os/setup-sway.sh"),
+]
+
+
+def install_command(wrapper: Path) -> str:
+    lines = [
+        line
+        for line in wrapper.read_text().splitlines()
+        if not line.lstrip().startswith("#") and "rpm-ostree install" in line
+    ]
+    assert len(lines) == 1, f"{wrapper.name}: expected 1 install line, got {lines}"
+    return lines[0]
+
+
+def read_array(script: Path) -> list[str]:
+    name = re.match(r"(\w+?)-packages\.sh", script.name)
+    assert name, script.name
+    var = f"{name.group(1)}_packages"
+    out = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'source "$1"; printf "%s\\n" "${{{var}[@]}}"',
+            "_",
+            str(script),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return [line for line in out.stdout.split("\n") if line]
 
 
 def load_script(name: str, path: Path) -> types.ModuleType:
@@ -31,6 +62,31 @@ def load_script(name: str, path: Path) -> types.ModuleType:
     sys.modules[name] = module
     loader.exec_module(module)
     return module
+
+
+class FedoraPackageArrays(unittest.TestCase):
+    def test_arrays_are_non_empty_and_unique(self) -> None:
+        for array_script, _ in FEDORA_SETUPS:
+            with self.subTest(script=array_script.name):
+                packages = read_array(array_script)
+                self.assertTrue(packages, f"{array_script.name} exports no packages")
+                self.assertCountEqual(
+                    packages,
+                    set(packages),
+                    f"{array_script.name} lists a package twice",
+                )
+
+    def test_wrappers_install_the_sourced_array(self) -> None:
+        for array_script, wrapper in FEDORA_SETUPS:
+            with self.subTest(script=wrapper.name):
+                var = f"{array_script.name.split('-')[0]}_packages"
+                self.assertIn(f'"${{{var}[@]}}"', install_command(wrapper))
+
+    def test_scripts_are_syntactically_valid(self) -> None:
+        for array_script, wrapper in FEDORA_SETUPS:
+            for script in (array_script, wrapper):
+                with self.subTest(script=script.name):
+                    subprocess.run(["bash", "-n", str(script)], check=True)
 
 
 class FedoraPythonHelperTests(unittest.TestCase):
@@ -87,35 +143,6 @@ class FedoraPythonHelperTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, "real:argument\n")
-
-    def test_steam_pause_parses_proc_tree_and_signals_only_descendants(self) -> None:
-        steam_pause = cast(Any, load_script("steam_pause_test", STEAM_PAUSE))
-        with tempfile.TemporaryDirectory() as raw_tmp:
-            proc = Path(raw_tmp)
-            processes = {
-                100: (1, "reaper", b"/usr/bin/reaper\0SteamLaunch\0AppId=42\0--\0"),
-                101: (100, "game worker", b"game\0"),
-                102: (101, "child ) worker", b"child\0"),
-                200: (1, "unrelated", b"other\0"),
-            }
-            for pid, (ppid, name, cmdline) in processes.items():
-                pid_dir = proc / str(pid)
-                pid_dir.mkdir()
-                (pid_dir / "cmdline").write_bytes(cmdline)
-                (pid_dir / "stat").write_text(f"{pid} ({name}) S {ppid} 0 0 0\n")
-            steam_pause.PROC = proc
-
-            self.assertEqual(steam_pause.game_reapers(), [(100, 42)])
-            kids = steam_pause.children_map()
-            self.assertEqual(steam_pause.descendants(100, kids), [101, 102])
-            with mock.patch.object(steam_pause.os, "kill") as kill:
-                count = steam_pause.signal_tree(100, signal.SIGSTOP, kids)
-
-            self.assertEqual(count, 2)
-            self.assertEqual(
-                kill.call_args_list,
-                [mock.call(101, signal.SIGSTOP), mock.call(102, signal.SIGSTOP)],
-            )
 
 
 if __name__ == "__main__":

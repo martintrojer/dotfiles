@@ -1,38 +1,40 @@
 #!/usr/bin/env python3
-"""Behavior tests for the package arrays and their rpm-ostree wrappers.
-
-Regression guard: gamemode and 7zip ship in the Sericea base image, so a plain
-`rpm-ostree install` rejects them with "already provided by" and installs
-nothing -- taking every other package in the array down with it. Listing such a
-package is fine, but only when the wrapper passes --allow-inactive.
-"""
+"""Behavior tests for gaming package setup and Python helpers."""
 
 from __future__ import annotations
 
+import importlib.machinery
+import importlib.util
 import re
+import signal
 import subprocess
+import sys
+import tempfile
+import types
 import unittest
 from pathlib import Path
+from typing import Any, cast
+from unittest import mock
 
 FEDORA = Path(__file__).parents[2]
+STEAM_PAUSE = FEDORA / "gaming/home/.local/bin/steam-pause"
 
 # (package array script, wrapper script)
 SETUPS = [
-    (FEDORA / "os/base-packages.sh", FEDORA / "os/setup-base.sh"),
-    (FEDORA / "os/sway-packages.sh", FEDORA / "os/setup-sway.sh"),
     (FEDORA / "gaming/os/steam-packages.sh", FEDORA / "gaming/os/setup-steam.sh"),
 ]
 
-# Packages known to ship in the Fedora Sway Atomic base image. Installing these
-# requires --allow-inactive in the wrapper that consumes the array.
+# Shipped by the Sericea base image, so deliberately absent from the arrays:
+# listing one makes `rpm-ostree install` fail with "already provided by" and
+# layer nothing at all. See the header of steam-packages.sh.
 BASE_IMAGE_PACKAGES = {"gamemode", "7zip"}
 
 
 def install_command(wrapper: Path) -> str:
     """The actual `rpm-ostree install` line, with comments stripped.
 
-    Matching against the whole file would let an explanatory comment mentioning
-    --allow-inactive satisfy the assertion while the real command lacks it.
+    Matching against the whole file would let an explanatory comment satisfy
+    the assertion while the real command differs.
     """
     lines = [
         line
@@ -41,6 +43,16 @@ def install_command(wrapper: Path) -> str:
     ]
     assert len(lines) == 1, f"{wrapper.name}: expected 1 install line, got {lines}"
     return lines[0]
+
+
+def load_script(name: str, path: Path) -> types.ModuleType:
+    loader = importlib.machinery.SourceFileLoader(name, str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    loader.exec_module(module)
+    return module
 
 
 def read_array(script: Path) -> list[str]:
@@ -75,29 +87,18 @@ class PackageArrays(unittest.TestCase):
                     f"{array_script.name} lists a package twice",
                 )
 
-    def test_base_image_packages_require_allow_inactive(self):
-        """A base-image package in the array forces --allow-inactive."""
-        for array_script, wrapper in SETUPS:
-            with self.subTest(script=wrapper.name):
-                packages = set(read_array(array_script))
-                overlap = packages & BASE_IMAGE_PACKAGES
-                command = install_command(wrapper)
-                if overlap:
-                    self.assertIn(
-                        "--allow-inactive",
-                        command,
-                        f"{wrapper.name} installs base-image package(s) "
-                        f"{sorted(overlap)} without --allow-inactive; rpm-ostree "
-                        f"will fail with 'already provided by' and install nothing",
-                    )
-                else:
-                    self.assertNotIn(
-                        "--allow-inactive",
-                        command,
-                        f"{wrapper.name} passes --allow-inactive but lists no "
-                        f"base-image package; drop the flag so genuine typos "
-                        f"still fail loudly",
-                    )
+    def test_arrays_omit_base_image_packages(self):
+        """A base-image package in the array makes rpm-ostree layer nothing."""
+        for array_script, _ in SETUPS:
+            with self.subTest(script=array_script.name):
+                listed = set(read_array(array_script)) & BASE_IMAGE_PACKAGES
+                self.assertFalse(
+                    listed,
+                    f"{array_script.name} lists base-image package(s) "
+                    f"{sorted(listed)}; rpm-ostree will fail with 'already "
+                    f"provided by' and layer none of the array. Drop them, or "
+                    f"add --allow-inactive to the wrapper.",
+                )
 
     def test_wrappers_install_the_sourced_array(self):
         for array_script, wrapper in SETUPS:
@@ -110,6 +111,37 @@ class PackageArrays(unittest.TestCase):
             for script in (array_script, wrapper):
                 with self.subTest(script=script.name):
                     subprocess.run(["bash", "-n", str(script)], check=True)
+
+
+class GamingPythonHelperTests(unittest.TestCase):
+    def test_steam_pause_parses_proc_tree_and_signals_only_descendants(self) -> None:
+        steam_pause = cast(Any, load_script("steam_pause_test", STEAM_PAUSE))
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            proc = Path(raw_tmp)
+            processes = {
+                100: (1, "reaper", b"/usr/bin/reaper\0SteamLaunch\0AppId=42\0--\0"),
+                101: (100, "game worker", b"game\0"),
+                102: (101, "child ) worker", b"child\0"),
+                200: (1, "unrelated", b"other\0"),
+            }
+            for pid, (ppid, name, cmdline) in processes.items():
+                pid_dir = proc / str(pid)
+                pid_dir.mkdir()
+                (pid_dir / "cmdline").write_bytes(cmdline)
+                (pid_dir / "stat").write_text(f"{pid} ({name}) S {ppid} 0 0 0\n")
+            steam_pause.PROC = proc
+
+            self.assertEqual(steam_pause.game_reapers(), [(100, 42)])
+            kids = steam_pause.children_map()
+            self.assertEqual(steam_pause.descendants(100, kids), [101, 102])
+            with mock.patch.object(steam_pause.os, "kill") as kill:
+                count = steam_pause.signal_tree(100, signal.SIGSTOP, kids)
+
+            self.assertEqual(count, 2)
+            self.assertEqual(
+                kill.call_args_list,
+                [mock.call(101, signal.SIGSTOP), mock.call(102, signal.SIGSTOP)],
+            )
 
 
 if __name__ == "__main__":
