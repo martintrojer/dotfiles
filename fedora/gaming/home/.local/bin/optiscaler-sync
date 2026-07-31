@@ -29,7 +29,7 @@ STATE_DIR = ".optiscaler-sync"
 MANIFEST = "manifest.json"
 VDF_PATH_RE = re.compile(r'"path"\s*"([^"]+)"')
 VDF_STR_RE = re.compile(r'"([^"]+)"\s*"([^"]*)"')
-LAUNCH_RE = re.compile(r'^(\s*"LaunchOptions"\s*")([^"]*)(".*)$')
+LAUNCH_RE = re.compile(r'^(\s*"LaunchOptions"\s*")((?:\\.|[^"\\])*)(".*)$')
 OVERRIDES_FILE = Path(__file__).resolve().parents[3] / "data/optiscaler-overrides.json"
 SKIPPED_APPIDS = {"835960"}  # The Talos Principle 2: target remains ambiguous.
 
@@ -210,13 +210,34 @@ def read_manifest(path: Path, appid: str | None = None) -> dict[str, Any]:
             raise ValueError(f"manifest owns its state directory: {path}")
         if not re.fullmatch(r"[0-9a-f]{64}", digest):
             raise ValueError(f"invalid manifest digest: {path}")
-    for relative, backup in value.get("backups", {}).items():
-        if not isinstance(relative, str) or not isinstance(backup, str):
+    backups = value.get("backups", {})
+    backup_hashes = value.get("backup_hashes", {})
+    if not isinstance(backup_hashes, dict) or set(backup_hashes) != set(backups):
+        raise ValueError(f"invalid manifest backup digests: {path}")
+    for relative, backup in backups.items():
+        digest = backup_hashes.get(relative)
+        if (
+            not isinstance(relative, str)
+            or relative not in value["files"]
+            or not isinstance(backup, str)
+            or not isinstance(digest, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", digest)
+        ):
             raise ValueError(f"invalid manifest backup entry: {path}")
         safe_relative(relative)
         backup_path = safe_relative(backup)
         if not backup_path.parts or backup_path.parts[0] != "backups":
             raise ValueError(f"invalid manifest backup path: {path}")
+    launch_configs = value.get("launch_configs", [])
+    if not isinstance(launch_configs, list) or len(set(launch_configs)) != len(
+        launch_configs
+    ):
+        raise ValueError(f"invalid manifest launch config list: {path}")
+    for config in launch_configs:
+        if not isinstance(config, str) or not re.fullmatch(
+            r"userdata/[0-9]+/config/localconfig\.vdf", config
+        ):
+            raise ValueError(f"invalid manifest launch config: {path}")
     return value
 
 
@@ -369,6 +390,8 @@ def extract_archive(
         capture_output=True,
         text=True,
     )
+    if listed.stderr.strip():
+        raise ValueError(f"7z reported an archive warning: {listed.stderr.strip()}")
     entries = archive_entries(listed.stdout)
     if not entries:
         raise ValueError("archive is empty")
@@ -379,12 +402,14 @@ def extract_archive(
         if key in folded:
             raise ValueError(f"duplicate archive path: {entry}")
         folded.add(key)
-    runner(
+    extracted = runner(
         ["7z", "x", "-y", f"-o{destination}", "--", str(archive)],
         check=True,
         capture_output=True,
         text=True,
     )
+    if extracted.stderr.strip():
+        raise ValueError(f"7z reported an extraction warning: {extracted.stderr.strip()}")
     for path in destination.rglob("*"):
         if path.is_symlink() or not (path.is_file() or path.is_dir()):
             raise ValueError(f"unsafe extracted file: {path}")
@@ -426,7 +451,7 @@ def payload_files(root: Path, proxy: str) -> dict[Path, Path]:
 def patch_ini(text: str) -> str:
     for key, value in (("ShortcutKey", "0x24"), ("Fsr4Update", "auto")):
         pattern = re.compile(rf"^(\s*{key}\s*=\s*).*$", re.IGNORECASE | re.MULTILINE)
-        text, count = pattern.subn(rf"\g<1>{value}", text, count=1)
+        text, count = pattern.subn(rf"\g<1>{value}", text)
         if count == 0:
             if text and not text.endswith("\n"):
                 text += "\n"
@@ -435,8 +460,10 @@ def patch_ini(text: str) -> str:
 
 
 class Transaction:
-    def __init__(self) -> None:
-        self.temp = tempfile.TemporaryDirectory(prefix="optiscaler-sync-rollback-")
+    def __init__(self, directory: Path | None = None) -> None:
+        self.temp = tempfile.TemporaryDirectory(
+            prefix=".optiscaler-sync-rollback-", dir=directory
+        )
         self.root = Path(self.temp.name)
         self.saved: dict[Path, Path | None] = {}
 
@@ -455,23 +482,31 @@ class Transaction:
             self.saved[path] = None
 
     def rollback(self) -> None:
+        errors: list[OSError] = []
         for path, saved in reversed(self.saved.items()):
-            if saved is None:
-                path.unlink(missing_ok=True)
-            else:
-                path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(saved, path)
+            try:
+                if saved is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(saved, path)
+            except OSError as error:
+                errors.append(error)
+        if errors:
+            raise ExceptionGroup("transaction rollback failed", errors)
 
     def close(self) -> None:
         self.temp.cleanup()
 
 
 def localconfigs(root: Path) -> list[Path]:
-    return sorted(
-        path
-        for path in (root / "userdata").glob("*/config/localconfig.vdf")
-        if path.is_file() and path.resolve().is_relative_to(root.resolve())
-    )
+    configs: list[Path] = []
+    for path in (root / "userdata").glob("*/config/localconfig.vdf"):
+        if path.is_symlink():
+            raise ValueError(f"Steam config cannot be a symlink: {path}")
+        if path.is_file() and path.resolve().is_relative_to(root.resolve()):
+            configs.append(path)
+    return sorted(configs)
 
 
 def desired_launch(current: str) -> str:
@@ -483,7 +518,9 @@ def desired_launch(current: str) -> str:
     return f"{DEFAULT_LAUNCH} {current}".strip()
 
 
-def edit_launch(text: str, appid: str, remove: bool = False) -> tuple[str, bool, bool]:
+def edit_launch(
+    text: str, appid: str, remove: bool = False
+) -> tuple[str, bool, bool, bool]:
     lines = text.splitlines(keepends=True)
     stack: list[str] = []
     pending: str | None = None
@@ -511,10 +548,11 @@ def edit_launch(text: str, appid: str, remove: bool = False) -> tuple[str, bool,
             else:
                 wanted = desired_launch(launch.group(2))
             if wanted == launch.group(2):
-                return text, False, True
+                return text, False, True, False
             newline = "\n" if line.endswith("\n") else ""
             lines[index] = f"{launch.group(1)}{wanted}{launch.group(3)}{newline}"
-            return "".join(lines), True, True
+            removed = remove and DEFAULT_LAUNCH in launch.group(2)
+            return "".join(lines), True, True, removed
         if "}" in line and stack:
             if app_depth == len(stack):
                 insert_at = index
@@ -525,29 +563,59 @@ def edit_launch(text: str, appid: str, remove: bool = False) -> tuple[str, bool,
             : len(lines[insert_at]) - len(lines[insert_at].lstrip())
         ]
         if remove:
-            return text, False, True
+            return text, False, True, False
         lines.insert(insert_at, f'{indent}\t"LaunchOptions"\t\t"{DEFAULT_LAUNCH}"\n')
-        return "".join(lines), True, True
-    return text, False, False
+        return "".join(lines), True, True, False
+    return text, False, False, False
 
 
-def update_launch_option(target: Target, tx: Transaction, remove: bool = False) -> None:
-    found = False
+def update_launch_option(
+    target: Target,
+    tx: Transaction,
+    remove: bool = False,
+    only: set[str] | None = None,
+) -> set[str]:
+    found: set[str] = set()
+    changed_configs: set[str] = set()
+    installed = set(target.manifest.get("launch_configs", [])) if target.manifest else set()
+    if not remove and only is None:
+        only = installed or None
+    manually_removed: set[str] = set()
     for config in localconfigs(target.app.steam_root):
+        relative = config.relative_to(target.app.steam_root).as_posix()
+        if only is not None and relative not in only:
+            continue
         text = config.read_text(errors="replace")
-        changed, did_change, contains_app = edit_launch(
+        changed, did_change, contains_app, removed = edit_launch(
             text, target.app.appid, remove=remove
         )
-        found |= contains_app
+        if contains_app:
+            found.add(relative)
+        if remove and relative in installed and contains_app and not removed:
+            manually_removed.add(relative)
         if did_change:
+            if not remove and relative in installed:
+                raise ValueError(f"managed Steam launch option was externally modified: {relative}")
             tx.capture(config)
             backup = config.with_suffix(config.suffix + ".optiscaler-sync.bak")
+            if backup.exists() and (backup.is_symlink() or not backup.is_file()):
+                raise ValueError(f"unsafe Steam config backup: {backup}")
             if not backup.exists():
                 tx.capture(backup)
                 shutil.copy2(config, backup)
             atomic_write(config, changed)
-    if not found:
+            changed_configs.add(relative)
+    missing = (only or set()) - found
+    if missing:
+        raise ValueError("AppID missing from Steam config: " + ", ".join(sorted(missing)))
+    if not installed and only is None and not found:
         raise ValueError("AppID has no Steam localconfig.vdf entry")
+    if manually_removed:
+        raise ValueError(
+            "managed Steam launch option was externally modified: "
+            + ", ".join(sorted(manually_removed))
+        )
+    return changed_configs
 
 
 def install_game(
@@ -557,15 +625,23 @@ def install_game(
     manifest_path = state / MANIFEST
     if target.manifest is None and state.exists():
         raise ValueError(f"unmanaged state directory exists: {state}")
-    old = target.manifest or {"files": {}, "backups": {}}
+    old = target.manifest or {
+        "files": {},
+        "backups": {},
+        "backup_hashes": {},
+        "launch_configs": [],
+    }
     old_files = old.get("files", {})
-    backups = old.get("backups", {})
+    backups = dict(old.get("backups", {}))
+    backup_hashes = dict(old.get("backup_hashes", {}))
+    launch_configs = set(old.get("launch_configs", []))
     if not isinstance(old_files, dict) or not isinstance(backups, dict):
         raise ValueError("invalid manifest file maps")
     files = dict(old_files)
     reports: list[str] = []
-    tx = Transaction()
+    tx: Transaction | None = None
     try:
+        tx = Transaction(target.directory)
         for relative, source in payload.items():
             relative = safe_relative(relative.as_posix())
             destination = child_path(target.directory, relative)
@@ -588,6 +664,7 @@ def install_game(
                 backup_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(destination, backup_path)
                 backups[key] = backup_path.relative_to(state).as_posix()
+                backup_hashes[key] = sha256(backup_path)
             destination.parent.mkdir(parents=True, exist_ok=True)
             if relative.name.lower() == "optiscaler.ini" and destination.is_file():
                 atomic_write(
@@ -616,19 +693,24 @@ def install_game(
                 tx.capture(path)
                 if backup_raw:
                     backup = child_path(state, backup_raw)
-                    if backup.is_symlink() or not backup.is_file():
-                        raise ValueError(f"missing backup for obsolete {key}")
+                    if (
+                        backup.is_symlink()
+                        or not backup.is_file()
+                        or sha256(backup) != backup_hashes.get(key)
+                    ):
+                        raise ValueError(f"missing or corrupt backup for obsolete {key}")
                     shutil.copy2(backup, path)
                     tx.capture(backup)
                     backup.unlink()
                     backups.pop(key)
+                    backup_hashes.pop(key)
                 else:
                     path.unlink(missing_ok=True)
                 files.pop(key, None)
             else:
                 reports.append(f"preserved modified obsolete {key}")
 
-        update_launch_option(target, tx)
+        launch_configs.update(update_launch_option(target, tx))
         tx.capture(manifest_path)
         manifest = {
             "schema": 1,
@@ -637,17 +719,29 @@ def install_game(
             "proxy": target.proxy,
             "files": files,
             "backups": backups,
+            "backup_hashes": backup_hashes,
+            "launch_configs": sorted(launch_configs),
         }
         atomic_write(
             manifest_path, json.dumps(manifest, indent=2, sort_keys=True) + "\n"
         )
     except BaseException:
-        tx.rollback()
-        if not manifest_path.exists() and state.exists():
-            shutil.rmtree(state, ignore_errors=True)
+        if tx is not None:
+            tx.rollback()
+        if target.manifest is None and state.exists():
+            for file in (path for path in state.rglob("*") if path.is_file()):
+                file.unlink()
+            for directory in sorted(
+                (path for path in state.rglob("*") if path.is_dir()),
+                key=lambda path: len(path.parts),
+                reverse=True,
+            ):
+                directory.rmdir()
+            state.rmdir()
         raise
     finally:
-        tx.close()
+        if tx is not None:
+            tx.close()
     return reports
 
 
@@ -657,6 +751,8 @@ def uninstall_game(target: Target, force: bool) -> list[str]:
     state = target.directory / STATE_DIR
     files = target.manifest["files"]
     backups = target.manifest.get("backups", {})
+    backup_hashes = target.manifest.get("backup_hashes", {})
+    launch_configs = set(target.manifest.get("launch_configs", []))
     modified = [
         key
         for key, expected in files.items()
@@ -665,28 +761,36 @@ def uninstall_game(target: Target, force: bool) -> list[str]:
     ]
     if modified and not force:
         raise ValueError("modified managed files: " + ", ".join(modified))
-    tx = Transaction()
+    tx: Transaction | None = None
     reports: list[str] = []
     try:
+        tx = Transaction(target.directory)
         for key in files:
             destination = child_path(target.directory, key)
             backup_raw = backups.get(key)
             tx.capture(destination)
             if backup_raw:
                 backup = child_path(state, backup_raw)
-                if backup.is_symlink() or not backup.is_file():
-                    raise ValueError(f"missing backup for {key}")
+                if (
+                    backup.is_symlink()
+                    or not backup.is_file()
+                    or sha256(backup) != backup_hashes.get(key)
+                ):
+                    raise ValueError(f"missing or corrupt backup for {key}")
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(backup, destination)
             else:
                 destination.unlink(missing_ok=True)
-        update_launch_option(target, tx, remove=True)
+        if launch_configs:
+            update_launch_option(target, tx, remove=True, only=launch_configs)
         os.replace(state, tx.root / "state")
     except BaseException:
-        tx.rollback()
+        if tx is not None:
+            tx.rollback()
         raise
     finally:
-        tx.close()
+        if tx is not None:
+            tx.close()
     if modified:
         reports.append("force replaced modified files: " + ", ".join(modified))
     return reports
@@ -748,14 +852,26 @@ def main(argv: list[str] | None = None) -> int:
             "Steam appears to be running; quit Steam before --apply.", file=sys.stderr
         )
         return 2
-    apps = steam_apps(steam_roots())
-    overrides = load_overrides()
+    try:
+        apps = steam_apps(steam_roots())
+    except (OSError, ValueError) as error:
+        print(f"discovery failed: {error}", file=sys.stderr)
+        return 1
+    overrides: dict[str, dict[str, str]] = {}
+    if args.command == "sync":
+        try:
+            overrides = load_overrides()
+        except (OSError, ValueError) as error:
+            print(f"discovery failed: {error}", file=sys.stderr)
+            return 1
     targets: list[Target] = []
+    discovery_failed = False
     for app in sorted(apps.values(), key=lambda item: int(item.appid)):
         try:
             target, reason = detect_target(app, overrides)
         except Exception as error:
-            print(f"skip     {app.appid} {app.name}: {error}")
+            discovery_failed = True
+            print(f"failed   {app.appid} {app.name}: {error}", file=sys.stderr)
             continue
         if args.command == "uninstall":
             if target and target.manifest:
@@ -771,11 +887,14 @@ def main(argv: list[str] | None = None) -> int:
                 f"would {action} {target.app.appid} {target.app.name}: {target.directory} ({target.proxy})"
             )
         print(f"dry run: {len(targets)} managed/eligible game(s); use --apply")
-        return 0
+        return int(discovery_failed)
     if args.command == "uninstall":
-        return run_bulk(targets, lambda target: uninstall_game(target, args.force))
+        return int(
+            discovery_failed
+            or run_bulk(targets, lambda target: uninstall_game(target, args.force))
+        )
     if not targets:
-        return 0
+        return int(discovery_failed)
     release = fetch_release()
     with tempfile.TemporaryDirectory(prefix="optiscaler-sync-release-") as raw:
         temp = Path(raw)
@@ -784,11 +903,14 @@ def main(argv: list[str] | None = None) -> int:
         extracted.mkdir()
         download_release(release, archive)
         root = extract_archive(archive, extracted)
-        return run_bulk(
-            targets,
-            lambda target: install_game(
-                target, payload_files(root, target.proxy), release
-            ),
+        return int(
+            discovery_failed
+            or run_bulk(
+                targets,
+                lambda target: install_game(
+                    target, payload_files(root, target.proxy), release
+                ),
+            )
         )
 
 
