@@ -1,10 +1,10 @@
 # Update all system-scoped flatpaks non-interactively.
 #
 # Fedora ships no stock flatpak auto-update timer, and on Sway there's no GNOME
-# Software doing background updates. All flatpaks here are installed system-wide
-# (see `flatpak list --system`), so updates need root; hence a system unit in
-# the writable /etc tree rather than a --user one. Paired with
-# flatpak-update.timer. See fedora/flatpak/README.md.
+# Software doing background updates. Remote-backed flatpaks here are installed
+# system-wide, so updates need root; hence a system unit in the writable /etc
+# tree. The user-scoped Cider bundle has no remote and is upgraded manually.
+# Paired with flatpak-update.timer. See fedora/flatpak/README.md.
 [Unit]
 Description=Update system flatpaks
 Documentation=man:flatpak(1)

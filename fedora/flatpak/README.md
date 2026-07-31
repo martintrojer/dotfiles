@@ -1,13 +1,17 @@
 # Flatpak Auto-Update
 
 Fedora Sway Atomic ships no stock flatpak update timer, and Sway has no GNOME
-Software doing background updates. This adds a daily system timer so flatpaks
-stay current without manual `flatpak update` runs.
+Software doing background updates. This adds a daily system timer so
+system-scoped flatpaks stay current without manual `flatpak update` runs.
 
-All flatpaks on this host are system-scoped (`flatpak list --system`), so
-updates require root. The units are therefore **system** units, not `--user`
-ones, installed into the writable `/etc` tree because Atomic `/usr/lib` is
-read-only ostree — the same constraint as the gaming `steam-pause` unit.
+This host uses mixed scopes: remote-backed apps are system-scoped, while Cider
+is installed per-user from a bundle with no Flatpak remote. The system apps
+therefore update through these root-run units. Cider upgrades require manually
+downloading and reinstalling its bundle; a user update timer would currently
+have nothing to update.
+
+The units are installed into the writable `/etc` tree because Atomic `/usr/lib`
+is read-only ostree — the same constraint as the gaming `steam-pause` unit.
 
 ## Install
 
@@ -27,10 +31,11 @@ This copies `flatpak-update.service` and `flatpak-update.timer` into
 
 ## Per-app fixes
 
-- [`cider/`](cider/README.md) — install + safe URL-handler fix for the Cider
-  (`sh.cider.Cider`) Apple Music flatpak: download from Taproom, install for the
-  user, then run `cider/setup-cider.sh`. The narrow in-sandbox compatibility
-  shim does not grant host command execution.
+- [`cider/`](cider/README.md) — install, manual upgrade, and safe URL-handler
+  fix for the user-scoped Cider (`sh.cider.Cider`) Apple Music flatpak: download
+  its bundle from Taproom, install it for the user, then run
+  `cider/setup-cider.sh`. The narrow in-sandbox compatibility shim does not
+  grant host command execution.
 
 ## Check / Run
 

@@ -4,9 +4,10 @@ set -euo pipefail
 # Install and enable a daily system-flatpak auto-update timer.
 #
 # Fedora Sway Atomic ships no stock flatpak update timer and has no GNOME
-# Software running background updates. All flatpaks here are system-scoped, so
-# updates need root. This installs a oneshot service + daily timer into the
-# writable /etc tree (Atomic /usr/lib is read-only ostree). See
+# Software running background updates. Remote-backed flatpaks here are
+# system-scoped, so their updates need root. The user-scoped Cider bundle has no
+# remote and is upgraded manually. This installs a oneshot service + daily
+# timer into the writable /etc tree (Atomic /usr/lib is read-only ostree). See
 # fedora/flatpak/README.md.
 #
 # Run as your normal user; it uses sudo for the system paths.
