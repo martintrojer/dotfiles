@@ -12,7 +12,7 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).parents[1] / "config/setup-sunshine.sh"
 
-FAKE_FIREWALL = r'''#!/usr/bin/env python3
+FAKE_FIREWALL = r"""#!/usr/bin/env python3
 import json
 import os
 import sys
@@ -56,7 +56,7 @@ if any(arg.startswith("--remove-rich-rule=") for arg in args):
     raise SystemExit
 
 raise SystemExit(f"unsupported firewall-cmd arguments: {args}")
-'''
+"""
 
 
 class SetupSunshineTests(unittest.TestCase):
@@ -72,7 +72,7 @@ class SetupSunshineTests(unittest.TestCase):
             firewall.write_text(FAKE_FIREWALL)
             firewall.chmod(0o755)
             sudo = bin_dir / "sudo"
-            sudo.write_text("#!/bin/sh\nexec \"$@\"\n")
+            sudo.write_text('#!/bin/sh\nexec "$@"\n')
             sudo.chmod(0o755)
 
             env = {
@@ -85,13 +85,19 @@ class SetupSunshineTests(unittest.TestCase):
             }
 
             for command in ([str(SCRIPT)], [str(SCRIPT)], [str(SCRIPT), "--verify"]):
-                subprocess.run(command, env=env, check=True, capture_output=True, text=True)
+                subprocess.run(
+                    command, env=env, check=True, capture_output=True, text=True
+                )
 
             rules = (state / "permanent").read_text().splitlines()
             self.assertEqual(len(rules), 10)
-            self.assertTrue(all('source address="10.23.0.0/24"' in rule for rule in rules))
+            self.assertTrue(
+                all('source address="10.23.0.0/24"' in rule for rule in rules)
+            )
 
-            calls = [json.loads(line) for line in (state / "log").read_text().splitlines()]
+            calls = [
+                json.loads(line) for line in (state / "log").read_text().splitlines()
+            ]
             mutations = [
                 call
                 for call in calls
