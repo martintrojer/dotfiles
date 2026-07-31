@@ -221,13 +221,13 @@ The `/bin/sh -lc` wrapper is important here because Codex's TOML array form does
 
 ### OpenCode (auto — `./dotfiles-sync --apply`)
 
-Lives in the [`opencode/`](../../opencode) stow package. `dotfiles-sync --apply` symlinks `opencode/.config/opencode/plugin/notify.ts` to `~/.config/opencode/plugin/notify.ts`.
+Lives in the [`opencode/`](../opencode) stow package. `dotfiles-sync --apply` symlinks `opencode/.config/opencode/plugin/notify.ts` to `~/.config/opencode/plugin/notify.ts`.
 
 Subscribes to `session.idle` and `permission.asked` events.
 
 ### Pi Agent (auto — `./dotfiles-sync --apply`)
 
-Lives in [`pi/extensions/agent-attention.ts`](../../pi/extensions/agent-attention.ts). `dotfiles-sync --apply` symlinks it into `~/.pi/agent/extensions/agent-attention.ts`, where pi auto-discovers it.
+Lives in [`pi/.pi/agent/extensions/agent-attention.ts`](../pi/.pi/agent/extensions/agent-attention.ts). `dotfiles-sync --apply` symlinks it into `~/.pi/agent/extensions/agent-attention.ts`, where pi auto-discovers it.
 
 Subscribes to Pi's `agent_end` event so attention only fires once the prompt is actually finished.
 

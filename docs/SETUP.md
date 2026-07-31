@@ -7,7 +7,7 @@ Pick the section that matches your starting state:
 - **Fresh machine** → [Fresh install](#fresh-install).
 - **Existing machine on an older version of this repo** (OMZ-based zsh, manually-cloned TPM, per-agent skill copies, etc.) → [Upgrading from an older setup](#upgrading-from-an-older-setup).
 - **Already current, just want to pull and re-apply changes** → [Update flow](#update-flow).
-- **Hacking on `dotfiles-sync` itself** → [Testing the bootstrap](#testing-the-bootstrap).
+- **Hacking on `dotfiles-sync` itself** → [Testing and debugging the bootstrap](#testing-and-debugging-the-bootstrap).
 
 ## Quick start
 
