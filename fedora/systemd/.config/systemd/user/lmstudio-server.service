@@ -2,10 +2,11 @@
 Description=LM Studio Local Server (Flatpak, headless)
 After=sway-session.target
 PartOf=sway-session.target
+BindsTo=sway-session.target
 
 [Service]
 Type=notify
-NotifyAccess=all
+NotifyAccess=main
 ExecStart=%h/.local/bin/lmstudio-server
 Restart=on-failure
 RestartSec=5s
@@ -13,4 +14,4 @@ TimeoutStartSec=150s
 TimeoutStopSec=15s
 
 [Install]
-WantedBy=default.target
+WantedBy=sway-session.target
