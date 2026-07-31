@@ -69,10 +69,33 @@ Hardware encode also needs `mesa-va-drivers-freeworld` (also in
 stripped, so without it Sunshine falls back to software x264 -- unusable at 4K.
 Verify with `vainfo` showing `VAEntrypointEncSlice`.
 
-Then `config/setup-sunshine.sh` opens the firewall: the rpm ships no firewalld rule and
-the default `public` zone blocks the stream ports, so Moonlight can't reach the
-host until they're opened (TCP 47984/47989/47990/48010, UDP
-47998/47999/48000/48002/48010, plus the `mdns` service for auto-discovery).
+Then `config/setup-sunshine.sh` opens the firewall. The rpm ships no firewalld
+rule, and the default `public` zone blocks the stream ports. The script uses
+explicit host defaults (`public`, `enp9s0`, `192.168.0.0/16`) and rich rules, so
+TCP 47984/47989/47990/48010, UDP 47998/47999/48000/48002/48010, and mDNS are
+accepted only from the wired LAN. It refuses to proceed unless the interface is
+actually assigned to that zone; it never uses firewalld's ambient default zone.
+
+Override all three values together when adapting this to another host or LAN:
+
+```bash
+SUNSHINE_FIREWALL_ZONE=home \
+SUNSHINE_FIREWALL_INTERFACE=enp1s0 \
+SUNSHINE_LAN_CIDR=10.0.0.0/24 \
+  config/setup-sunshine.sh
+```
+
+Use the same overrides for verification and rollback:
+
+```bash
+config/setup-sunshine.sh --verify
+config/setup-sunshine.sh --revert
+```
+
+`--verify` checks both runtime and permanent rules and confirms the interface's
+zone. `--revert` removes only the script's LAN-scoped rich rules. Applying also
+removes the broad port/mDNS openings created by older versions of the script in
+the selected zone.
 
 ## Pairing (one-time, manual)
 
