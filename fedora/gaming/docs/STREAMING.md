@@ -73,8 +73,10 @@ Then `config/setup-sunshine.sh` opens the firewall. The rpm ships no firewalld
 rule, and the default `public` zone blocks the stream ports. The script uses
 explicit host defaults (`public`, `enp9s0`, `192.168.0.0/16`) and rich rules, so
 TCP 47984/47989/47990/48010, UDP 47998/47999/48000/48002/48010, and mDNS are
-accepted only from the wired LAN. It refuses to proceed unless the interface is
-actually assigned to that zone; it never uses firewalld's ambient default zone.
+accepted only from the wired LAN. These rich rules are deliberately IPv4-only,
+matching the configured IPv4 LAN CIDR; IPv6 Moonlight traffic and mDNS remain
+blocked. It refuses to proceed unless the interface is actually assigned to
+that zone; it never uses firewalld's ambient default zone.
 
 Override all three values together when adapting this to another host or LAN:
 
