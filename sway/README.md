@@ -137,8 +137,6 @@ sway exec's `~/.config/sway/scripts/session-start`, which:
    started later see the live Wayland session.
 2. Updates dbus's activation environment with the same variables.
 3. Starts `sway-session.target`.
-4. Reload-or-restarts `sway-kanshi.service` so monitor profile selection always
-   sees the current outputs.
 
 `sway-session.target` declares `Wants=` for the desktop daemons, so each one
 gets started exactly once when the session comes up:

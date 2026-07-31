@@ -16,4 +16,3 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
 fi
 
 systemctl --user start sway-session.target
-systemctl --user reload-or-restart sway-kanshi.service >/dev/null 2>&1 || true
