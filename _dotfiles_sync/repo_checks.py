@@ -181,7 +181,9 @@ def _is_private_endpoint(value: str) -> bool:
         return False
 
     lowered = host.lower()
-    if lowered in {"localhost", "local"}:
+    if lowered == "localhost":
+        return False
+    if lowered == "local":
         return True
     if lowered.endswith((".internal", ".lan", ".local")):
         return True
@@ -190,7 +192,10 @@ def _is_private_endpoint(value: str) -> bool:
         ip = ipaddress.ip_address(lowered)
     except ValueError:
         return False
-    return ip.is_private or ip.is_loopback
+    # Loopback is the same address on every machine, so a service bound to it
+    # is a property of the config, not of this host. Only LAN-range addresses
+    # (192.168.x, 10.x, ...) actually leak where the repo was checked out.
+    return ip.is_private and not ip.is_loopback
 
 
 def check_private_env_mistakes(*, ignore: set[str]) -> bool:
