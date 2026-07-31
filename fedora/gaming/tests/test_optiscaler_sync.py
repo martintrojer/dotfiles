@@ -127,6 +127,8 @@ class OptiscalerSyncTests(unittest.TestCase):
                     "proxy": "version.dll",
                     "files": {},
                     "backups": {},
+                    "backup_hashes": {},
+                    "launch_configs": [],
                 }
             )
         )
@@ -214,6 +216,13 @@ class OptiscalerSyncTests(unittest.TestCase):
         finally:
             transaction.close()
 
+    def test_steam_config_symlinks_are_rejected(self) -> None:
+        outside = self.root / "outside.vdf"
+        outside.write_text("outside")
+        self.config.symlink_to(outside)
+        with self.assertRaisesRegex(ValueError, "cannot be a symlink"):
+            self.sync.localconfigs(self.steam)
+
     def test_fake_extractor_yields_valid_filtered_payload(self) -> None:
         archive = self.root / "archive.7z"
         archive.write_bytes(b"fake archive")
@@ -263,6 +272,15 @@ class OptiscalerSyncTests(unittest.TestCase):
         )
         self.assertIn('"optirun %command% --skip"', self.config.read_text())
         self.assertTrue(self.config.with_suffix(".vdf.optiscaler-sync.bak").is_file())
+        manifest = self.sync.managed_target(app).manifest
+        self.assertEqual(
+            manifest["launch_configs"], ["userdata/1/config/localconfig.vdf"]
+        )
+        later_config = self.steam / "userdata/2/config/localconfig.vdf"
+        later_config.parent.mkdir(parents=True)
+        later_config.write_text(
+            self.config.read_text().replace("optirun %command%", "%command%")
+        )
 
         (app.path / "OptiScaler.ini").write_text(
             "ShortcutKey=user\nFsr4Update=true\nKeep=custom\n"
@@ -272,6 +290,7 @@ class OptiscalerSyncTests(unittest.TestCase):
         release2 = self.sync.Release("v2", "https://example.invalid", "0" * 64)
         self.sync.install_game(managed, self.payload(app.path, b"v2"), release2)
         self.assertEqual((app.path / "dxgi.dll").read_bytes(), b"v2")
+        self.assertNotIn("optirun %command%", later_config.read_text())
         self.assertEqual(
             (app.path / "OptiScaler.ini").read_text(),
             "ShortcutKey=0x24\nFsr4Update=auto\nKeep=custom\n",
@@ -330,6 +349,24 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.assertIn("support.dll", reports[0])
         self.assertEqual((app.path / "dxgi.dll").read_bytes(), b"original")
 
+    def test_corrupt_collision_backup_aborts_uninstall_without_data_loss(self) -> None:
+        app = self.app()
+        (app.path / "dxgi.dll").write_bytes(b"original")
+        release = self.sync.Release("v1", "https://example.invalid", "0" * 64)
+        self.sync.install_game(self.target(app), self.payload(app.path), release)
+        managed = self.sync.managed_target(app)
+        assert managed is not None
+        backup = app.path / self.sync.STATE_DIR / managed.manifest["backups"]["dxgi.dll"]
+        backup.write_bytes(b"corrupt")
+
+        with self.assertRaisesRegex(ValueError, "corrupt backup"):
+            self.sync.uninstall_game(managed, force=False)
+        with self.assertRaisesRegex(ValueError, "corrupt backup"):
+            self.sync.uninstall_game(managed, force=True)
+        self.assertEqual((app.path / "dxgi.dll").read_bytes(), b"v1")
+        self.assertTrue((app.path / self.sync.STATE_DIR).is_dir())
+        self.assertIn('"optirun %command% --skip"', self.config.read_text())
+
     def test_install_failure_rolls_back_game_and_launch_options(self) -> None:
         app = self.app()
         original_config = self.config.read_bytes()
@@ -351,6 +388,54 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.assertFalse((app.path / "OptiScaler.ini").exists())
         self.assertEqual(self.config.read_bytes(), original_config)
         self.assertFalse(self.config.with_suffix(".vdf.optiscaler-sync.bak").exists())
+
+        (app.path / "dxgi.dll").write_bytes(b"original")
+        with (
+            mock.patch.object(self.sync, "update_launch_option", side_effect=OSError("VDF failure")),
+            self.assertRaisesRegex(OSError, "VDF failure"),
+        ):
+            self.sync.install_game(target, self.payload(app.path, b"v2"), release)
+        self.assertEqual((app.path / "dxgi.dll").read_bytes(), b"original")
+        self.assertFalse((app.path / self.sync.STATE_DIR).exists())
+
+    def test_update_failure_restores_manifest_and_backup_metadata(self) -> None:
+        app = self.app()
+        (app.path / "dxgi.dll").write_bytes(b"original")
+        release = self.sync.Release("v1", "https://example.invalid", "0" * 64)
+        self.sync.install_game(self.target(app), self.payload(app.path), release)
+        managed = self.sync.managed_target(app)
+        assert managed is not None
+        manifest_path = app.path / self.sync.STATE_DIR / self.sync.MANIFEST
+        manifest_before = manifest_path.read_bytes()
+        backup_before = (
+            app.path / self.sync.STATE_DIR / managed.manifest["backups"]["dxgi.dll"]
+        ).read_bytes()
+        real_atomic = self.sync.atomic_write
+
+        def fail_manifest(path: Path, data: str) -> None:
+            if path == manifest_path:
+                raise OSError("simulated update manifest failure")
+            real_atomic(path, data)
+
+        with (
+            mock.patch.object(self.sync, "atomic_write", side_effect=fail_manifest),
+            self.assertRaisesRegex(OSError, "update manifest failure"),
+        ):
+            self.sync.install_game(
+                managed,
+                self.payload(app.path, b"v2"),
+                self.sync.Release("v2", "https://example.invalid", "0" * 64),
+            )
+        self.assertEqual(manifest_path.read_bytes(), manifest_before)
+        self.assertEqual(
+            (
+                app.path
+                / self.sync.STATE_DIR
+                / managed.manifest["backups"]["dxgi.dll"]
+            ).read_bytes(),
+            backup_before,
+        )
+        self.assertEqual((app.path / "dxgi.dll").read_bytes(), b"v1")
 
     def test_bulk_continues_after_game_failure(self) -> None:
         first = self.target(self.app("100", "One"))
@@ -387,20 +472,68 @@ class OptiscalerSyncTests(unittest.TestCase):
         app = self.app("100", "One")
         self.app("200", "Two")
         before = self.config.read_text()
-        changed, did_change, found = self.sync.edit_launch(before, app.appid)
+        changed, did_change, found, removed = self.sync.edit_launch(before, app.appid)
         self.assertTrue(did_change)
         self.assertTrue(found)
+        self.assertFalse(removed)
         self.assertIn('"optirun %command% --skip"', changed)
         self.assertEqual(changed.count('"%command% --skip"'), 1)
         self.assertEqual(
             self.sync.desired_launch("env FOO=1 optirun %command% --skip"),
             "env FOO=1 optirun %command% --skip",
         )
-        unchanged, did_change, found = self.sync.edit_launch(before, "999")
+        quoted = before.replace(
+            '"%command% --skip"', '"env FOO=\\"x y\\" %command% --skip"', 1
+        )
+        quoted_changed, did_change, found, removed = self.sync.edit_launch(
+            quoted, app.appid
+        )
+        self.assertTrue(did_change)
+        self.assertTrue(found)
+        self.assertFalse(removed)
+        self.assertIn(
+            '"env FOO=\\"x y\\" optirun %command% --skip"', quoted_changed
+        )
+        unchanged, did_change, found, removed = self.sync.edit_launch(before, "999")
         self.assertEqual(unchanged, before)
         self.assertFalse(did_change)
         self.assertFalse(found)
+        self.assertFalse(removed)
         self.assertNotEqual(text, before)
+
+    def test_ini_patch_updates_duplicate_keys(self) -> None:
+        patched = self.sync.patch_ini(
+            "ShortcutKey=old\nshortcutkey=older\nFsr4Update=true\nFSR4UPDATE=false\n"
+        )
+        self.assertEqual(patched.lower().count("shortcutkey=0x24"), 2)
+        self.assertEqual(patched.lower().count("fsr4update=auto"), 2)
+
+    def test_uninstall_only_removes_launch_options_changed_by_install(self) -> None:
+        app = self.app()
+        second = self.steam / "userdata/2/config/localconfig.vdf"
+        second.parent.mkdir(parents=True)
+        second.write_text(self.config.read_text())
+        release = self.sync.Release("v1", "https://example.invalid", "0" * 64)
+        self.sync.install_game(self.target(app), self.payload(app.path), release)
+        self.assertIn("optirun %command%", second.read_text())
+        self.config.write_text(self.config.read_text().replace("optirun %command%", "%command%"))
+
+        managed = self.sync.managed_target(app)
+        assert managed is not None
+        with self.assertRaisesRegex(ValueError, "externally modified"):
+            self.sync.install_game(
+                managed,
+                self.payload(app.path, b"v2"),
+                self.sync.Release("v2", "https://example.invalid", "0" * 64),
+            )
+        with self.assertRaisesRegex(ValueError, "externally modified"):
+            self.sync.uninstall_game(managed, force=False)
+        self.config.write_text(
+            self.config.read_text().replace("%command% --skip", "optirun %command% --skip")
+        )
+        self.sync.uninstall_game(managed, force=False)
+        self.assertIn('"%command% --skip"', self.config.read_text())
+        self.assertNotIn("optirun %command%", second.read_text())
 
     def test_main_dry_run_is_host_safe_and_apply_refuses_running_steam(self) -> None:
         home = self.root / "home"
@@ -433,6 +566,24 @@ class OptiscalerSyncTests(unittest.TestCase):
         ):
             self.assertEqual(self.sync.main(["--apply"]), 2)
         self.assertIn("quit Steam", stderr.getvalue())
+
+        with (
+            mock.patch.object(
+                self.sync, "load_overrides", side_effect=ValueError("corrupt overrides")
+            ),
+            mock.patch("sys.stderr", new=io.StringIO()) as stderr,
+        ):
+            self.assertEqual(self.sync.main([]), 1)
+        self.assertIn("discovery failed: corrupt overrides", stderr.getvalue())
+        with (
+            mock.patch.object(
+                self.sync,
+                "load_overrides",
+                side_effect=AssertionError("uninstall read overrides"),
+            ),
+            mock.patch.object(self.sync, "steam_apps", return_value={}),
+        ):
+            self.assertEqual(self.sync.main(["uninstall"]), 0)
 
     def test_download_checksum_failure_does_not_publish_data(self) -> None:
         destination = self.root / "download.7z"

@@ -117,13 +117,15 @@ OptiScaler sync:
   skipped unless `data/optiscaler-overrides.json` selects a reviewed target;
   Talos Principle 2 is explicitly skipped pending one.
 - Each install owns `.optiscaler-sync/manifest.json`, backs up pre-existing
-  collisions, preserves a game's existing `OptiScaler.ini`, sets only
-  `ShortcutKey=0x24` and `Fsr4Update=auto`, and ensures the Steam launch option
+  collisions with verified backup digests, preserves a game's existing
+  `OptiScaler.ini`, sets only `ShortcutKey=0x24` and `Fsr4Update=auto`, and ensures
+  the Steam launch option
   contains `optirun %command%` without dropping suffix arguments.
 - `optiscaler-sync uninstall` previews removal for every managed game;
-  `optiscaler-sync uninstall --apply` restores backups and refuses externally
-  modified managed files. Add `--force` only when those files should be
-  replaced or removed. Mutation always refuses to run while Steam is running.
+  `optiscaler-sync uninstall --apply` restores verified backups and refuses
+  externally modified managed files or launch options. Add `--force` only when
+  those files should be replaced or removed. Mutation always refuses to run while
+  Steam is running.
 - A failed game transaction rolls back that game and does not stop the remaining
   games. Run with all games closed so they cannot race INI or DLL updates.
 
