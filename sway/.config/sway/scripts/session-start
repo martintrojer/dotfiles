@@ -16,3 +16,12 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
 fi
 
 systemctl --user start sway-session.target
+
+# Re-apply output profiles. The sway config deliberately declares no `output`
+# lines (kanshi owns them), which means `swaymsg reload` resets every output to
+# its defaults -- scale 1.0 on the 4K panel. Sway runs this script via
+# exec_always, so reloading lands here; ask kanshi to re-assert its profile.
+# Without this a reload silently halves the apparent UI size.
+if command -v kanshictl >/dev/null 2>&1; then
+  kanshictl reload >/dev/null 2>&1 || true
+fi

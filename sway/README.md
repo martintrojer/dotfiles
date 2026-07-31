@@ -137,6 +137,13 @@ sway exec's `~/.config/sway/scripts/session-start`, which:
    started later see the live Wayland session.
 2. Updates dbus's activation environment with the same variables.
 3. Starts `sway-session.target`.
+4. Asks `kanshictl reload` to re-assert output profiles, ignoring failure.
+
+Step 4 exists because sway runs this script via `exec_always`, so it also runs
+on `swaymsg reload` — and since the config declares no `output` lines (kanshi
+owns them), a reload resets every output to scale 1.0. On a cold start kanshi
+isn't listening yet, `kanshictl` fails harmlessly, and kanshi applies its own
+profile when it starts moments later.
 
 `sway-session.target` declares `Wants=` for the desktop daemons, so each one
 gets started exactly once when the session comes up:
@@ -237,6 +244,10 @@ named `Screenshot from YYYY-MM-DD HH-MM-SS.png`. Modes:
 Output configuration is delegated to `kanshi`. Sway's config never touches
 `output` directly. To change a profile, edit `~/.config/kanshi/config` and
 `systemctl --user reload-or-restart sway-kanshi.service`.
+
+Because sway owns no `output` lines, `swaymsg reload` drops the panel back to
+scale 1.0 on its own. `session-start` re-runs `kanshictl reload` to undo that;
+if scaling ever looks wrong after a reload, `kanshictl reload` is the fix.
 
 ## Theme
 
