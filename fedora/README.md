@@ -101,16 +101,26 @@ skipped with `--skip-gaming`; see [`gaming/README.md`](./gaming/README.md).
 
 `systemd/.config/systemd/user/` contains `sway-session.target`,
 `sway-clipman-watcher`, `sway-kanshi`, `sway-mako`, `swaybg`, `swayidle`,
-`sway-waybar`, `toolbox-dev`, and `lmstudio-server` services.
+`sway-waybar`, and `lmstudio-server` services.
 
 Flow: stow → reload → enable units:
 
 ```bash
 ./dotfiles-sync --apply
 systemctl --user daemon-reload
-systemctl --user enable --now toolbox-dev.service
 systemctl --user enable --now lmstudio-server.service
 ```
+
+To retire the deleted Toolbox service on a host that previously stowed it, run:
+
+```bash
+systemctl --user disable --now toolbox-dev.service
+rm -f ~/.config/systemd/user/toolbox-dev.service
+systemctl --user daemon-reload
+```
+
+This removes only the obsolete unit; the `dev` container remains available on
+demand and is not stopped or removed.
 
 To finish removing the retired PostgreSQL Quadlet from a host after syncing
 this repo, run:
@@ -138,7 +148,6 @@ Notes:
   `mako`, `waybar`, `kanshi`, `foot-server` are masked by `dotfiles-sync --apply`
   so D-Bus activation can't start duplicates.
 - Re-run `systemctl --user daemon-reload` after editing `*.service`/`*.container`.
-- `toolbox-dev.service` assumes a toolbox named `dev` already exists.
 - `lmstudio-server.service` runs the LM Studio flatpak in its hidden
   `--run-as-service` mode, then starts and monitors the OpenAI-compatible API
   on `http://localhost:1234/v1`. It reports active only after `/v1/models`
