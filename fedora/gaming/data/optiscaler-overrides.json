@@ -10,5 +10,8 @@
 	"2677660": {
 		"proxy": "dxgi.dll",
 		"target": "."
+	},
+	"835960": {
+		"skip": "The Talos Principle 2: target remains ambiguous"
 	}
 }

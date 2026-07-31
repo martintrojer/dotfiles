@@ -111,11 +111,11 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.assertEqual(reason, "multiple candidate directories")
 
         target, reason = self.sync.detect_target(
-            app, {"100": {"target": "B", "proxy": "winmm.dll"}}
+            app, {"100": {"target": "B", "proxy": "dxgi.dll"}}
         )
         self.assertIsNone(reason)
         self.assertEqual(target.directory, second)
-        self.assertEqual(target.proxy, "winmm.dll")
+        self.assertEqual(target.proxy, "dxgi.dll")
 
         state = first / self.sync.STATE_DIR
         state.mkdir()
@@ -133,7 +133,7 @@ class OptiscalerSyncTests(unittest.TestCase):
             )
         )
         target, reason = self.sync.detect_target(
-            app, {"100": {"target": "B", "proxy": "winmm.dll"}}
+            app, {"100": {"target": "B", "proxy": "dxgi.dll"}}
         )
         self.assertIsNone(reason)
         self.assertEqual(target.directory, first)
@@ -497,11 +497,28 @@ class OptiscalerSyncTests(unittest.TestCase):
         )
         overrides = self.sync.load_overrides()
         self.assertEqual(overrides["2677660"]["target"], ".")
+        self.assertEqual(
+            overrides["835960"]["skip"],
+            "The Talos Principle 2: target remains ambiguous",
+        )
         talos = self.app("835960", "Talos")
         (talos.path / "nvngx_dlss.dll").write_bytes(b"x")
         target, reason = self.sync.detect_target(talos, overrides)
         self.assertIsNone(target)
-        self.assertEqual(reason, "tracked skip")
+        self.assertEqual(
+            reason,
+            "tracked skip: The Talos Principle 2: target remains ambiguous",
+        )
+
+    def test_override_rejects_unsupported_proxy(self) -> None:
+        path = self.root / "overrides.json"
+        path.write_text(json.dumps({"100": {"target": ".", "proxy": "../winmm.dll"}}))
+        with self.assertRaisesRegex(ValueError, "unsupported proxy"):
+            self.sync.load_overrides(path)
+
+        path.write_text(json.dumps({"100": {"target": ".", "proxy": "winmm.dll"}}))
+        with self.assertRaisesRegex(ValueError, "unsupported proxy"):
+            self.sync.load_overrides(path)
 
     def test_vdf_edit_is_scoped_and_reports_missing_app(self) -> None:
         text = self.config.read_text() if self.config.exists() else ""
