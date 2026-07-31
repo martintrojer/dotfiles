@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Run the Flatpak LM Studio app headlessly and supervise its local API."""
+
+import os
+import signal
+import stat
+import subprocess
+import sys
+import time
+import urllib.request
+from pathlib import Path
+
+API_URL = "http://127.0.0.1:1234/v1/models"
+LMS = os.path.expanduser("~/.local/bin/lms")
+APP = [
+    "flatpak",
+    "run",
+    "--command=lmstudio",
+    "--die-with-parent",
+    "ai.lmstudio.lm-studio",
+    "--run-as-service",
+]
+
+
+def wait_for_wayland() -> bool:
+    runtime = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"))
+    for _ in range(30):
+        display = os.environ.get("WAYLAND_DISPLAY")
+        candidates = [runtime / display] if display else sorted(runtime.glob("wayland-*"))
+        for candidate in candidates:
+            if candidate.name.endswith(".lock"):
+                continue
+            try:
+                if stat.S_ISSOCK(candidate.stat().st_mode):
+                    os.environ["WAYLAND_DISPLAY"] = candidate.name
+                    return True
+            except FileNotFoundError:
+                pass
+        time.sleep(1)
+    return False
+
+
+def api_ready() -> bool:
+    try:
+        with urllib.request.urlopen(API_URL, timeout=2) as response:
+            return response.status == 200
+    except OSError:
+        return False
+
+
+def lms(*args: str, timeout: int = 15) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            [LMS, *args],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as error:
+        print(f"lms {' '.join(args)} timed out", file=sys.stderr)
+        return subprocess.CompletedProcess(error.cmd, 124, "", "timed out")
+
+
+def notify(*args: str) -> None:
+    subprocess.run(["systemd-notify", *args], check=False)
+
+
+def wait_for_daemon(app: subprocess.Popen[bytes]) -> bool:
+    for _ in range(30):
+        if app.poll() is not None:
+            return False
+        status = lms("daemon", "status")
+        if " is running " in f" {status.stdout} ":
+            return True
+        time.sleep(1)
+    return False
+
+
+def main() -> int:
+    notify("--status=Waiting for graphical session")
+    if not wait_for_wayland():
+        return 1
+
+    if api_ready():
+        print(f"Refusing to manage an existing API at {API_URL}", file=sys.stderr)
+        return 1
+
+    app = subprocess.Popen(APP)
+
+    def stop(_signum: int, _frame: object) -> None:
+        app.terminate()
+
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+
+    try:
+        notify("--status=Waiting for LM Studio daemon")
+        if not wait_for_daemon(app):
+            return 1
+
+        notify("--status=Starting API on localhost:1234")
+        start = lms("server", "start", "--port", "1234", "--bind", "127.0.0.1", timeout=75)
+        if start.returncode:
+            print(start.stderr or start.stdout, file=sys.stderr)
+            return 1
+
+        for _ in range(30):
+            if app.poll() is not None:
+                return 1
+            if api_ready():
+                notify("--ready", "--status=API ready on localhost:1234")
+                break
+            time.sleep(1)
+        else:
+            return 1
+
+        while app.poll() is None:
+            time.sleep(5)
+            if not api_ready():
+                notify("--status=API health check failed; restarting")
+                return 1
+        return app.returncode or 1
+    finally:
+        if app.poll() is None:
+            app.terminate()
+            try:
+                app.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                app.kill()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

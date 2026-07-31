@@ -45,8 +45,9 @@ lms ps                    # list loaded models
 lms load <model>
 ```
 
-The headless server is normally managed by `lmstudio-server.service` (see
-[../README.md](../README.md)); the wrapper is for ad-hoc use.
+The headless server is normally managed by `lmstudio-server.service` through
+the companion `lmstudio-server` supervisor (see [../README.md](../README.md));
+this wrapper remains useful for ad-hoc CLI commands.
 
 ## Wallpaper helpers
 
