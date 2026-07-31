@@ -1,0 +1,13 @@
+# Run flatpak-update.service daily. Persistent=true catches up after the machine
+# was off at the scheduled time. Randomized delay avoids hammering the CDN at a
+# round hour. See fedora/flatpak/README.md.
+[Unit]
+Description=Daily system flatpak update
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target
