@@ -55,10 +55,10 @@ call `rpm-ostree install`:
 - `mise` is core bootstrap, so the base keeps a small build toolchain
   (`binutils`, `gcc`, `gcc-c++`, `make`). `git`, `git-lfs`, `stow`, `tmux`, `zsh`
   are baseline; comfort CLIs that don't need host-layering live in the tracked
-  mise manifest. Versions are exact so clean hosts converge on the same set and
-  setup reruns never roll tools unexpectedly. Upgrade by changing the tracked
-  manifest after review. `mise outdated --global` shows available updates;
-  `mise ls --global --missing` detects missing declared tools, and
+  mise manifest. The manifest tracks which tools belong on a host while
+  `latest` lets setup install current releases without version-maintenance
+  commits. Use `mise outdated` to review updates and `mise upgrade` to
+  apply them. `mise ls --global --missing` detects missing declared tools, and
   `mise ls --prunable` reveals installed versions no tracked config needs.
 - `setup-mise.sh` bootstraps `mise` only when absent, then installs directly from
   the tracked manifest. It does not activate mise or generate another config;
