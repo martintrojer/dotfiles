@@ -13,6 +13,7 @@ PYTHON_FILES_CMD := { $(PYTHON_PY_FILES_CMD); $(PYTHON_SHEBANG_FILES_CMD); }
 LUA_FILES := $(shell $(RG) -g '*.lua')
 PRETTIER_FILES := $(shell $(RG) -g '*.ts' -g '*.json' -g '*.jsonc' -g '*.css')
 TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
+STEAM_GAMES_TEST := fedora/gaming/tests/test_fix_steam_games.py
 
 .PHONY: \
 	help \
@@ -27,6 +28,7 @@ TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
 	check-ts \
 	format-ts \
 	check-tmux-tests \
+	check-gaming-tests \
 	build-guides \
 	serve-guides \
 	check-guides \
@@ -37,7 +39,7 @@ TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
 help:
 	printf '%s\n' \
 	  'Targets:' \
-	  '  make check-all         # python + lua + prettier + tmux script tests' \
+	  '  make check-all         # python + lua + prettier + focused behavior tests' \
 	  '  make format-all        # python + lua + prettier formatters' \
 	  '  make check-python      # ruff + ty + py_compile on all Python files/scripts' \
 	  '  make format-python     # ruff format + safe autofixes' \
@@ -46,6 +48,7 @@ help:
 	  '  make check-prettier    # prettier --check on ts/json/jsonc/css' \
 	  '  make format-prettier   # prettier --write on ts/json/jsonc/css' \
 	  '  make check-tmux-tests  # isolated tmux smoke tests' \
+	  '  make check-gaming-tests # isolated gaming helper behavior tests' \
 	  '  make theme             # render docs/palette.toml into every THEME BEGIN..END region' \
 	  '  make check-theme       # check theme regions are in sync with docs/palette.toml' \
 	  '  make check-ts          # alias for check-prettier' \
@@ -55,7 +58,7 @@ help:
 	  '  make check-guides      # validate guide sources without writing output' \
 	  '  make clean-guides      # rm -rf guides/build'
 
-check-all: check-python check-lua check-prettier check-tmux-tests check-guides check-theme
+check-all: check-python check-lua check-prettier check-tmux-tests check-gaming-tests check-guides check-theme
 
 format-all: format-python format-lua format-prettier
 
@@ -87,6 +90,9 @@ format-ts: format-prettier
 
 check-tmux-tests:
 	$(TMUX_STATUS_TEST)
+
+check-gaming-tests:
+	python3 $(STEAM_GAMES_TEST)
 
 build-guides:
 	python3 guides/build.py
