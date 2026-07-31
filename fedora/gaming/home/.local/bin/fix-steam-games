@@ -623,6 +623,7 @@ def check_fsr4(args: argparse.Namespace) -> int:
 
     changed = 0
     issues = 0
+    incompatible = 0
     for ini in inis:
         game_dir = ini.parent
         label = label_ini(ini, apps)
@@ -630,6 +631,15 @@ def check_fsr4(args: argparse.Namespace) -> int:
         if missing:
             issues += 1
             print(f"  skip     {label}: OptiScaler incomplete ({', '.join(missing)})")
+            continue
+
+        absent_keys = [tkey for tkey in targets if not ini_value(ini, tkey)[0]]
+        if absent_keys:
+            incompatible += 1
+            print(
+                f"  incompatible {label}: missing INI keys "
+                f"({', '.join(absent_keys)}); update OptiScaler"
+            )
             continue
 
         dest = game_dir / FSR4_BACKEND
@@ -663,10 +673,8 @@ def check_fsr4(args: argparse.Namespace) -> int:
                 )
 
         for tkey, tval in targets.items():
-            present, current = ini_value(ini, tkey)
-            if not present:
-                actions.append(f"{tkey} absent (OptiScaler too old)")
-            elif current != tval:
+            _, current = ini_value(ini, tkey)
+            if current != tval:
                 actions.append(f"{tkey} {current} -> {tval}")
 
         if not actions:
@@ -696,13 +704,20 @@ def check_fsr4(args: argparse.Namespace) -> int:
         else:
             print(f"  ok       {label}: {version}")
 
-    if not apply and changed:
-        print(f"FSR4: {changed} game(s) need changes.")
-        return 1
-    if apply:
-        ok = len(inis) - issues - changed
-        print(f"FSR4: {changed} updated, {ok} already ok, {issues} skipped.")
-    return 0
+    if not apply:
+        if changed:
+            print(f"FSR4: {changed} game(s) need changes.")
+        if incompatible:
+            print(
+                f"FSR4: {incompatible} incompatible game(s) need an OptiScaler update."
+            )
+        return int(bool(changed or incompatible))
+    ok = len(inis) - issues - incompatible - changed
+    print(
+        f"FSR4: {changed} updated, {ok} already ok, {issues} skipped, "
+        f"{incompatible} incompatible."
+    )
+    return int(bool(incompatible))
 
 
 def check_shortcuts(args: argparse.Namespace) -> int:
