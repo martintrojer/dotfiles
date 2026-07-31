@@ -13,8 +13,7 @@ PYTHON_FILES_CMD := { $(PYTHON_PY_FILES_CMD); $(PYTHON_SHEBANG_FILES_CMD); }
 LUA_FILES := $(shell $(RG) -g '*.lua')
 PRETTIER_FILES := $(shell $(RG) -g '*.ts' -g '*.json' -g '*.jsonc' -g '*.css')
 TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
-FEDORA_TESTS := fedora/tests
-GAMING_TESTS := fedora/gaming/tests
+FEDORA_TEST_DIRS := fedora/tests fedora/gaming/tests
 
 .PHONY: \
 	help \
@@ -30,7 +29,6 @@ GAMING_TESTS := fedora/gaming/tests
 	format-ts \
 	check-tmux-tests \
 	check-fedora-tests \
-	check-gaming-tests \
 	build-guides \
 	serve-guides \
 	check-guides \
@@ -43,15 +41,14 @@ help:
 	  'Targets:' \
 	  '  make check-all         # python + lua + prettier + focused behavior tests' \
 	  '  make format-all        # python + lua + prettier formatters' \
-	  '  make check-python      # ruff + ty + py_compile on all Python files/scripts' \
+	  '  make check-python      # ruff check/format + ty + py_compile on all Python files/scripts' \
 	  '  make format-python     # ruff format + safe autofixes' \
 	  '  make check-lua         # stylua --check + luacheck' \
 	  '  make format-lua        # stylua' \
 	  '  make check-prettier    # prettier --check on ts/json/jsonc/css' \
 	  '  make format-prettier   # prettier --write on ts/json/jsonc/css' \
 	  '  make check-tmux-tests  # isolated tmux smoke tests' \
-	  '  make check-fedora-tests # isolated Fedora helper behavior tests' \
-	  '  make check-gaming-tests # isolated gaming helper behavior tests' \
+	  '  make check-fedora-tests # isolated Fedora and gaming helper behavior tests' \
 	  '  make theme             # render docs/palette.toml into every THEME BEGIN..END region' \
 	  '  make check-theme       # check theme regions are in sync with docs/palette.toml' \
 	  '  make check-ts          # alias for check-prettier' \
@@ -61,12 +58,13 @@ help:
 	  '  make check-guides      # validate guide sources without writing output' \
 	  '  make clean-guides      # rm -rf guides/build'
 
-check-all: check-python check-lua check-prettier check-tmux-tests check-fedora-tests check-gaming-tests check-guides check-theme
+check-all: check-python check-lua check-prettier check-tmux-tests check-fedora-tests check-guides check-theme
 
 format-all: format-python format-lua format-prettier
 
 check-python:
 	$(PYTHON_FILES_CMD) | xargs -0 ruff check --config $(RUFF_CONFIG)
+	$(PYTHON_FILES_CMD) | xargs -0 ruff format --check --config $(RUFF_CONFIG)
 	$(PYTHON_FILES_CMD) | xargs -0 ty check --config-file $(TY_CONFIG)
 	$(PYTHON_FILES_CMD) | xargs -0 python3 -m py_compile
 
@@ -94,11 +92,10 @@ format-ts: format-prettier
 check-tmux-tests:
 	$(TMUX_STATUS_TEST)
 
+# Relies on .SHELLFLAGS -e above: without it the loop would report only the
+# last directory's status and a failure in an earlier suite would pass silently.
 check-fedora-tests:
-	python3 -m unittest discover -s $(FEDORA_TESTS) -p 'test_*.py'
-
-check-gaming-tests:
-	python3 -m unittest discover -s $(GAMING_TESTS) -p 'test_*.py'
+	for dir in $(FEDORA_TEST_DIRS); do python3 -m unittest discover -s "$$dir" -p 'test_*.py'; done
 
 build-guides:
 	python3 guides/build.py
