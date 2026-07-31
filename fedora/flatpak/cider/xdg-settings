@@ -1,10 +1,18 @@
 #!/bin/sh
-# Proxy xdg-settings to the host.
-#
-# Cider (sh.cider.Cider) shells out to `xdg-settings` to register itself as the
-# default handler for music/itms URL schemes. The flatpak runtime does not ship
-# xdg-settings, so the spawn fails and Cider's write to its stdin throws
-# `write EPIPE`, surfacing as a JavaScript error dialog on launch.
-#
-# This shim (placed on PATH inside the sandbox) forwards to the host copy.
-exec flatpak-spawn --host xdg-settings "$@"
+# Compatibility for Cider releases that call Electron's old xdg-settings path.
+# The host handlers are configured by setup-cider.sh; do not mutate the sandbox
+# or proxy arbitrary commands to the host.
+
+case ${1-}:${2-}:${3-}:${4-}:$# in
+  set:default-url-scheme-handler:cider:sh.cider.Cider.desktop:4 | \
+    set:default-url-scheme-handler:itms:sh.cider.Cider.desktop:4 | \
+    set:default-url-scheme-handler:itmss:sh.cider.Cider.desktop:4 | \
+    set:default-url-scheme-handler:music:sh.cider.Cider.desktop:4 | \
+    set:default-url-scheme-handler:itunes:sh.cider.Cider.desktop:4)
+    exit 0
+    ;;
+  *)
+    echo "xdg-settings: unsupported Cider sandbox request" >&2
+    exit 1
+    ;;
+esac
