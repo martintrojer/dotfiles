@@ -899,29 +899,31 @@ def main(argv: list[str] | None = None) -> int:
         print(f"dry run: {len(targets)} managed/eligible game(s); use --apply")
         return int(discovery_failed)
     if args.command == "uninstall":
-        return int(
-            discovery_failed
-            or run_bulk(targets, lambda target: uninstall_game(target, args.force))
+        bulk_failed = run_bulk(
+            targets, lambda target: uninstall_game(target, args.force)
         )
+        return int(discovery_failed or bulk_failed)
     if not targets:
         return int(discovery_failed)
-    release = fetch_release()
-    with tempfile.TemporaryDirectory(prefix="optiscaler-sync-release-") as raw:
-        temp = Path(raw)
-        archive = temp / "OptiScaler.7z"
-        extracted = temp / "extracted"
-        extracted.mkdir()
-        download_release(release, archive)
-        root = extract_archive(archive, extracted)
-        return int(
-            discovery_failed
-            or run_bulk(
+    try:
+        release = fetch_release()
+        with tempfile.TemporaryDirectory(prefix="optiscaler-sync-release-") as raw:
+            temp = Path(raw)
+            archive = temp / "OptiScaler.7z"
+            extracted = temp / "extracted"
+            extracted.mkdir()
+            download_release(release, archive)
+            root = extract_archive(archive, extracted)
+            bulk_failed = run_bulk(
                 targets,
                 lambda target: install_game(
                     target, payload_files(root, target.proxy), release
                 ),
             )
-        )
+    except (OSError, ValueError) as error:
+        print(f"release failed: {error}", file=sys.stderr)
+        return 1
+    return int(discovery_failed or bulk_failed)
 
 
 if __name__ == "__main__":
