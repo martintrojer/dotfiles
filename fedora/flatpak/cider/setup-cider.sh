@@ -1,14 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-# Configure Cider's host URL handlers once and install a narrow compatibility
-# shim for releases that call xdg-settings at every launch. See README.md.
-# Idempotent; safe to re-run as a normal user.
+# Configure Cider's host URL handlers and tighten its session bus access.
+# Idempotent; safe to re-run as a normal user. See README.md.
 
 app=sh.cider.Cider
 desktop=sh.cider.Cider.desktop
 shim_dir="$HOME/.local/share/cider-shims"
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 protocols=(cider itms itmss music itunes)
 
 if ! flatpak info "$app" >/dev/null 2>&1; then
@@ -27,16 +25,24 @@ for protocol in "${protocols[@]}"; do
   fi
 done
 
-install -d "$shim_dir"
-install -m 0755 "$script_dir/xdg-settings" "$shim_dir/xdg-settings"
-
+# Also clear the overrides left by the old xdg-settings shim.
+#
+# PATH is reset with --env, not --unset-env: `--unset-env=PATH` does not hand
+# the runtime default back, it removes the variable, and the app then falls
+# back to a host-style PATH with no /app/bin at all (measured: unset yields
+# /usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin:. while an
+# un-overridden app gets /app/bin:/usr/bin). Cider's own binaries live in
+# /app/bin, so restore the stock value explicitly.
 flatpak override --user \
   --nosocket=session-bus \
-  --filesystem="$shim_dir:ro" \
+  --nofilesystem="$shim_dir" \
   --no-talk-name=org.freedesktop.Flatpak \
-  --env=PATH="$shim_dir:/app/bin:/usr/bin" \
+  --env=PATH=/app/bin:/usr/bin \
   "$app"
 
-echo "Configured Cider URL handlers and installed the compatibility shim."
+rm -f "$shim_dir/xdg-settings"
+rmdir "$shim_dir" 2>/dev/null || true
+
+echo "Configured Cider URL handlers and sandbox hardening."
 echo "Current overrides:"
 flatpak override --user --show "$app"
