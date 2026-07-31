@@ -1,48 +1,21 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install mise if not already installed
-if ! command -v mise &> /dev/null; then
-  curl https://mise.run | sh
-  # Add mise to PATH for current session
-  export PATH="$HOME/.local/bin:$PATH"
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+manifest="$script_dir/mise/.config/mise/config.toml"
+mise="$HOME/.local/bin/mise"
+
+if ! command -v mise >/dev/null && [[ ! -x "$mise" ]]; then
+  curl -fsSL https://mise.run | sh
 fi
 
-eval "$(mise activate bash)"
+if command -v mise >/dev/null; then
+  mise=$(command -v mise)
+fi
 
-# Install tools via mise
-mise use --global \
-  bat@latest \
-  btop@latest \
-  eza@latest \
-  fd@latest \
-  fastfetch@latest \
-  fzf@latest \
-  gdu@latest \
-  gh@latest \
-  github:LuaLS/lua-language-server@latest \
-  github:pythops/bluetui@latest \
-  github:rgwood/systemctl-tui@latest \
-  github:tekumara/typos-lsp@latest \
-  github:zk-org/zk@latest \
-  glow@latest \
-  go@latest \
-  jj@latest \
-  just@latest \
-  lazygit@latest \
-  marp-cli@latest \
-  neovim@latest \
-  node@24 \
-  prettier@latest \
-  ripgrep@latest \
-  rclone@latest \
-  rust@latest \
-  rust-analyzer@latest \
-  shellcheck@latest \
-  stylua@latest \
-  tokei@latest \
-  tree-sitter@latest \
-  uv@latest \
-  vale@latest \
-  yazi@latest \
-  zoxide@latest
+# Use the tracked global config directly. Shell activation already lives in
+# zsh/.zsh/tools.zsh, and installing does not require it.
+(
+  cd /tmp
+  MISE_GLOBAL_CONFIG_FILE="$manifest" "$mise" install --yes
+)

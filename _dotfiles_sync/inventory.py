@@ -60,6 +60,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
         (
             "bin",
             "gtk-3.0",
+            "mise",
             "systemd",
         ),
     ),
