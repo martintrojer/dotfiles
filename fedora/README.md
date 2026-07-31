@@ -122,7 +122,8 @@ Notes:
   so D-Bus activation can't start duplicates.
 - Re-run `systemctl --user daemon-reload` after editing `*.service`/`*.container`.
 - `toolbox-dev.service` assumes a toolbox named `dev` already exists.
-- `lmstudio-server.service` runs LM Studio's headless server (`lms server
-  start`) via the `lms` wrapper, which shells into the LM Studio flatpak
-  (`ai.lmstudio.lm-studio`). The OpenAI-compatible API is served on
-  `http://localhost:1234/v1`.
+- `lmstudio-server.service` runs the LM Studio flatpak in its hidden
+  `--run-as-service` mode, then starts and monitors the OpenAI-compatible API
+  on `http://localhost:1234/v1`. It reports active only after `/v1/models`
+  responds and restarts if either the flatpak or API dies. The unit belongs to
+  the graphical login session; it does not use lingering or run before login.
