@@ -105,7 +105,8 @@ Bump the version string in `_dotfiles_sync/pins.py`'s `ZSH_PLUGINS` constant, th
 - Logs `CLONING` / `FETCHING` / `PINNED` for visible operations; silent if everything's already correct
 - `./dotfiles-sync --check` reports `MISSING`, `UNKNOWN-REF`, or `DRIFT` issues
 
-Same model as `nvim/lua/plugins.lua` + `nvim-pack-lock.json`.
+Same model as Neovim's `vim.pack` setup in
+`nvim/.config/nvim/lua/plugins.lua`: declared plugin specs plus a lockfile.
 
 ## Boundary
 

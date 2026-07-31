@@ -1,6 +1,6 @@
 # Gaming Layer Decisions
 
-Decisions specific to the Fedora **gaming layer** ([`README.md`](./README.md)) —
+Decisions specific to the Fedora **gaming layer** ([`README.md`](../README.md)) —
 why it breaks the baseline's COPR-free/minimal rules, and the streaming stack.
 The *partitioning* decision (why this lives in its own quarantined scope) is in
 the [root DECISIONS](../../../docs/DECISIONS.md#quarantine-the-fedora-gaming-layer-into-fedoragaming-as-an-opt-out-scope-accepted-2026-07-12).

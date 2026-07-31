@@ -174,7 +174,7 @@ shutting down the daemons before the compositor itself terminates.
 
 `~/.config/sway/scripts/lock-screen` is a small wrapper around
 `swaylock`. Image work — blur and cache management — lives in the
-[`wallpaper`](../../fedora/bin/.local/bin/wallpaper) helper. The
+[`wallpaper`](../fedora/bin/.local/bin/wallpaper) helper. The
 lock-screen script just:
 
 1. Calls `wallpaper status`, which returns JSON like

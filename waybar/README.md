@@ -1,7 +1,7 @@
 # Waybar
 
 Calm, exception-only status bar for Sway. The visual language follows
-[`docs/LAYOUT.md`](../../docs/LAYOUT.md): blocks are affordances, not decoration.
+[`docs/LAYOUT.md`](../docs/LAYOUT.md): blocks are affordances, not decoration.
 
 ## Shape
 

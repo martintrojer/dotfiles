@@ -30,6 +30,16 @@ Set `TBX_DEFAULT_TOOLBOX` to change the default. Pass `--prefer-host` to `tbx`
 when you want wrapper-like behavior that uses a host binary if one exists before
 falling back to the toolbox.
 
+`cava` is the one shipped wrapper of that shape: it runs the audio visualiser
+from the `dev` toolbox unless the host has its own binary.
+
+## nvdiff
+
+`nvdiff <left> <right>` opens Neovim's `:DiffTool` on a pair of paths and
+reattaches to `/dev/tty`, so it works as a VCS difftool rather than only as an
+interactive command. It backs the `gvd` and `jvd` aliases; see
+[`zsh/README.md`](../../zsh/README.md).
+
 ## lms
 
 `lms` is the LM Studio CLI. The bundled binary only runs inside the LM Studio
