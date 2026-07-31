@@ -3,6 +3,7 @@
 
 import os
 import signal
+import socket
 import stat
 import subprocess
 import sys
@@ -64,8 +65,15 @@ def lms(*args: str, timeout: int = 15) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(error.cmd, 124, "", "timed out")
 
 
-def notify(*args: str) -> None:
-    subprocess.run(["systemd-notify", *args], check=False)
+def notify(status: str, *, ready: bool = False) -> None:
+    address = os.environ.get("NOTIFY_SOCKET")
+    if not address:
+        return
+    if address.startswith("@"):
+        address = "\0" + address[1:]
+    message = f"STATUS={status}" + ("\nREADY=1" if ready else "")
+    with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as client:
+        client.sendto(message.encode(), address)
 
 
 def wait_for_daemon(app: subprocess.Popen[bytes]) -> bool:
@@ -80,7 +88,7 @@ def wait_for_daemon(app: subprocess.Popen[bytes]) -> bool:
 
 
 def main() -> int:
-    notify("--status=Waiting for graphical session")
+    notify("Waiting for graphical session")
     if not wait_for_wayland():
         return 1
 
@@ -97,11 +105,11 @@ def main() -> int:
     signal.signal(signal.SIGINT, stop)
 
     try:
-        notify("--status=Waiting for LM Studio daemon")
+        notify("Waiting for LM Studio daemon")
         if not wait_for_daemon(app):
             return 1
 
-        notify("--status=Starting API on localhost:1234")
+        notify("Starting API on localhost:1234")
         start = lms(
             "server", "start", "--port", "1234", "--bind", "127.0.0.1", timeout=75
         )
@@ -113,16 +121,21 @@ def main() -> int:
             if app.poll() is not None:
                 return 1
             if api_ready():
-                notify("--ready", "--status=API ready on localhost:1234")
+                notify("API ready on localhost:1234", ready=True)
                 break
             time.sleep(1)
         else:
             return 1
 
+        failures = 0
         while app.poll() is None:
             time.sleep(5)
-            if not api_ready():
-                notify("--status=API health check failed; restarting")
+            if api_ready():
+                failures = 0
+                continue
+            failures += 1
+            if failures >= 3:
+                notify("API health check failed three times; restarting")
                 return 1
         return app.returncode or 1
     finally:
