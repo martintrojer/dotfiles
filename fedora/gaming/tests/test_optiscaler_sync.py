@@ -456,6 +456,40 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.assertEqual(visited, ["100", "200"])
         self.assertEqual((second.directory / "done").read_text(), "yes")
 
+    def test_main_installs_healthy_game_after_detection_failure(self) -> None:
+        broken = self.app("100", "Broken")
+        healthy = self.app("200", "Healthy")
+        release = self.sync.Release("v1", "https://example.invalid", "0" * 64)
+
+        def detect(app: Any, _overrides: object) -> tuple[Any, str | None]:
+            if app is broken:
+                raise ValueError("corrupt manifest")
+            return self.target(app), None
+
+        def install(target: Any, _payload: object, _release: object) -> list[str]:
+            (target.directory / "installed").write_text("yes")
+            return []
+
+        with (
+            mock.patch.object(self.sync, "steam_running", return_value=False),
+            mock.patch.object(self.sync, "steam_roots", return_value=[]),
+            mock.patch.object(
+                self.sync,
+                "steam_apps",
+                return_value={"100": broken, "200": healthy},
+            ),
+            mock.patch.object(self.sync, "load_overrides", return_value={}),
+            mock.patch.object(self.sync, "detect_target", side_effect=detect),
+            mock.patch.object(self.sync, "fetch_release", return_value=release),
+            mock.patch.object(self.sync, "download_release"),
+            mock.patch.object(self.sync, "extract_archive", return_value=self.root),
+            mock.patch.object(self.sync, "payload_files", return_value={}),
+            mock.patch.object(self.sync, "install_game", side_effect=install),
+            mock.patch("sys.stderr", new=io.StringIO()),
+        ):
+            self.assertEqual(self.sync.main(["--apply"]), 1)
+        self.assertEqual((healthy.path / "installed").read_text(), "yes")
+
     def test_override_file_path_and_talos_skip_are_stable(self) -> None:
         self.assertEqual(
             self.sync.OVERRIDES_FILE,
