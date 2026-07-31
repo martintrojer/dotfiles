@@ -99,6 +99,12 @@ zone. `--revert` removes only the script's LAN-scoped rich rules. Applying also
 removes the broad port/mDNS openings created by older versions of the script in
 the selected zone.
 
+All three modes need sudo and check for it up front. `firewall-cmd` exits
+nonzero both for an absent rule and for a failed authentication, so without
+that check a `--verify` run with no cached credentials would report a perfectly
+configured host as having no rules at all. Run it from an interactive shell, or
+pre-authenticate with `sudo -v` when scripting it.
+
 ## Pairing (one-time, manual)
 
 Sunshine's config + pairing happens through its **web UI on TCP 47990**
