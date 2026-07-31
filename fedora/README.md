@@ -17,8 +17,8 @@ Scripts split into two buckets by what they do:
 - **`os/`** — package layering (`rpm-ostree`/`dnf`). Re-run these on a cadence:
   after a major-version rebase or when rebuilding the system clean. They need a
   reboot to take effect.
-- `setup-mise.sh` (top level) — userland tool install via `mise`; no root, no
-  reboot, no packages layered.
+- `mise/.config/mise/config.toml` — tracked global manifest for Fedora userland
+  tools; `setup-mise.sh` installs it without rewriting it.
 
 Order for a fresh install:
 
@@ -54,12 +54,28 @@ call `rpm-ostree install`:
   [`docs/DECISIONS.md`](../docs/DECISIONS.md) for the partitioning rationale.
 - `mise` is core bootstrap, so the base keeps a small build toolchain
   (`binutils`, `gcc`, `gcc-c++`, `make`). `git`, `git-lfs`, `stow`, `tmux`, `zsh`
-  are baseline; comfort CLIs that don't need host-layering live in
-  `setup-mise.sh`.
+  are baseline; comfort CLIs that don't need host-layering live in the tracked
+  mise manifest. Versions are exact so clean hosts converge on the same set and
+  setup reruns never roll tools unexpectedly. Upgrade by changing the tracked
+  manifest after review. `mise outdated --global` shows available updates;
+  `mise ls --global --missing` detects missing declared tools, and
+  `mise ls --prunable` reveals installed versions no tracked config needs.
+- `setup-mise.sh` bootstraps `mise` only when absent, then installs directly from
+  the tracked manifest. It does not activate mise or generate another config;
+  shell activation remains solely in `zsh/.zsh/tools.zsh`. For a clean host,
+  run `./dotfiles-sync --apply` before the script so the manifest is also stowed
+  at `~/.config/mise/config.toml`. Repeated runs are safe. The script does not
+  remove unrelated installed versions; inspect `mise ls --prunable` and run
+  `mise prune --tools` explicitly when deletion is wanted.
+- To verify the optional mise bootstrap before executing it, follow the upstream
+  [GPG instructions](https://mise.jdx.dev/installing-mise.html) and run the
+  verified installer, then rerun `setup-mise.sh`.
 - The tmux/zsh session flow uses local scripts + `fzf`, `zoxide`, `fd`, `eza`
   rather than a session-manager binary.
 - Wallpapers: `wallpaper set <url-or-file>` (stores under
-  `~/.local/share/wallpapers/`, restarts `swaybg.service`).
+  `~/.local/share/wallpapers/`, restarts `swaybg.service`). The manifest includes
+  ImageMagick for wallpaper renders and Lua plus luacheck for `nvdiff` and repo
+  checks.
 
 ## GTK Theme
 
@@ -70,11 +86,12 @@ per machine if GTK4 apps disagree with GTK3; it's per-user state, not stowed.
 
 ## Stow Packages
 
-Baseline Fedora stow packages: `bin`, `gtk-3.0`, `systemd`. From the repo root,
-`./dotfiles-sync --apply` handles the Fedora-only logic. Manual equivalent:
+Baseline Fedora stow packages: `bin`, `gtk-3.0`, `mise`, `systemd`. From the
+repo root, `./dotfiles-sync --apply` handles the Fedora-only logic. Manual
+equivalent:
 
 ```bash
-stow -d fedora -t ~ bin gtk-3.0 systemd
+stow -d fedora -t ~ bin gtk-3.0 mise systemd
 ```
 
 The gaming layer adds one more package (`gaming/home`), stowed by default and
