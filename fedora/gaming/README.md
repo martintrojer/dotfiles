@@ -47,7 +47,8 @@ Order for a fresh install (after the baseline `os/` + `setup-mise.sh`):
 Other `config/` installers, run as needed: `setup-power-key.sh` (power button
 suspends), `setup-steam-pause.sh` (pause games across suspend),
 `setup-wake-usb.sh` (only the power button wakes the tower), `setup-sunshine.sh`
-(open Sunshine firewall ports), `setup-bt-firmware.sh` (fix Xbox controller BT
+(open Sunshine ports to the configured wired LAN only), `setup-bt-firmware.sh`
+(fix Xbox controller BT
 drops — see "Bluetooth Controller" below).
 
 ## Package List
