@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# shellcheck disable=SC2034  # consumed by the setup-*.sh script that sources this.
 base_packages=(
   # Provides linker and binary utilities for native builds.
   binutils

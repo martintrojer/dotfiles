@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck disable=SC1007  # `CDPATH= cd` is the intended prefix guard, not an assignment.
 script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 exec "$script_dir/tbx" --prefer-host -c dev cava "$@"

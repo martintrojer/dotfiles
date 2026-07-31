@@ -26,6 +26,7 @@
 # either one, add it back here together with --allow-inactive in
 # setup-steam.sh. Check with: rpm-ostree db list "$(rpm-ostree status --json |
 # jq -r '.deployments[]|select(.booted)."base-checksum"')" | grep -E '^ (gamemode|7zip)-'
+# shellcheck disable=SC2034  # consumed by the setup-*.sh script that sources this.
 steam_packages=(
   # Steam client and controller/device udev rules.
   steam
