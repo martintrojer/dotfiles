@@ -74,8 +74,8 @@ call `rpm-ostree install`:
   rather than a session-manager binary.
 - Wallpapers: `wallpaper set <url-or-file>` (stores under
   `~/.local/share/wallpapers/`, restarts `swaybg.service`). The manifest includes
-  ImageMagick for wallpaper renders and Lua plus luacheck for `nvdiff` and repo
-  checks.
+  ImageMagick for wallpaper renders and Lua for `nvdiff` and repo checks;
+  `luacheck` arrives as a luarock under that Lua install, not as its own tool.
 
 ## GTK Theme
 
