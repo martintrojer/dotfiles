@@ -651,7 +651,7 @@ class OptiscalerSyncTests(unittest.TestCase):
             self.sync.download_release(
                 release, destination, lambda *_args, **_kwargs: Response(b"wrong")
             )
-        self.assertEqual(destination.read_bytes(), b"wrong")
+        self.assertFalse(destination.exists())
 
 
 if __name__ == "__main__":

@@ -352,6 +352,7 @@ def download_release(
     with opener(request, timeout=120) as response, destination.open("wb") as stream:
         shutil.copyfileobj(response, stream)
     if sha256(destination) != release.digest:
+        destination.unlink()
         raise ValueError("download does not match GitHub SHA-256 digest")
 
 
