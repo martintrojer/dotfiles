@@ -44,7 +44,7 @@ firewall() {
 
 check_interface_zone() {
   local actual_zone
-  actual_zone=$(firewall --get-zone-of-interface="$interface")
+  actual_zone=$(firewall --get-zone-of-interface="$interface" || true)
   if [[ "$actual_zone" != "$zone" ]]; then
     echo "error: $interface is in firewalld zone '${actual_zone:-none}', expected '$zone'." >&2
     echo "Set SUNSHINE_FIREWALL_ZONE to its trusted LAN zone, or assign the connection explicitly." >&2

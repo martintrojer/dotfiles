@@ -34,6 +34,8 @@ def value(prefix):
     return next(arg.removeprefix(prefix) for arg in args if arg.startswith(prefix))
 
 if any(arg.startswith("--get-zone-of-interface=") for arg in args):
+    if os.environ.get("FAKE_FIREWALL_ZONE_QUERY_FAIL"):
+        raise SystemExit(1)
     print(os.environ.get("FAKE_FIREWALL_ZONE", "home"))
     raise SystemExit
 if "--reload" in args:
@@ -132,6 +134,20 @@ class SetupSunshineTests(unittest.TestCase):
                 text=True,
             )
             self.assertNotEqual(wrong_zone.returncode, 0)
+            self.assertEqual((state / "permanent").read_text(), "")
+
+            unassigned_zone = subprocess.run(
+                [str(SCRIPT)],
+                env={**env, "FAKE_FIREWALL_ZONE_QUERY_FAIL": "1"},
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(unassigned_zone.returncode, 0)
+            self.assertIn(
+                "eth-test is in firewalld zone 'none', expected 'home'.",
+                unassigned_zone.stderr,
+            )
             self.assertEqual((state / "permanent").read_text(), "")
 
 
