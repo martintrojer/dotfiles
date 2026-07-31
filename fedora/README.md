@@ -1,7 +1,7 @@
 # Fedora Setup
 
-Fedora-specific bootstrap scripts plus `containers/`, `gtk-3.0/`, and `systemd/`
-stow packages. Targets **Fedora Sway Atomic (Sericea)** — the rpm-ostree Sway
+Fedora-specific bootstrap scripts plus `bin/`, `gtk-3.0/`, and `systemd/` stow
+packages. Targets **Fedora Sway Atomic (Sericea)** — the rpm-ostree Sway
 spin. Other Fedora variants are not supported.
 
 The **gaming layer lives in its own quarantined namespace**,
@@ -70,40 +70,51 @@ per machine if GTK4 apps disagree with GTK3; it's per-user state, not stowed.
 
 ## Stow Packages
 
-Baseline Fedora stow packages: `bin`, `containers`, `gtk-3.0`, `systemd`. From
-the repo root, `./dotfiles-sync --apply` handles the Fedora-only logic. Manual
-equivalent:
+Baseline Fedora stow packages: `bin`, `gtk-3.0`, `systemd`. From the repo root,
+`./dotfiles-sync --apply` handles the Fedora-only logic. Manual equivalent:
 
 ```bash
-stow -d fedora -t ~ bin containers gtk-3.0 systemd
+stow -d fedora -t ~ bin gtk-3.0 systemd
 ```
 
 The gaming layer adds one more package (`gaming/home`), stowed by default and
 skipped with `--skip-gaming`; see [`gaming/README.md`](./gaming/README.md).
 
-## Containers And User Services
+## User Services
 
-User-scoped Quadlet/systemd assets:
-
-- `containers/.config/containers/systemd/postgres.container`
-- `systemd/.config/systemd/user/` — `sway-session.target`,
-  `sway-clipman-watcher`, `sway-kanshi`, `sway-mako`, `swaybg`, `swayidle`,
-  `sway-waybar`, `toolbox-dev`, `lmstudio-server` services.
+`systemd/.config/systemd/user/` contains `sway-session.target`,
+`sway-clipman-watcher`, `sway-kanshi`, `sway-mako`, `swaybg`, `swayidle`,
+`sway-waybar`, `toolbox-dev`, and `lmstudio-server` services.
 
 Flow: stow → reload → enable units:
 
 ```bash
 ./dotfiles-sync --apply
 systemctl --user daemon-reload
-systemctl --user enable --now postgres.service
 systemctl --user enable --now toolbox-dev.service
 systemctl --user enable --now lmstudio-server.service
 ```
 
+To finish removing the retired PostgreSQL Quadlet from a host after syncing
+this repo, run:
+
+```bash
+systemctl --user disable --now postgres.service
+rm -f ~/.config/containers/systemd/postgres.container
+systemctl --user daemon-reload
+systemctl --user reset-failed postgres.service
+systemctl --user is-active postgres.service || true
+systemctl --user is-enabled postgres.service || true
+systemctl --user cat postgres.service || true
+ss -ltn '( sport = :5432 )'
+```
+
+The final checks should report no active/enabled `postgres.service`, no listener
+on port 5432, and no generated unit. Keep the `pg_data` Podman volume and cached
+PostgreSQL image unless destructive cleanup is separately approved.
+
 Notes:
 
-- `postgres.container` is a Quadlet file; systemd generates `postgres.service`
-  from it after reload.
 - `sway-session.target` is started by `~/.config/sway/scripts/session-start`
   (after importing the Sway session env) and owns the desktop services
   (waybar, mako, swayidle, …); `session-quit` stops them. Vendor user units for

@@ -59,7 +59,6 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
         ROOT / "fedora",
         (
             "bin",
-            "containers",
             "gtk-3.0",
             "systemd",
         ),
