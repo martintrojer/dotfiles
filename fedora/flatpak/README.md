@@ -27,10 +27,10 @@ This copies `flatpak-update.service` and `flatpak-update.timer` into
 
 ## Per-app fixes
 
-- [`cider/`](cider/README.md) — install + fix for the Cider (`sh.cider.Cider`)
-  Apple Music flatpak: download from Taproom, `flatpak install --user`, then run
-  `cider/setup-cider.sh` to add the `xdg-settings` shim + overrides that clear
-  the `write EPIPE` JavaScript error on launch.
+- [`cider/`](cider/README.md) — install + safe URL-handler fix for the Cider
+  (`sh.cider.Cider`) Apple Music flatpak: download from Taproom, install for the
+  user, then run `cider/setup-cider.sh`. The narrow in-sandbox compatibility
+  shim does not grant host command execution.
 
 ## Check / Run
 
