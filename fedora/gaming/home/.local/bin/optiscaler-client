@@ -28,6 +28,7 @@ and version bookkeeping are well past the "thin wrapper" bar for shell.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -102,13 +103,13 @@ def _fetch_release(tag: str | None) -> dict:
         return json.load(resp)
 
 
-def _pick_asset(release: dict) -> tuple[str, str]:
-    """Return (asset_name, download_url) for this host's .tar.gz."""
+def _pick_asset(release: dict) -> tuple[str, str, str | None]:
+    """Return (name, URL, GitHub-provided digest) for this host's tarball."""
     want = f"-{_arch_token()}.tar.gz"
     for asset in release.get("assets", []):
         name = asset.get("name", "")
         if name.endswith(want):
-            return name, asset["browser_download_url"]
+            return name, asset["browser_download_url"], asset.get("digest")
     sys.exit(f"No release asset matching '*{want}' in {release.get('tag_name')}")
 
 
@@ -125,12 +126,16 @@ def _install(tag: str | None, force: bool) -> str:
         print(f"Already up to date: {version}")
         return version
 
-    asset_name, url = _pick_asset(release)
+    asset_name, url, digest = _pick_asset(release)
     print(f"Downloading {asset_name} ...")
-    with tempfile.TemporaryDirectory() as tmp:
+    INSTALL_DIR.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=f".{INSTALL_DIR.name}.stage-", dir=INSTALL_DIR.parent
+    ) as tmp:
         tmp_path = Path(tmp)
         archive = tmp_path / asset_name
         _download(url, archive)
+        _verify_digest(archive, digest)
 
         extract_root = tmp_path / "extract"
         extract_root.mkdir()
@@ -138,17 +143,13 @@ def _install(tag: str | None, force: bool) -> str:
             _safe_extract(tar, extract_root)
 
         src = _locate_payload(extract_root)
-        # Replace install dir atomically-ish: stage then swap.
-        if INSTALL_DIR.exists():
-            shutil.rmtree(INSTALL_DIR)
-        INSTALL_DIR.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(src), str(INSTALL_DIR))
+        binary = src / BINARY_NAME
+        if not binary.is_file():
+            sys.exit(f"Downloaded payload is missing {BINARY_NAME}")
+        binary.chmod(binary.stat().st_mode | 0o111)
+        (src / ".version").write_text(version + "\n")
+        _publish(src)
 
-    binary = _binary_path()
-    if not binary.is_file():
-        sys.exit(f"Install finished but {binary} is missing")
-    binary.chmod(binary.stat().st_mode | 0o111)
-    VERSION_FILE.write_text(version + "\n")
     print(f"Installed OptiScaler Client {version} -> {INSTALL_DIR}")
     return version
 
@@ -159,13 +160,60 @@ def _download(url: str, dest: Path) -> None:
         shutil.copyfileobj(resp, fh)
 
 
+def _verify_digest(path: Path, digest: str | None) -> None:
+    if digest is None:
+        print("Warning: release API supplied no asset digest; cannot verify checksum")
+        return
+    algorithm, separator, expected = digest.partition(":")
+    if separator != ":" or algorithm != "sha256" or len(expected) != 64:
+        sys.exit(f"Unsupported release asset digest: {digest}")
+    with path.open("rb") as fh:
+        actual = hashlib.file_digest(fh, "sha256").hexdigest()
+    if actual != expected.lower():
+        sys.exit(
+            f"Checksum mismatch for {path.name}: expected {expected}, got {actual}"
+        )
+    print(f"Verified SHA-256: {actual}")
+
+
+def _tar_filter(member: tarfile.TarInfo, path: str) -> tarfile.TarInfo | None:
+    if member.issym() or member.islnk():
+        raise tarfile.FilterError(f"links are not allowed: {member.name}")
+    return tarfile.data_filter(member, path)
+
+
 def _safe_extract(tar: tarfile.TarFile, dest: Path) -> None:
-    dest_resolved = dest.resolve()
-    for member in tar.getmembers():
-        target = (dest / member.name).resolve()
-        if not str(target).startswith(str(dest_resolved)):
-            sys.exit(f"Refusing path traversal in archive: {member.name}")
-    tar.extractall(dest)
+    tar.extractall(dest, filter=_tar_filter)
+
+
+def _publish(src: Path) -> None:
+    """Swap a validated staged payload into place, restoring the old one on error."""
+    backup = Path(
+        tempfile.mkdtemp(prefix=f".{INSTALL_DIR.name}.backup-", dir=INSTALL_DIR.parent)
+    )
+    backup.rmdir()
+    had_previous = INSTALL_DIR.exists() or INSTALL_DIR.is_symlink()
+    try:
+        if had_previous:
+            os.replace(INSTALL_DIR, backup)
+        os.replace(src, INSTALL_DIR)
+    except BaseException:
+        if had_previous and (backup.exists() or backup.is_symlink()):
+            try:
+                os.replace(backup, INSTALL_DIR)
+            except BaseException as rollback_error:
+                raise RuntimeError(
+                    f"Install failed and rollback failed; previous install is at {backup}"
+                ) from rollback_error
+        raise
+    if had_previous:
+        try:
+            if backup.is_dir() and not backup.is_symlink():
+                shutil.rmtree(backup)
+            else:
+                backup.unlink()
+        except OSError as error:
+            print(f"Warning: could not remove old install at {backup}: {error}")
 
 
 def _locate_payload(root: Path) -> Path:

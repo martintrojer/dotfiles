@@ -112,7 +112,10 @@ OptiScaler manager (GUI):
 
 - `optiscaler-client` installs/updates/runs upstream OptiScaler Client into
   `~/.local/share/optiscaler-client/` (binary not vendored). Commands: `run`,
-  `update [--tag TAG] [--force]`, `status`, `path`.
+  `update [--tag TAG] [--force]`, `status`, `path`. Updates verify the SHA-256
+  digest published by GitHub's release API when present, reject archive links
+  and unsafe paths, and stage the complete payload before replacing the current
+  install. Upstream does not currently publish a separate checksum or signature.
 - `optiscaler-client.desktop` exposes it to `drun` launchers.
 - `optirun %command%` loads installed proxy DLLs for a game; override manually
   with `WINEDLLOVERRIDES=... %command%` if needed.

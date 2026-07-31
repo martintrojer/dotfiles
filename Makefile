@@ -13,7 +13,7 @@ PYTHON_FILES_CMD := { $(PYTHON_PY_FILES_CMD); $(PYTHON_SHEBANG_FILES_CMD); }
 LUA_FILES := $(shell $(RG) -g '*.lua')
 PRETTIER_FILES := $(shell $(RG) -g '*.ts' -g '*.json' -g '*.jsonc' -g '*.css')
 TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
-STEAM_GAMES_TEST := fedora/gaming/tests/test_fix_steam_games.py
+GAMING_TESTS := fedora/gaming/tests
 
 .PHONY: \
 	help \
@@ -92,7 +92,7 @@ check-tmux-tests:
 	$(TMUX_STATUS_TEST)
 
 check-gaming-tests:
-	python3 $(STEAM_GAMES_TEST)
+	python3 -m unittest discover -s $(GAMING_TESTS) -p 'test_*.py'
 
 build-guides:
 	python3 guides/build.py
