@@ -21,6 +21,7 @@ Many important paths are hidden, so use hidden-aware search:
 - Preserve path shapes that mirror `$HOME` (for example `.config/...`, `.ssh/...`); these are meant for stow.
 - Avoid adding secrets or private keys. `ssh/.ssh/config` must stay non-sensitive.
 - Keep changes minimal and consistent with existing file formats (Lua, Python, shell, TOML, JSON, INI). Lua should stay `stylua`-formatted and `luacheck`-clean.
+- **Run the formatter on the files you touched before running any checks:** `ruff format <paths>` for Python, `stylua <paths>` for Lua, `prettier --write <paths>` for ts/json/jsonc/css. Don't hand-wrap code guessing at what the formatter wants, and don't let `make check-all` be what discovers it — `check-python` fails on `ruff format --check`, so one unformatted edit costs a full gate cycle. Format first, then check once.
 - For stow ignore rules, prefer repo-wide `.stowrc`. Avoid package-local `.stow-local-ignore` unless a package truly needs special behavior; it replaces stow's built-in defaults rather than augmenting them.
 
 ## Repo Policies
