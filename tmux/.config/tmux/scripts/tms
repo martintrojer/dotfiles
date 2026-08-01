@@ -29,7 +29,8 @@ STATE_DIR = (
 )
 LAST_FILE = STATE_DIR / "last"
 
-# Must match STATE_GLYPH in agent-attention.
+# Picker-row source icons. Unrelated to STATE_GLYPH (which lives in
+# _tmux_common and is imported above); these mark where an entry came from.
 KIND_ICON = {
     "default": "★",
     "tmux": "●",

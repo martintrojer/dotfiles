@@ -29,6 +29,8 @@ AGENT_ATTENTION = SCRIPT_DIR / "agent-attention"
 STATUS_WINDOW_LABEL = SCRIPT_DIR / "status-window-label"
 CHEATSHEET = SCRIPT_DIR / "cheatsheet"
 TMS = SCRIPT_DIR / "tms"
+# scripts/ -> tmux/ -> .config/ -> <package root>, where the stowed dotfile lives.
+TMUX_CONF = SCRIPT_DIR.parents[2] / ".tmux.conf"
 # Per-process socket: two concurrent runs (e.g. `make check-all` here and in an
 # agent workspace on the same box) would otherwise share one tmux server and
 # kill-server each other's session mid-assertion.
@@ -539,6 +541,29 @@ def run_tms_tests() -> None:
             f"CATPPUCCIN['{key}']"
         )
         expect(f"palette key {key!r} is referenced", uses > 0, True)
+
+    # .tmux.conf cannot import STATE_GLYPH, so its format chain is a
+    # generated region. Assert the glyphs actually reached it, and that the
+    # two window-status lines go through the shared option rather than each
+    # re-spelling the conditional (the drift this replaced).
+    conf = TMUX_CONF.read_text(encoding="utf-8")
+    chain = next(
+        (ln for ln in conf.splitlines() if ln.startswith("set -g @agent_glyphs ")),
+        "",
+    )
+    expect_truthy("tmux.conf defines @agent_glyphs", bool(chain))
+    for state, glyph in STATE_GLYPH.items():
+        expect(
+            f"@agent_glyphs carries the {state.name} glyph",
+            glyph in chain,
+            True,
+        )
+    for fmt in ("window-status-format", "window-status-current-format"):
+        line = next(
+            (ln for ln in conf.splitlines() if ln.startswith(f"set -g {fmt} ")), ""
+        )
+        expect(f"{fmt} uses the shared chain", "#{E:@agent_glyphs}" in line, True)
+        expect(f"{fmt} spells no glyph inline", "@agent_state},crashed" in line, False)
 
     # `cleared` is the absence of state, so it deliberately has no glyph.
     expect(
