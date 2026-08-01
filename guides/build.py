@@ -44,6 +44,10 @@ INLINE_LINK = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 INLINE_BOLD = re.compile(r"\*\*([^*]+)\*\*")
 INLINE_ITALIC = re.compile(r"(?<!\*)\*([^*\s][^*]*?)\*(?!\*)")
 INLINE_CODE = re.compile(r"`([^`]+)`")
+# Placeholder for a shielded code span. NUL never appears in guide sources
+# (and is stripped from the input anyway), so it cannot collide with prose.
+CODE_TOKEN_CHAR = "\x00"
+CODE_TOKEN = re.compile(r"\x00(\d+)\x00")
 HEADING = re.compile(r"^(#{1,3})\s+(.*)$")
 BULLET = re.compile(r"^-\s+(.*)$")
 
@@ -51,17 +55,28 @@ BULLET = re.compile(r"^-\s+(.*)$")
 def render_inline(text: str) -> str:
     """Apply inline transforms to an already-plain-text string.
 
-    Order matters: links first (so backticks inside link text survive as
-    code spans inside ``<a>``), then bold, then code.
+    Order matters. Code spans are extracted first and replaced by placeholder
+    tokens, so their contents are literal: a glob like ``*.ts`` or a name like
+    ``_foo_`` inside backticks can no longer pair up with emphasis markers
+    elsewhere in the line. Then links (so backticks inside link text still end
+    up as code spans inside ``<a>``), bold, italic, and finally the code spans
+    are restored.
     """
-    text = html.escape(text)
+    text = html.escape(text.replace(CODE_TOKEN_CHAR, ""))
+    spans: list[str] = []
+
+    def stash(match: re.Match[str]) -> str:
+        spans.append(match.group(1))
+        return f"{CODE_TOKEN_CHAR}{len(spans) - 1}{CODE_TOKEN_CHAR}"
+
+    text = INLINE_CODE.sub(stash, text)
     text = INLINE_LINK.sub(
         lambda m: f'<a href="{m.group(2)}">{m.group(1)}</a>',
         text,
     )
     text = INLINE_BOLD.sub(r"<strong>\1</strong>", text)
     text = INLINE_ITALIC.sub(r"<em>\1</em>", text)
-    text = INLINE_CODE.sub(r"<code>\1</code>", text)
+    text = CODE_TOKEN.sub(lambda m: f"<code>{spans[int(m.group(1))]}</code>", text)
     return text
 
 
@@ -120,9 +135,18 @@ def render_quiz(toml_body: str, qid: str) -> str:
     for i, q in enumerate(questions):
         if not isinstance(q, dict):
             raise ValueError(f"quiz '{qid}' question {i}: not a table")
+        for key in ("q", "options", "answer"):
+            if key not in q:
+                raise ValueError(f"quiz '{qid}' question {i}: missing '{key}'")
         q_text = render_inline(str(q["q"]))
         options = q["options"]
-        answer = int(q["answer"])
+        try:
+            answer = int(q["answer"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"quiz '{qid}' question {i}: answer must be an integer, "
+                f"got {q['answer']!r}"
+            ) from exc
         why = render_inline(str(q.get("why", "")))
         why_attr = html.escape(why, quote=True)
         if not isinstance(options, list) or len(options) < 2:
