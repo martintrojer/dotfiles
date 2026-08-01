@@ -14,7 +14,7 @@ import urllib.request
 from _common import (
     ScriptError,
     cli_main,
-    fuzzel_dmenu,
+    fuzzel_dmenu_index,
     list_sway_windows,
     notify,
     picker_cache_path,
@@ -105,7 +105,7 @@ def main() -> int:
         short_url = f"{url[:47]}..." if len(url) > 50 else url
         display.append(f"{tab['glyph']} {tab['title']} | {short_url}")
 
-    selected = fuzzel_dmenu(
+    idx = fuzzel_dmenu_index(
         prompt=args.prompt,
         width=args.width,
         lines=args.lines,
@@ -113,25 +113,11 @@ def main() -> int:
         options=display,
         hide_before_typing=args.hide_before_typing,
     )
-    if not selected:
+    if idx is None:
         return 0
-
-    try:
-        idx = display.index(selected)
-    except ValueError:
-        # Fuzzel may return free-text typed by the user. Activate only on
-        # an *unambiguous* prefix match — silently picking "any tab whose
-        # title starts the same" is worse than telling the user nothing
-        # matched.
-        prefix = selected[:40]
-        candidates = [i for i, value in enumerate(display) if value.startswith(prefix)]
-        if len(candidates) != 1:
-            notify(
-                "Chrome Tabs",
-                f"selection not recognised ({len(candidates)} matches)",
-            )
-            return 0
-        idx = candidates[0]
+    if idx < 0:
+        notify("Chrome Tabs", "Could not resolve selected entry to a tab")
+        return 1
 
     tab = tabs[idx]
     tab_id = tab.get("id")

@@ -7,7 +7,7 @@ import argparse
 
 from _common import (
     cli_main,
-    fuzzel_dmenu,
+    fuzzel_dmenu_index,
     list_sway_windows,
     notify,
     require_commands,
@@ -36,8 +36,6 @@ def main() -> int:
         notify("Windows", "No windows open or sway IPC is unavailable")
         return 0
 
-    # Markers must be non-whitespace: fuzzel_dmenu() strips its result, which
-    # would otherwise eat the leading spaces and break the index lookup below.
     display_options: list[str] = []
     for item in windows:
         app_id = item.get("app_id") or "unknown"
@@ -45,19 +43,17 @@ def main() -> int:
         marker = "•" if item.get("focused") else "·"
         display_options.append(f"{marker} {app_id}: {title}")
 
-    selected = fuzzel_dmenu(
+    idx = fuzzel_dmenu_index(
         prompt=args.prompt,
         width=args.width,
         lines=args.lines,
         options=display_options,
     )
-    if not selected:
+    if idx is None:
         return 0
-
-    try:
-        idx = display_options.index(selected)
-    except ValueError:
-        return 0
+    if idx < 0:
+        notify("Windows", "Could not resolve selected entry to a window")
+        return 1
 
     window_id = windows[idx].get("id")
     if window_id is None:
