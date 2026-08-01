@@ -57,7 +57,7 @@ help:
 	  '  make check-tmux-tests  # isolated tmux smoke tests' \
 	  '  make check-fedora-tests # isolated Fedora and gaming helper behavior tests' \
 	  '  make theme             # render docs/palette.toml into every THEME BEGIN..END region' \
-	  '  make check-theme       # check theme regions are in sync with docs/palette.toml' \
+	  '  make check-theme       # renderer behavior tests + theme regions in sync with docs/palette.toml' \
 	  '  make check-ts          # tsc --noEmit on pi extensions + opencode plugin' \
 	  '  make format-ts         # alias for format-prettier' \
 	  '  make build-guides      # render guides/*.md → guides/build/*.html' \
@@ -129,3 +129,4 @@ theme:
 
 check-theme:
 	python3 _dotfiles_sync/render_theme.py --check
+	python3 -m unittest discover -s _dotfiles_sync/tests -p 'test_*.py'
