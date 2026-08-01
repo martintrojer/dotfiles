@@ -89,7 +89,8 @@ def is_floating(container: dict) -> bool:
 
 def state_dir() -> str:
     d = os.path.join(
-        os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "sway"
+        os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"),
+        "sway",
     )
     os.makedirs(d, exist_ok=True)
     return d

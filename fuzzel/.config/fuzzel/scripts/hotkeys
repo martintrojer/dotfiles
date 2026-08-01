@@ -26,7 +26,7 @@ from _common import (
 )
 
 DEFAULT_CONFIG = (
-    f"{os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))}/sway/config"
+    f"{os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config'}/sway/config"
 )
 
 

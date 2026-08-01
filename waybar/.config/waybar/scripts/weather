@@ -23,7 +23,7 @@ from urllib.error import URLError
 from urllib.parse import quote
 from urllib.request import urlopen
 
-CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "waybar"
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "waybar"
 CACHE_FILE = CACHE_DIR / "weather.json"
 LOCK_FILE = CACHE_DIR / "weather.refreshing"
 
