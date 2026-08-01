@@ -9,7 +9,6 @@ import importlib.util
 import io
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -55,23 +54,36 @@ class OptiscalerSyncTests(unittest.TestCase):
         (self.steam / "steamapps/common").mkdir(parents=True)
         self.config = self.steam / "userdata/1/config/localconfig.vdf"
         self.config.parent.mkdir(parents=True)
+        # appid -> launch options, or None for a block with no LaunchOptions key
+        self.entries: dict[str, str | None] = {}
 
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def app(self, appid: str = "100", name: str = "Game") -> Any:
+    def app(
+        self,
+        appid: str = "100",
+        name: str = "Game",
+        launch_options: str | None = "%command% --skip",
+    ) -> Any:
+        """Create a game plus its Steam config entry.
+
+        launch_options=None produces the shape Steam writes for a game whose
+        launch options were never touched: an AppID block with no
+        "LaunchOptions" key at all.
+        """
         game = self.steam / "steamapps/common" / name
         game.mkdir(parents=True, exist_ok=True)
-        existing = self.config.read_text() if self.config.exists() else ""
-        entries = re.findall(
-            r'\t{5}"(\d+)"\n\t{5}\{\n\t{6}"LaunchOptions"\t\t"([^"]*)"\n\t{5}\}',
-            existing,
-        )
-        entries.append((appid, "%command% --skip"))
+        self.entries[appid] = launch_options
         app_text = "\n".join(
             f'\t\t\t\t\t"{entry_id}"\n\t\t\t\t\t{{\n'
-            f'\t\t\t\t\t\t"LaunchOptions"\t\t"{options}"\n\t\t\t\t\t}}'
-            for entry_id, options in entries
+            + (
+                f'\t\t\t\t\t\t"LaunchOptions"\t\t"{options}"\n'
+                if options is not None
+                else '\t\t\t\t\t\t"AutoCloudEnabled"\t\t"1"\n'
+            )
+            + "\t\t\t\t\t}"
+            for entry_id, options in self.entries.items()
         )
         self.config.write_text(
             '"UserLocalConfigStore"\n{\n\t"Software"\n\t{\n\t\t"Valve"\n\t\t{\n'
@@ -551,6 +563,78 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.assertFalse(did_change)
         self.assertFalse(found)
         self.assertFalse(removed)
+
+    def test_vdf_insert_adds_one_indented_line_and_leaves_neighbours_alone(
+        self,
+    ) -> None:
+        """A game whose launch options were never set has no LaunchOptions key.
+
+        That is the most common first-install shape, and it takes edit_launch's
+        insert branch rather than its rewrite branch.
+        """
+        self.app("100", "Keyless", launch_options=None)
+        neighbour = self.app("200", "Neighbour")
+        before = self.config.read_text()
+        self.assertNotIn("LaunchOptions", before.split('"200"')[0])
+
+        inserted, did_change, found, removed = self.sync.edit_launch(before, "100")
+        self.assertEqual((did_change, found, removed), (True, True, False))
+        # Exactly one line added, at the block's own indent, and nothing else
+        # in the file rewritten.
+        self.assertEqual(
+            inserted,
+            before.replace(
+                '\t\t\t\t\t\t"AutoCloudEnabled"\t\t"1"\n',
+                '\t\t\t\t\t\t"AutoCloudEnabled"\t\t"1"\n'
+                '\t\t\t\t\t\t"LaunchOptions"\t\t"optirun %command%"\n',
+            ),
+        )
+        self.assertEqual(inserted.count('"LaunchOptions"'), 2)
+        # The insert lands inside 100's block, not 200's, and 200 is untouched.
+        block_100, _, block_200 = inserted.partition(f'"{neighbour.appid}"')
+        self.assertIn('"optirun %command%"', block_100)
+        self.assertNotIn("optirun", block_200)
+        self.assertIn('"LaunchOptions"\t\t"%command% --skip"', block_200)
+
+        # Uninstall strips the optirun wrapper but leaves the key install
+        # created, holding the inert value Steam itself writes for "no custom
+        # launch options". Nothing else in the file moves.
+        reverted, did_change, found, removed = self.sync.edit_launch(
+            inserted, "100", remove=True
+        )
+        self.assertEqual((did_change, found, removed), (True, True, True))
+        self.assertEqual(
+            reverted,
+            inserted.replace('"optirun %command%"', '"%command%"'),
+        )
+        self.assertNotIn("optirun", reverted)
+
+        # A second uninstall pass is a no-op, and uninstalling a keyless block
+        # never inserts one.
+        self.assertEqual(
+            self.sync.edit_launch(reverted, "100", remove=True),
+            (reverted, False, True, False),
+        )
+        self.assertEqual(
+            self.sync.edit_launch(before, "100", remove=True),
+            (before, False, True, False),
+        )
+
+    def test_install_inserts_launch_options_for_a_game_that_had_none(self) -> None:
+        """End to end over the insert branch: real install, real Steam config."""
+        app = self.app("100", "Keyless", launch_options=None)
+        release = self.sync.Release("v1", "https://example.invalid", "0" * 64)
+        self.sync.install_game(self.target(app), self.payload(app.path), release)
+        self.assertIn('"LaunchOptions"\t\t"optirun %command%"', self.config.read_text())
+
+        managed = self.sync.managed_target(app)
+        assert managed is not None
+        self.assertEqual(
+            managed.manifest["launch_configs"], ["userdata/1/config/localconfig.vdf"]
+        )
+        self.sync.uninstall_game(managed, force=False)
+        self.assertNotIn("optirun", self.config.read_text())
+        self.assertIn('"LaunchOptions"\t\t"%command%"', self.config.read_text())
 
     def test_ini_patch_updates_duplicate_keys(self) -> None:
         patched = self.sync.patch_ini(

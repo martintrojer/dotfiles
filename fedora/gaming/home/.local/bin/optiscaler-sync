@@ -648,6 +648,8 @@ def install_game(
     manifest_path = state / MANIFEST
     if target.manifest is None and state.exists():
         raise ValueError(f"unmanaged state directory exists: {state}")
+    # target.manifest is already read_manifest-validated (managed_target is its
+    # only producer), so the maps below are known-good shapes.
     old = target.manifest or {
         "files": {},
         "backups": {},
