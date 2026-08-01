@@ -466,7 +466,7 @@ Only test runner is `tmux/.config/tmux/scripts/test-status-tools`. `_dotfiles_sy
 
 **Reconsider individual scripts if:** any grows past ~300 lines AND ships a bug that costs >30 min to debug. Add a focused smoke test for that regression, not a generic suite.
 
-**Amended 2026-08-01:** the audit triggered this clause for real. `tms` (993 lines) shipped a `KeyError("red")` that crashes the picker whenever a session has a crashed agent, and `render_theme.py` rewrites 16 live config files with zero tests. Both now earn focused smoke tests under the existing exception — not a generic suite. The policy holds for everything else.
+**Amended 2026-08-01:** the audit triggered this clause for real. `tms` (993 lines) shipped a `KeyError("red")` that crashes the picker whenever a session has a crashed agent, and `render_theme.py` rewrites 16 live config files with zero tests. Both now earn focused smoke tests under the existing exception — not a generic suite. `wallpaper` (825 lines) joins them for its lock-cache path only: `sway/.config/sway/scripts/lock-screen` parses `wallpaper status` and silently degrades to a solid-colour lock when it is malformed, and a failed cache rebuild used to delete the working lock image. Four tests, covering status output, rebuild durability, cache keying and archive deletion — not the other 700 lines. The policy holds for everything else.
 
 ---
 
