@@ -415,7 +415,7 @@ def set_state(window_id: str, state: AgentState | None) -> None:
         # @pane_agent intentionally NOT cleared — it's sticky.
 
 
-def clear_target(session_id: str | None, window_id: str) -> None:
+def clear_target(window_id: str) -> None:
     """Clear attention state for a window on focus.
 
     Only clears ``blocked`` and ``crashed`` — these are "look at me"
@@ -654,7 +654,7 @@ def cmd_clear_current(args: argparse.Namespace) -> int:
     ctx = current_context(args.pane)
     if ctx is None:
         return 0
-    clear_target(ctx["session_id"], ctx["window_id"])
+    clear_target(ctx["window_id"])
     return 0
 
 
@@ -664,7 +664,7 @@ def cmd_clear_target(args: argparse.Namespace) -> int:
     resolved = resolve_target(args.target)
     if resolved is None:
         return 1
-    clear_target(*resolved)
+    clear_target(resolved[1])
     return 0
 
 
@@ -906,7 +906,7 @@ def cmd_menu(_: argparse.Namespace) -> int:
         return 0
     sid, wid = resolved
     tmux(["switch-client", "-t", f"{sid}:{wid}"], check=False)
-    clear_target(sid, wid)
+    clear_target(wid)
     return 0
 
 

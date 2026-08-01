@@ -194,7 +194,7 @@ class AgentStats:
     other consumer that needs to know how many agents are in each state.
     """
 
-    __slots__ = ("_by_session", "blocked", "crashed", "idle", "total", "working")
+    __slots__ = ("_by_session", "blocked", "crashed", "idle", "working")
 
     def __init__(
         self,
@@ -208,7 +208,6 @@ class AgentStats:
         self.blocked = blocked
         self.working = working
         self.idle = idle
-        self.total = crashed + blocked + working + idle
         self._by_session: dict[str, AgentStats] = {}
 
     @property
