@@ -10,7 +10,6 @@ const BRAVE_NEWS_ENDPOINT = `${BRAVE_API_BASE_URL}/news/search`;
 const BRAVE_IMAGES_ENDPOINT = `${BRAVE_API_BASE_URL}/images/search`;
 const BRAVE_VIDEOS_ENDPOINT = `${BRAVE_API_BASE_URL}/videos/search`;
 const API_KEY_ENV_VAR = "BRAVE_SEARCH_API_KEY";
-let cachedApiKey: string | undefined;
 
 type BraveSearchDetails = {
 	query: string;
@@ -220,19 +219,11 @@ function toStringList(value: unknown): string[] | undefined {
 	return values.length > 0 ? values : undefined;
 }
 
-async function loadApiKey(_signal: AbortSignal | undefined): Promise<string> {
-	if (cachedApiKey) return cachedApiKey;
-
-	const apiKey = asString(process.env[API_KEY_ENV_VAR]);
-	if (!apiKey) throw new Error(`Missing Brave Search API key: set the ${API_KEY_ENV_VAR} environment variable.`);
-
-	cachedApiKey = apiKey;
-	return cachedApiKey;
-}
-
 function clampNumber(value: number | undefined, fallback: number, min: number, max: number): number {
-	if (!Number.isFinite(value)) return fallback;
-	return Math.max(min, Math.min(max, Math.trunc(value ?? fallback)));
+	// `undefined` is checked explicitly: Number.isFinite already excludes it, but
+	// it does not narrow the type, so tsc needs to see the check.
+	if (value === undefined || !Number.isFinite(value)) return fallback;
+	return Math.max(min, Math.min(max, Math.trunc(value)));
 }
 
 function normalizeCode(value: string | undefined, fallback: string): string {
@@ -433,6 +424,7 @@ function registerMediaTool(
 		endpoint: string;
 		defaultCount: number;
 		maxCount: number;
+		apiKey: string;
 	},
 ) {
 	pi.registerTool({
@@ -444,7 +436,7 @@ function registerMediaTool(
 		parameters: BraveMediaParams,
 
 		async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
-			const apiKey = await loadApiKey(signal);
+			const apiKey = options.apiKey;
 			const query = params.query.trim();
 			if (!query) throw new Error("query must not be empty");
 
@@ -522,7 +514,8 @@ function registerMediaTool(
 }
 
 export default function (pi: ExtensionAPI) {
-	if (!asString(process.env[API_KEY_ENV_VAR])) {
+	const apiKey = asString(process.env[API_KEY_ENV_VAR]);
+	if (!apiKey) {
 		// No API key configured: skip registering Brave tools so they don't
 		// appear in the system prompt or get offered to the LLM.
 		return;
@@ -544,7 +537,6 @@ export default function (pi: ExtensionAPI) {
 		parameters: BraveSearchParams,
 
 		async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
-			const apiKey = await loadApiKey(signal);
 			const query = params.query.trim();
 			if (!query) throw new Error("query must not be empty");
 
@@ -653,6 +645,7 @@ export default function (pi: ExtensionAPI) {
 		endpoint: BRAVE_NEWS_ENDPOINT,
 		defaultCount: 10,
 		maxCount: 50,
+		apiKey,
 	});
 	registerMediaTool(pi, {
 		kind: "images",
@@ -662,6 +655,7 @@ export default function (pi: ExtensionAPI) {
 		endpoint: BRAVE_IMAGES_ENDPOINT,
 		defaultCount: 10,
 		maxCount: 50,
+		apiKey,
 	});
 	registerMediaTool(pi, {
 		kind: "videos",
@@ -671,5 +665,6 @@ export default function (pi: ExtensionAPI) {
 		endpoint: BRAVE_VIDEOS_ENDPOINT,
 		defaultCount: 10,
 		maxCount: 50,
+		apiKey,
 	});
 }
