@@ -68,8 +68,16 @@ def render_with_pty(argv: list[str]) -> int:
     """Run `glow ...` under a pty so termenv keeps emitting truecolor."""
     pid, fd = pty.fork()
     if pid == 0:
-        # Child: exec glow.
-        os.execvp(argv[0], argv)
+        # Child: exec glow. If exec fails the child must NEVER return into
+        # parent code — it would run the read loop, less.wait() and the
+        # tempfile cleanup a second time, racing the real parent. os._exit
+        # skips atexit/flush, which is exactly right post-fork.
+        try:
+            os.execvp(argv[0], argv)
+        except OSError as exc:
+            print(f"m: cannot exec {argv[0]}: {exc}", file=sys.stderr)
+        finally:
+            os._exit(127)
 
     # Parent: read pty output and forward to stdout (which is piped to less).
     while True:
@@ -162,6 +170,10 @@ def main(argv: list[str]) -> int:
 
     # Only the first remaining positional is treated as the input; the
     # rest pass through to glow.
+    if shutil.which("glow") is None:
+        print("m: glow not on PATH", file=sys.stderr)
+        return 127
+
     target, *extra = forwarded
     target_path = Path(target)
     reflowed: Path | None = None
