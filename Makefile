@@ -46,7 +46,8 @@ DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests sway/.config/sway/scrip
 	check-guides \
 	clean-guides \
 	theme \
-	check-theme
+	check-theme \
+	push
 
 help:
 	printf '%s\n' \
@@ -72,7 +73,8 @@ help:
 	  '  make build-guides      # render guides/*.md → guides/build/*.html' \
 	  '  make serve-guides      # build then http.server in guides/build' \
 	  '  make check-guides      # validate guide sources without writing output' \
-	  '  make clean-guides      # rm -rf guides/build'
+	  '  make clean-guides      # rm -rf guides/build' \
+	  '  make push              # check-all, then jj git push (ARGS=... passed through)'
 
 check-all: check-python check-shell check-zsh check-lua check-prettier check-ts check-ts-tests check-tmux-tests check-fedora-tests check-desktop-tests check-guides check-theme
 
@@ -155,3 +157,18 @@ theme:
 check-theme:
 	python3 _dotfiles_sync/render_theme.py --check
 	python3 -m unittest discover -s _dotfiles_sync/tests -p 'test_*.py'
+
+# The repo's push gate. This is a make target rather than a pre-push hook
+# because jj (0.42) has no hook point at all and `jj git push` does not run
+# git's client-side hooks -- verified empirically, not read from docs -- and jj
+# is the primary VCS here. A .git/hooks/pre-push would look like a gate while
+# the command actually used (`jjgp`) sailed past it.
+#
+# check-all is a prerequisite, so make refuses to run the push at all unless it
+# is green. Extra push args go through ARGS, e.g. `make push ARGS='-b main'`.
+#
+# TO BYPASS: run `jj git push` (or `jjgp`) directly. That is the deliberate
+# escape hatch -- nothing here can intercept it, which is the point: the bypass
+# is the plain command, the gate is the one you opt into.
+push: check-all
+	jj git push $(ARGS)
