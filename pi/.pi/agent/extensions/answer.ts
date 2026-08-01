@@ -169,7 +169,9 @@ function buildQnA(questions: Question[]) {
 		const answers = questions.map(() => "");
 		let index = 0;
 		let confirming = false;
-		let cachedLines: string[] | undefined;
+		// Keyed on width: pi-tui wires terminal resize to requestRender, not to
+		// invalidate, so a width change must invalidate the cache by itself.
+		let cached: { width: number; lines: string[] } | undefined;
 
 		const editorTheme: EditorTheme = {
 			borderColor: (s) => theme.fg("borderMuted", s),
@@ -186,7 +188,7 @@ function buildQnA(questions: Question[]) {
 		editor.onChange = () => refresh();
 
 		function refresh(): void {
-			cachedLines = undefined;
+			cached = undefined;
 			tui.requestRender();
 		}
 		function save(): void {
@@ -243,7 +245,7 @@ function buildQnA(questions: Question[]) {
 		}
 
 		function render(width: number): string[] {
-			if (cachedLines) return cachedLines;
+			if (cached?.width === width) return cached.lines;
 			const t = theme;
 			const add = (s: string, out: string[]) => out.push(truncateToWidth(s, width));
 			const lines: string[] = [];
@@ -280,14 +282,14 @@ function buildQnA(questions: Question[]) {
 			else add("  " + t.fg("dim", "Enter next · Shift+Enter newline · Tab/↑↓ move · Esc cancel"), lines);
 			add(t.fg("borderMuted", "─".repeat(width)), lines);
 
-			cachedLines = lines;
+			cached = { width, lines };
 			return lines;
 		}
 
 		return {
 			render,
 			invalidate: () => {
-				cachedLines = undefined;
+				cached = undefined;
 				editor.invalidate();
 			},
 			handleInput,
