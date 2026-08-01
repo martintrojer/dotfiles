@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import re
 from pathlib import Path
 
 from _common import (
@@ -15,8 +14,6 @@ from _common import (
     require_commands,
     run,
 )
-
-MPRIS_PREFIX = "org.mpris.MediaPlayer2."
 
 ACTIONS = [
     ("󰐊 Play / Pause", "play-pause"),
@@ -41,28 +38,11 @@ def player_names() -> list[str]:
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
-def bus_name_pid(bus_name: str) -> int | None:
-    result = run(["busctl", "--user", "status", bus_name], check=False)
-    if result.returncode != 0:
-        return None
-    match = re.search(r"^PID=(\d+)$", result.stdout, re.MULTILINE)
-    return int(match.group(1)) if match else None
-
-
-def pid_comm(pid: int) -> str:
-    try:
-        return Path(f"/proc/{pid}/comm").read_text(encoding="utf-8").strip()
-    except OSError:
-        return ""
-
-
-def is_cider_process(player: str) -> bool:
-    pid = bus_name_pid(MPRIS_PREFIX + player)
-    return pid is not None and pid_comm(pid).lower() == "cider"
-
-
 def is_cider_player(player: str) -> bool:
-    if is_cider_process(player):
+    # Cider runs with sockets=!session-bus, so org.mpris.MediaPlayer2.cider is
+    # owned by xdg-dbus-proxy and no PID/comm check can identify the app. The
+    # bus name itself is the only reliable identity left.
+    if player.split(".instance")[0].lower() == "cider":
         return True
 
     desktop = run(
@@ -109,7 +89,7 @@ def show_cider() -> None:
 
 def main() -> int:
     args = parse_args()
-    require_commands(["busctl", "fuzzel", "playerctl"])
+    require_commands(["fuzzel", "playerctl"])
 
     options = [label for label, _ in ACTIONS]
 

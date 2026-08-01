@@ -75,6 +75,13 @@ playerctl -l                      # cider listed
 playerctl metadata
 ```
 
+That ownership change is a success signal, but it also breaks host tooling that
+identifies the player by PID or `/proc/<pid>/comm`: the bus name resolves to the
+proxy, never to Cider. Identify the player by its MPRIS bus name (`cider`, plus
+any `.instanceN` suffix) instead. Cider also exports neither `mpris:identity`
+nor `xesam:url` nor `mpris:desktopEntry`, so metadata probes are not a
+substitute.
+
 ## Limitations
 
 - Setup deliberately makes Cider the host default for all five schemes.
