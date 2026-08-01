@@ -15,7 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 
 
@@ -52,17 +52,26 @@ def run(
     *,
     input_text: str | None = None,
     check: bool = True,
-    env: Mapping[str, str] | None = None,
     capture_output: bool = True,
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        list(cmd),
-        input=input_text,
-        capture_output=capture_output,
-        text=True,
-        check=check,
-        env=dict(env) if env is not None else None,
-    )
+    """Run ``cmd``; a missing binary yields rc 127 rather than a traceback.
+
+    Desktop scripts are launched by sway/fuzzel with no terminal attached, so
+    an unhandled ``FileNotFoundError`` is invisible to the user. Report it the
+    way a shell does instead, and let the caller decide.
+    """
+    try:
+        return subprocess.run(
+            list(cmd),
+            input=input_text,
+            capture_output=capture_output,
+            text=True,
+            check=check,
+        )
+    except FileNotFoundError:
+        return subprocess.CompletedProcess(
+            list(cmd), 127, "", f"command not found: {cmd[0]}"
+        )
 
 
 def _dmenu_cmd(
