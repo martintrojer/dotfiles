@@ -36,7 +36,7 @@
  *     stopping the main turn won't cancel /btw and vice versa.
  */
 
-import { stream } from "@earendil-works/pi-ai";
+import { stream } from "@earendil-works/pi-ai/compat";
 import type { Message } from "@earendil-works/pi-ai";
 import type { BuildSystemPromptOptions, ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { buildSessionContext, getMarkdownTheme } from "@earendil-works/pi-coding-agent";
@@ -131,11 +131,18 @@ async function askSideQuestion(
 	const picked = await pickSessionModel(ctx);
 	if (!picked) return { error: "No model with configured auth is available." };
 
-	const sideMessages = [...history, { role: "user" as const, text: question }].map((m) => ({
-		role: m.role,
-		content: [{ type: "text" as const, text: m.text }],
-		timestamp: Date.now(),
-	}));
+	// Providers only read role/content off replayed history, but pi-ai's
+	// AssistantMessage additionally requires api/provider/model/usage/stopReason.
+	// Synthesising those would be inventing data, so cast the minimal shape
+	// instead; the assistant branch is history echo, never a real response.
+	const sideMessages = [...history, { role: "user" as const, text: question }].map(
+		(m) =>
+			({
+				role: m.role,
+				content: [{ type: "text" as const, text: m.text }],
+				timestamp: Date.now(),
+			}) as unknown as Message,
+	);
 
 	const events = stream(
 		picked.model,

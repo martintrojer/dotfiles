@@ -21,3 +21,6 @@ __pycache__
 .venv
 .direnv
 CACHEDIR.TAG
+
+# Scratch symlink farm built by `make check-ts` (see _dotfiles_sync/link_ts_types.py).
+/node_modules

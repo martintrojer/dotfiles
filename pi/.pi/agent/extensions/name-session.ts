@@ -14,7 +14,7 @@
  *   /namesession auth cleanup # optional hint to steer the generated name
  */
 
-import { complete } from "@earendil-works/pi-ai";
+import { complete } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { BorderedLoader } from "@earendil-works/pi-coding-agent";
 import { conversationTranscript, FastModelCancelled, textContent, withFastModelFallback } from "./_lib.ts";
@@ -165,7 +165,10 @@ async function nameCurrentSession(
 		if (options.notify) ctx.ui.notify("Session naming already in progress.", "info");
 		return false;
 	}
-	if (!ctx.sessionManager.isPersisted()) return false;
+	// `isPersisted()` exists on SessionManager at runtime but is not part of the
+	// exported ReadonlySessionManager Pick, so it is invisible to tsc. Narrow the
+	// cast to just that method rather than widening ctx.sessionManager.
+	if (!(ctx.sessionManager as unknown as { isPersisted(): boolean }).isPersisted()) return false;
 	if (options.onlyIfUnnamed !== false && ctx.sessionManager.getSessionName()) return false;
 
 	namingInFlight = true;

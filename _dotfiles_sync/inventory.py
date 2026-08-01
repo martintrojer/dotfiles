@@ -86,6 +86,7 @@ IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
     "docs",  # cross-cutting documentation hosted at repo root
     "fedora",  # contains its own stow packages, scope-driven
     "guides",  # interactive learning guides, rendered by guides/build.py
+    "node_modules",  # scratch type-package symlinks built by `make check-ts`
 }
 
 # Packages that stow with folding instead of the global --no-folding, mapping
