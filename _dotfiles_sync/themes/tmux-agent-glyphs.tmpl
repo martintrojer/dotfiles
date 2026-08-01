@@ -1,0 +1,9 @@
+# Agent-state glyph chain, shared by window-status-format and
+# window-status-current-format. Generated from STATE_GLYPH in
+# tmux/.config/tmux/scripts/_tmux_common.py -- edit there, run `make theme`.
+#
+# Deliberately sets no bg: tmux carries the caller's #[bg=...] into an
+# #{E:...} re-expansion, so each window-status line supplies its own
+# background (surface0 inactive, surface2 current) and this chain only
+# has to own the fg + glyph. That is what lets one option serve both.
+set -g @agent_glyphs '#{?#{==:#{@agent_state},crashed}, #[fg={{mocha.red}}]#[bold]{{glyph.crashed}}#[nobold],#{?#{==:#{@agent_state},blocked}, #[fg={{mocha.peach}}]{{glyph.blocked}},#{?#{==:#{@agent_state},working}, {{glyph.working}},#{?#{@pane_agent}, {{glyph.idle}},}}}}'

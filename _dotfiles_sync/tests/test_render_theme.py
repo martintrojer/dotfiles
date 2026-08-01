@@ -196,6 +196,55 @@ class LiveRepoAuditTests(unittest.TestCase):
         self.assertEqual(code, 0, out.getvalue())
 
 
+class AgentGlyphTests(unittest.TestCase):
+    """STATE_GLYPH in _tmux_common is the one source for the tmux glyphs.
+
+    .tmux.conf cannot import Python, so its format chain is generated from
+    that dict. These pin the wiring that makes a change in one place fail
+    the gate rather than silently desync the window tabs from the picker.
+    """
+
+    def test_glyph_group_comes_from_state_glyph(self) -> None:
+        glyphs = render_theme.load_agent_glyphs()
+        self.assertEqual(
+            glyphs,
+            {
+                "crashed": "\u2717",
+                "blocked": "!",
+                "working": "\u25b6",
+                "idle": "\u00b7",
+            },
+        )
+
+    def test_palette_exposes_the_glyph_group(self) -> None:
+        self.assertIn("glyph", render_theme.load_palette())
+
+    def test_palette_toml_may_not_shadow_the_glyph_group(self) -> None:
+        with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as fh:
+            fh.write('[glyph]\ncrashed = "x"\n')
+            path = Path(fh.name)
+        self.addCleanup(path.unlink)
+        with self.assertRaises(SystemExit) as caught:
+            render_theme.load_palette(path)
+        self.assertIn("reserved", str(caught.exception))
+
+    def test_rendered_chain_carries_every_glyph(self) -> None:
+        rendered = render_theme.render_region(
+            "tmux-agent-glyphs", render_theme.load_palette()
+        )
+        for state, glyph in render_theme.load_agent_glyphs().items():
+            self.assertIn(glyph, rendered, f"{state} glyph missing from the chain")
+
+    def test_changing_a_glyph_makes_the_conf_drift(self) -> None:
+        """The whole point: edit the Python, and check-theme must object."""
+        palette = render_theme.load_palette()
+        palette["glyph"] = dict(palette["glyph"], crashed="\u2718")
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            code = render_theme.process(render_theme.CONSUMERS, palette, check=True)
+        self.assertEqual(code, 1)
+        self.assertIn("tmux.conf", out.getvalue())
+
+
 class TemplateExpansionTests(unittest.TestCase):
     def test_unknown_color_fails_loud(self) -> None:
         with self.assertRaises(SystemExit) as caught:

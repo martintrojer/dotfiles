@@ -111,7 +111,7 @@ CONSUMERS: tuple[Consumer, ...] = (
     Consumer(repo("waybar/.config/waybar/config.jsonc"), ("waybar-calendar-colors",)),
     Consumer(repo("mako/.config/mako/config"), ("mako-colors",)),
     Consumer(repo("swaylock/.config/swaylock/config"), ("swaylock-colors",)),
-    Consumer(repo("tmux/.tmux.conf"), ("tmux-palette",)),
+    Consumer(repo("tmux/.tmux.conf"), ("tmux-palette", "tmux-agent-glyphs")),
     Consumer(repo("zsh/.zsh/tools.zsh"), ("zsh-prompt-colors",)),
     Consumer(repo("foot/.config/foot/foot.ini"), ("foot-colors",)),
     Consumer(repo("fuzzel/.config/fuzzel/fuzzel.ini"), ("fuzzel-colors",)),
@@ -186,12 +186,48 @@ AUDIT_SKIP_DIRS = frozenset(
 # ---------------------------------------------------------------------
 
 
+def load_agent_glyphs() -> dict[str, str]:
+    """Read ``STATE_GLYPH`` out of the tmux helper library.
+
+    The agent-state glyphs are not colors and do not belong in
+    ``palette.toml``: their canonical home is ``STATE_GLYPH`` in
+    ``tmux/.config/tmux/scripts/_tmux_common.py``, which every Python
+    display surface already imports. Exposing them here as a ``glyph``
+    group lets ``.tmux.conf`` -- which cannot import Python -- render its
+    format strings from that same dict instead of re-spelling them, so
+    ``make check-theme`` fails on drift.
+
+    Imported by path because the scripts directory is not a package and
+    the file is a private module beside extensionless executables.
+    """
+    import importlib.util
+
+    src = REPO_ROOT / "tmux" / ".config" / "tmux" / "scripts" / "_tmux_common.py"
+    spec = importlib.util.spec_from_file_location("_tmux_common", src)
+    if spec is None or spec.loader is None:
+        raise SystemExit(f"render_theme: cannot import {src}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return {state.name: glyph for state, glyph in mod.STATE_GLYPH.items()}
+
+
 def load_palette(path: Path = PALETTE_PATH) -> dict[str, dict[str, str]]:
-    """Parse the TOML palette. Returns a nested dict keyed by group then color."""
+    """Parse the TOML palette. Returns a nested dict keyed by group then color.
+
+    The returned mapping also carries a synthetic ``glyph`` group (see
+    :func:`load_agent_glyphs`) so templates can reference non-color values
+    that are sourced from Python rather than from the TOML.
+    """
     with path.open("rb") as fp:
         raw = tomllib.load(fp)
     if not isinstance(raw, dict):
         raise SystemExit(f"render_theme: {path} is not a TOML table")
+    if "glyph" in raw:
+        raise SystemExit(
+            f"render_theme: {path} defines a `glyph` group, which is reserved "
+            "for STATE_GLYPH in tmux/.config/tmux/scripts/_tmux_common.py"
+        )
+    raw["glyph"] = load_agent_glyphs()
     return raw
 
 

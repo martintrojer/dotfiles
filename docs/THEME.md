@@ -87,7 +87,7 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `waybar/.config/waybar/config.jsonc` | `waybar-calendar-colors` |
 | `mako/.config/mako/config` | `mako-colors` |
 | `swaylock/.config/swaylock/config` | `swaylock-colors` |
-| `tmux/.tmux.conf` | `tmux-palette` |
+| `tmux/.tmux.conf` | `tmux-palette`, `tmux-agent-glyphs` |
 | `zsh/.zsh/tools.zsh` | `zsh-prompt-colors` |
 | `foot/.config/foot/foot.ini` | `foot-colors` |
 | `fuzzel/.config/fuzzel/fuzzel.ini` | `fuzzel-colors` |
@@ -99,6 +99,30 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `sway/.config/sway/scripts/lock-screen` | `lock-screen-fallback-color` |
 | `sway/.config/sway/scripts/session-wallpaper` | `session-wallpaper-fallback-color` |
 | `guides/style.css` | `guides-palette` |
+
+---
+
+## Non-color values: the `glyph` group
+
+One region is not about color. `tmux-agent-glyphs` renders the
+agent-state glyph chain used by both `window-status-format` and
+`window-status-current-format`, and its glyphs come from `STATE_GLYPH`
+in `tmux/.config/tmux/scripts/_tmux_common.py`, not from
+`docs/palette.toml`.
+
+That dict is already the single source for every Python display surface
+(the `tms` picker, the `prefix + a` menu, the status pill). `.tmux.conf`
+cannot import Python, so it used to re-spell `✗ ! ▶ ·` by hand — twice,
+once per window-status line — and nothing failed when the copies
+diverged. `load_palette()` now exposes those glyphs to templates as a
+synthetic `glyph` group (`{{glyph.crashed}}`), so the chain is generated
+and `make check-theme` fails on drift. `palette.toml` may not define a
+`glyph` group itself; the renderer rejects it rather than silently
+shadowing the Python.
+
+The two window-status lines share the one rendered `@agent_glyphs`
+option and supply their own background, because tmux carries the
+surrounding `#[bg=...]` into an `#{E:...}` re-expansion.
 
 ---
 
