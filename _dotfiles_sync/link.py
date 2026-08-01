@@ -165,26 +165,3 @@ def apply_link(link: Link) -> None:
     if link.target.is_symlink() or link.target.exists():
         link.target.unlink()
     link.target.symlink_to(link.source)
-
-
-def unlink_package(links: list[Link]) -> int:
-    """Remove links we own. Returns the count removed."""
-    removed = 0
-    for link in links:
-        if link.state in (LinkState.OK, LinkState.STALE):
-            link.target.unlink()
-            removed += 1
-    return removed
-
-
-def prune_empty_dirs(target_root: Path, links: list[Link]) -> None:
-    """Drop directories left empty after unlinking, deepest first."""
-    seen: set[Path] = set()
-    for link in links:
-        parent = link.target.parent
-        while parent != target_root and target_root in parent.parents:
-            seen.add(parent)
-            parent = parent.parent
-    for directory in sorted(seen, key=lambda p: len(p.parts), reverse=True):
-        if directory.is_dir() and not any(directory.iterdir()):
-            directory.rmdir()
