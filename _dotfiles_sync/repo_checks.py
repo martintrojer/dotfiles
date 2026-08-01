@@ -10,7 +10,7 @@ from itertools import chain
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .config import SCRIPT_DIR
+from .config import SCRIPT_DIR, lazy_header
 from .ignore import IgnoreRules
 from .inventory import IGNORED_TOPLEVEL_DIRS
 from .model import PackageSpec
@@ -116,6 +116,7 @@ EXTRA_UNIT_TARGETS: dict[str, tuple[str, ...]] = {
 
 def check_package_coverage(specs: dict[str, PackageSpec], *, ignore: set[str]) -> bool:
     expected = set(specs) | IGNORED_TOPLEVEL_DIRS
+    print_header = lazy_header("package-coverage")
     found_issue = False
     for child in sorted(SCRIPT_DIR.iterdir(), key=lambda path: path.name):
         if not child.is_dir() or child.name.startswith("."):
@@ -124,8 +125,7 @@ def check_package_coverage(specs: dict[str, PackageSpec], *, ignore: set[str]) -
             issue_id = f"unclassified:{child.name}"
             if issue_id in ignore:
                 continue
-            if not found_issue:
-                LOGGER.warning("\n[package-coverage]")
+            print_header()
             found_issue = True
             LOGGER.warning(f"UNCLASSIFIED: {child.name}  (--ignore {issue_id})")
     return found_issue
@@ -253,12 +253,12 @@ def _is_private_endpoint(value: str) -> bool:
 
 def check_private_env_mistakes(*, ignore: set[str]) -> bool:
     """Catch local env/secrets files accidentally created inside the repo."""
+    print_header = lazy_header("private-env")
     found_issue = False
 
     def warn(message: str) -> None:
         nonlocal found_issue
-        if not found_issue:
-            LOGGER.warning("\n[private-env]")
+        print_header()
         found_issue = True
         LOGGER.warning(message)
 
@@ -317,12 +317,12 @@ def check_systemd_unit_targets(
     owning package is reported so cross-scope references stay visible: units
     are scope "fedora" while sway/waybar are scope "linux".
     """
+    print_header = lazy_header("systemd-unit-targets")
     found_issue = False
 
     def warn(message: str) -> None:
         nonlocal found_issue
-        if not found_issue:
-            LOGGER.warning("\n[systemd-unit-targets]")
+        print_header()
         found_issue = True
         LOGGER.warning(message)
 
@@ -488,20 +488,14 @@ def prune_managed_ignored_artifact_links(
     if not linked_paths and not ignored_dirs:
         return
 
-    header_printed = False
-
-    def _print_header() -> None:
-        nonlocal header_printed
-        if not header_printed:
-            LOGGER.warning("\n[ignored-artifacts]")
-            header_printed = True
+    print_header = lazy_header("ignored-artifacts")
 
     for path in sorted(linked_paths, key=lambda item: len(item.parts), reverse=True):
         try:
             path.unlink()
         except FileNotFoundError:
             continue
-        _print_header()
+        print_header()
         LOGGER.warning(f"PRUNED: {path.relative_to(target)}")
 
     for path in sorted(ignored_dirs, key=lambda item: len(item.parts), reverse=True):
@@ -513,7 +507,7 @@ def prune_managed_ignored_artifact_links(
             if verbose:
                 LOGGER.debug(f"SKIP: {path.relative_to(target)} not empty")
             continue
-        _print_header()
+        print_header()
         LOGGER.warning(f"REMOVED: {path.relative_to(target)}")
 
 
@@ -524,8 +518,8 @@ def check_repo_backlinks(
     *,
     ignore: set[str],
 ) -> bool:
-    found_stale = False
-    found_invalid = False
+    stale_header = lazy_header("stale-symlinks")
+    invalid_header = lazy_header("invalid-backlinks")
     has_issues = False
 
     for path, repo_target in iter_managed_links(target, specs, active_names):
@@ -538,9 +532,7 @@ def check_repo_backlinks(
             issue_id = f"stale:{rel_path}"
             if issue_id in ignore:
                 continue
-            if not found_stale:
-                LOGGER.warning("\n[stale-symlinks]")
-                found_stale = True
+            stale_header()
             has_issues = True
             LOGGER.warning(f"STALE: {rel_path}  (--ignore {issue_id})")
             continue
@@ -549,9 +541,7 @@ def check_repo_backlinks(
             issue_id = f"invalid:{rel_path}"
             if issue_id in ignore:
                 continue
-            if not found_invalid:
-                LOGGER.warning("\n[invalid-backlinks]")
-                found_invalid = True
+            invalid_header()
             has_issues = True
             LOGGER.warning(f"INVALID: {rel_path} [{spec.scope}]  (--ignore {issue_id})")
 

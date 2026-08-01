@@ -5,6 +5,7 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
+from .config import lazy_header
 from .pins import TPM, TPM_DEST, ZSH_PLUGINS, ZSH_PLUGINS_DEST
 
 LOGGER = logging.getLogger("dotfiles-sync")
@@ -87,13 +88,7 @@ def apply_zsh_plugins(target: Path, *, verbose: bool) -> None:
     """Clone or update zsh plugins listed in ZSH_PLUGINS to the pinned refs."""
     plugins_dir = target / ZSH_PLUGINS_DEST
     plugins_dir.mkdir(parents=True, exist_ok=True)
-    header_printed = False
-
-    def _print_header() -> None:
-        nonlocal header_printed
-        if not header_printed:
-            LOGGER.warning("\n[zsh-plugins]")
-            header_printed = True
+    print_header = lazy_header("zsh-plugins")
 
     for name, url, ref in ZSH_PLUGINS:
         _apply_pinned_clone(
@@ -102,7 +97,7 @@ def apply_zsh_plugins(target: Path, *, verbose: bool) -> None:
             ref=ref,
             dest=plugins_dir / name,
             verbose=verbose,
-            print_header=_print_header,
+            print_header=print_header,
         )
 
 
@@ -111,13 +106,7 @@ def apply_tmux_tpm(target: Path, *, verbose: bool) -> None:
     name, url, ref = TPM
     dest = target / TPM_DEST
     dest.parent.mkdir(parents=True, exist_ok=True)
-    header_printed = False
-
-    def _print_header() -> None:
-        nonlocal header_printed
-        if not header_printed:
-            LOGGER.warning("\n[tmux-tpm]")
-            header_printed = True
+    print_header = lazy_header("tmux-tpm")
 
     _apply_pinned_clone(
         name=name,
@@ -125,5 +114,5 @@ def apply_tmux_tpm(target: Path, *, verbose: bool) -> None:
         ref=ref,
         dest=dest,
         verbose=verbose,
-        print_header=_print_header,
+        print_header=print_header,
     )
