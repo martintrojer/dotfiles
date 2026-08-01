@@ -63,6 +63,17 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", async () => {
-		tmux(`set-window-option -qu -t ${WINDOW_ID} @agent_state`);
+		// Record the terminal event: without it the newest DB row stays the
+		// `working` row carrying a pid that is about to die, and the reaper
+		// reports a clean exit as a crash on the next 5s status tick.
+		try {
+			execSync(`python3 ${SCRIPT} event --window ${WINDOW_ID} --state cleared`, {
+				timeout: 5000,
+				stdio: "ignore",
+			});
+		} catch {
+			// Fallback: at least clear the tmux option.
+			tmux(`set-window-option -qu -t ${WINDOW_ID} @agent_state`);
+		}
 	});
 }
