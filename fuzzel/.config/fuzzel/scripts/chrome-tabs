@@ -61,7 +61,7 @@ def activate_tab(port: str, tab_id: str) -> bool:
             with urllib.request.urlopen(url, timeout=1.0) as response:
                 response.read()
             return True
-        except urllib.error.URLError:
+        except (urllib.error.URLError, TimeoutError):
             time.sleep(0.05)
     return False
 
