@@ -145,8 +145,23 @@ def apply_link(link: Link) -> None:
 
     Parents are real directories, never symlinks: that is what keeps two
     packages able to contribute entries to the same target directory.
+
+    A real directory at the target is refused rather than removed. This is the
+    one function here that deletes user data, and a directory means either the
+    caller skipped the conflict/backup policy in sync.py or two packages in one
+    group disagree about whether a path is a file or a directory -- the plan is
+    computed before any of it is applied, so an earlier link's mkdir can turn a
+    path another link planned as MISSING into a directory. Deleting a tree to
+    resolve that is never the right guess; unlink() would raise
+    IsADirectoryError here, which says nothing about what to do next.
     """
     link.target.parent.mkdir(parents=True, exist_ok=True)
+    if link.target.is_dir() and not link.target.is_symlink():
+        raise SystemExit(
+            f"dotfiles-sync: refusing to replace directory {link.target}\n"
+            f"  wanted a symlink to {link.source} (package '{link.package}')\n"
+            "  move or remove the directory yourself, then re-run"
+        )
     if link.target.is_symlink() or link.target.exists():
         link.target.unlink()
     link.target.symlink_to(link.source)
