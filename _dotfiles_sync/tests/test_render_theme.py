@@ -24,7 +24,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from _dotfiles_sync import render_theme
 
-PALETTE = {"mocha": {"base": "#1e1e2e", "mauve": "#cba6f7"}}
+# Deliberately not real Catppuccin values: the audit scan flags live
+# palette hex outside managed regions, and this file is not a consumer.
+PALETTE = {"mocha": {"base": "#abcdef", "mauve": "#fedcba"}}
 
 
 class MarkerMatchTests(unittest.TestCase):
@@ -93,8 +95,8 @@ keep me too
 
 RENDERED = """keep me
 # THEME BEGIN: demo
-accent = "#cba6f7"
-bare = "1e1e2e"
+accent = "#fedcba"
+bare = "abcdef"
 # THEME END: demo
 keep me too
 """
@@ -160,6 +162,40 @@ class MalformedMarkerTests(RendererFixture):
         )
 
 
+class AuditTests(RendererFixture):
+    """The blindspot backstop for the hand-maintained CONSUMERS list."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.known = render_theme.palette_values(PALETTE)
+
+    def scan(self, body: str) -> list[tuple[int, str]]:
+        path = self.root / "scanned"
+        path.write_text(body, encoding="utf-8")
+        return render_theme.unmanaged_palette_hex(path, self.known)
+
+    def test_palette_hex_outside_a_region_is_reported(self) -> None:
+        self.assertEqual(self.scan('fill = "#abcdef"\n'), [(1, "#abcdef")])
+
+    def test_palette_hex_inside_a_region_is_managed(self) -> None:
+        self.assertEqual(
+            self.scan('# THEME BEGIN: demo\nfill = "#abcdef"\n# THEME END: demo\n'),
+            [],
+        )
+
+    def test_non_palette_hex_is_not_drift(self) -> None:
+        # guides/style.css:55 picks #eef2ff deliberately; it is not
+        # Catppuccin, so the audit must leave it alone.
+        self.assertEqual(self.scan("color: #eef2ff;\n"), [])
+
+
+class LiveRepoAuditTests(unittest.TestCase):
+    def test_repo_has_no_unmanaged_palette_hex(self) -> None:
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            code = render_theme.audit(render_theme.load_palette())
+        self.assertEqual(code, 0, out.getvalue())
+
+
 class TemplateExpansionTests(unittest.TestCase):
     def test_unknown_color_fails_loud(self) -> None:
         with self.assertRaises(SystemExit) as caught:
@@ -172,8 +208,8 @@ class TemplateExpansionTests(unittest.TestCase):
         self.assertIn("unknown filter", str(caught.exception))
 
     def test_nohash_strips_only_the_leading_hash(self) -> None:
-        self.assertEqual(render_theme.FILTERS["nohash"]("#1e1e2e"), "1e1e2e")
-        self.assertEqual(render_theme.FILTERS["nohash"]("1e1e2e"), "1e1e2e")
+        self.assertEqual(render_theme.FILTERS["nohash"]("#abcdef"), "abcdef")
+        self.assertEqual(render_theme.FILTERS["nohash"]("abcdef"), "abcdef")
 
 
 if __name__ == "__main__":

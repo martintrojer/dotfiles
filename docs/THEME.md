@@ -98,19 +98,37 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `tmux/.config/tmux/scripts/tms` | `tms-palette` |
 | `sway/.config/sway/scripts/lock-screen` | `lock-screen-fallback-color` |
 | `sway/.config/sway/scripts/session-wallpaper` | `session-wallpaper-fallback-color` |
+| `guides/style.css` | `guides-palette` |
+
+---
+
+## The blindspot audit
+
+`CONSUMERS` is hand-maintained, so forgetting a `Consumer()` entry used
+to be silent: the file just drifted. `make check-theme` now also runs
+`render_theme.py --audit`, which walks the repo for hex values matching
+`docs/palette.toml` and fails on any hit outside a `THEME BEGIN..END`
+region. Only exact palette values count — a deliberately non-Catppuccin
+color (`guides/style.css` uses `#eef2ff` for headings) is not drift.
+
+Files that legitimately hold palette hex outside a region live in
+`AUDIT_ALLOWLIST` in `render_theme.py`, each with its reason. That list
+is the executable version of the section below; keep the two in step.
 
 ---
 
 ## Outside the renderer (not generated)
 
 These carry their own hex values and are intentionally not in the
-generator:
+generator. Each is in `AUDIT_ALLOWLIST`:
 
 - `bat/.config/bat/themes/Catppuccin Mocha.tmTheme` — vendored from
   the Catppuccin upstream. Update via their distribution.
 - `yazi/.config/yazi/flavors/catppuccin-mocha.yazi/` — vendored
   Catppuccin flavor.
-- `glow/.config/glow/catppuccin-mocha.json` — vendored.
+- `glow/.config/glow/catppuccin-mocha.json` — vendored Catppuccin glow
+  style. Co-maintained with `local-bin/.local/bin/m`, but we never
+  hand-edit the colors, so templating 50+ values buys nothing.
 - `ghostty/.config/ghostty/config` — uses the built-in named theme
   (`theme = catppuccin-mocha`); no hex in our config.
 - `nvim/.config/nvim/` — `catppuccin/nvim` plugin handles theming.
@@ -122,8 +140,6 @@ generator:
   the same `#1e1e2e` as the generated `lock-screen-fallback-color`, but
   is not marker-managed. Adopting it needs a marker pair, a template,
   and a `CONSUMERS` entry; see "Known gap" below.
-- `guides/style.css` — public website assets, hand-maintained. Could be
-  folded in later. (`guides/build/` is generated output and gitignored.)
 - `tmux/.config/tmux/scripts/test-status-tools` — carries no hex. It
   asserts on palette *key names* in the generated `tms-palette` region
   (every key the render path reaches exists, and every generated key is
@@ -137,7 +153,9 @@ generator:
 `fedora/bin/.local/bin/wallpaper` both hard-code `#1e1e2e` as a
 fallback/canvas fill, but only the former carries a THEME marker. A
 palette change to `base` therefore updates one and silently leaves the
-other behind. Closing it is a small feature (marker pair +
+other behind. The audit no longer lets that gap be *invisible* — the
+file sits in `AUDIT_ALLOWLIST` with the gap spelled out — but closing it
+is still a small feature (marker pair +
 `_dotfiles_sync/themes/*.tmpl` + `CONSUMERS` entry), not a doc fix.
 
 ---
