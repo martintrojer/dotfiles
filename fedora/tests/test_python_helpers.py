@@ -89,6 +89,40 @@ class FedoraPackageArrays(unittest.TestCase):
                     subprocess.run(["bash", "-n", str(script)], check=True)
 
 
+class FedoraStowGroupTests(unittest.TestCase):
+    """The fedora/gaming groups nest their stow_dir below the repo root, so the
+    package name is not at a fixed offset in the source path stow prints."""
+
+    def test_ignored_conflict_maps_to_the_owning_package(self) -> None:
+        sys.path.insert(0, str(ROOT))
+        from _dotfiles_sync.stow import package_for_conflict
+
+        target = ROOT.parent
+        cases = [
+            (ROOT, "zsh/.zshrc", "zsh"),
+            (ROOT / "fedora", "bin/.local/bin/cava", "bin"),
+            (
+                ROOT / "fedora/gaming",
+                "home/.config/MangoHud/MangoHud.conf",
+                "home",
+            ),
+        ]
+        for stow_dir, tail, expected in cases:
+            source_rel = f"{os.path.relpath(stow_dir, target)}/{tail}"
+            with self.subTest(stow_dir=stow_dir.name):
+                self.assertEqual(
+                    package_for_conflict(source_rel, stow_dir, target), expected
+                )
+
+    def test_conflict_outside_the_group_maps_to_nothing(self) -> None:
+        sys.path.insert(0, str(ROOT))
+        from _dotfiles_sync.stow import package_for_conflict
+
+        self.assertIsNone(
+            package_for_conflict("elsewhere/bin/tool", ROOT / "fedora", ROOT.parent)
+        )
+
+
 class FedoraPythonHelperTests(unittest.TestCase):
     def test_wallpaper_archives_symlink_target_without_moving_source(self) -> None:
         wallpaper = cast(Any, load_script("wallpaper_test", WALLPAPER))

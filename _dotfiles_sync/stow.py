@@ -93,6 +93,24 @@ def parse_conflicts(output: str) -> list[Conflict]:
     return conflicts
 
 
+def package_for_conflict(source_rel: str, stow_dir: Path, target: Path) -> str | None:
+    """Package name owning a conflicting source path stow printed.
+
+    stow prints the source target-relative, so the leading components are the
+    path to the group's stow_dir, not the package: for the fedora group it is
+    "dotfiles/fedora/bin/..." and for gaming "dotfiles/fedora/gaming/home/...".
+    Only groups whose stow_dir is the repo root put the package name second.
+    Strip the stow_dir prefix so every group shape yields the real package.
+    """
+    prefix = Path(os.path.relpath(stow_dir, target))
+    try:
+        rest = Path(source_rel).relative_to(prefix)
+    except ValueError:
+        return None
+    parts = rest.parts
+    return parts[0] if parts else None
+
+
 def source_path_for_conflict(source_rel: str, target: Path) -> Path:
     if source_rel.startswith("dotfiles/"):
         return target / source_rel
@@ -254,7 +272,13 @@ def run_apply_group(
             if f"conflict:{target_rel}" in ignore
         }
         if ignored:
-            skip_pkgs = {source.split("/")[1] for source in ignored if "/" in source}
+            skip_pkgs = {
+                package
+                for package in (
+                    package_for_conflict(source, stow_dir, target) for source in ignored
+                )
+                if package is not None
+            }
             packages = [package for package in packages if package not in skip_pkgs]
             for package in sorted(skip_pkgs):
                 LOGGER.warning(f"Skipping package '{package}' (ignored conflict)")
