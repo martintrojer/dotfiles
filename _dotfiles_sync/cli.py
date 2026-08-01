@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from time import monotonic
 
-from .config import APPLY_TASKS, BACKUP_DIR_NAME, CHECK_TASKS, task_enabled
+from .config import BACKUP_DIR_NAME, task_enabled
 from .external import (
     apply_tmux_tpm,
     apply_zsh_plugins,
@@ -20,7 +20,7 @@ from .integration_checks import (
     check_zsh_plugins,
 )
 from .inventory import build_specs, group_active_packages, resolve_requested_packages
-from .model import Args, PackageSpec
+from .model import Args, PackageSpec, TaskPolicy
 from .repo_checks import (
     check_package_coverage,
     check_private_env_mistakes,
@@ -145,30 +145,50 @@ def run_check_tasks(
         LOGGER.info(f"Backlink scan finished in {backlink_scan_elapsed:.1f}s.")
         return has_issues
 
-    handlers: dict[str, Callable[[], bool]] = {
-        "package-coverage": lambda: check_package_coverage(specs, ignore=ignore),
-        "private-env": lambda: check_private_env_mistakes(ignore=ignore),
-        "zsh-plugins": lambda: check_zsh_plugins(
-            target, verbose=verbose, ignore=ignore
+    # (policy, handler) pairs, not a name-keyed dict beside a separate name
+    # list: the two cannot drift apart, so there is no lookup to fail.
+    tasks: tuple[tuple[TaskPolicy, Callable[[], bool]], ...] = (
+        (
+            TaskPolicy("package-coverage", full_run_only=True),
+            lambda: check_package_coverage(specs, ignore=ignore),
         ),
-        "tmux-tpm": lambda: check_tmux_tpm(target, verbose=verbose, ignore=ignore),
-        "agent-notify": lambda: check_agent_notify(
-            target, verbose=verbose, ignore=ignore
+        (
+            TaskPolicy("private-env"),
+            lambda: check_private_env_mistakes(ignore=ignore),
         ),
-        "fedora-systemd-masks": lambda: check_fedora_systemd_masks(
-            target, verbose=verbose, ignore=ignore
+        (
+            TaskPolicy("zsh-plugins", packages=frozenset({"zsh"})),
+            lambda: check_zsh_plugins(target, verbose=verbose, ignore=ignore),
         ),
-        "systemd-unit-targets": lambda: check_systemd_unit_targets(
-            specs, ignore=ignore
+        (
+            TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
+            lambda: check_tmux_tpm(target, verbose=verbose, ignore=ignore),
         ),
-        "repo-backlinks": _check_repo_backlinks,
-    }
+        (
+            TaskPolicy("agent-notify", full_run_only=True),
+            lambda: check_agent_notify(target, verbose=verbose, ignore=ignore),
+        ),
+        (
+            TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
+            lambda: check_fedora_systemd_masks(target, verbose=verbose, ignore=ignore),
+        ),
+        # Static, filesystem-only: no systemd, no stowed target, so it runs
+        # everywhere and on every run rather than only on Fedora.
+        (
+            TaskPolicy("systemd-unit-targets"),
+            lambda: check_systemd_unit_targets(specs, ignore=ignore),
+        ),
+        (
+            TaskPolicy("repo-backlinks", full_run_only=True),
+            _check_repo_backlinks,
+        ),
+    )
 
     has_issues = False
-    for task in CHECK_TASKS:
+    for task, handler in tasks:
         if not task_enabled(task, active_names=active_names, full_run=full_run):
             continue
-        has_issues |= handlers[task.name]()
+        has_issues |= handler()
     return has_issues
 
 
@@ -180,24 +200,36 @@ def run_apply_tasks(
     full_run: bool,
     verbose: bool,
 ) -> None:
-    handlers: dict[str, Callable[[], None]] = {
-        "ignored-artifacts": lambda: prune_managed_ignored_artifact_links(
-            target,
-            specs,
-            active_names,
-            verbose=verbose,
+    # Pairs, not a name join. A KeyError here would land mid---apply, after
+    # earlier tasks had already cloned repos and written symlinks.
+    tasks: tuple[tuple[TaskPolicy, Callable[[], None]], ...] = (
+        (
+            TaskPolicy("ignored-artifacts"),
+            lambda: prune_managed_ignored_artifact_links(
+                target,
+                specs,
+                active_names,
+                verbose=verbose,
+            ),
         ),
-        "fedora-systemd-masks": lambda: apply_fedora_systemd_masks(
-            target, verbose=verbose
+        (
+            TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
+            lambda: apply_fedora_systemd_masks(target, verbose=verbose),
         ),
-        "zsh-plugins": lambda: apply_zsh_plugins(target, verbose=verbose),
-        "tmux-tpm": lambda: apply_tmux_tpm(target, verbose=verbose),
-    }
+        (
+            TaskPolicy("zsh-plugins", packages=frozenset({"zsh"})),
+            lambda: apply_zsh_plugins(target, verbose=verbose),
+        ),
+        (
+            TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
+            lambda: apply_tmux_tpm(target, verbose=verbose),
+        ),
+    )
 
-    for task in APPLY_TASKS:
+    for task, handler in tasks:
         if not task_enabled(task, active_names=active_names, full_run=full_run):
             continue
-        handlers[task.name]()
+        handler()
 
 
 def main() -> int:
