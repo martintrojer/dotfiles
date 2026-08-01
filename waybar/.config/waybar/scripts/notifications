@@ -8,7 +8,15 @@ import json
 import shutil
 from typing import Any
 
-from _state import demo_enabled, run, set_demo
+from _state import demo_enabled, guarded_render, run, set_demo
+
+# What the module degrades to when rendering fails: the quiet shape, so a
+# broken renderer collapses the block instead of blanking the bar.
+EMPTY_PAYLOAD: dict[str, object] = {
+    "text": "",
+    "tooltip": "No notifications",
+    "class": ["empty"],
+}
 
 MAX_LABEL = 140
 MAX_BODY = 400
@@ -235,7 +243,7 @@ def demo(state: str) -> int:
 def main() -> int:
     args = parse_args()
     if args.action == "waybar":
-        return waybar()
+        return guarded_render("notifications", waybar, EMPTY_PAYLOAD)
     if args.action == "picker":
         return picker()
     if args.action == "clear":

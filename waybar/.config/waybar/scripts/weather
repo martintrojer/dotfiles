@@ -23,6 +23,13 @@ from urllib.error import URLError
 from urllib.parse import quote
 from urllib.request import urlopen
 
+from _state import guarded_render
+
+# What the module degrades to when rendering fails: the same shape used for
+# "no valid cache", so a broken renderer collapses the block rather than
+# blanking the bar.
+EMPTY_PAYLOAD: dict[str, object] = {"text": "", "tooltip": "", "class": ["empty"]}
+
 CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "waybar"
 CACHE_FILE = CACHE_DIR / "weather.json"
 LOCK_FILE = CACHE_DIR / "weather.refreshing"
@@ -285,7 +292,7 @@ def maybe_refresh(cache: Weather | None) -> None:
 def render(cache: Weather | None) -> int:
     maybe_refresh(cache)
     if cache is None or int(time.time()) - cache.fetched_at > CACHE_MAX_AGE:
-        print(json.dumps({"text": "", "tooltip": "", "class": ["empty"]}))
+        print(json.dumps(EMPTY_PAYLOAD))
         return 0
 
     updated = datetime.fromtimestamp(cache.fetched_at).strftime("%H:%M")
@@ -346,7 +353,7 @@ def main() -> int:
     args = parse_args()
     if args.refresh:
         return refresh()
-    return render(read_cache())
+    return guarded_render("weather", lambda: render(read_cache()), EMPTY_PAYLOAD)
 
 
 if __name__ == "__main__":
