@@ -43,6 +43,21 @@ class PackageSpec:
 
 
 @dataclass(frozen=True)
+class Overwrite:
+    """--force-overwrite, carrying the backup root it is useless without.
+
+    These used to travel as two independent parameters (`force_overwrite: bool`
+    and `backup_root: Path | None`) with an `assert backup_root is not None` in
+    the one block that moves a user's file aside -- an assert that vanishes
+    under `python -O`, in the exact code path where a lost file is the cost.
+    Bundling them makes "overwriting implies somewhere to back up to"
+    unrepresentable otherwise, and `Overwrite | None` narrows for free.
+    """
+
+    backup_root: Path
+
+
+@dataclass(frozen=True)
 class SystemInfo:
     os_name: str
     is_fedora: bool

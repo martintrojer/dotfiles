@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from _dotfiles_sync import link as link_module
 from _dotfiles_sync import sync
-from _dotfiles_sync.model import PackageSpec
+from _dotfiles_sync.model import Overwrite, PackageSpec
 
 
 class ApplyPolicyTestCase(unittest.TestCase):
@@ -72,8 +72,9 @@ class ApplyPolicyTestCase(unittest.TestCase):
             self.specs,
             self.target,
             verbose=False,
-            force_overwrite=force_overwrite,
-            backup_root=self.backup_root if force_overwrite else None,
+            overwrite=Overwrite(backup_root=self.backup_root)
+            if force_overwrite
+            else None,
             ignore=ignore or set(),
         )
 

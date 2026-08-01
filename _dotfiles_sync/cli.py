@@ -20,7 +20,7 @@ from .integration_checks import (
     check_zsh_plugins,
 )
 from .inventory import build_specs, group_active_packages, resolve_requested_packages
-from .model import Args, PackageSpec, TaskPolicy
+from .model import Args, Overwrite, PackageSpec, TaskPolicy
 from .repo_checks import (
     check_package_coverage,
     check_private_env_mistakes,
@@ -246,18 +246,18 @@ def main() -> int:
     scopes = active_scopes(system, skip_gaming=args.skip_gaming)
     active_names = resolve_requested_packages(specs, args.packages, scopes)
     full_run = not args.packages
-    backup_root = None
+    overwrite = None
     if args.force_overwrite:
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        backup_root = target / BACKUP_DIR_NAME / timestamp
+        overwrite = Overwrite(backup_root=target / BACKUP_DIR_NAME / timestamp)
 
     LOGGER.info(f"Using target: {target}")
     LOGGER.info(f"Detected OS: {system.os_name}")
     LOGGER.info(f"Mode: {args.action}")
-    if backup_root is not None:
+    if overwrite is not None:
         LOGGER.info(
             "Force overwrite enabled; conflicting targets will be moved to: "
-            f"{backup_root}"
+            f"{overwrite.backup_root}"
         )
 
     groups = group_active_packages(specs, active_names)
@@ -281,8 +281,7 @@ def main() -> int:
                 specs,
                 target,
                 verbose=args.verbose,
-                force_overwrite=args.force_overwrite,
-                backup_root=backup_root,
+                overwrite=overwrite,
                 ignore=args.ignore,
             )
 
