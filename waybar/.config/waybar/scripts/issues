@@ -16,7 +16,11 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from _state import demo_enabled, run, set_demo
+from _state import demo_enabled, guarded_render, run, set_demo
+
+# What the module degrades to when rendering fails: exactly the healthy shape,
+# so a broken renderer collapses the block instead of blanking the bar.
+OK_PAYLOAD: dict[str, object] = {"text": "", "tooltip": "All quiet", "class": ["ok"]}
 
 HWMON_ROOT = Path("/sys/class/hwmon")
 VAR_PATH = Path("/var")
@@ -446,7 +450,7 @@ def click(button: str) -> int:
 def waybar() -> int:
     issues = collect_issues()
     if not issues:
-        print(json.dumps({"text": "", "tooltip": "All quiet", "class": ["ok"]}))
+        print(json.dumps(OK_PAYLOAD))
         return 0
 
     open_action = choose_action(issues, ACTION_OPEN)
@@ -493,7 +497,7 @@ def main() -> int:
             set_demo(False)
         print("on" if demo_enabled() else "off")
         return 0
-    return waybar()
+    return guarded_render("issues", waybar, OK_PAYLOAD)
 
 
 if __name__ == "__main__":

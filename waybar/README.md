@@ -52,6 +52,27 @@ Details stay in the tooltip; the bar text stays compact. Click behavior follows
 one rule: left click opens the relevant TUI, right click performs the safe direct
 fix where one exists.
 
+## Failure policy
+
+A Waybar module that dies must degrade to a sane JSON payload, not vanish: every
+`"return-type": "json"` renderer runs headless every few seconds, so a traceback
+is invisible and losing stdout blanks the bar.
+
+Mechanically, each module's JSON entrypoint goes through
+`guarded_render()` in `~/.config/waybar/scripts/_state.py`, which catches the
+narrow `EXPECTED_ERRORS` tuple (OS / subprocess / parsing / arithmetic), writes
+one throttled breadcrumb per hour to `$XDG_STATE_HOME/waybar/<module>.log`, and
+prints the module's own collapsed payload — `ok` for issues, `empty` for
+notifications and weather. Anything outside that tuple is a programmer error and
+still crashes loudly, so bugs surface in development instead of decaying into a
+permanently quiet bar. Callers must print exactly once, at the end of the
+renderer, so a fallback can never append to partial output.
+
+This is the same policy `tmux/.config/tmux/scripts/_status_common.py` encodes,
+copied rather than imported: the two live in different stow packages and rely on
+`sys.path[0]` colocation (see [`docs/DECISIONS.md`](../docs/DECISIONS.md), "A
+shared `pylib/` helper module").
+
 ## Demo mode
 
 For layout tuning, both Waybar scripts read a shared demo flag at
