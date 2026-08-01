@@ -14,6 +14,10 @@
 # is never present in what stow tests. Use bare-name regexes here so they
 # match at the package root *and* in nested directories (e.g. vendored
 # README.md / LICENSE files inside yazi flavors).
+# Focused regression suites live next to the scripts they cover (those scripts
+# rely on sys.path[0] colocation, so the tests must import them from there).
+# They are repo infrastructure, not dotfiles: never link them into $HOME.
+--ignore=tests
 --ignore=README\.md
 --ignore=LICENSE.*
 --ignore=COPYING
