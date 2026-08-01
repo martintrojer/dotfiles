@@ -143,6 +143,32 @@ class GamingPythonHelperTests(unittest.TestCase):
                 [mock.call(101, signal.SIGSTOP), mock.call(102, signal.SIGSTOP)],
             )
 
+    def test_steam_pause_reports_paused_only_when_whole_tree_is_stopped(self) -> None:
+        steam_pause = cast(Any, load_script("steam_pause_test", STEAM_PAUSE))
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            proc = Path(raw_tmp)
+            steam_pause.PROC = proc
+
+            def set_states(states: dict[int, str]) -> None:
+                for pid, state in states.items():
+                    pid_dir = proc / str(pid)
+                    pid_dir.mkdir(exist_ok=True)
+                    (pid_dir / "stat").write_text(f"{pid} (game ) x) {state} 100 0 0\n")
+
+            set_states({101: "R", 102: "T"})
+            # Order must not matter: descendants() pops off a stack, so which
+            # pid comes first is arbitrary between runs.
+            self.assertFalse(steam_pause.is_paused([101, 102]))
+            self.assertFalse(steam_pause.is_paused([102, 101]))
+
+            set_states({101: "T", 102: "T"})
+            self.assertTrue(steam_pause.is_paused([101, 102]))
+
+            # Vanished pids are ignored, but an entirely gone tree is not paused.
+            self.assertTrue(steam_pause.is_paused([101, 102, 999]))
+            self.assertFalse(steam_pause.is_paused([999]))
+            self.assertFalse(steam_pause.is_paused([]))
+
 
 if __name__ == "__main__":
     unittest.main()
