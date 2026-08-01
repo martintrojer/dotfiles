@@ -522,10 +522,10 @@ class OptiscalerSyncTests(unittest.TestCase):
             self.sync.load_overrides(path)
 
     def test_vdf_edit_is_scoped_and_reports_missing_app(self) -> None:
-        text = self.config.read_text() if self.config.exists() else ""
         app = self.app("100", "One")
         self.app("200", "Two")
         before = self.config.read_text()
+        self.assertIn(f'"{app.appid}"', before)
         changed, did_change, found, removed = self.sync.edit_launch(before, app.appid)
         self.assertTrue(did_change)
         self.assertTrue(found)
@@ -551,7 +551,6 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.assertFalse(did_change)
         self.assertFalse(found)
         self.assertFalse(removed)
-        self.assertNotEqual(text, before)
 
     def test_ini_patch_updates_duplicate_keys(self) -> None:
         patched = self.sync.patch_ini(
