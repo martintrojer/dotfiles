@@ -267,6 +267,23 @@ When any of the agent-side content changes in this repo:
 - **Skills and Pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` symlinks point straight at the repo source; edits propagate live.
 - **New / removed skills or Pi extensions:** re-run `./dotfiles-sync --apply` to link new entries or prune stale ones.
 
+## Pushing changes: `make push`
+
+This repo has no hosted CI (see [`DECISIONS.md`](./DECISIONS.md)). The gate is local and opt-in:
+
+```bash
+make push                    # check-all, then jj git push
+make push ARGS='-b main'     # extra args go through ARGS
+```
+
+`check-all` is a prerequisite of `push`, so a red check means make never reaches the push at all. Nothing lands on the remote.
+
+**To bypass, run `jj git push` (or the `jjgp` alias) directly.** That is deliberate, not an oversight — the plain command is the escape hatch and `make push` is the gate you opt into. Use it when the failure is unrelated to what you're pushing (a missing local tool, say) and you'd rather not be blocked.
+
+**Why a make target and not a pre-push hook.** jj (0.42) has no hook mechanism — no config key, nothing in `jj util config-schema`, nothing in the CLI — and `jj git push` does not run git's client-side hooks, because it pushes through its own git library rather than shelling out to `git`. Verified empirically against a throwaway colocated repo: a `.git/hooks/pre-push` that exits 1 blocks `git push` and is silently ignored by `jj git push`. Since jj is the primary VCS here, a pre-push hook would present as a gate while the command actually used walked straight past it. If jj ever gains hooks, this target becomes a one-line wrapper around one.
+
+The gate can't leak into other repos: it's this repo's Makefile, with no global git config or `core.hooksPath` involved. `make check-all` needs tmux, zsh, ruff, ty, stylua, luacheck, node, and network for `npx typescript` — that toolchain requirement is the other half of why this stayed local.
+
 ## Testing and debugging the bootstrap
 
 Two recipes. Different intents:
