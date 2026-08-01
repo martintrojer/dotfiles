@@ -18,8 +18,10 @@ from __future__ import annotations
 import argparse
 import contextlib
 import os
+import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -31,6 +33,12 @@ CHEATSHEET = SCRIPT_DIR / "cheatsheet"
 TMS = SCRIPT_DIR / "tms"
 # scripts/ -> tmux/ -> .config/ -> <package root>, where the stowed dotfile lives.
 TMUX_CONF = SCRIPT_DIR.parents[2] / ".tmux.conf"
+# <repo>/tmux/.config/tmux/scripts -> <repo>
+REPO_ROOT = SCRIPT_DIR.parents[3]
+
+sys.path.insert(0, str(SCRIPT_DIR))
+from _tmux_common import STATE_GLYPH, AgentState  # noqa: E402
+
 # Per-process socket: two concurrent runs (e.g. `make check-all` here and in an
 # agent workspace on the same box) would otherwise share one tmux server and
 # kill-server each other's session mid-assertion.
@@ -401,6 +409,9 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     attention(env, ["clear-current", "--pane", panes["w1p2"]])
     expect("status idle after clear", attention(env, ["status"]), "idle\t2")
 
+    run_agent_state_contract_tests(env, panes["w1p1"])
+    run_writer_vocabulary_tests()
+
     print("\n[status-window-label]")
 
     # Pick a pid that is virtually guaranteed not to exist (and therefore
@@ -476,6 +487,217 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     run_tms_tests()
 
 
+# Drives the real extension: registers its handlers against a stub pi API,
+# fires one event, and waits for the handler's queued work to settle.
+_PI_DRIVER = """
+const [,, ext, event] = process.argv;
+const mod = await import(ext);
+const handlers = {};
+mod.default({ on: (ev, fn) => { handlers[ev] = fn; } });
+if (!handlers[event]) { console.error("no handler for " + event); process.exit(3); }
+console.log(Object.keys(handlers).sort().join(","));
+await handlers[event]();
+await new Promise((r) => setTimeout(r, 1500));
+"""
+
+
+def run_agent_state_contract_tests(env: dict[str, str], pane: str) -> None:
+    """Run the *real* pi extension and assert the tmux state it writes.
+
+    Five packages agree on an untyped string protocol: the TS extension
+    writes @agent_state/@pane_agent, ``_tmux_common.AgentState`` parses them,
+    ``.tmux.conf`` switches glyphs on them, and the picker rolls them up.
+    The old coverage re-implemented the TS side in Python ("Simulate what the
+    pi extension does"), so renaming a state on either side passed every gate.
+
+    Running the genuine article is possible because node >= 22.6 strips TypeScript
+    types on import, so the .ts file loads with no build step. Two seams have
+    to be closed for it to be hermetic:
+
+      * the extension shells plain ``tmux``, with no socket flag, so a shim
+        earlier on PATH pins it to this run's isolated server;
+      * it resolves the helper script through ``$HOME``, so HOME points at a
+        tree whose .config/tmux/scripts is a symlink to the repo copy.
+
+    Skipped rather than failed when node is missing: this suite has to keep
+    working on a box with no JS toolchain.
+    """
+    print("\n[agent-state contract: real pi extension]")
+
+    if shutil.which("node") is None:
+        print("  skip  node not installed")
+        return
+
+    ext = REPO_ROOT / "pi" / ".pi" / "agent" / "extensions" / "agent-attention.ts"
+    if not ext.is_file():
+        raise TestFailure(f"pi extension not found at {ext}")
+
+    sandbox = Path(env["XDG_STATE_HOME"]) / "pi-ext"
+    bindir = sandbox / "bin"
+    fake_home = sandbox / "home"
+    bindir.mkdir(parents=True, exist_ok=True)
+    (fake_home / ".config" / "tmux").mkdir(parents=True, exist_ok=True)
+    link = fake_home / ".config" / "tmux" / "scripts"
+    if not link.exists():
+        link.symlink_to(SCRIPT_DIR)
+
+    real_tmux = shutil.which("tmux", path=env.get("PATH"))
+    shim = bindir / "tmux"
+    shim.write_text(f'#!/bin/sh\nexec {real_tmux} -L {SOCKET} "$@"\n', encoding="utf-8")
+    shim.chmod(0o755)
+
+    driver = sandbox / "drive.mjs"
+    driver.write_text(_PI_DRIVER, encoding="utf-8")
+
+    wid = tmux(env, ["display-message", "-p", "-t", pane, "#{window_id}"])
+
+    def fire(event: str, **extra: str) -> subprocess.CompletedProcess[str]:
+        sub = {
+            **env,
+            **extra,
+            "PATH": f"{bindir}:{env['PATH']}",
+            "HOME": str(fake_home),
+            "TMUX_PANE": pane,
+        }
+        return subprocess.run(
+            ["node", str(driver), str(ext), event],
+            capture_output=True,
+            text=True,
+            env=sub,
+            timeout=60,
+        )
+
+    def state() -> str:
+        return tmux(env, ["display-message", "-p", "-t", wid, "#{@agent_state}"])
+
+    started = fire("agent_start")
+    expect("the real extension loads under node", started.returncode, 0)
+    # The event names are half the contract: pi fires these exact strings.
+    expect(
+        "extension registers the documented pi events",
+        started.stdout.strip().splitlines()[0] if started.stdout.strip() else "",
+        "agent_end,agent_start,session_shutdown",
+    )
+    expect("agent_start writes @agent_state=working", state(), "working")
+    expect(
+        "agent_start sets the sticky @pane_agent marker",
+        tmux(env, ["display-message", "-p", "-t", wid, "#{@pane_agent}"]),
+        "1",
+    )
+    # The value the TS writes must be a name the Python enum knows.
+    expect(
+        "the written state parses as an AgentState",
+        AgentState.parse(state()),
+        AgentState.working,
+    )
+    # ...and it must reach the reader the status bar actually uses. Note
+    # `status` also runs the reaper, and the pid the extension recorded is
+    # the driver node process, which has already exited -- so the honest
+    # expectation here is `crashed`, which is itself the contract working:
+    # the TS wrote a pid, the Python reaped it. Read the raw option for the
+    # unreaped value and let the reaper have its say separately.
+    expect(
+        "scan_agent_states sees the extension's write",
+        AgentState.parse(state()),
+        AgentState.working,
+    )
+    expect(
+        "the reaper acts on the pid the extension recorded",
+        attention(env, ["status"]).split("\t")[0],
+        "crashed",
+    )
+    # Reset: that reap left the window crashed.
+    tmux(env, ["set-window-option", "-qu", "-t", wid, "@agent_state"])
+
+    # agent_end on an unfocused pane parks the window as blocked.
+    tmux(env, ["select-window", "-t", "s1:2"])
+    fire("agent_end")
+    expect("agent_end on an unfocused pane writes blocked", state(), "blocked")
+    expect(
+        "the blocked value parses as an AgentState",
+        AgentState.parse(state()),
+        AgentState.blocked,
+    )
+
+    # MU_MANAGED short-circuits to a plain clear.
+    fire("agent_start")
+    expect("agent_start again writes working", state(), "working")
+    fire("agent_end", MU_MANAGED_AGENT="1")
+    expect("agent_end under MU_MANAGED clears the state", state(), "")
+
+    # session_shutdown is the terminal event; it must clear, not leave a
+    # working pid behind for the reaper to report as a crash.
+    fire("agent_start")
+    fire("session_shutdown")
+    expect("session_shutdown clears @agent_state", state(), "")
+    expect(
+        "session_shutdown leaves no crashed window behind",
+        "crashed" in attention(env, ["status"]),
+        False,
+    )
+
+    # Sticky marker outlives the states, so the window keeps its idle dot.
+    expect(
+        "@pane_agent survives the session",
+        tmux(env, ["display-message", "-p", "-t", wid, "#{@pane_agent}"]),
+        "1",
+    )
+
+    tmux(env, ["set-window-option", "-qu", "-t", wid, "@pane_agent"])
+    tmux(env, ["select-window", "-t", "s1:1"])
+
+
+def run_writer_vocabulary_tests() -> None:
+    """Every state name written by a non-Python writer must exist in AgentState.
+
+    The extension test above proves the pi path end to end, but the opencode
+    plugin reaches tmux through ``notify`` and ``.tmux.conf`` only reads the
+    values. This is the cheap half of the contract: a static check that no
+    writer or reader names a state the enum does not define. It catches a
+    rename in a file the runtime test never loads.
+    """
+    print("\n[agent-state contract: shared vocabulary]")
+
+    known = {s.name for s in AgentState}
+
+    ts = (
+        REPO_ROOT / "pi" / ".pi" / "agent" / "extensions" / "agent-attention.ts"
+    ).read_text(encoding="utf-8")
+    written = set(re.findall(r'"@agent_state",\s*"([a-z]+)"', ts))
+    expect_truthy("the pi extension writes at least one state", written)
+    for name in sorted(written):
+        expect(f"pi extension state {name!r} exists in AgentState", name in known, True)
+
+    conf = TMUX_CONF.read_text(encoding="utf-8")
+    compared = set(re.findall(r"==:#\{@agent_state\},([a-z]+)\}", conf))
+    expect_truthy(".tmux.conf compares against at least one state", compared)
+    for name in sorted(compared):
+        expect(f".tmux.conf state {name!r} exists in AgentState", name in known, True)
+
+    # The glyph table must cover everything the config can switch on.
+    for name in sorted(compared):
+        expect(
+            f"state {name!r} switched on in .tmux.conf has a glyph",
+            any(s.name == name for s in STATE_GLYPH),
+            True,
+        )
+
+    # The opencode plugin must keep calling the script the contract lives in.
+    plugin = (
+        REPO_ROOT / "opencode" / ".config" / "opencode" / "plugin" / "notify.ts"
+    ).read_text(encoding="utf-8")
+    expect(
+        "the opencode plugin still targets agent-attention",
+        "tmux/scripts/agent-attention" in plugin,
+        True,
+    )
+    expect(
+        "the opencode plugin still uses the notify subcommand",
+        "notify" in plugin,
+        True,
+    )
+
+
 def _import_script(path: Path, name: str):
     """Load an extensionless script as a module so its pure helpers are testable.
 
@@ -514,7 +736,6 @@ def run_tms_tests() -> None:
     whole picker died with KeyError exactly when a crashed agent existed.
     """
     tms = _import_script(TMS, "tms_mod")
-    from _tmux_common import STATE_GLYPH, AgentState
 
     for state in AgentState:
         entry = tms.Entry(kind="tmux", name="w", session_name="s", worst_state=state)
@@ -708,7 +929,7 @@ def run_tms_entry_tests(tms) -> None:
     outside sources (live tmux sessions, agent state) so the merge logic is
     the only thing under test.
     """
-    from _tmux_common import AgentState, AgentStats
+    from _tmux_common import AgentStats
 
     configured = (
         tms.SessionConfig(name="dotfiles", path="/tmp/dotfiles", startup="yazi"),
@@ -924,6 +1145,11 @@ def main() -> int:
     # Ensure the script never picks up a stray TMUX env from this shell.
     env.pop("TMUX_PANE", None)
     env.pop("TMUX", None)
+    # The pi extension branches on this. When the suite runs *inside* a
+    # managed agent pane the variable is already 1, which would silently
+    # switch agent_end to the clear-only path and make the contract test
+    # assert different behavior than it does on a developer box or in CI.
+    env.pop("MU_MANAGED_AGENT", None)
 
     print(f"socket   : {SOCKET}")
     print(f"tmpdir   : {tmpdir}")
