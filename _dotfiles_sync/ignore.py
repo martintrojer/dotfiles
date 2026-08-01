@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 from typing import Final
 
@@ -51,7 +52,16 @@ class IgnoreRules:
     names: tuple[re.Pattern[str], ...]
 
     @classmethod
+    @cache
     def load(cls) -> IgnoreRules:
+        """The compiled rule set. Cached: NAME_PATTERNS is a module constant.
+
+        plan_package calls this on entry, so without the cache the patterns
+        recompile once per package -- 30-odd times per full run, plus again in
+        the backlink audit -- on the walk cli.py bothers to time. The result
+        cannot differ between calls, and IgnoreRules is frozen, so sharing one
+        instance is safe.
+        """
         return cls(names=tuple(re.compile(p) for p in NAME_PATTERNS))
 
     def matches(self, rel: Path) -> bool:
