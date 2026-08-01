@@ -14,6 +14,7 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 # ── presets ──────────────────────────────────────────────────────────────────
 # Tiled: percentage-point widths (sway ppt).
@@ -89,7 +90,7 @@ def is_floating(container: dict) -> bool:
 
 def state_dir() -> str:
     d = os.path.join(
-        os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"),
+        os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local/state"),
         "sway",
     )
     os.makedirs(d, exist_ok=True)

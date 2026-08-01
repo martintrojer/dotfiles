@@ -137,7 +137,7 @@ def load_overrides(path: Path = OVERRIDES_FILE) -> dict[str, dict[str, str]]:
 def steam_roots(home: Path | None = None, data_home: Path | None = None) -> list[Path]:
     home = home or Path.home()
     data_home = data_home or Path(
-        os.environ.get("XDG_DATA_HOME", home / ".local/share")
+        os.environ.get("XDG_DATA_HOME") or home / ".local/share"
     )
     candidates = [
         data_home / "Steam",
