@@ -20,6 +20,7 @@ import contextlib
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -197,6 +198,25 @@ def _start_session(env: dict[str, str]) -> None:
             tmux(env, ["kill-server"], check=False)
         time.sleep(0.05 * (attempt + 1))
     raise TestFailure(f"could not start isolated tmux server: {last}")
+
+
+def latest_event(env: dict[str, str], *columns: str) -> tuple[object, ...]:
+    """Read named columns off the newest row of the isolated events DB.
+
+    Some of agent-attention's behavior (which source/message a payload
+    resolved to) is only observable in the DB; the tmux options carry the
+    state alone.
+    """
+    db = Path(env["XDG_STATE_HOME"]) / "tmux-agent-attention" / "events.db"
+    if not db.is_file():
+        raise TestFailure(f"events DB not created at {db}")
+    with sqlite3.connect(db) as conn:
+        row = conn.execute(
+            f"SELECT {','.join(columns)} FROM events ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()
+    if row is None:
+        raise TestFailure("events DB has no rows")
+    return tuple(row)
 
 
 def setup_server(env: dict[str, str]) -> dict[str, str]:
@@ -393,9 +413,13 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     # --- JSON payload via stdin (legacy non-pi path) ---
 
     print("\n[agent-attention: JSON stdin]")
+    # opencode/.config/opencode/plugin/notify.ts pipes this exact shape with no
+    # flags. Asserting only exit code + "blocked" would pass even if the payload
+    # were discarded, because a flagless notify already blocks; the DB row is
+    # the only place the parse is observable.
     json_proc = subprocess.run(
         ["python3", str(AGENT_ATTENTION), "notify"],
-        input='{"source":"codex","type":"notification","title":"Codex","message":"done"}',
+        input='{"source":"opencode","type":"session.idle","title":"OpenCode","message":"done"}',
         capture_output=True,
         text=True,
         env={**env, "TMUX_PANE": panes["w1p2"]},
@@ -406,8 +430,29 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
         attention(env, ["status"]),
         "blocked\t1",
     )
+    expect(
+        "stdin JSON payload reaches the DB",
+        latest_event(env, "source", "message"),
+        ("opencode", "done"),
+    )
     attention(env, ["clear-current", "--pane", panes["w1p2"]])
     expect("status idle after clear", attention(env, ["status"]), "idle\t2")
+
+    # Flags still win over stdin, and a garbage pipe must not crash the hook.
+    garbage = subprocess.run(
+        ["python3", str(AGENT_ATTENTION), "notify", "--source", "codex"],
+        input="not json at all",
+        capture_output=True,
+        text=True,
+        env={**env, "TMUX_PANE": panes["w1p2"]},
+    )
+    expect("unparseable stdin does not fail notify", garbage.returncode, 0)
+    expect(
+        "unparseable stdin falls back to flags",
+        latest_event(env, "source", "message"),
+        ("codex", "attention"),
+    )
+    attention(env, ["clear-current", "--pane", panes["w1p2"]])
 
     run_agent_state_contract_tests(env, panes["w1p1"])
     run_writer_vocabulary_tests()
