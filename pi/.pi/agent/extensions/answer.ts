@@ -230,8 +230,17 @@ function buildQnA(questions: Question[]) {
 			if (matchesKey(data, Key.shift("tab"))) return void goTo(index - 1);
 			if (matchesKey(data, Key.up) && editor.getText() === "") return void goTo(index - 1);
 			if (matchesKey(data, Key.down) && editor.getText() === "") return void goTo(index + 1);
-			// Plain Enter advances / confirms; Shift+Enter falls through to the editor.
-			if (matchesKey(data, Key.enter) && !matchesKey(data, Key.shift("enter"))) {
+			// Newline first. Under the Kitty protocol a bare "\n" is reported as
+			// shift+enter, but with the protocol off (plain terminal, or tmux
+			// without passthrough) Shift+Enter remapped to a raw linefeed and
+			// Ctrl+J both arrive as "\n", which also matches Key.enter -- so
+			// without this branch they advance instead of inserting a line.
+			if (matchesKey(data, Key.shift("enter")) || matchesKey(data, Key.ctrl("j")) || data === "\n") {
+				editor.handleInput(data);
+				return refresh();
+			}
+			// Plain Enter ("\r" in raw mode) advances / confirms.
+			if (matchesKey(data, Key.enter)) {
 				save();
 				if (index < questions.length - 1) goTo(index + 1);
 				else {
