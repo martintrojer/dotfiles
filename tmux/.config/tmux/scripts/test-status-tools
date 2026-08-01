@@ -26,6 +26,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 AGENT_ATTENTION = SCRIPT_DIR / "agent-attention"
 STATUS_WINDOW_LABEL = SCRIPT_DIR / "status-window-label"
 CHEATSHEET = SCRIPT_DIR / "cheatsheet"
+TMS = SCRIPT_DIR / "tms"
 SOCKET = "test-status-tools"
 
 
@@ -371,23 +372,83 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     print("\n[cheatsheet]")
     run_cheatsheet_tests()
 
+    print("\n[tms]")
+    run_tms_tests()
 
-def _import_cheatsheet():
-    """Load the cheatsheet script as a module so its pure helpers are testable.
 
-    The script has no ``.py`` extension, so we go through SourceFileLoader
-    rather than the more usual ``spec_from_file_location`` shortcut.
+def _import_script(path: Path, name: str):
+    """Load an extensionless script as a module so its pure helpers are testable.
+
+    These scripts have no ``.py`` extension, so we go through SourceFileLoader
+    rather than the more usual ``spec_from_file_location`` shortcut. The module
+    must be registered in ``sys.modules`` before exec: ``@dataclass`` resolves
+    ``cls.__module__`` through that table and raises AttributeError if absent.
     """
     import importlib.machinery
     import importlib.util
+    import sys
 
-    loader = importlib.machinery.SourceFileLoader("cheatsheet_mod", str(CHEATSHEET))
-    spec = importlib.util.spec_from_loader("cheatsheet_mod", loader)
+    loader = importlib.machinery.SourceFileLoader(name, str(path))
+    spec = importlib.util.spec_from_loader(name, loader)
     if spec is None:
-        raise TestFailure(f"could not build module spec for {CHEATSHEET}")
+        raise TestFailure(f"could not build module spec for {path}")
     mod = importlib.util.module_from_spec(spec)
-    loader.exec_module(mod)
+    sys.modules[name] = mod
+    sys.path.insert(0, str(SCRIPT_DIR))
+    try:
+        loader.exec_module(mod)
+    finally:
+        sys.path.remove(str(SCRIPT_DIR))
     return mod
+
+
+def _import_cheatsheet():
+    return _import_script(CHEATSHEET, "cheatsheet_mod")
+
+
+def run_tms_tests() -> None:
+    """Guard the picker render path against palette drift.
+
+    Regression: ``Entry.visible_text`` read ``CATPPUCCIN["red"]`` for crashed
+    agents while the generated palette block defined no ``red`` key, so the
+    whole picker died with KeyError exactly when a crashed agent existed.
+    """
+    tms = _import_script(TMS, "tms_mod")
+    from _tmux_common import STATE_GLYPH, AgentState
+
+    for state in AgentState:
+        entry = tms.Entry(kind="tmux", name="w", session_name="s", worst_state=state)
+        try:
+            rendered = entry.visible_text()
+        except KeyError as exc:
+            raise TestFailure(
+                f"visible_text() raised KeyError({exc}) for AgentState.{state.name}"
+            ) from exc
+        expect(
+            f"visible_text renders for AgentState.{state.name}",
+            bool(rendered),
+            True,
+        )
+
+    # Every colour the render path can reach must exist in the palette.
+    for key in ("red", "peach", "sky", "sapphire", "lavender", "subtext0"):
+        expect(f"palette defines {key!r}", key in tms.CATPPUCCIN, True)
+
+    # The palette is generated; an unreferenced key means the template drifted.
+    source = TMS.read_text(encoding="utf-8")
+    for key in tms.CATPPUCCIN:
+        uses = source.count(f'CATPPUCCIN["{key}"]') + source.count(
+            f"CATPPUCCIN['{key}']"
+        )
+        expect(f"palette key {key!r} is referenced", uses > 0, True)
+
+    # `cleared` is the absence of state, so it deliberately has no glyph.
+    expect(
+        "every displayable AgentState has a glyph",
+        sorted(STATE_GLYPH)
+        == sorted(s for s in AgentState if s is not AgentState.cleared),
+        True,
+    )
 
 
 def run_cheatsheet_tests() -> None:
