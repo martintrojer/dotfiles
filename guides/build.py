@@ -31,6 +31,7 @@ import re
 import shutil
 import sys
 import tomllib
+from html.parser import HTMLParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -50,6 +51,27 @@ CODE_TOKEN_CHAR = "\x00"
 CODE_TOKEN = re.compile(r"\x00(\d+)\x00")
 HEADING = re.compile(r"^(#{1,3})\s+(.*)$")
 BULLET = re.compile(r"^-\s+(.*)$")
+
+# HTML elements that never take a closing tag. The renderer only emits
+# <input>, but keeping the standard set means the checker stays tolerant
+# if a future block type emits <br> or <hr>.
+VOID_ELEMENTS = frozenset(
+    {
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "source",
+        "track",
+        "wbr",
+    }
+)
 
 
 def render_inline(text: str) -> str:
@@ -175,6 +197,53 @@ def render_quiz(toml_body: str, qid: str) -> str:
     return "\n".join(out)
 
 
+class _TagBalanceChecker(HTMLParser):
+    """Tolerant well-formedness check: tags must nest, not merely appear.
+
+    Deliberately not a validator. It only asserts that every non-void
+    start tag is closed, in order, by a matching end tag. That is enough
+    to catch the failure mode this renderer actually has: inline
+    transforms that interleave (``<em>a<code>b</em>c</code>``) or a
+    render_block regression that drops a ``</ul>``.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.stack: list[tuple[str, int]] = []
+        self.errors: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: object) -> None:
+        if tag not in VOID_ELEMENTS:
+            self.stack.append((tag, self.getpos()[0]))
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in VOID_ELEMENTS:
+            return
+        line = self.getpos()[0]
+        if not self.stack:
+            self.errors.append(f"line {line}: </{tag}> with no open tag")
+            return
+        open_tag, open_line = self.stack[-1]
+        if open_tag != tag:
+            self.errors.append(
+                f"line {line}: </{tag}> closes <{open_tag}> opened on line {open_line}"
+            )
+            return
+        self.stack.pop()
+
+
+def check_well_formed(body: str, where: str) -> None:
+    """Raise ValueError if `body` has unbalanced or overlapping tags."""
+    checker = _TagBalanceChecker()
+    checker.feed(body)
+    checker.close()
+    errors = checker.errors + [
+        f"line {line}: <{tag}> is never closed" for tag, line in checker.stack
+    ]
+    if errors:
+        raise ValueError(f"{where}: malformed HTML: " + "; ".join(errors))
+
+
 def render_doc(md_text: str, slug: str) -> tuple[str, str]:
     """Render a full Markdown doc, returning ``(title, body_html)``.
 
@@ -241,6 +310,7 @@ def build(*, check_only: bool = False) -> int:
         md_text = src.read_text(encoding="utf-8")
         try:
             title, body = render_doc(md_text, slug)
+            check_well_formed(body, slug)
         except ValueError as exc:
             print(f"{src}: {exc}", file=sys.stderr)
             return 1
@@ -254,7 +324,7 @@ def build(*, check_only: bool = False) -> int:
         )
 
     if check_only:
-        print(f"OK: {len(entries)} guide(s) parsed")
+        print(f"OK: {len(entries)} guide(s) rendered to well-formed HTML")
         return 0
 
     title, body = render_index(entries)
@@ -275,7 +345,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="parse sources and validate quiz blocks without writing output",
+        help="render sources and check the HTML is well-formed, writing nothing",
     )
     args = parser.parse_args(argv)
     return build(check_only=args.check)
