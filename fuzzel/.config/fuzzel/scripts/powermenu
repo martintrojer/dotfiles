@@ -20,7 +20,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     require_commands(["fuzzel"])
-    lock_screen = Path.home() / ".config/sway/scripts/lock-screen"
+    sway_scripts = Path.home() / ".config/sway/scripts"
+    lock_screen = sway_scripts / "lock-screen"
+    session_quit = sway_scripts / "session-quit"
 
     cache = picker_cache_path("powermenu")
     options = [
@@ -53,7 +55,7 @@ def main() -> int:
     elif action == "reboot":
         run(["systemctl", "reboot"], check=False)
     elif action == "logout":
-        run(["sh", "-lc", "~/.config/sway/scripts/session-quit"], check=False)
+        run([str(session_quit)], check=False)
 
     return 0
 
