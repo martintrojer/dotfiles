@@ -166,30 +166,26 @@ def main(argv: list[str]) -> int:
     # Set @pane_agent on the window so tmux format conditionals can
     # show an idle marker when no @agent_state is active.  The window
     # id is passed as the 7th arg from .tmux.conf.
+    #
+    # Set-only, never unset: @pane_agent is sticky by contract (see
+    # set_state in agent-attention). This renderer runs on every status
+    # redraw and often can't see the agent -- it runs in a container, the
+    # pane has a meaningful title, or the shell branch returns a cwd
+    # basename -- so clearing here would wipe the marker the push path
+    # set and drop idle agents from the prefix+a picker and status pill.
     window_id = args[6]
-    if window_id:
-        is_agent = label in AGENTS
+    if window_id and label in AGENTS:
         from _tmux_common import tmux_cmd as _tmux
 
-        if is_agent:
-            _tmux(
-                "set-window-option",
-                "-q",
-                "-t",
-                window_id,
-                "@pane_agent",
-                "1",
-                check=False,
-            )
-        else:
-            _tmux(
-                "set-window-option",
-                "-qu",
-                "-t",
-                window_id,
-                "@pane_agent",
-                check=False,
-            )
+        _tmux(
+            "set-window-option",
+            "-q",
+            "-t",
+            window_id,
+            "@pane_agent",
+            "1",
+            check=False,
+        )
 
     sys.stdout.write(label)
     return 0

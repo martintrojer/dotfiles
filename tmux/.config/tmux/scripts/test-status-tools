@@ -20,6 +20,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -127,10 +128,27 @@ def last_event_message(env: dict[str, str]) -> str:
 
 
 def label(
-    window_name: str, cmd: str, title: str, path: str, host: str, pid: str
+    window_name: str,
+    cmd: str,
+    title: str,
+    path: str,
+    host: str,
+    pid: str,
+    window_id: str = "",
+    env: dict[str, str] | None = None,
 ) -> str:
     result = subprocess.run(
-        [str(STATUS_WINDOW_LABEL), window_name, cmd, title, path, host, pid],
+        [
+            str(STATUS_WINDOW_LABEL),
+            window_name,
+            cmd,
+            title,
+            path,
+            host,
+            pid,
+            window_id,
+        ],
+        env=env,
         capture_output=True,
         text=True,
     )
@@ -141,10 +159,36 @@ def label(
     return result.stdout.strip()
 
 
+def _start_session(env: dict[str, str]) -> None:
+    """Create the first session, tolerating a server still shutting down.
+
+    ``kill-server`` returns as soon as the server is told to exit, not once it
+    has released the socket. Starting the next server immediately then fails
+    with "server exited unexpectedly" (or "duplicate session" if the old one is
+    still answering), which made the suite flake roughly every other run.
+    """
+    last = ""
+    for attempt in range(20):
+        result = subprocess.run(
+            ["tmux", "-L", SOCKET, "new-session", "-d", "-s", "s1", "-n", "w1"],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return
+        last = result.stderr.strip()
+        # A lingering server from a previous run still owns the socket.
+        if "duplicate session" in last:
+            tmux(env, ["kill-server"], check=False)
+        time.sleep(0.05 * (attempt + 1))
+    raise TestFailure(f"could not start isolated tmux server: {last}")
+
+
 def setup_server(env: dict[str, str]) -> dict[str, str]:
     """Start an isolated tmux server with one detached session, two windows."""
     tmux(env, ["kill-server"], check=False)  # ignore if not running
-    tmux(env, ["new-session", "-d", "-s", "s1", "-n", "w1"])
+    _start_session(env)
     tmux(env, ["new-window", "-t", "s1:", "-n", "w2"])
     tmux(env, ["select-window", "-t", "s1:1"])  # focus w1
     tmux(env, ["split-window", "-h", "-t", "s1:1"])  # pane in w1
@@ -394,6 +438,25 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
         label("daemons", "improve-writing", "", "/tmp/x", host, fake_pid),
         "improve-writing",
     )
+
+    # @pane_agent is sticky: the push path owns it, and a redraw that can't
+    # see the agent (container, custom title, plain shell) must not clear it.
+    w1_id = tmux(env, ["display-message", "-p", "-t", "s1:1", "#{window_id}"])
+    tmux(env, ["set-window-option", "-t", w1_id, "@pane_agent", "1"])
+    label("zsh", "zsh", "", "/tmp/projectx", host, fake_pid, w1_id, env)
+    expect(
+        "non-agent label leaves sticky @pane_agent alone",
+        tmux(env, ["display-message", "-p", "-t", w1_id, "#{@pane_agent}"]),
+        "1",
+    )
+    tmux(env, ["set-window-option", "-u", "-t", w1_id, "@pane_agent"])
+    label("codex", "codex", "", "/tmp/x", host, fake_pid, w1_id, env)
+    expect(
+        "agent label sets @pane_agent",
+        tmux(env, ["display-message", "-p", "-t", w1_id, "#{@pane_agent}"]),
+        "1",
+    )
+    tmux(env, ["set-window-option", "-u", "-t", w1_id, "@pane_agent"])
 
     print("\n[cheatsheet]")
     run_cheatsheet_tests()
