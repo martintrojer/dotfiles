@@ -7,6 +7,8 @@ FD := fd
 RUFF_CONFIG := ruff.toml
 TY_CONFIG := ty.toml
 PRETTIER_CONFIG := .prettierrc.json
+TSCONFIG := tsconfig.json
+TYPESCRIPT_VERSION := 5
 PYTHON_PY_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f --extension py --print0 .
 PYTHON_SHEBANG_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f '^[^.]+$$' . -X bash -lc 'for path in "$$@"; do IFS= read -r first < "$$path" || true; if [[ $$first =~ ^\#!.*python ]]; then printf "%s\\0" "$$path"; fi; done' bash
 PYTHON_FILES_CMD := { $(PYTHON_PY_FILES_CMD); $(PYTHON_SHEBANG_FILES_CMD); }
@@ -56,14 +58,14 @@ help:
 	  '  make check-fedora-tests # isolated Fedora and gaming helper behavior tests' \
 	  '  make theme             # render docs/palette.toml into every THEME BEGIN..END region' \
 	  '  make check-theme       # check theme regions are in sync with docs/palette.toml' \
-	  '  make check-ts          # alias for check-prettier' \
+	  '  make check-ts          # tsc --noEmit on pi extensions + opencode plugin' \
 	  '  make format-ts         # alias for format-prettier' \
 	  '  make build-guides      # render guides/*.md → guides/build/*.html' \
 	  '  make serve-guides      # build then http.server in guides/build' \
 	  '  make check-guides      # validate guide sources without writing output' \
 	  '  make clean-guides      # rm -rf guides/build'
 
-check-all: check-python check-shell check-lua check-prettier check-tmux-tests check-fedora-tests check-guides check-theme
+check-all: check-python check-shell check-lua check-prettier check-ts check-tmux-tests check-fedora-tests check-guides check-theme
 
 format-all: format-python format-lua format-prettier
 
@@ -93,7 +95,11 @@ check-prettier:
 format-prettier:
 	prettier --config $(PRETTIER_CONFIG) --write $(PRETTIER_FILES)
 
-check-ts: check-prettier
+# No package.json here: the TS is loaded by globally installed hosts, so the
+# type packages are symlinked into a scratch node_modules first (gitignored).
+check-ts:
+	python3 _dotfiles_sync/link_ts_types.py
+	npx -y -p typescript@$(TYPESCRIPT_VERSION) tsc -p $(TSCONFIG)
 
 format-ts: format-prettier
 

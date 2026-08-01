@@ -320,7 +320,7 @@ function parseResults(payload: BraveLlmContextResponse): BraveContextResult[] {
 
 function parseMediaResults(payload: BraveMediaResponse): BraveMediaResult[] {
 	return (payload.results ?? [])
-		.map((result) => {
+		.map((result): BraveMediaResult | undefined => {
 			const title = asString(result.title);
 			const url = asString(result.url);
 			if (!title || !url) return undefined;

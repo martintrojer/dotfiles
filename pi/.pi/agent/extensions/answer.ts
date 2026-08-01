@@ -19,7 +19,7 @@
  * sends one compiled message back to the main agent and triggers a turn.
  */
 
-import { complete } from "@earendil-works/pi-ai";
+import { complete } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { BorderedLoader, getMarkdownTheme } from "@earendil-works/pi-coding-agent";
 import {
