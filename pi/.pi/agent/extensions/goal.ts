@@ -126,14 +126,14 @@ async function runChecker(
 					reason: typeof parsed.reason === "string" ? parsed.reason : text,
 				};
 			} catch {
-				// fall through to heuristic
+				// Malformed JSON is a checker failure, handled below.
 			}
 		}
-		// Heuristic fallback if the model didn't return clean JSON.
-		return {
-			met: /\bmet\b|\byes\b|\btrue\b/i.test(text) && !/not met|\bno\b/i.test(text),
-			reason: text,
-		};
+		// No parseable verdict. Never guess from prose: negations like "not yet met"
+		// read as a pass to any keyword heuristic, which silently clears the goal.
+		// A wrong-format reply means this model is unsuitable, so fail and let the
+		// fallback ladder try the next one.
+		throw new Error(`Checker did not return JSON: ${text.trim().slice(0, 200) || "(empty response)"}`);
 	});
 
 	if (outcome.kind === "ok") return { ...outcome.result, model: outcome.model };
