@@ -30,11 +30,12 @@ Many important paths are hidden, so use hidden-aware search:
 - **No duplicate helpers:** before adding aliases/wrappers/scripts, check whether something equivalent already exists.
 - **Audit with history:** keep aliases/plugins/helpers because they are used, not because they might be useful someday. Check shell history for evidence.
 - **OS conditionals at boundaries:** keep OS branching in package selection, bootstrap scripts, or backend helpers—not in otherwise-shared user-facing config. Prefer wrappers or sourced OS-specific files.
+- **Tests are bug-driven:** a script earns one when it can fail *without you noticing*. Loud failure is not a reason. Write it when the bug lands, and break the code to confirm the test fails before committing. See [`docs/DECISIONS.md`](docs/DECISIONS.md).
 - Shared palette guidance lives in `docs/THEME.md`.
 
 ## Useful Pointers
 
 - Tool-specific details live in package docs such as `tmux/README.md`, `sway/README.md`, `fuzzel/README.md`, `pi/README.md`, and `skills/README.md`.
 - `dotfiles-sync --apply` symlinks `skills/*` into `~/.agents/skills/` and `pi/extensions/*.ts` into `~/.pi/agent/extensions/`. All agents read those paths natively.
-- Tmux helper smoke tests live at `tmux/.config/tmux/scripts/test-status-tools`.
+- Test suites: `_dotfiles_sync/tests/`, `fedora{,/gaming}/tests/`, `guides/`, `tmux/.config/tmux/scripts/test-status-tools`, and beside stowed scripts in `{fuzzel,sway,waybar}/.config/*/scripts/tests/`. All run under `make check-all`.
 - Sway window operations use `swaymsg`.
