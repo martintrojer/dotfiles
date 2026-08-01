@@ -24,25 +24,12 @@ FOREIGN_TARGET_RE: Final[re.Pattern[str]] = re.compile(
     r"^  \* existing target is not owned by stow: (.*)$"
 )
 
-CHECK_TASKS: Final[tuple[TaskPolicy, ...]] = (
-    TaskPolicy("package-coverage", full_run_only=True),
-    TaskPolicy("private-env"),
-    TaskPolicy("zsh-plugins", packages=frozenset({"zsh"})),
-    TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
-    TaskPolicy("agent-notify", full_run_only=True),
-    TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
-    # Static, filesystem-only: no systemd, no stowed target, so it runs
-    # everywhere and on every run rather than only on Fedora.
-    TaskPolicy("systemd-unit-targets"),
-    TaskPolicy("repo-backlinks", full_run_only=True),
-)
-
-APPLY_TASKS: Final[tuple[TaskPolicy, ...]] = (
-    TaskPolicy("ignored-artifacts"),
-    TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
-    TaskPolicy("zsh-plugins", packages=frozenset({"zsh"})),
-    TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
-)
+# The task tables live in cli.py, paired with their handlers. Keeping the
+# policy here and the callable there joined them by a name string that
+# nothing checked, so a rename raised KeyError partway through --apply,
+# after earlier tasks had already mutated the target tree. Moving the
+# callables here instead would make config.py import external/
+# fedora_systemd/integration_checks, inverting the dependency direction.
 
 
 def task_enabled(
