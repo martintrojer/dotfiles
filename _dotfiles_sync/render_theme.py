@@ -51,12 +51,17 @@ TEMPLATES_DIR = Path(__file__).resolve().parent / "themes"
 # line (whitespace and comment chars included) is preserved
 # verbatim during rewrite — only the content *between* the two
 # markers is replaced.
-MARKER_BEGIN_RE = re.compile(
-    r"^(?P<prefix>.*?)THEME BEGIN:\s*(?P<name>[A-Za-z0-9_\-]+)\s*(?P<suffix>.*)$"
-)
-MARKER_END_RE = re.compile(
-    r"^(?P<prefix>.*?)THEME END:\s*(?P<name>[A-Za-z0-9_\-]+)\s*(?P<suffix>.*)$"
-)
+#
+# A marker must be the *whole* comment: the prefix may only contain
+# indentation plus the comment leader. Without that anchor, any prose
+# mentioning the phrase (a doc sentence, a shell string, a comment
+# explaining the mechanism) parses as a real marker. A file using an
+# exotic comment syntax must extend this pattern; it then fails loud
+# with a marker/registry mismatch rather than drifting silently.
+_MARKER_PREFIX = r"(?P<prefix>[ \t]*(?:\#|//|/\*)[ \t]*)"
+_MARKER_TAIL = r"\s*(?P<name>[A-Za-z0-9_\-]+)\s*(?P<suffix>.*)$"
+MARKER_BEGIN_RE = re.compile(rf"^{_MARKER_PREFIX}THEME BEGIN:{_MARKER_TAIL}")
+MARKER_END_RE = re.compile(rf"^{_MARKER_PREFIX}THEME END:{_MARKER_TAIL}")
 
 PLACEHOLDER_RE = re.compile(
     r"\{\{\s*(?P<group>\w+)\.(?P<color>\w+)"
