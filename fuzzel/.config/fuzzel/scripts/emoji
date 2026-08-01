@@ -46,7 +46,7 @@ def parse_args() -> argparse.Namespace:
 
 def default_db_path() -> Path:
     data_home = Path(
-        os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))
+        os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
     )
     return data_home / "bemoji" / "emojis.txt"
 

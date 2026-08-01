@@ -248,7 +248,7 @@ def _focused_last(windows: list[dict]) -> list[dict]:
 
 
 def picker_cache_path(name: str) -> str:
-    cache_home = Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache")))
+    cache_home = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
     fuzzel_cache = cache_home / "fuzzel"
     if fuzzel_cache.exists() and not fuzzel_cache.is_dir():
         # Some setups use ~/.cache/fuzzel as a file; keep picker caches separate.
