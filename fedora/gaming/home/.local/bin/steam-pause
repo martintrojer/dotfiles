@@ -36,19 +36,25 @@ def all_pids() -> list[int]:
     return sorted(int(p.name) for p in PROC.iterdir() if p.name.isdigit())
 
 
+def read_stat(pid: int) -> list[str] | None:
+    """Fields of /proc/<pid>/stat after "(comm)", which may contain spaces."""
+    try:
+        stat = (PROC / str(pid) / "stat").read_text()
+    except OSError:
+        return None
+    rparen = stat.rfind(")")
+    if rparen < 0:
+        return None
+    return stat[rparen + 2 :].split()
+
+
 def children_map() -> dict[int, list[int]]:
     """Map ppid -> [child pids] from /proc/*/stat."""
     kids: dict[int, list[int]] = {}
     for pid in all_pids():
-        try:
-            stat = (PROC / str(pid) / "stat").read_text()
-        except OSError:
+        fields = read_stat(pid)
+        if fields is None:
             continue
-        # field 4 (ppid) follows the "(comm)" which may contain spaces/parens
-        rparen = stat.rfind(")")
-        if rparen < 0:
-            continue
-        fields = stat[rparen + 2 :].split()
         try:
             ppid = int(fields[1])
         except (IndexError, ValueError):
@@ -90,15 +96,16 @@ def game_reapers() -> list[tuple[int, int]]:
 
 
 def is_paused(pids: list[int]) -> bool:
-    for pid in pids:
-        try:
-            stat = (PROC / str(pid) / "stat").read_text()
-        except OSError:
-            continue
-        rparen = stat.rfind(")")
-        state = stat[rparen + 2 : rparen + 3] if rparen >= 0 else ""
-        return state == "T"
-    return False
+    """True when every still-live process in the tree is stopped.
+
+    `pause` SIGSTOPs the whole tree and a stopped process cannot fork, so a
+    fully paused game has no running members. Anything less than all-stopped
+    is a partial pause and must not read as "paused": that is exactly the
+    state where something is still burning CPU across a suspend. Pids that
+    disappeared while we looked are ignored; an empty tree is not paused.
+    """
+    states = [fields[0] for pid in pids if (fields := read_stat(pid)) is not None]
+    return bool(states) and all(state == "T" for state in states)
 
 
 def signal_tree(reaper: int, sig: int, kids: dict[int, list[int]]) -> int:
