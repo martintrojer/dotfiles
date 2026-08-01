@@ -477,6 +477,13 @@ def run_cheatsheet_tests() -> None:
     expect("classify(C-Up) -> Resize", cs.classify("C-Up"), "Resize")
     expect("classify(M-Up) -> Resize", cs.classify("M-Up"), "Resize")
     expect("classify(C-z) -> None", cs.classify("C-z"), None)
+    # Curated sections must track the real bindings in .tmux.conf: `a` is the
+    # agent picker (was missing, so it fell into "Other"), S-<arrow> are the
+    # sway-style pane swaps, and `y` is copy-mode-vi only — never in the
+    # prefix table, so it must not be advertised as a prefix key.
+    expect("classify(a) -> Tools", cs.classify("a"), "Tools")
+    expect("classify(S-Left) -> Panes", cs.classify("S-Left"), "Panes")
+    expect("classify(y) -> None", cs.classify("y"), None)
 
     # format_sections: only categorised keys appear; section headers; blank between.
     entries = [

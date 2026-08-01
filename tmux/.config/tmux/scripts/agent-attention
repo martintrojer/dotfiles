@@ -834,9 +834,12 @@ def cmd_menu(_: argparse.Namespace) -> int:
         return 0
     active = build_menu_rows()
 
-    active_wids: set[str] = set()
-    for window in attention_windows():
-        active_wids.add(window["window_id"])
+    # PickerRow.target is "<session_id>:<window_id>"; the window ids are
+    # exactly the ones attention_windows() just returned, so reuse them
+    # instead of scanning the server again. A second scan also opened a
+    # TOCTOU gap where a state change between calls could list the same
+    # window as both active and idle.
+    active_wids = {r.target.split(":", 1)[1] for r in active}
 
     idle = idle_agent_rows(active_wids)
     all_rows = active + idle
@@ -853,7 +856,9 @@ def cmd_menu(_: argparse.Namespace) -> int:
             print(label)
         return 0
 
-    # Build prompt with state counts.
+    # Build prompt with state counts. This scan is not redundant with the
+    # rows above: it counts every window on the server, including ones the
+    # picker does not list.
     stats = scan_agent_states()
     prompt_parts: list[str] = []
     for state in (

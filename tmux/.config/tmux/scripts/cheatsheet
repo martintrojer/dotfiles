@@ -67,6 +67,10 @@ SECTION_KEYS: dict[str, set[str]] = {
         "Down",
         "Left",
         "Right",
+        "S-Up",
+        "S-Down",
+        "S-Left",
+        "S-Right",
     },
     "Resize": {
         "r",
@@ -80,8 +84,10 @@ SECTION_KEYS: dict[str, set[str]] = {
         "C-Left",
         "C-Right",
     },
-    "Copy & Pick": {"[", "]", "=", "#", "y", "v", "Tab", "BTab"},
-    "Tools": {"F", "C-g", "A", "?", "I", "/", ":", "t"},
+    # `y` lives in the copy-mode-vi table, not the prefix table, so it never
+    # reaches classify(); Tab/BTab come from the plugin footer below.
+    "Copy & Pick": {"[", "]", "=", "#", "v", "Tab", "BTab"},
+    "Tools": {"F", "C-g", "a", "?", "I", "/", ":", "t"},
 }
 
 # Static footer: plugin binds and no-prefix keys that don't surface as
