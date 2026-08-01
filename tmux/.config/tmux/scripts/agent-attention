@@ -456,12 +456,22 @@ def cmd_notify(args: argparse.Namespace) -> int:
     Sets @agent_state=blocked and inserts a DB event.  Pi agents
     bypass this entirely and write tmux options + DB rows directly
     from the extension via the ``event`` subcommand.
+
+    ``--title`` / ``--event-type`` come from the documented codex hook
+    line (see tmux/README.md § Hook Setup); they name the harness and
+    the reason it wants attention, so they feed the stored message and
+    the (opt-in) desktop notification rather than being dropped.
     """
     if not tmux_exists():
         return 0
     ctx = current_context(args.pane)
     if ctx is None:
         return 0
+
+    source = sanitize(args.source or "agent")
+    title = sanitize(args.title or "")
+    event_type = sanitize(args.event_type or "")
+    message = sanitize(args.message or "") or title or event_type or "attention"
 
     insert_event(
         session_id=ctx["session_id"],
@@ -470,11 +480,19 @@ def cmd_notify(args: argparse.Namespace) -> int:
         window_index=ctx["window_index"],
         window_name=ctx["window_name"],
         pane_id=ctx["pane_id"],
-        source=sanitize(args.source or "agent"),
+        source=source,
         state=AgentState.blocked.name,
-        message=sanitize(args.message or "attention"),
+        message=message,
     )
     set_state(ctx["window_id"], AgentState.blocked)
+    send_system_notification(
+        {
+            "source": source,
+            "type": event_type,
+            "title": title or source,
+            "message": message,
+        }
+    )
     tmux(["refresh-client", "-S"], check=False)
     return 0
 

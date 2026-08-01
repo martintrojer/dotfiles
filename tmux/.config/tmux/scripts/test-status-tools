@@ -114,6 +114,18 @@ def attention(env: dict[str, str], args: list[str], pane: str | None = None) -> 
     return result.stdout.strip()
 
 
+def last_event_message(env: dict[str, str]) -> str:
+    """Read the most recent event message straight out of the events DB."""
+    import sqlite3
+
+    db = Path(env["XDG_STATE_HOME"]) / "tmux-agent-attention" / "events.db"
+    with sqlite3.connect(str(db)) as conn:
+        row = conn.execute(
+            "SELECT message FROM events ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()
+    return row[0] if row else ""
+
+
 def label(
     window_name: str, cmd: str, title: str, path: str, host: str, pid: str
 ) -> str:
@@ -300,6 +312,20 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
         attention(env, ["status"]),
         "idle\t2",
     )
+
+    # --- notify --title / --event-type are wired, not discarded ---
+
+    attention(
+        env,
+        ["notify", "--source", "codex", "--event-type", "notify", "--title", "Codex"],
+        pane=panes["w2p1"],
+    )
+    expect(
+        "notify --title lands in the stored message",
+        last_event_message(env),
+        "Codex",
+    )
+    attention(env, ["clear-target", w2_id])
 
     # --- JSON payload via stdin (legacy non-pi path) ---
 
