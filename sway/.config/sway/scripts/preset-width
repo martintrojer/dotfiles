@@ -33,18 +33,45 @@ def swaymsg(*args: str) -> str:
     return subprocess.check_output(["swaymsg", *args], text=True)
 
 
+def get_tree():
+    """Run ``swaymsg -t get_tree`` and return the parsed root, or ``None``.
+
+    Guards ported from fuzzel/.config/fuzzel/scripts/_common.py
+    (``_get_sway_tree``). That file is the hardened original; it lives in a
+    different stow package, so it cannot be imported from here (see
+    docs/DECISIONS.md, "A shared pylib/ helper module"). Keep the two
+    comparable when either changes.
+    """
+    try:
+        raw = swaymsg("-t", "get_tree")
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    try:
+        tree = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return tree if isinstance(tree, dict) else None
+
+
 def get_focused():
     """Return (output_rect, workspace_rect, focused_container) from the tree."""
-    tree = json.loads(swaymsg("-t", "get_tree"))
+    tree = get_tree()
+    if tree is None:
+        return None
 
     def walk(node, output=None, workspace=None):
-        if node.get("type") == "output" and not node["name"].startswith("__"):
+        # Node names can be absent or null (the root has "name": null), so
+        # coerce before prefix tests rather than indexing blindly.
+        name = node.get("name") or ""
+        if node.get("type") == "output" and not name.startswith("__"):
             output = node
-        if node.get("type") == "workspace" and node["name"] != "__i3_scratch":
+        if node.get("type") == "workspace" and not name.startswith("__"):
             workspace = node
         if node.get("focused"):
             return output, workspace, node
-        for child in node.get("nodes", []) + node.get("floating_nodes", []):
+        for child in (*node.get("nodes", []), *node.get("floating_nodes", [])):
+            if not isinstance(child, dict):
+                continue
             result = walk(child, output, workspace)
             if result:
                 return result
@@ -95,6 +122,9 @@ def main() -> None:
     floating = is_floating(container)
 
     if floating:
+        if not workspace:
+            # e.g. focused window is in the scratchpad: no real workspace rect.
+            sys.exit(0)
         ws = workspace["rect"]
         state_file = os.path.join(state_dir(), "preset-float")
         idx = read_index(state_file)
