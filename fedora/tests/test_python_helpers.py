@@ -67,7 +67,7 @@ class PackageOwnershipTests(unittest.TestCase):
     def test_links_report_their_owning_package(self) -> None:
         sys.path.insert(0, str(ROOT))
         from _dotfiles_sync.inventory import build_specs
-        from _dotfiles_sync.stow import plan_group
+        from _dotfiles_sync.sync import plan_group
 
         specs = build_specs()
         for name in ("bin", "home", "zsh"):

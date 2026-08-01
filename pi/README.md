@@ -4,9 +4,9 @@ Extensions for [Pi coding agent](https://buildwithpi.ai/).
 
 ## Install
 
-This is a Stow package: the extensions live at `.pi/agent/extensions/*.ts` so the in-package path mirrors `$HOME`. `./dotfiles-sync --apply` stows each `*.ts` into `~/.pi/agent/extensions/`. Pi auto-discovers extensions there (with `/reload` support) — no `pi install`, no `package.json` manifest. Edits propagate live. Helper modules should also be top-level `*.ts` files with a safe no-op default export (for example `_lib.ts`), because pi/pi-meta may auto-load every top-level file while other extensions import it.
+This is a package: the extensions live at `.pi/agent/extensions/*.ts` so the in-package path mirrors `$HOME`. `./dotfiles-sync --apply` links each `*.ts` into `~/.pi/agent/extensions/`. Pi auto-discovers extensions there (with `/reload` support) — no `pi install`, no `package.json` manifest. Edits propagate live. Helper modules should also be top-level `*.ts` files with a safe no-op default export (for example `_lib.ts`), because pi/pi-meta may auto-load every top-level file while other extensions import it.
 
-Skills (the repo-root `skills/` Stow package) are similarly stowed into `~/.agents/skills/` and read by pi from there.
+Skills (the repo-root `skills/` package) are similarly linked into `~/.agents/skills/` and read by pi from there.
 
 Some extensions originated from [mitsuhiko/agent-stuff](https://github.com/mitsuhiko/agent-stuff); the local command clones are maintained here.
 

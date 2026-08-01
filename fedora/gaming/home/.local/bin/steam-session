@@ -9,7 +9,7 @@ set -euo pipefail
 # (steam.desktop) execs this script. Installed by config/setup-gamescope-session.sh.
 #
 # In gamepad UI the power menu has no "Exit Steam"; the way out is "Desktop
-# Mode", which calls `steamos-session-select` on PATH. The stowed shim
+# Mode", which calls `steamos-session-select` on PATH. The linked shim
 # (~/.local/bin/steamos-session-select) ends the session and returns to SDDM,
 # since we have no desktop-in-gamescope target. The PATH export below makes the
 # gamepad UI find it.
@@ -54,7 +54,7 @@ esac
 
 # No MANGOHUD_CONFIGFILE here: in SteamOS game mode (-steamos3) Steam drives the
 # --mangoapp overlay via its control socket (the Quick Access "Performance"
-# panel), rewriting the config at runtime. We used to point mangoapp at a stowed
+# panel), rewriting the config at runtime. We used to point mangoapp at a linked
 # config, but Steam clobbers it, so the overlay is Steam's to own now.
 
 args=(--backend drm

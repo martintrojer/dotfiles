@@ -10,14 +10,14 @@ For a browser-friendly walkthrough with quizzes, see [`../guides/ZSH.md`](../gui
 
 `./dotfiles-sync --apply` from the repo root does everything:
 
-1. Stows `zsh/.zshrc` and `zsh/.zsh/` to `~/`.
+1. Links `zsh/.zshrc` and `zsh/.zsh/` to `~/`.
 2. Clones `zsh-autosuggestions` and `zsh-syntax-highlighting` into `~/.local/share/zsh-plugins/<name>/` at pinned versions (see `_dotfiles_sync/pins.py`).
 
 If you want the `tm` tmux helper, install `tmux`, `fzf`, `zoxide`, `fd`, and `eza` (the Fedora setup covers `tmux` in `base-packages.sh` and the rest via `setup-mise.sh`).
 
 ## Local/private environment
 
-Keep machine-local secrets and private endpoints out of git by creating a real file in the stowed `~/.zsh/` directory, for example `~/.zsh/zz-local-env.zsh`:
+Keep machine-local secrets and private endpoints out of git by creating a real file in the linked `~/.zsh/` directory, for example `~/.zsh/zz-local-env.zsh`:
 
 ```zsh
 # ~/.zsh/zz-local-env.zsh

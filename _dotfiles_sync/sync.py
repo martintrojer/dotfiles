@@ -1,9 +1,8 @@
-"""Check and apply a package's symlinks.
+"""Check and apply a package's symlinks: policy over the planner.
 
-Named for history: this used to shell out to GNU Stow and regex-scrape its
-output. The linking itself now lives in link.py; this module is the policy
-layer on top -- conflict reporting, --ignore handling, backups, and clearing
-stale links under --force-overwrite.
+link.py decides what links a package wants and what state each one is in.
+This module decides what to do about it -- report conflicts, honour --ignore,
+back up under --force-overwrite, and skip a package rather than half-link it.
 """
 
 from __future__ import annotations

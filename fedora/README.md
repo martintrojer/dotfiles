@@ -1,6 +1,6 @@
 # Fedora Setup
 
-Fedora-specific bootstrap scripts plus `bin/`, `gtk-3.0/`, and `systemd/` stow
+Fedora-specific bootstrap scripts plus `bin/`, `gtk-3.0/`, and `systemd/`
 packages. Targets **Fedora Sway Atomic (Sericea)** — the rpm-ostree Sway
 spin. Other Fedora variants are not supported.
 
@@ -53,7 +53,7 @@ call `rpm-ostree install`:
   [`gaming/`](./gaming/README.md); see
   [`docs/DECISIONS.md`](../docs/DECISIONS.md) for the partitioning rationale.
 - `mise` is core bootstrap, so the base keeps a small build toolchain
-  (`binutils`, `gcc`, `gcc-c++`, `make`). `git`, `git-lfs`, `stow`, `tmux`, `zsh`
+  (`binutils`, `gcc`, `gcc-c++`, `make`). `git`, `git-lfs`, `tmux`, `zsh`
   are baseline; comfort CLIs that don't need host-layering live in the tracked
   mise manifest. The manifest tracks which tools belong on a host while
   `latest` lets setup install current releases without version-maintenance
@@ -63,7 +63,7 @@ call `rpm-ostree install`:
 - `setup-mise.sh` bootstraps `mise` only when absent, then installs directly from
   the tracked manifest. It does not activate mise or generate another config;
   shell activation remains solely in `zsh/.zsh/tools.zsh`. For a clean host,
-  run `./dotfiles-sync --apply` before the script so the manifest is also stowed
+  run `./dotfiles-sync --apply` before the script so the manifest is also linked
   at `~/.config/mise/config.toml`. Repeated runs are safe. The script does not
   remove unrelated installed versions; inspect `mise ls --prunable` and run
   `mise prune --tools` explicitly when deletion is wanted.
@@ -82,19 +82,16 @@ call `rpm-ostree install`:
 `gtk-3.0/.config/gtk-3.0/settings.ini` ships an `Adwaita-dark` default for GTK3
 apps (Sway doesn't push a GTK theme). GTK4 apps instead follow
 `gsettings set org.gnome.desktop.interface color-scheme prefer-dark` — run once
-per machine if GTK4 apps disagree with GTK3; it's per-user state, not stowed.
+per machine if GTK4 apps disagree with GTK3; it's per-user state, not linked.
 
-## Stow Packages
+## Packages
 
-Baseline Fedora stow packages: `bin`, `gtk-3.0`, `mise`, `systemd`. From the
-repo root, `./dotfiles-sync --apply` handles the Fedora-only logic. Manual
-equivalent:
+Baseline Fedora packages: `bin`, `gtk-3.0`, `mise`, `systemd`. From the repo
+root, `./dotfiles-sync --apply` handles the Fedora-only logic; scope it to one
+package with `./dotfiles-sync --apply bin`. There is no manual equivalent —
+the planner owns the symlinks (see `_dotfiles_sync/link.py`).
 
-```bash
-stow -d fedora -t ~ bin gtk-3.0 mise systemd
-```
-
-The gaming layer adds one more package (`gaming/home`), stowed by default and
+The gaming layer adds one more package (`gaming/home`), linked by default and
 skipped with `--skip-gaming`; see [`gaming/README.md`](./gaming/README.md).
 
 ## User Services
@@ -103,7 +100,7 @@ skipped with `--skip-gaming`; see [`gaming/README.md`](./gaming/README.md).
 `lmstudio-server`, `sway-clipman-watcher`, `sway-foot-server`, `sway-kanshi`,
 `sway-mako`, `sway-waybar`, `swaybg`, and `swayidle` services.
 
-Flow: stow → reload → enable units:
+Flow: link → reload → enable units:
 
 ```bash
 ./dotfiles-sync --apply

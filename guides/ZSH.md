@@ -9,7 +9,7 @@ plugins — that's the whole shape of this shell.
 This config avoids framework layers. It uses native `compinit`, native
 keybindings, lexical file loading, and exactly two sourced third-party plugins.
 
-- `./dotfiles-sync --apply` stows `zsh/.zshrc` and `zsh/.zsh/` into `~/`
+- `./dotfiles-sync --apply` links `zsh/.zshrc` and `zsh/.zsh/` into `~/`
 - it also clones `zsh-autosuggestions` and `zsh-syntax-highlighting` into
   `~/.local/share/zsh-plugins/` at pinned refs
 - `~/.zsh/exports.zsh` — PATH, TERM, editor, pager, history env

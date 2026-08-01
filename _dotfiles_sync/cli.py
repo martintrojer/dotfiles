@@ -28,7 +28,7 @@ from .repo_checks import (
     check_systemd_unit_targets,
     prune_managed_ignored_artifact_links,
 )
-from .stow import run_apply_group, run_check_group
+from .sync import run_apply_group, run_check_group
 from .system import active_scopes, detect_system
 
 LOGGER = logging.getLogger("dotfiles-sync")
@@ -45,7 +45,7 @@ def parse_args() -> Args:
         dest="action",
         action="store_const",
         const="check",
-        help="Check everything (or selected packages) for missing stows and conflicts (default)",
+        help="Check everything (or selected packages) for missing links and conflicts (default)",
     )
     mode.add_argument(
         "-a",
@@ -298,7 +298,7 @@ def main() -> int:
         if has_issues:
             print("\nIssues found.")
             return 1
-        print("No missing stows or conflicts found.")
+        print("No missing links or conflicts found.")
         return 0
 
     run_apply_tasks(

@@ -7,7 +7,7 @@ set -euo pipefail
 # emulators). Logic is extracted from the SDH-PauseGames Decky plugin, no Decky
 # needed. See fedora/gaming/README.md. It wires:
 #
-#   /usr/local/bin/steam-pause                       a copy of the stowed script
+#   /usr/local/bin/steam-pause                       a copy of the linked script
 #   /etc/systemd/system/steam-pause-games.service        the sleep-ordered unit
 #
 # A /usr/lib/systemd/system-sleep/ hook can't be used (Atomic /usr/lib is
@@ -17,7 +17,7 @@ set -euo pipefail
 #
 # For the power button as a "go to sleep" key, see setup-power-key.sh.
 #
-# Prereq: dotfiles stowed (dotfiles-sync --apply) so ~/.local/bin/steam-pause
+# Prereq: dotfiles linked (dotfiles-sync --apply) so ~/.local/bin/steam-pause
 # exists. Run as your normal user; it uses sudo for the system paths.
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -27,7 +27,7 @@ unit_src="$script_dir/systemd-system/steam-pause-games.service"
 
 if [[ ! -x "$steam_pause" ]]; then
   echo "error: $steam_pause not found or not executable." >&2
-  echo "Run 'dotfiles-sync --apply' first to stow ~/.local/bin." >&2
+  echo "Run 'dotfiles-sync --apply' first to link ~/.local/bin." >&2
   exit 1
 fi
 

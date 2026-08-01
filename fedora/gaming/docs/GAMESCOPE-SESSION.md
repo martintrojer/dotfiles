@@ -8,12 +8,12 @@ that delivers real HDR ([HDR-GAMING.md](./HDR-GAMING.md)) and handheld streaming
 ## Install
 
 Run `config/setup-gamescope-session.sh` after `os/setup-steam.sh` and
-`dotfiles-sync --apply`. It symlinks the stowed helpers and session entries into
+`dotfiles-sync --apply`. It symlinks the linked helpers and session entries into
 system paths (writable + persistent on Atomic via `/usr/local -> /var/usrlocal`,
 which SDDM already searches):
 
-- `/usr/local/bin/steam-session` → stowed `~/.local/bin/steam-session`
-- `/usr/local/bin/steamos-session-select` → stowed exit shim
+- `/usr/local/bin/steam-session` → linked `~/.local/bin/steam-session`
+- `/usr/local/bin/steamos-session-select` → linked exit shim
 - `/usr/local/share/wayland-sessions/steam.desktop` (couch HDR)
 - `/usr/local/share/wayland-sessions/steam-stream.desktop` (1080p SDR streaming)
 

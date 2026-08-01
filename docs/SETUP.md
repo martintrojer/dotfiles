@@ -25,12 +25,12 @@ That covers the happy path on a fresh machine. The sections below expand each pi
 
 `./dotfiles-sync --apply` always:
 
-- Stows the dotfile packages that match the current OS and distro.
+- Links the dotfile packages that match the current OS and distro.
 - Clones the pinned zsh plugins into `~/.local/share/zsh-plugins/`.
 - Clones TPM (tmux plugin manager) into `~/.tmux/plugins/tpm/` at the pinned ref. Tmux plugins listed in `.tmux.conf` still need a one-time `prefix + I` inside tmux to install — TPM owns that step.
-- Stows `dotfiles/skills/.agents/skills/*` into `~/.agents/skills/` (the universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw). This package folds, so each skill lands as one directory symlink.
-- Stows `dotfiles/pi/.pi/agent/extensions/*.ts` into `~/.pi/agent/extensions/` (Pi auto-discovers these).
-- Prunes stale links when you remove a skill or Pi extension from the repo (stow `--restow`).
+- Links `dotfiles/skills/.agents/skills/*` into `~/.agents/skills/` (the universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw). Each skill lands as one directory symlink.
+- Links `dotfiles/pi/.pi/agent/extensions/*.ts` into `~/.pi/agent/extensions/` (Pi auto-discovers these).
+- Prunes stale links when you remove a skill or Pi extension from the repo.
 
 After `--apply` completes it prints one manual follow-up, which `--apply` deliberately does **not** automate:
 
@@ -45,13 +45,13 @@ For machines that have been running an older version of this repo (the OMZ-based
 ```bash
 cd ~/dotfiles
 git pull
-./dotfiles-sync --check    # surface stow conflicts before they bite
+./dotfiles-sync --check    # surface link conflicts before they bite
 ./dotfiles-sync --apply
 # (The universal ~/.agents/skills and ~/.pi/agent/extensions symlinks are
 # already live after --apply.)
 ```
 
-`--apply` is idempotent and handles most of the common cases automatically (stows the new packages including skills + Pi extensions, clones zsh-plugins + TPM). The cleanup steps below cover the things `--apply` deliberately doesn't touch — vestigial files left by the old layout that aren't actively harmful but waste disk and confuse future-you.
+`--apply` is idempotent and handles most of the common cases automatically (links the new packages including skills + Pi extensions, clones zsh-plugins + TPM). The cleanup steps below cover the things `--apply` deliberately doesn't touch — vestigial files left by the old layout that aren't actively harmful but waste disk and confuse future-you.
 
 ### 1. oh-my-zsh leftovers
 
@@ -236,7 +236,7 @@ rm -rf ~/.config/niri
 
 macOS machines should run items 1 through 6 above as relevant. Only the wallpaper/niri items are Linux-only no-ops on macOS.
 
-Terminal policy on macOS is: **Ghostty only**, no fallback. `dotfiles-sync --apply` stows the `ghostty` config on Darwin. Hammerspoon's terminal binds (`Hyper+T`, `Hyper+Return`, `Hyper+PadEnter`) all use `open -na "Ghostty"` for current-Space window creation. See [`DECISIONS.md`](./DECISIONS.md#each-os-gets-its-native-terminal-foot-on-linux-ghostty-on-macos-accepted-2026-05-15).
+Terminal policy on macOS is: **Ghostty only**, no fallback. `dotfiles-sync --apply` links the `ghostty` config on Darwin. Hammerspoon's terminal binds (`Hyper+T`, `Hyper+Return`, `Hyper+PadEnter`) all use `open -na "Ghostty"` for current-Space window creation. See [`DECISIONS.md`](./DECISIONS.md#each-os-gets-its-native-terminal-foot-on-linux-ghostty-on-macos-accepted-2026-05-15).
 
 Verify terminal state:
 
@@ -264,8 +264,8 @@ cd ~/dotfiles && ./dotfiles-sync --check
 
 When any of the agent-side content changes in this repo:
 
-- **Skills and Pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` stow symlinks point straight at the repo source; edits propagate live.
-- **New / removed skills or Pi extensions:** re-run `./dotfiles-sync --apply` to stow new entries or prune stale ones.
+- **Skills and Pi extensions:** nothing to do. The `~/.agents/skills/<name>` and `~/.pi/agent/extensions/<name>.ts` symlinks point straight at the repo source; edits propagate live.
+- **New / removed skills or Pi extensions:** re-run `./dotfiles-sync --apply` to link new entries or prune stale ones.
 
 ## Testing and debugging the bootstrap
 
@@ -288,7 +288,7 @@ ls /tmp/fresh-home/.pi/agent/extensions/
 ls /tmp/fresh-home/.local/share/zsh-plugins/
 ```
 
-Validates everything `--apply` does — stow output, zsh-plugin clones, TPM clone, skill + Pi-extension symlinks — against a real path on disk. No container, no isolation: your shell still sees its real `$HOME` for everything else.
+Validates everything `--apply` does — the link plan, zsh-plugin clones, TPM clone, skill + Pi-extension symlinks — against a real path on disk. No container, no isolation: your shell still sees its real `$HOME` for everything else.
 
 ### Recipe 2: throwaway podman container with a fake `$HOME`
 
@@ -302,7 +302,7 @@ podman run --rm -it \
   --security-opt label=disable \
   -v "$PWD":/dotfiles:ro \
   fedora:latest \
-  bash -c 'dnf -y install stow python3 git zsh >/dev/null && cp -r /dotfiles ~/dotfiles && cd ~/dotfiles && exec bash'
+  bash -c 'dnf -y install python3 git zsh >/dev/null && cp -r /dotfiles ~/dotfiles && cd ~/dotfiles && exec bash'
 ```
 
 What the flags do, and why:
@@ -310,9 +310,9 @@ What the flags do, and why:
 - `--tmpfs /home/test:exec,mode=0755` — fake `$HOME` lives in tmpfs, vanishes when container exits. `exec` is needed because `--apply` clones zsh plugins there and they include shell scripts that get sourced.
 - `--security-opt label=disable` — skip SELinux relabeling on the bind mount. Without this, Fedora hosts (rpm-ostree at `/var/home/...`) refuse to read the mount because the host's SELinux label doesn't match. Alternative is `:Z` on the volume, but that *relabels the host directory in place* — a real persistent change to your real `~/dotfiles`. `label=disable` confines the SELinux loss to the throwaway container.
 - `-v "$PWD":/dotfiles:ro` — your repo, read-only. We `cp -r` it to `~/dotfiles` inside the container so `--apply` can write symlinks freely without touching the host.
-- `dnf -y install stow python3 git zsh` — the bare minimum: stow + python3 for `--apply`, git for the zsh-plugin clones, zsh so you can `exec zsh -l` afterwards and verify the rendered `.zshrc` actually loads. Add more (`fzf zoxide eza ripgrep fd-find tmux curl mise`) if you want to test more of the daily user experience.
+- `dnf -y install python3 git zsh` — the bare minimum: python3 for `--apply` (the symlink planner is in-repo, no external tool), git for the zsh-plugin clones, zsh so you can `exec zsh -l` afterwards and verify the rendered `.zshrc` actually loads. Add more (`fzf zoxide eza ripgrep fd-find tmux curl mise`) if you want to test more of the daily user experience.
 
-From the container shell, run `./dotfiles-sync --apply` to do the actual stow work, then `exec zsh -l` to drop into the rendered shell.
+From the container shell, run `./dotfiles-sync --apply` to do the actual linking, then `exec zsh -l` to drop into the rendered shell.
 
 ## When the upgrade section can be deleted
 

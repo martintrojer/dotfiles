@@ -17,7 +17,7 @@ set -euo pipefail
 # session. The pkill is a fallback and must match by full command line, since
 # gamescope's comm is truncated to "gamescope-wl" (pkill -x gamescope misses).
 #
-# This is the stow source; setup-gamescope-session.sh symlinks it into
+# This is the repo source; setup-gamescope-session.sh symlinks it into
 # /usr/local/bin (always on PATH). See fedora/gaming/docs/GAMESCOPE-SESSION.md.
 
 # shellcheck disable=SC2016  # body runs in the detached child, not now
