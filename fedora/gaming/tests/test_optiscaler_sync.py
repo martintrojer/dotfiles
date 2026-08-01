@@ -469,39 +469,153 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.assertEqual(visited, ["100", "200"])
         self.assertEqual((second.directory / "done").read_text(), "yes")
 
-    def test_main_installs_healthy_game_after_detection_failure(self) -> None:
+    def register_library(self, apps: list[Any]) -> None:
+        """Write the Steam library metadata `steam_apps` reads."""
+        steamapps = self.steam / "steamapps"
+        (steamapps / "libraryfolders.vdf").write_text(
+            '"libraryfolders"\n{\n\t"0"\n\t{\n'
+            f'\t\t"path"\t\t"{self.steam}"\n\t}}\n}}\n'
+        )
+        for app in apps:
+            (steamapps / f"appmanifest_{app.appid}.acf").write_text(
+                '"AppState"\n{\n'
+                f'\t"appid"\t\t"{app.appid}"\n'
+                f'\t"name"\t\t"{app.name}"\n'
+                f'\t"installdir"\t\t"{app.path.name}"\n}}\n'
+            )
+
+    def fake_release(self, payload_root: Path) -> tuple[bytes, bytes]:
+        """Pack `payload_root` into a real .7z and return (metadata, archive)."""
+        archive = self.root / "release.7z"
+        subprocess.run(
+            ["7z", "a", "-bso0", "-bsp0", str(archive), "."],
+            cwd=payload_root,
+            check=True,
+        )
+        data = archive.read_bytes()
+        metadata = json.dumps(
+            {
+                "tag_name": "v9",
+                "draft": False,
+                "prerelease": False,
+                "assets": [
+                    {
+                        "name": "OptiScaler.7z",
+                        "digest": f"sha256:{hashlib.sha256(data).hexdigest()}",
+                        "browser_download_url": "https://github.com/optiscaler/OptiScaler/releases/download/v9/OptiScaler.7z",
+                    }
+                ],
+            }
+        ).encode()
+        return metadata, data
+
+    @unittest.skipUnless(shutil.which("7z"), "7z is required to build a test release")
+    def test_main_apply_installs_healthy_game_and_skips_the_broken_one(self) -> None:
+        """main() end to end over a real Steam tree; only the network is faked.
+
+        Discovery, detection, download verification, 7z extraction, payload
+        naming and installation all run for real, so this fails if main()
+        mis-orders them, feeds the wrong release or payload to install_game, or
+        lets one game's failure stop the others.
+        """
         broken = self.app("100", "Broken")
         healthy = self.app("200", "Healthy")
-        release = self.sync.Release("v1", "https://example.invalid", "0" * 64)
+        self.register_library([broken, healthy])
+        (healthy.path / "nvngx_dlss.dll").write_bytes(b"upscaler")
+        (healthy.path / "dxgi.dll").write_bytes(b"original proxy")
+        # A corrupt manifest makes managed_target raise, i.e. a per-game
+        # detection failure rather than a whole-run failure.
+        broken_state = broken.path / self.sync.STATE_DIR
+        broken_state.mkdir()
+        (broken_state / self.sync.MANIFEST).write_text('{"schema": 1}')
+        (broken.path / "nvngx_dlss.dll").write_bytes(b"upscaler")
 
-        def detect(app: Any, _overrides: object) -> tuple[Any, str | None]:
-            if app is broken:
-                raise ValueError("corrupt manifest")
-            return self.target(app), None
+        source = self.root / "release-payload"
+        source.mkdir()
+        (source / "OptiScaler.dll").write_bytes(b"optiscaler v9")
+        (source / "OptiScaler.ini").write_text("ShortcutKey=old\nKeep=yes\n")
+        (source / "support.dll").write_bytes(b"support v9")
+        (source / "setup_windows.bat").write_text("echo off")
+        metadata, archive = self.fake_release(source)
+        served: list[str] = []
 
-        def install(target: Any, _payload: object, _release: object) -> list[str]:
-            (target.directory / "installed").write_text("yes")
-            return []
+        def opener(request: Any, **_kwargs: object) -> Response:
+            served.append(request.full_url)
+            if request.full_url == self.sync.RELEASE_URL:
+                return Response(metadata)
+            return Response(archive)
+
+        # Real subprocess lookups, but a pgrep that always reports Steam as
+        # stopped -- otherwise this test depends on the developer's desktop.
+        fake_bin = self.root / "bin"
+        fake_bin.mkdir()
+        (fake_bin / "pgrep").write_text("#!/bin/sh\nexit 1\n")
+        (fake_bin / "pgrep").chmod(0o755)
 
         with (
-            mock.patch.object(self.sync, "steam_running", return_value=False),
-            mock.patch.object(self.sync, "steam_roots", return_value=[]),
-            mock.patch.object(
-                self.sync,
-                "steam_apps",
-                return_value={"100": broken, "200": healthy},
+            mock.patch.dict(
+                os.environ,
+                {
+                    "HOME": str(self.root / "nonexistent-home"),
+                    "XDG_DATA_HOME": str(self.root),
+                    "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                },
             ),
-            mock.patch.object(self.sync, "load_overrides", return_value={}),
-            mock.patch.object(self.sync, "detect_target", side_effect=detect),
-            mock.patch.object(self.sync, "fetch_release", return_value=release),
-            mock.patch.object(self.sync, "download_release"),
-            mock.patch.object(self.sync, "extract_archive", return_value=self.root),
-            mock.patch.object(self.sync, "payload_files", return_value={}),
-            mock.patch.object(self.sync, "install_game", side_effect=install),
-            mock.patch("sys.stderr", new=io.StringIO()),
+            # fetch_release/download_release bind urlopen as a default
+            # argument, so swap the default rather than the module attribute.
+            # Their bodies -- digest and URL-origin checks included -- still
+            # run for real; only the socket is replaced.
+            mock.patch.object(self.sync.fetch_release, "__defaults__", (opener,)),
+            mock.patch.object(self.sync.download_release, "__defaults__", (opener,)),
+            mock.patch("sys.stderr", new=io.StringIO()) as stderr,
         ):
             self.assertEqual(self.sync.main(["--apply"]), 1)
-        self.assertEqual((healthy.path / "installed").read_text(), "yes")
+
+        self.assertIn("failed   100 Broken", stderr.getvalue())
+        self.assertEqual(
+            served,
+            [
+                self.sync.RELEASE_URL,
+                "https://github.com/optiscaler/OptiScaler/releases/download/v9/OptiScaler.7z",
+            ],
+        )
+
+        # The healthy game got the real payload: OptiScaler.dll renamed to the
+        # detected proxy, its previous dxgi.dll backed up, the ini patched, and
+        # the .bat/readme junk filtered out.
+        self.assertEqual((healthy.path / "dxgi.dll").read_bytes(), b"optiscaler v9")
+        self.assertEqual((healthy.path / "support.dll").read_bytes(), b"support v9")
+        self.assertFalse((healthy.path / "setup_windows.bat").exists())
+        self.assertFalse((healthy.path / "OptiScaler.dll").exists())
+        self.assertEqual(
+            (healthy.path / "OptiScaler.ini").read_text(),
+            "ShortcutKey=0x24\nKeep=yes\nFsr4Update=auto\n",
+        )
+        managed = self.sync.managed_target(healthy)
+        assert managed is not None
+        self.assertEqual(managed.manifest["release"], "v9")
+        self.assertEqual(
+            managed.manifest["launch_configs"], ["userdata/1/config/localconfig.vdf"]
+        )
+        self.assertEqual(
+            (
+                healthy.path
+                / self.sync.STATE_DIR
+                / managed.manifest["backups"]["dxgi.dll"]
+            ).read_bytes(),
+            b"original proxy",
+        )
+        self.assertIn('"200"', self.config.read_text())
+
+        # The broken game was left exactly as found -- no payload, no rewritten
+        # manifest, and its launch options untouched.
+        self.assertFalse((broken.path / "dxgi.dll").exists())
+        self.assertFalse((broken.path / "support.dll").exists())
+        self.assertEqual(
+            (broken_state / self.sync.MANIFEST).read_text(), '{"schema": 1}'
+        )
+        block_100 = self.config.read_text().split('"200"')[0]
+        self.assertNotIn("optirun", block_100)
 
     def test_override_file_path_and_talos_skip_are_stable(self) -> None:
         self.assertEqual(
