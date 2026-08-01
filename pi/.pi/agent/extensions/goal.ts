@@ -39,6 +39,8 @@ import {
 const DEFAULT_MAX_TURNS = 25;
 // How many trailing transcript chars to show the checker.
 const TRANSCRIPT_BUDGET = 16000;
+// Words that stop the active goal (documented in pi/README.md).
+const CLEAR_ALIASES = ["clear", "stop", "off", "reset", "cancel"];
 
 interface GoalState {
 	condition: string;
@@ -153,7 +155,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("goal", {
 		description: "Work autonomously toward a verifiable condition (clone of Claude Code /goal)",
 		getArgumentCompletions: (prefix: string) => {
-			const items = [{ value: "clear", label: "clear", description: "stop the active goal" }];
+			const items = CLEAR_ALIASES.map((value) => ({ value, label: value, description: "stop the active goal" }));
 			const trimmed = prefix.trimStart();
 			if (trimmed === "")
 				return [
@@ -166,7 +168,7 @@ export default function (pi: ExtensionAPI) {
 		handler: async (args, ctx) => {
 			const trimmed = (args ?? "").trim();
 
-			if (/^clear$/i.test(trimmed)) {
+			if (CLEAR_ALIASES.includes(trimmed.toLowerCase())) {
 				if (!goal) {
 					ctx.ui.notify("No active goal.", "info");
 					return;
