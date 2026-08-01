@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import os
 import re
 import sys
 import tomllib
@@ -136,6 +137,47 @@ CONSUMERS: tuple[Consumer, ...] = (
         repo("sway/.config/sway/scripts/session-wallpaper"),
         ("session-wallpaper-fallback-color",),
     ),
+    Consumer(repo("guides/style.css"), ("guides-palette",)),
+)
+
+
+# ---------------------------------------------------------------------
+# Audit allowlist
+# ---------------------------------------------------------------------
+#
+# `--audit` greps the repo for palette hex outside any marked region and
+# fails on every hit. That is the backstop for CONSUMERS being a
+# hand-maintained list: forgetting a Consumer() entry used to be silent,
+# now it is a failing check. Files that legitimately hold palette hex
+# outside a region are listed here, with the reason, so the exemption is
+# executable rather than prose in docs/THEME.md.
+
+AUDIT_ALLOWLIST: dict[str, str] = {
+    "docs/palette.toml": "the palette itself",
+    "docs/THEME.md": "human-readable gloss of the palette",
+    "bat/.config/bat/themes/Catppuccin Mocha.tmTheme": "vendored upstream",
+    "yazi/.config/yazi/flavors/catppuccin-mocha.yazi/flavor.toml": "vendored upstream",
+    "yazi/.config/yazi/flavors/catppuccin-mocha.yazi/tmtheme.xml": "vendored upstream",
+    "glow/.config/glow/catppuccin-mocha.json": (
+        "vendored Catppuccin glow style; adopting it means templating 50+ "
+        "values for a file we never hand-edit"
+    ),
+    "fedora/bin/.local/bin/wallpaper": (
+        "known gap: same mocha.base fallback as lock-screen but not yet "
+        'marker-managed. See "Known gap" in docs/THEME.md'
+    ),
+}
+
+# Directories the audit never descends into.
+AUDIT_SKIP_DIRS = frozenset(
+    {
+        ".git",
+        ".jj",
+        ".ruff_cache",
+        "__pycache__",
+        "build",
+        "node_modules",
+    }
 )
 
 
@@ -279,6 +321,84 @@ def apply_edits(
 
 
 # ---------------------------------------------------------------------
+# Blindspot audit
+# ---------------------------------------------------------------------
+
+HEX_RE = re.compile(r"#[0-9a-fA-F]{6}\b")
+
+
+def palette_values(palette: dict[str, dict[str, str]]) -> set[str]:
+    return {value.lower() for group in palette.values() for value in group.values()}
+
+
+def unmanaged_palette_hex(path: Path, known: set[str]) -> list[tuple[int, str]]:
+    """Palette hex on lines of `path` that sit outside a marked region.
+
+    Only exact palette values count: a hand-picked non-Catppuccin color
+    (guides/style.css's `#eef2ff`) is not drift, so matching all hex
+    would be noise. Marker lines themselves are region boundaries and
+    are never reported.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []  # binary or unreadable: nothing a text renderer owns
+    hits: list[tuple[int, str]] = []
+    inside = False
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if MARKER_BEGIN_RE.match(line):
+            inside = True
+            continue
+        if MARKER_END_RE.match(line):
+            inside = False
+            continue
+        if inside:
+            continue
+        hits += [
+            (lineno, m.group(0))
+            for m in HEX_RE.finditer(line)
+            if m.group(0).lower() in known
+        ]
+    return hits
+
+
+def iter_audit_files(root: Path = REPO_ROOT) -> Iterable[Path]:
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(d for d in dirnames if d not in AUDIT_SKIP_DIRS)
+        for name in sorted(filenames):
+            path = Path(dirpath, name)
+            if not path.is_symlink():
+                yield path
+
+
+def audit(palette: dict[str, dict[str, str]]) -> int:
+    """Fail on palette hex living outside a marked region or the allowlist.
+
+    CONSUMERS is hand-maintained, so a new file holding palette values is
+    invisible to `--check` until someone remembers to register it. This
+    turns that omission into a failure.
+    """
+    known = palette_values(palette)
+    strays = 0
+    for path in iter_audit_files():
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        if rel in AUDIT_ALLOWLIST:
+            continue
+        for lineno, value in unmanaged_palette_hex(path, known):
+            strays += 1
+            print(f"UNMANAGED: {rel}:{lineno}: {value}")
+    if strays:
+        print(
+            f"\nrender_theme: {strays} palette hex value(s) outside a THEME "
+            "region.\nEither add a marker pair + template + CONSUMERS entry, "
+            "or add the file to AUDIT_ALLOWLIST with a reason.",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
+# ---------------------------------------------------------------------
 # Driver
 # ---------------------------------------------------------------------
 
@@ -331,10 +451,24 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="render templates in place (default if neither flag given)",
     )
+    mode.add_argument(
+        "--audit",
+        action="store_true",
+        help="report palette hex outside any THEME region or the allowlist",
+    )
     args = parser.parse_args(argv)
     palette = load_palette()
+    if args.audit:
+        return audit(palette)
     check = args.check  # --write is just the default; no special handling
-    return process(CONSUMERS, palette, check=check)
+    code = process(CONSUMERS, palette, check=check)
+    if check:
+        # Drift and blindspot are the same question -- "is any palette value
+        # unmanaged?" -- so --check answers both. Keeping them in one command
+        # means `make check-theme` cannot gain the drift check and miss the
+        # audit. `--audit` alone stays available for a fast targeted run.
+        code = audit(palette) or code
+    return code
 
 
 if __name__ == "__main__":
