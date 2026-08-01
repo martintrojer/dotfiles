@@ -98,6 +98,7 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `tmux/.config/tmux/scripts/tms` | `tms-palette` |
 | `sway/.config/sway/scripts/lock-screen` | `lock-screen-fallback-color` |
 | `sway/.config/sway/scripts/session-wallpaper` | `session-wallpaper-fallback-color` |
+| `fedora/bin/.local/bin/wallpaper` | `wallpaper-fallback-color` |
 | `guides/style.css` | `guides-palette` |
 
 ---
@@ -160,27 +161,10 @@ generator. Each is in `AUDIT_ALLOWLIST`:
   generated (`waybar-palette`), but the alpha derivations further down
   the file (`alpha(@base, 0.55)`) are hand-written GTK CSS on top of
   the generated names.
-- `fedora/bin/.local/bin/wallpaper` `PREVIEW_BACKGROUND_COLOR` — holds
-  the same `#1e1e2e` as the generated `lock-screen-fallback-color`, but
-  is not marker-managed. Adopting it needs a marker pair, a template,
-  and a `CONSUMERS` entry; see "Known gap" below.
 - `tmux/.config/tmux/scripts/test-status-tools` — carries no hex. It
   asserts on palette *key names* in the generated `tms-palette` region
   (every key the render path reaches exists, and every generated key is
   referenced), so it fails loud if that template drifts.
-
----
-
-## Known gap
-
-`sway/.config/sway/scripts/lock-screen` and
-`fedora/bin/.local/bin/wallpaper` both hard-code `#1e1e2e` as a
-fallback/canvas fill, but only the former carries a THEME marker. A
-palette change to `base` therefore updates one and silently leaves the
-other behind. The audit no longer lets that gap be *invisible* — the
-file sits in `AUDIT_ALLOWLIST` with the gap spelled out — but closing it
-is still a small feature (marker pair +
-`_dotfiles_sync/themes/*.tmpl` + `CONSUMERS` entry), not a doc fix.
 
 ---
 

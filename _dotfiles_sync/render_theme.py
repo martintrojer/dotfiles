@@ -137,6 +137,10 @@ CONSUMERS: tuple[Consumer, ...] = (
         repo("sway/.config/sway/scripts/session-wallpaper"),
         ("session-wallpaper-fallback-color",),
     ),
+    Consumer(
+        repo("fedora/bin/.local/bin/wallpaper"),
+        ("wallpaper-fallback-color",),
+    ),
     Consumer(repo("guides/style.css"), ("guides-palette",)),
 )
 
@@ -161,10 +165,6 @@ AUDIT_ALLOWLIST: dict[str, str] = {
     "glow/.config/glow/catppuccin-mocha.json": (
         "vendored Catppuccin glow style; adopting it means templating 50+ "
         "values for a file we never hand-edit"
-    ),
-    "fedora/bin/.local/bin/wallpaper": (
-        "known gap: same mocha.base fallback as lock-screen but not yet "
-        'marker-managed. See "Known gap" in docs/THEME.md'
     ),
 }
 

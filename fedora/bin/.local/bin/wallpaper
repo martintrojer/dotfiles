@@ -52,7 +52,9 @@ LOCK_RENDER_TIMEOUT = 20
 # Catppuccin Mocha base — sixel preview canvas fill. The fixed canvas
 # matters because fzf/foot don't reliably clear old sixel pixels when
 # consecutive previews have different intrinsic sizes.
+# THEME BEGIN: wallpaper-fallback-color
 PREVIEW_BACKGROUND_COLOR = "#1e1e2e"
+# THEME END: wallpaper-fallback-color
 # Keep sixel payloads well below the size where foot/fzf starts to
 # silently fail on large/high-detail wallpapers. This was observed on
 # the largest archive entries at ~1 MiB: direct `cat *.sixel-*` in foot
