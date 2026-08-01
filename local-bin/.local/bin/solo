@@ -104,6 +104,14 @@ def main() -> int:
         completed = subprocess.run(args.command)
     except KeyboardInterrupt:
         return 130
+    except FileNotFoundError:
+        # Behave like a shell: a one-line message and the conventional exit
+        # code, not a traceback. The `finally` below still releases the lock.
+        print(f"solo: command not found: {args.command[0]}", file=sys.stderr)
+        return 127
+    except PermissionError:
+        print(f"solo: permission denied: {args.command[0]}", file=sys.stderr)
+        return 126
     finally:
         # Best-effort cleanup of the lock file. Releasing the flock alone
         # would leave one stale .lock per --name forever; another `solo`
