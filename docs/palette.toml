@@ -6,15 +6,14 @@
 # Reference: https://github.com/catppuccin/catppuccin
 #
 # Adding a new color: add a line to [mocha]. Bumping an existing color:
-# edit in place. Removing a color: delete the line AND check no marked
-# region references it (the renderer will fail loud if a template
-# names a missing color).
+# edit in place. This is the complete Catppuccin Mocha set on purpose;
+# entries no template references today (e.g. flamingo) stay, so the
+# file reads as the reference palette rather than a usage list.
 #
-# The palette is consumed by `_dotfiles_sync/render_theme.py` (and the
-# helper `_dotfiles_sync/theme.py` for Python imports during the
-# render). It is intentionally NOT consumed at runtime — every config
-# file holds its own materialized hex values inside a marked region so
-# the apps that read the file don't need to know about this TOML.
+# The palette is consumed by `_dotfiles_sync/render_theme.py`. It is
+# intentionally NOT consumed at runtime — every config file holds its
+# own materialized hex values inside a marked region so the apps that
+# read the file don't need to know about this TOML.
 
 [mocha]
 rosewater = "#f5e0dc"

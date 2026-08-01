@@ -70,6 +70,10 @@ raw placeholder through.
 TOML is canonical for the renderer; this table is the human-readable
 gloss.)
 
+The palette deliberately carries the complete Catppuccin Mocha set,
+including colors no template references today (e.g. `flamingo`). Do not
+prune unreferenced entries — the set is the reference, not a usage list.
+
 ---
 
 ## Generated regions
@@ -92,7 +96,6 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `tmux/.config/tmux/scripts/status-hostname` | `status-hostname-colors` |
 | `tmux/.config/tmux/scripts/status-ram` | `status-ram-colors` |
 | `tmux/.config/tmux/scripts/tms` | `tms-palette` |
-| `fedora/bin/.local/bin/wallpaper` | `wallpaper-fallback-color` |
 | `sway/.config/sway/scripts/lock-screen` | `lock-screen-fallback-color` |
 | `sway/.config/sway/scripts/session-wallpaper` | `session-wallpaper-fallback-color` |
 
@@ -111,13 +114,31 @@ generator:
 - `ghostty/.config/ghostty/config` — uses the built-in named theme
   (`theme = catppuccin-mocha`); no hex in our config.
 - `nvim/.config/nvim/` — `catppuccin/nvim` plugin handles theming.
-- `waybar/.config/waybar/style.css` `@define-color base50` — `base`
-  at 50% alpha. Hand-derived from `mocha.base`.
-- `guides/style.css` + `guides/build/` — public website assets.
-  Could be folded in later.
-- Test files (`tmux/.../test-status-tools`) — hex appears as
-  *assertion fixtures* exercising production code. They're meant
-  to fail loud if the palette moves; that's the test working.
+- `waybar/.config/waybar/style.css` — the `@define-color` block *is*
+  generated (`waybar-palette`), but the alpha derivations further down
+  the file (`alpha(@base, 0.55)`) are hand-written GTK CSS on top of
+  the generated names.
+- `fedora/bin/.local/bin/wallpaper` `PREVIEW_BACKGROUND_COLOR` — holds
+  the same `#1e1e2e` as the generated `lock-screen-fallback-color`, but
+  is not marker-managed. Adopting it needs a marker pair, a template,
+  and a `CONSUMERS` entry; see "Known gap" below.
+- `guides/style.css` — public website assets, hand-maintained. Could be
+  folded in later. (`guides/build/` is generated output and gitignored.)
+- `tmux/.config/tmux/scripts/test-status-tools` — carries no hex. It
+  asserts on palette *key names* in the generated `tms-palette` region
+  (every key the render path reaches exists, and every generated key is
+  referenced), so it fails loud if that template drifts.
+
+---
+
+## Known gap
+
+`sway/.config/sway/scripts/lock-screen` and
+`fedora/bin/.local/bin/wallpaper` both hard-code `#1e1e2e` as a
+fallback/canvas fill, but only the former carries a THEME marker. A
+palette change to `base` therefore updates one and silently leaves the
+other behind. Closing it is a small feature (marker pair +
+`_dotfiles_sync/themes/*.tmpl` + `CONSUMERS` entry), not a doc fix.
 
 ---
 
