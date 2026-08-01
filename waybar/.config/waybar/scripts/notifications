@@ -6,21 +6,12 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import subprocess
 from typing import Any
 
-from _state import demo_enabled, set_demo
+from _state import demo_enabled, run, set_demo
 
 MAX_LABEL = 140
 MAX_BODY = 400
-
-
-def run(
-    cmd: list[str], *, input_text: str | None = None
-) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        cmd, input=input_text, capture_output=True, text=True, check=False
-    )
 
 
 def demo_notifications() -> list[dict[str, Any]]:
