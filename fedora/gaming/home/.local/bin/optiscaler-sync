@@ -584,7 +584,8 @@ def update_launch_option(
     tx: Transaction,
     remove: bool = False,
     only: set[str] | None = None,
-) -> set[str]:
+) -> tuple[set[str], set[str]]:
+    """Sync launch options; return (changed configs, recorded configs now gone)."""
     found: set[str] = set()
     changed_configs: set[str] = set()
     installed = (
@@ -620,9 +621,15 @@ def update_launch_option(
             atomic_write(config, changed)
             changed_configs.add(relative)
     missing = (only or set()) - found
-    if missing:
+    vanished = {
+        relative
+        for relative in missing
+        if not (target.app.steam_root / relative).exists()
+        and not (target.app.steam_root / relative).is_symlink()
+    }
+    if missing - vanished:
         raise ValueError(
-            "AppID missing from Steam config: " + ", ".join(sorted(missing))
+            "AppID missing from Steam config: " + ", ".join(sorted(missing - vanished))
         )
     if not installed and only is None and not found:
         raise ValueError("AppID has no Steam localconfig.vdf entry")
@@ -631,7 +638,7 @@ def update_launch_option(
             "managed Steam launch option was externally modified: "
             + ", ".join(sorted(manually_removed))
         )
-    return changed_configs
+    return changed_configs, vanished
 
 
 def install_game(
@@ -728,7 +735,12 @@ def install_game(
             else:
                 reports.append(f"preserved modified obsolete {key}")
 
-        launch_configs.update(update_launch_option(target, tx))
+        changed_configs, vanished = update_launch_option(target, tx)
+        launch_configs.difference_update(vanished)
+        launch_configs.update(changed_configs)
+        reports.extend(
+            f"dropped missing Steam config {relative}" for relative in sorted(vanished)
+        )
         tx.capture(manifest_path)
         manifest = {
             "schema": 1,
@@ -800,7 +812,13 @@ def uninstall_game(target: Target, force: bool) -> list[str]:
             else:
                 destination.unlink(missing_ok=True)
         if launch_configs:
-            update_launch_option(target, tx, remove=True, only=launch_configs)
+            _, vanished = update_launch_option(
+                target, tx, remove=True, only=launch_configs
+            )
+            reports.extend(
+                f"dropped missing Steam config {relative}"
+                for relative in sorted(vanished)
+            )
         os.replace(state, tx.root / "state")
     except BaseException:
         if tx is not None:
