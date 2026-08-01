@@ -4,6 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage: clipf <path>
+       clipf -        # copy stdin as text/plain
 
 Copy a file's contents to the system clipboard.
 Preserves MIME type for images/PDFs where supported.
@@ -21,6 +22,19 @@ if [[ $# -ne 1 ]]; then
 fi
 
 path="$1"
+
+if [[ "$path" == "-" ]]; then
+  # stdin is text by construction; no `file` probe, no temp file.
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    pbcopy
+  elif [[ "${XDG_SESSION_TYPE:-}" == "wayland" ]]; then
+    wl-copy
+  else
+    xclip -selection clipboard
+  fi
+  exit 0
+fi
+
 mime="$(file -bL --mime-type "$path")"
 
 if [[ "$OSTYPE" == "darwin"* ]]; then

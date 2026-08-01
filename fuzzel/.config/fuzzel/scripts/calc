@@ -50,8 +50,12 @@ def main() -> int:
             notify("Calculator", f"Could not evaluate: {query}")
             continue
 
-        if command_exists("wl-copy"):
-            run(["wl-copy"], input_text=answer, check=False)
+        # `clipf` is the single clipboard policy for this repo.
+        copied = (
+            command_exists("clipf")
+            and run(["clipf", "-"], input_text=answer, check=False).returncode == 0
+        )
+        if copied:
             notify("Calculator", f"{query} = {answer} (copied)")
         else:
             notify("Calculator", f"{query} = {answer}")

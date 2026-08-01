@@ -63,7 +63,7 @@ expected user-facing failures (missing dep, no matching window, etc.).
 ### Conventions
 
 - Use `notify-send` for user-facing error messages
-- Use `wl-copy` for Wayland clipboard operations
+- Use `clipf -` (from `local-bin/`) for clipboard writes — it is the single clipboard policy (macOS/Wayland/X11)
 - Use stdlib modules like `argparse`, `json`, `urllib`, `subprocess`
 - Share common helpers from `fuzzel/.config/fuzzel/scripts/_common.py`
 - Most-used sorting uses fuzzel `--cache` per picker in `~/.cache/fuzzel/pickers/*.cache` (or `$XDG_CACHE_HOME/fuzzel/pickers/*.cache`)
