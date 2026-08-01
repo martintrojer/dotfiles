@@ -52,11 +52,15 @@ make build-guides   # render guides/*.md → guides/build/*.html
 make serve-guides   # build then `python3 -m http.server` in guides/build
 ```
 
-`build.py --check` parses every source and validates every quiz block
-without writing output (used as the lint pass).
+`build.py --check` renders every source, validates every quiz block, and
+asserts the resulting HTML is well-formed (tags nest and close) without
+writing output. That last part is what makes it a real gate rather than a
+parse smoke test: an inline transform that interleaves tags, or a
+`render_block` regression that drops a `</ul>`, fails the check.
 
-Renderer edge cases (code spans vs. emphasis, quiz validation messages) are
-covered by `guides/test_build.py`:
+Renderer edge cases (code spans vs. emphasis, quiz validation messages,
+well-formedness) are covered by `guides/test_build.py`, which
+`make check-guides` runs too:
 
 ```sh
 python3 -m unittest discover -s guides -p 'test_*.py'

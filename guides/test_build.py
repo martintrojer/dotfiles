@@ -47,6 +47,64 @@ class RenderInlineTests(unittest.TestCase):
         self.assertEqual(build.render_inline("a\x000\x00b `x`"), "a0b <code>x</code>")
 
 
+class WellFormednessTests(unittest.TestCase):
+    """`--check` uses this; it is the only thing standing between a broken
+    inline transform and a silently-shipped guide."""
+
+    def assert_rejects(self, body: str, fragment: str) -> None:
+        with self.assertRaises(ValueError) as caught:
+            build.check_well_formed(body, "demo")
+        self.assertIn(fragment, str(caught.exception))
+
+    def test_overlapping_tags_are_rejected(self) -> None:
+        self.assert_rejects("<p><em>a<code>b</em>c</code></p>", "</em> closes <code>")
+
+    def test_unclosed_tag_is_rejected(self) -> None:
+        self.assert_rejects("<ul>\n  <li>a</li>", "<ul> is never closed")
+
+    def test_stray_end_tag_is_rejected(self) -> None:
+        self.assert_rejects("<p>a</p></ul>", "</ul> with no open tag")
+
+    def test_void_elements_need_no_close(self) -> None:
+        build.check_well_formed('<label><input type="radio"> a</label>', "demo")
+
+    def test_real_rendered_blocks_pass(self) -> None:
+        body = build.render_block(
+            "# Title\n\nSome *emphasis* and `code` here.\n\n- one\n- two\n"
+        )
+        build.check_well_formed(body, "demo")
+
+    def test_rendered_quiz_passes(self) -> None:
+        body = build.render_quiz(
+            '[[questions]]\nq = "hi"\noptions = ["a", "b"]\nanswer = 1\n', "demo"
+        )
+        build.check_well_formed(body, "demo")
+
+    def test_every_shipped_guide_renders_well_formed(self) -> None:
+        sources = sorted(p for p in build.SRC_DIR.glob("*.md") if p.name != "README.md")
+        self.assertTrue(sources)
+        for src in sources:
+            with self.subTest(guide=src.name):
+                _, body = build.render_doc(
+                    src.read_text(encoding="utf-8"), src.stem.lower()
+                )
+                build.check_well_formed(body, src.name)
+
+
+class RenderBlockTests(unittest.TestCase):
+    def test_bullets_collect_into_one_list(self) -> None:
+        self.assertEqual(
+            build.render_block("- one\n- two\n"),
+            "<ul>\n  <li>one</li>\n  <li>two</li>\n</ul>",
+        )
+
+    def test_heading_level_follows_hash_count(self) -> None:
+        self.assertEqual(build.render_block("### deep"), "<h3>deep</h3>")
+
+    def test_paragraph_lines_join_with_a_space(self) -> None:
+        self.assertEqual(build.render_block("one\ntwo"), "<p>one two</p>")
+
+
 class RenderQuizTests(unittest.TestCase):
     def assert_message(self, body: str, expected: str) -> None:
         with self.assertRaises(ValueError) as caught:
