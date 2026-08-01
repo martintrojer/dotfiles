@@ -39,8 +39,8 @@ KIND_ICON = {
 
 # THEME BEGIN: tms-palette
 CATPPUCCIN = {
+    "red": "#f38ba8",
     "peach": "#fab387",
-    "yellow": "#f9e2af",
     "sky": "#89dceb",
     "sapphire": "#74c7ec",
     "lavender": "#b4befe",
