@@ -76,6 +76,24 @@ def notify(status: str, *, ready: bool = False) -> None:
         client.sendto(message.encode(), address)
 
 
+def exit_status(returncode: int | None, stopped: bool) -> int:
+    """Translate a Popen returncode into an exit status the shell understands.
+
+    Popen reports a signalled child as a negative number, and sys.exit(-15)
+    reaches systemd as 241, so a plain `systemctl stop` looked like a failure.
+    A shutdown we asked for is success; any other signal death reports the
+    conventional 128+signum; a clean exit(0) we did not ask for is still a
+    failure, because the supervised app is gone.
+    """
+    if stopped:
+        return 0
+    if returncode is None:
+        return 1
+    if returncode < 0:
+        return 128 - returncode
+    return returncode or 1
+
+
 def wait_for_daemon(app: subprocess.Popen[bytes]) -> bool:
     for _ in range(30):
         if app.poll() is not None:
@@ -97,8 +115,11 @@ def main() -> int:
         return 1
 
     app = subprocess.Popen(APP)
+    stopped = False
 
     def stop(_signum: int, _frame: object) -> None:
+        nonlocal stopped
+        stopped = True
         app.terminate()
 
     signal.signal(signal.SIGTERM, stop)
@@ -137,7 +158,7 @@ def main() -> int:
             if failures >= 3:
                 notify("API health check failed three times; restarting")
                 return 1
-        return app.returncode or 1
+        return exit_status(app.returncode, stopped)
     finally:
         if app.poll() is None:
             app.terminate()
