@@ -166,12 +166,12 @@ export function modelLabel(model: Model<Api>): string {
 const MODEL_FAILURE_COOLDOWN_MS = 5 * 60 * 1000;
 const STATE_PATH = join(homedir(), ".pi", "agent", "extension-state", "fast-models.json");
 
+// Only the two fields the scheduler actually reads. Older files may carry
+// lastSeen/failureCount/lastError; they parse fine and are dropped on the next
+// write, since the writers below build records field by field.
 type FastModelRecord = {
-	lastSeen: number;
 	lastSuccess?: number;
 	lastFailure?: number;
-	failureCount?: number;
-	lastError?: string;
 };
 
 type FastModelState = {
@@ -214,18 +214,6 @@ function recordFor(state: FastModelState, task: string, model: Model<Api>): Fast
 	return state.tasks[task]?.[modelLabel(model)];
 }
 
-function markModelsSeen(task: string, models: Model<Api>[]): FastModelState {
-	const state = readFastModelState();
-	const records = taskRecords(state, task);
-	const now = Date.now();
-	for (const model of models) {
-		const label = modelLabel(model);
-		records[label] = { ...records[label], lastSeen: now };
-	}
-	writeFastModelState(state);
-	return state;
-}
-
 function modelFailedRecently(state: FastModelState, task: string, m: Model<Api>): boolean {
 	const failedAt = recordFor(state, task, m)?.lastFailure;
 	return failedAt !== undefined && Date.now() - failedAt < MODEL_FAILURE_COOLDOWN_MS;
@@ -235,18 +223,11 @@ function lastSuccess(state: FastModelState, task: string, m: Model<Api>): number
 	return recordFor(state, task, m)?.lastSuccess ?? 0;
 }
 
-export function markModelFailure(task: string, model: Model<Api>, error?: unknown): void {
+export function markModelFailure(task: string, model: Model<Api>): void {
 	const state = readFastModelState();
 	const records = taskRecords(state, task);
 	const label = modelLabel(model);
-	const prev = records[label];
-	records[label] = {
-		...prev,
-		lastSeen: prev?.lastSeen ?? Date.now(),
-		lastFailure: Date.now(),
-		failureCount: (prev?.failureCount ?? 0) + 1,
-		lastError: error instanceof Error ? error.message.slice(0, 500) : error ? String(error).slice(0, 500) : undefined,
-	};
+	records[label] = { lastSuccess: records[label]?.lastSuccess, lastFailure: Date.now() };
 	writeFastModelState(state);
 }
 
@@ -254,14 +235,7 @@ export function markModelSuccess(task: string, model: Model<Api>): void {
 	const state = readFastModelState();
 	const records = taskRecords(state, task);
 	const label = modelLabel(model);
-	const prev = records[label];
-	records[label] = {
-		...prev,
-		lastSeen: prev?.lastSeen ?? Date.now(),
-		lastSuccess: Date.now(),
-		failureCount: 0,
-		lastError: undefined,
-	};
+	records[label] = { lastSuccess: Date.now(), lastFailure: records[label]?.lastFailure };
 	writeFastModelState(state);
 }
 
@@ -282,7 +256,7 @@ export type PickedModel = { model: Model<Api>; apiKey: string; headers?: Record<
 
 export async function pickFastModels(ctx: ModelPickerContext, task = "default"): Promise<PickedModel[]> {
 	const available = ctx.modelRegistry.getAvailable();
-	const state = markModelsSeen(task, available);
+	const state = readFastModelState();
 	const seen = new Set<string>();
 	const candidates = [...available].sort((a, b) => {
 		const fa = modelFailedRecently(state, task, a);
@@ -315,10 +289,6 @@ export async function pickFastModels(ctx: ModelPickerContext, task = "default"):
 	return picked;
 }
 
-export async function pickFastModel(ctx: ModelPickerContext, task = "default"): Promise<PickedModel | null> {
-	return (await pickFastModels(ctx, task))[0] ?? null;
-}
-
 export class FastModelCancelled extends Error {
 	constructor() {
 		super("Cancelled.");
@@ -346,7 +316,7 @@ export async function withFastModelFallback<T>(
 		} catch (err) {
 			if (err instanceof FastModelCancelled) return { kind: "cancelled" };
 			lastError = err;
-			markModelFailure(task, picked.model, err);
+			markModelFailure(task, picked.model);
 		}
 	}
 	return { kind: "error", message: lastError instanceof Error ? lastError.message : String(lastError) };
