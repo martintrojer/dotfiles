@@ -396,7 +396,13 @@ def owner_for_repo_path(
 
 
 def load_repo_stow_ignore_regexes() -> tuple[tuple[str, re.Pattern[str]], ...]:
-    """Load repo-managed --ignore regexes from .stowrc."""
+    """Load repo-managed --ignore regexes from .stowrc.
+
+    Rejects slash patterns at load time. Stow matches each regex against a
+    single path component, so a pattern containing "/" can never fire -- it
+    would look like it works while silently ignoring nothing. .stowrc says
+    as much in prose; this makes it enforceable.
+    """
     stowrc = SCRIPT_DIR / ".stowrc"
     if not stowrc.is_file():
         return ()
@@ -409,6 +415,12 @@ def load_repo_stow_ignore_regexes() -> tuple[tuple[str, re.Pattern[str]], ...]:
         if not stripped.startswith("--ignore="):
             continue
         regex = stripped.removeprefix("--ignore=")
+        if "/" in regex:
+            raise SystemExit(
+                f".stowrc: --ignore={regex} contains '/', but stow matches "
+                "--ignore regexes against one path component at a time, so "
+                "it can never match. Use a bare-name regex."
+            )
         patterns.append((regex, re.compile(regex)))
     return tuple(patterns)
 
@@ -422,22 +434,13 @@ def repo_path_matches_stow_ignore(
     if owner is None:
         return False
 
-    rel_path = path.relative_to(owner.package_dir.resolve())
-    rel_parts = rel_path.parts
-    subpaths = [
-        "/" + "/".join(rel_parts[start:end])
-        for start in range(len(rel_parts))
-        for end in range(start + 1, len(rel_parts) + 1)
-    ]
-
-    for raw_regex, pattern in ignore_patterns:
-        if "/" in raw_regex:
-            if any(pattern.fullmatch(candidate) for candidate in subpaths):
-                return True
-            continue
-        if any(pattern.fullmatch(part) for part in rel_parts):
-            return True
-    return False
+    # Bare-name matching against each component, which is exactly what stow
+    # does. Slash patterns are rejected in load_repo_stow_ignore_regexes, so
+    # there is no second form to handle here.
+    rel_parts = path.relative_to(owner.package_dir.resolve()).parts
+    return any(
+        pattern.fullmatch(part) for _, pattern in ignore_patterns for part in rel_parts
+    )
 
 
 def managed_link_target(path: Path, source_root: Path) -> Path | None:
