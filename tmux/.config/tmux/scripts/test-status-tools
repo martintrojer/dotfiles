@@ -16,6 +16,7 @@ isolated tmux server with `tmux -L test-status-tools attach`.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import shutil
 import subprocess
@@ -28,7 +29,10 @@ AGENT_ATTENTION = SCRIPT_DIR / "agent-attention"
 STATUS_WINDOW_LABEL = SCRIPT_DIR / "status-window-label"
 CHEATSHEET = SCRIPT_DIR / "cheatsheet"
 TMS = SCRIPT_DIR / "tms"
-SOCKET = "test-status-tools"
+# Per-process socket: two concurrent runs (e.g. `make check-all` here and in an
+# agent workspace on the same box) would otherwise share one tmux server and
+# kill-server each other's session mid-assertion.
+SOCKET = f"test-status-tools-{os.getpid()}"
 
 
 # ---------- assertion helpers ----------
@@ -213,6 +217,11 @@ def setup_server(env: dict[str, str]) -> dict[str, str]:
 
 def teardown_server(env: dict[str, str]) -> None:
     tmux(env, ["kill-server"], check=False)
+    # kill-server leaves the socket file behind; with a per-pid socket name that
+    # would accumulate one stale entry per run.
+    socket_dir = os.environ.get("TMUX_TMPDIR") or f"/tmp/tmux-{os.getuid()}"
+    with contextlib.suppress(OSError):
+        os.unlink(os.path.join(socket_dir, SOCKET))
 
 
 # ---------- the actual tests ----------
