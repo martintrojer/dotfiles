@@ -3,6 +3,10 @@
 
 from __future__ import annotations
 
+import argparse
+import contextlib
+import io
+import json
 import logging
 import os
 import shutil
@@ -147,6 +151,137 @@ class FedoraPythonHelperTests(unittest.TestCase):
             self.assertEqual(archived[0].read_bytes(), b"wallpaper")
             self.assertEqual(wallpaper.CURRENT_LINK.resolve(), source)
             self.assertEqual(source.read_bytes(), b"wallpaper")
+
+    def wallpaper_env(self, root: Path) -> Any:
+        """Load wallpaper with its data/cache dirs pointed at a scratch tree."""
+        wallpaper = cast(Any, load_script("wallpaper_test", WALLPAPER))
+        wallpaper.TARGET_DIR = root / "wallpapers"
+        wallpaper.ARCHIVE_DIR = wallpaper.TARGET_DIR / "archive"
+        wallpaper.CURRENT_LINK = wallpaper.TARGET_DIR / "current"
+        wallpaper.CACHE_DIR = root / "cache"
+        wallpaper.ARCHIVE_DIR.mkdir(parents=True)
+        wallpaper.CACHE_DIR.mkdir()
+        return wallpaper
+
+    def test_status_json_is_the_contract_lock_screen_parses(self) -> None:
+        """sway's lock-screen falls back to a solid colour whenever `wallpaper
+        status` exits nonzero or prints something it can't parse, so a
+        regression here degrades locking silently.
+        """
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            root = Path(raw_tmp)
+            wallpaper = self.wallpaper_env(root)
+            args = argparse.Namespace()
+
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(wallpaper.cmd_status(args), 1)
+            self.assertEqual(json.loads(out.getvalue()), None)
+
+            image = wallpaper.ARCHIVE_DIR / "20240101-000000-pic.abcdef.png"
+            image.write_bytes(b"not really a png")
+            wallpaper.CURRENT_LINK.symlink_to(image)
+
+            # No cache rendered yet: status still succeeds, lock_image is null.
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(wallpaper.cmd_status(args), 0)
+            self.assertEqual(
+                json.loads(out.getvalue()), {"path": str(image), "lock_image": None}
+            )
+
+            # An empty cache file must not be advertised as a lock image.
+            cache = wallpaper._cache_path(image)
+            cache.touch()
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                wallpaper.cmd_status(args)
+            self.assertIsNone(json.loads(out.getvalue())["lock_image"])
+
+            cache.write_bytes(b"rendered")
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(wallpaper.cmd_status(args), 0)
+            self.assertEqual(
+                json.loads(out.getvalue()),
+                {"path": str(image), "lock_image": str(cache)},
+            )
+
+    def test_failed_rebuild_keeps_the_previous_lock_image(self) -> None:
+        """A forced rebuild that fails must not destroy the working cache --
+        that would leave the next lock screen bare until magick works again.
+        """
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            root = Path(raw_tmp)
+            wallpaper = self.wallpaper_env(root)
+            image = wallpaper.ARCHIVE_DIR / "pic.png"
+            image.write_bytes(b"source")
+            cached = wallpaper._cache_path(image)
+            cached.write_bytes(b"previous good render")
+
+            with mock.patch.object(
+                wallpaper, "_build_lock_image", return_value=(False, "magick exploded")
+            ):
+                built, error = wallpaper.build_lock_cache(image, force=True)
+
+            self.assertIsNone(built)
+            self.assertEqual(error, "magick exploded")
+            self.assertEqual(cached.read_bytes(), b"previous good render")
+
+    def test_cache_key_tracks_render_version_and_source_mtime(self) -> None:
+        """Stale keys mean a lock screen showing a wallpaper you replaced."""
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            root = Path(raw_tmp)
+            wallpaper = self.wallpaper_env(root)
+            image = wallpaper.ARCHIVE_DIR / "pic.png"
+            image.write_bytes(b"source")
+
+            key = wallpaper._cache_key(image)
+            self.assertEqual(key, wallpaper._cache_key(image))
+
+            os.utime(image, ns=(0, 1234567890))
+            touched = wallpaper._cache_key(image)
+            self.assertNotEqual(touched, key)
+
+            wallpaper.RENDER_VERSION += 1
+            self.assertNotEqual(wallpaper._cache_key(image), touched)
+
+            self.assertIsNone(wallpaper._cache_key(wallpaper.ARCHIVE_DIR / "gone.png"))
+
+    def test_delete_archive_clears_cache_but_spares_the_active_wallpaper(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            root = Path(raw_tmp)
+            wallpaper = self.wallpaper_env(root)
+            active = wallpaper.ARCHIVE_DIR / "active.png"
+            stale = wallpaper.ARCHIVE_DIR / "stale.png"
+            active.write_bytes(b"active")
+            stale.write_bytes(b"stale")
+            wallpaper.CURRENT_LINK.symlink_to(active)
+
+            active_cache = wallpaper._cache_path(active)
+            active_cache.write_bytes(b"png")
+            key = wallpaper._cache_key(stale)
+            for name in (f"{key}.png", f"{key}.sixel-80x24", f"{key}.sixel-120x40"):
+                (wallpaper.CACHE_DIR / name).write_bytes(b"artifact")
+            unrelated = wallpaper.CACHE_DIR / "deadbeef.png"
+            unrelated.write_bytes(b"someone else's")
+
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                self.assertEqual(
+                    wallpaper.cmd__delete_archive(
+                        argparse.Namespace(basename="active.png")
+                    ),
+                    0,
+                )
+            self.assertIn("refusing to delete currently-active", err.getvalue())
+            self.assertTrue(active.is_file())
+            self.assertTrue(active_cache.is_file())
+
+            self.assertEqual(
+                wallpaper.cmd__delete_archive(argparse.Namespace(basename="stale.png")),
+                0,
+            )
+            self.assertFalse(stale.exists())
+            self.assertEqual(
+                sorted(p.name for p in wallpaper.CACHE_DIR.iterdir()),
+                sorted([active_cache.name, unrelated.name]),
+            )
 
     def test_tbx_host_lookup_skips_its_wrapper_directory(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:

@@ -324,14 +324,14 @@ def build_lock_cache(
     if verbose and not cache_hit:
         print("Generating lock-screen image... ", end="", flush=True)
 
-    if force:
-        img_path.unlink(missing_ok=True)
-
     image: Path | None = None
     error: str | None = None
-    if img_path.is_file() and img_path.stat().st_size > 0:
+    if cache_hit:
         image = img_path
     else:
+        # Never unlink the existing cache first: _build_lock_image renders to a
+        # temp file and os.replace()s it, so a failed rebuild leaves the last
+        # good lock image in place instead of leaving the lock screen bare.
         ok, error = _build_lock_image(wallpaper, img_path)
         if ok:
             image = img_path
