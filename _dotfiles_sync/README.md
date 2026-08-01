@@ -28,7 +28,7 @@ Does **not** own:
 - `pins.py` — pinned clone refs and destinations
 - `system.py` — OS/distro detection and active scope selection
 - `stow.py` — Stow command execution, conflict parsing, apply/check helpers
-- `repo_checks.py` — package coverage, private-env guardrails, ignore-driven cleanup, backlink checks
+- `repo_checks.py` — package coverage, private-env guardrails, ignore-driven cleanup, backlink checks, systemd unit-target resolution
 - `integration_checks.py` — external drift checks (zsh plugins, TPM, Codex notify)
 - `external.py` — pinned third-party clone management (zsh plugins, TPM)
 - `model.py` — typed dataclasses and shared aliases

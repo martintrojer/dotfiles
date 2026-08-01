@@ -25,6 +25,7 @@ from .repo_checks import (
     check_package_coverage,
     check_private_env_mistakes,
     check_repo_backlinks,
+    check_systemd_unit_targets,
     prune_managed_ignored_artifact_links,
 )
 from .stow import ensure_stow_available, run_apply_group, run_check_group
@@ -156,6 +157,9 @@ def run_check_tasks(
         ),
         "fedora-systemd-masks": lambda: check_fedora_systemd_masks(
             target, verbose=verbose, ignore=ignore
+        ),
+        "systemd-unit-targets": lambda: check_systemd_unit_targets(
+            specs, ignore=ignore
         ),
         "repo-backlinks": _check_repo_backlinks,
     }
