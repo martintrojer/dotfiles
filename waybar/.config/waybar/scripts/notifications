@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 from typing import Any
 
@@ -100,11 +101,16 @@ def notification_details(item: dict[str, Any]) -> str:
 
 
 def copy_text(text: str) -> None:
+    # `clipf` is the single clipboard policy for this repo. Never print here:
+    # this script is a "return-type": "json" waybar module, so stray stdout
+    # goes straight into the bar's JSON parser.
     if not text:
         return
-    wl_copy = run(["wl-copy"], input_text=text)
-    if wl_copy.returncode != 0:
-        print(text)
+    if shutil.which("clipf") is None:
+        run(["notify-send", "Notifications", "clipf not found on PATH"])
+        return
+    if run(["clipf", "-"], input_text=text).returncode != 0:
+        run(["notify-send", "Notifications", "Could not copy to clipboard"])
 
 
 def waybar() -> int:

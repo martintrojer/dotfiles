@@ -79,16 +79,12 @@ def read_entries(db_path: Path) -> list[str]:
 
 
 def copy_text(text: str) -> None:
-    if command_exists("wl-copy"):
-        run(["wl-copy"], input_text=text, check=False)
+    # `clipf` is the single clipboard policy for this repo (macOS/Wayland/X11).
+    if not command_exists("clipf"):
+        notify("Emoji", "clipf not found on PATH")
         return
-    if command_exists("xclip"):
-        run(["xclip", "-selection", "clipboard"], input_text=text, check=False)
-        return
-    if command_exists("xsel"):
-        run(["xsel", "-b"], input_text=text, check=False)
-        return
-    notify("Emoji", "No clipboard command found")
+    if run(["clipf", "-"], input_text=text, check=False).returncode != 0:
+        notify("Emoji", "Could not copy to clipboard")
 
 
 def main() -> int:
