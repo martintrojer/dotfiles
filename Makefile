@@ -119,6 +119,7 @@ serve-guides: build-guides
 
 check-guides:
 	python3 guides/build.py --check
+	python3 -m unittest discover -s guides -p 'test_*.py'
 
 clean-guides:
 	rm -rf guides/build

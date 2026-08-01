@@ -54,3 +54,10 @@ make serve-guides   # build then `python3 -m http.server` in guides/build
 
 `build.py --check` parses every source and validates every quiz block
 without writing output (used as the lint pass).
+
+Renderer edge cases (code spans vs. emphasis, quiz validation messages) are
+covered by `guides/test_build.py`:
+
+```sh
+python3 -m unittest discover -s guides -p 'test_*.py'
+```
