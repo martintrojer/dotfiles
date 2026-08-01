@@ -1,6 +1,6 @@
 # Dotfiles
 
-Personal dotfiles, deployed via [GNU Stow](https://www.gnu.org/software/stow/) and a repo-specific sync tool (`dotfiles-sync`, implemented under [`_dotfiles_sync/`](./_dotfiles_sync)).
+Personal dotfiles, deployed by a repo-specific sync tool (`dotfiles-sync`, implemented under [`_dotfiles_sync/`](./_dotfiles_sync)). Each top-level package mirrors `$HOME`, and the planner symlinks it there; there is no external dependency.
 
 ## Zen Of This Setup
 
@@ -42,24 +42,24 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behaviour is 
 
 | Where | What |
 |---|---|
-| Portable core (stow packages) | [`zsh/`](./zsh), [`nvim/`](./nvim), [`tmux/`](./tmux), [`git/`](./git), [`ssh/`](./ssh), [`local-bin/`](./local-bin) |
-| Linux desktop stack (stow packages) | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`foot/`](./foot) (terminal), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaylock/`](./swaylock) |
+| Portable core (packages) | [`zsh/`](./zsh), [`nvim/`](./nvim), [`tmux/`](./tmux), [`git/`](./git), [`ssh/`](./ssh), [`local-bin/`](./local-bin) |
+| Linux desktop stack (packages) | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`foot/`](./foot) (terminal), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaylock/`](./swaylock) |
 | Linux gaming layer | [`fedora/gaming/`](./fedora/gaming) — quarantined, opt-out (`--skip-gaming`) stack for the main Windows→Linux gaming rig (Steam, gamescope, Sunshine, OptiScaler, MangoHud, GameMode, OpenRGB); see [`fedora/gaming/README.md`](./fedora/gaming/README.md) and [`docs/DECISIONS.md`](./docs/DECISIONS.md) |
-| macOS desktop stack (stow packages) | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) (terminal) |
-| Fedora setup namespace | [`fedora/`](./fedora) (special case: nested stow packages + setup wrappers) |
-| Universal agent sources (stow packages) | [`skills/`](./skills), [`pi/`](./pi) |
-| Repo control plane | [`dotfiles-sync`](./dotfiles-sync), [`_dotfiles_sync/`](./_dotfiles_sync), [`.stowrc`](./.stowrc) |
+| macOS desktop stack (packages) | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) (terminal) |
+| Fedora setup namespace | [`fedora/`](./fedora) (special case: nested packages + setup wrappers) |
+| Universal agent sources (packages) | [`skills/`](./skills), [`pi/`](./pi) |
+| Repo control plane | [`dotfiles-sync`](./dotfiles-sync), [`_dotfiles_sync/`](./_dotfiles_sync) |
 | Cross-cutting docs/policy | [`docs/`](./docs) — [`SETUP.md`](./docs/SETUP.md), [`DECISIONS.md`](./docs/DECISIONS.md), [`THEME.md`](./docs/THEME.md), [`LAYOUT.md`](./docs/LAYOUT.md), [`VSCODE.md`](./docs/VSCODE.md) |
 
-Most top-level directories are Stow packages mirroring `$HOME`. The notable exceptions are the Fedora namespace and the repo control-plane files. `skills/` and `pi/` are Stow packages too (their inner `.agents/` and `.pi/` trees mirror `$HOME`), but they double as source trees consumed directly by external tools.
+Most top-level directories are packages mirroring `$HOME`. The notable exceptions are the Fedora namespace and the repo control-plane files. `skills/` and `pi/` are packages too (their inner `.agents/` and `.pi/` trees mirror `$HOME`), but they double as source trees consumed directly by external tools.
 
 ## Agent payloads
 
 The repo doubles as a multi-target agent source. Distribution model:
 
-- **Handled by `--apply` (stow):** `skills/.agents/skills/<name>/` and `pi/.pi/agent/extensions/*.ts` stow into `~/.agents/skills/` and `~/.pi/agent/extensions/`. Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw all read these paths natively. Edits in the repo show up live. Skills use stow folding so each skill links as one directory symlink (vendored README/LICENSE ride along); pi extensions link per-file. Pi helper modules (such as `_lib.ts`) must export a harmless default because pi may auto-load them.
+- **Handled by `--apply`:** `skills/.agents/skills/<name>/` and `pi/.pi/agent/extensions/*.ts` link into `~/.agents/skills/` and `~/.pi/agent/extensions/`. Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw all read these paths natively. Edits in the repo show up live. Skills are a `bundle_dirs` package so each skill links as one directory symlink (vendored README/LICENSE ride along); pi extensions link per-file. Pi helper modules (such as `_lib.ts`) must export a harmless default because pi may auto-load them.
 
-Why this works: `~/.agents/skills/` is the universal path *all* the agents already read, so stowing there covers everyone in one move.
+Why this works: `~/.agents/skills/` is the universal path *all* the agents already read, so linking there covers everyone in one move.
 
 See [`docs/SETUP.md`](./docs/SETUP.md) for the install + update flow.
 

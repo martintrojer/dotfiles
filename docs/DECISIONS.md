@@ -462,6 +462,23 @@ Three things named "summarize": the stow package (CLI config), the agent skill, 
 
 ---
 
+### Replace GNU Stow with an in-repo symlink planner (accepted 2026-08-01)
+
+Stow was doing very little. We passed `--no-folding` on 33 of 34 packages, which turns off its signature feature, then regex-scraped its English output to recover the package/source/target structure we had just handed it.
+
+- **Deleted the seam.** Seven of thirteen functions in `stow.py` existed only to talk to stow: probe the binary, filter its chatter, parse conflicts, parse foreign targets, map an output line back to a package. `package_for_conflict` was recovering information we passed in.
+- **One ignore rule set, not two.** `.stowrc` fed stow; `repo_checks` hand-reimplemented stow's matching so the backlink audit could agree with it — including a `SystemExit` guard for stow's footgun that slash patterns silently never match. Now `ignore.py`, shared by planner and audit.
+- **Folding became a declaration.** `fold` + `fold_anchors` + pre-`mkdir` existed to coax stow into linking `~/.agents/skills/<name>` rather than folding `~/.agents` whole. Now `bundle_dirs = (".agents/skills",)` says it outright.
+- **Conflicts are objects.** `LinkState` (OK / MISSING / STALE / CONFLICT) replaces string matching, so `--check` reports per-link instead of forwarding stow's stdout.
+- **Not a line-count win.** ~360 removed against ~265 added; roughly break-even. The case is bug density: three bugs fixed in one audit (`meta_stow_skip_pkg_wrong_index`, `meta_stowrc_slash_branch_dead`, the ignore-scan issue) were all in the seam, none in the linking.
+- **Verified against a golden capture.** All 158 stow-created links reproduced byte-for-byte, in the plan and in a real `--apply` to a scratch target. The other 4 repo-pointing links in `$HOME` turned out to be `mise` and `systemctl enable` artifacts, never stow's.
+
+**What we gave up:** `stow -t ~ zsh` as a bail-out on a machine where `dotfiles-sync` is broken. Pillar #6 already says recreate rather than restore, and a fresh machine runs `--apply` anyway.
+
+**Reconsider if:** the planner develops edge cases stow had already solved — cross-device links, adopt semantics, or partial-`$HOME` states — faster than the tests pin them.
+
+---
+
 ### Tests are bug-driven, not coverage-driven (accepted 2026-05-01, rewritten 2026-08-01)
 
 Was "no unit tests for the control-plane"; three amendments in one day inverted it (44 → 288 checks, seven directories). Restated as a rule rather than a pile of exceptions.

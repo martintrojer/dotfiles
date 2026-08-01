@@ -28,7 +28,7 @@ from .repo_checks import (
     check_systemd_unit_targets,
     prune_managed_ignored_artifact_links,
 )
-from .stow import ensure_stow_available, run_apply_group, run_check_group
+from .stow import run_apply_group, run_check_group
 from .system import active_scopes, detect_system
 
 LOGGER = logging.getLogger("dotfiles-sync")
@@ -234,7 +234,6 @@ def run_apply_tasks(
 
 def main() -> int:
     args = parse_args()
-    ensure_stow_available()
     configure_logging(args)
 
     target = Path(args.target).expanduser()
@@ -264,33 +263,27 @@ def main() -> int:
     groups = group_active_packages(specs, active_names)
 
     has_issues = False
-    for (label, stow_dir, fold), packages in groups.items():
-        fold_anchors = tuple(
-            anchor for name in packages for anchor in specs[name].fold_anchors
-        )
+    for label, packages in groups.items():
         if args.action == "check":
             has_issues |= run_check_group(
                 label,
-                stow_dir,
                 packages,
+                specs,
                 target,
                 args.show_diffs,
                 args.verbose,
                 ignore=args.ignore,
-                fold=fold,
             )
         else:
             run_apply_group(
                 label,
-                stow_dir,
                 packages,
+                specs,
                 target,
                 verbose=args.verbose,
                 force_overwrite=args.force_overwrite,
                 backup_root=backup_root,
                 ignore=args.ignore,
-                fold=fold,
-                fold_anchors=fold_anchors,
             )
 
     if args.action == "check":

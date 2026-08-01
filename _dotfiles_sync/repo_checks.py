@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .config import SCRIPT_DIR
+from .ignore import IgnoreRules
 from .inventory import IGNORED_TOPLEVEL_DIRS
 from .model import PackageSpec
 
@@ -396,52 +397,21 @@ def owner_for_repo_path(
     return None
 
 
-def load_repo_stow_ignore_regexes() -> tuple[tuple[str, re.Pattern[str]], ...]:
-    """Load repo-managed --ignore regexes from .stowrc.
-
-    Rejects slash patterns at load time. Stow matches each regex against a
-    single path component, so a pattern containing "/" can never fire -- it
-    would look like it works while silently ignoring nothing. .stowrc says
-    as much in prose; this makes it enforceable.
-    """
-    stowrc = SCRIPT_DIR / ".stowrc"
-    if not stowrc.is_file():
-        return ()
-
-    patterns: list[tuple[str, re.Pattern[str]]] = []
-    for line in stowrc.read_text().splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if not stripped.startswith("--ignore="):
-            continue
-        regex = stripped.removeprefix("--ignore=")
-        if "/" in regex:
-            raise SystemExit(
-                f".stowrc: --ignore={regex} contains '/', but stow matches "
-                "--ignore regexes against one path component at a time, so "
-                "it can never match. Use a bare-name regex."
-            )
-        patterns.append((regex, re.compile(regex)))
-    return tuple(patterns)
-
-
-def repo_path_matches_stow_ignore(
+def repo_path_is_ignored(
     path: Path,
     specs: dict[str, PackageSpec],
-    ignore_patterns: tuple[tuple[str, re.Pattern[str]], ...],
+    rules: IgnoreRules,
 ) -> bool:
+    """True if the linker would skip this repo path.
+
+    Shares one rule set with the planner (ignore.py). This used to be a
+    second, hand-maintained implementation of stow's matching semantics so the
+    backlink audit could agree with what stow had actually linked.
+    """
     owner = owner_for_repo_path(path, specs)
     if owner is None:
         return False
-
-    # Bare-name matching against each component, which is exactly what stow
-    # does. Slash patterns are rejected in load_repo_stow_ignore_regexes, so
-    # there is no second form to handle here.
-    rel_parts = path.relative_to(owner.package_dir.resolve()).parts
-    return any(
-        pattern.fullmatch(part) for _, pattern in ignore_patterns for part in rel_parts
-    )
+    return rules.matches(path.relative_to(owner.package_dir.resolve()))
 
 
 def managed_link_target(path: Path, source_root: Path) -> Path | None:
@@ -495,15 +465,13 @@ def prune_managed_ignored_artifact_links(
     verbose: bool,
 ) -> None:
     """Remove stale managed links for repo-ignored build/cache artifacts."""
-    ignore_patterns = load_repo_stow_ignore_regexes()
-    if not ignore_patterns:
-        return
+    rules = IgnoreRules.load()
 
     linked_paths: list[Path] = []
     ignored_dirs: set[Path] = set()
 
     for path, repo_target in iter_managed_links(target, specs, active_names):
-        if not repo_path_matches_stow_ignore(repo_target, specs, ignore_patterns):
+        if not repo_path_is_ignored(repo_target, specs, rules):
             continue
         linked_paths.append(path)
         parents_to_prune: list[Path] = []
@@ -513,7 +481,7 @@ def prune_managed_ignored_artifact_links(
             if target_parent == target:
                 break
             parents_to_prune.append(target_parent)
-            if repo_path_matches_stow_ignore(repo_parent, specs, ignore_patterns):
+            if repo_path_is_ignored(repo_parent, specs, rules):
                 ignored_dirs.update(parents_to_prune)
                 break
 
