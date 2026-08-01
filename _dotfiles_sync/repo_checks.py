@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import subprocess
+from collections.abc import Iterable, Iterator
 from itertools import chain
 from pathlib import Path
 from urllib.parse import urlparse
@@ -456,6 +457,36 @@ def managed_link_target(path: Path, source_root: Path) -> Path | None:
     return resolved
 
 
+def iter_managed_links(
+    target: Path, specs: dict[str, PackageSpec], active_names: set[str]
+) -> Iterator[tuple[Path, Path]]:
+    """Yield (link_path, repo_target) for every managed symlink under `target`.
+
+    This is the expensive part of both `--apply` and `--check` (cli.py times
+    it). Sharing one traversal keeps the two modes from disagreeing about
+    which links exist. Callers get the pair and decide what it means: prune
+    tests ignore-patterns, check tests staleness. Iteration order follows
+    collect_scan_roots and rglob, which the prune step's parent walk relies
+    on -- that logic stays in the caller.
+    """
+    script_real = SCRIPT_DIR.resolve()
+    for scan_root in collect_scan_roots(specs, target, active_names):
+        if not scan_root.exists() and not scan_root.is_symlink():
+            continue
+
+        if scan_root.is_dir() and not scan_root.is_symlink():
+            scan_iter: Iterable[Path] = chain((scan_root,), scan_root.rglob("*"))
+        else:
+            scan_iter = (scan_root,)
+
+        for path in scan_iter:
+            if not path.is_symlink():
+                continue
+            repo_target = managed_link_target(path, script_real)
+            if repo_target is not None:
+                yield path, repo_target
+
+
 def prune_managed_ignored_artifact_links(
     target: Path,
     specs: dict[str, PackageSpec],
@@ -468,40 +499,23 @@ def prune_managed_ignored_artifact_links(
     if not ignore_patterns:
         return
 
-    script_real = SCRIPT_DIR.resolve()
     linked_paths: list[Path] = []
     ignored_dirs: set[Path] = set()
 
-    for scan_root in collect_scan_roots(specs, target, active_names):
-        if not scan_root.exists() and not scan_root.is_symlink():
+    for path, repo_target in iter_managed_links(target, specs, active_names):
+        if not repo_path_matches_stow_ignore(repo_target, specs, ignore_patterns):
             continue
-
-        if scan_root.is_symlink():
-            scan_iter = iter((scan_root,))
-        elif scan_root.is_dir():
-            scan_iter = chain((scan_root,), scan_root.rglob("*"))
-        else:
-            scan_iter = iter((scan_root,))
-
-        for path in scan_iter:
-            if not path.is_symlink():
-                continue
-            repo_target = managed_link_target(path, script_real)
-            if repo_target is None or not repo_path_matches_stow_ignore(
-                repo_target, specs, ignore_patterns
-            ):
-                continue
-            linked_paths.append(path)
-            parents_to_prune: list[Path] = []
-            for target_parent, repo_parent in zip(
-                path.parents, repo_target.parents, strict=False
-            ):
-                if target_parent == target:
-                    break
-                parents_to_prune.append(target_parent)
-                if repo_path_matches_stow_ignore(repo_parent, specs, ignore_patterns):
-                    ignored_dirs.update(parents_to_prune)
-                    break
+        linked_paths.append(path)
+        parents_to_prune: list[Path] = []
+        for target_parent, repo_parent in zip(
+            path.parents, repo_target.parents, strict=False
+        ):
+            if target_parent == target:
+                break
+            parents_to_prune.append(target_parent)
+            if repo_path_matches_stow_ignore(repo_parent, specs, ignore_patterns):
+                ignored_dirs.update(parents_to_prune)
+                break
 
     if not linked_paths and not ignored_dirs:
         return
@@ -542,55 +556,35 @@ def check_repo_backlinks(
     *,
     ignore: set[str],
 ) -> bool:
-    script_real = SCRIPT_DIR.resolve()
     found_stale = False
     found_invalid = False
     has_issues = False
 
-    for scan_root in collect_scan_roots(specs, target, active_names):
-        if not scan_root.exists() and not scan_root.is_symlink():
+    for path, repo_target in iter_managed_links(target, specs, active_names):
+        spec = owner_for_repo_path(repo_target, specs)
+        if spec is None:
             continue
 
-        if scan_root.is_symlink():
-            scan_iter = iter((scan_root,))
-        elif scan_root.is_dir():
-            scan_iter = chain((scan_root,), scan_root.rglob("*"))
-        else:
-            scan_iter = iter((scan_root,))
-
-        for path in scan_iter:
-            if not path.is_symlink():
+        rel_path = path.relative_to(target)
+        if not path.exists():
+            issue_id = f"stale:{rel_path}"
+            if issue_id in ignore:
                 continue
-            repo_target = managed_link_target(path, script_real)
-            if repo_target is None:
-                continue
+            if not found_stale:
+                LOGGER.warning("\n[stale-symlinks]")
+                found_stale = True
+            has_issues = True
+            LOGGER.warning(f"STALE: {rel_path}  (--ignore {issue_id})")
+            continue
 
-            spec = owner_for_repo_path(repo_target, specs)
-            if spec is None:
+        if spec.name not in active_names:
+            issue_id = f"invalid:{rel_path}"
+            if issue_id in ignore:
                 continue
-
-            rel_path = path.relative_to(target)
-            if not path.exists():
-                issue_id = f"stale:{rel_path}"
-                if issue_id in ignore:
-                    continue
-                if not found_stale:
-                    LOGGER.warning("\n[stale-symlinks]")
-                    found_stale = True
-                has_issues = True
-                LOGGER.warning(f"STALE: {rel_path}  (--ignore {issue_id})")
-                continue
-
-            if spec.name not in active_names:
-                issue_id = f"invalid:{rel_path}"
-                if issue_id in ignore:
-                    continue
-                if not found_invalid:
-                    LOGGER.warning("\n[invalid-backlinks]")
-                    found_invalid = True
-                has_issues = True
-                LOGGER.warning(
-                    f"INVALID: {rel_path} [{spec.scope}]  (--ignore {issue_id})"
-                )
+            if not found_invalid:
+                LOGGER.warning("\n[invalid-backlinks]")
+                found_invalid = True
+            has_issues = True
+            LOGGER.warning(f"INVALID: {rel_path} [{spec.scope}]  (--ignore {issue_id})")
 
     return has_issues
