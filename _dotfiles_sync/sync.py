@@ -125,12 +125,15 @@ def run_apply_group(
     if not packages:
         return
 
-    links = plan_group(packages, specs, target)
-    conflicts = [
+    # Drop ignored conflicts from the plan entirely, not just from `conflicts`:
+    # --ignore conflict:<rel> means "leave that target to me", and anything
+    # still in `links` gets unlinked -- unbacked -- under --force-overwrite.
+    links = [
         link
-        for link in links
-        if link.state is LinkState.CONFLICT and f"conflict:{link.rel}" not in ignore
+        for link in plan_group(packages, specs, target)
+        if not (link.state is LinkState.CONFLICT and f"conflict:{link.rel}" in ignore)
     ]
+    conflicts = [link for link in links if link.state is LinkState.CONFLICT]
 
     if conflicts and not force_overwrite:
         # Skip whole packages that have an unresolved conflict rather than
