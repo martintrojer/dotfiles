@@ -356,7 +356,13 @@ def is_useful_path(path: str, *, mode: str, config: TmsConfig) -> bool:
             return False
         if mode == "zoxide" and len(rel_parts) > 2:
             return False
-    except Exception:
+    except OSError:
+        # resolve() touches the filesystem: unreadable parent, deleted cwd
+        # while resolving a relative path, ELOOP on platforms that still
+        # report it. Treat an unresolvable path as "no extra filtering".
+        pass
+    except ValueError:
+        # relative_to() when the resolved path is outside $HOME.
         pass
 
     return True
