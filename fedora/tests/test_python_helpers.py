@@ -22,17 +22,32 @@ ROOT = Path(__file__).parents[2]
 WALLPAPER = ROOT / "fedora/bin/.local/bin/wallpaper"
 TBX = ROOT / "fedora/bin/.local/bin/tbx"
 LMSTUDIO = ROOT / "fedora/bin/.local/bin/lmstudio-server"
+# (package array script, wrapper script, install command the wrapper uses)
 FEDORA_SETUPS = [
-    (ROOT / "fedora/os/base-packages.sh", ROOT / "fedora/os/setup-base.sh"),
-    (ROOT / "fedora/os/sway-packages.sh", ROOT / "fedora/os/setup-sway.sh"),
+    (
+        ROOT / "fedora/os/base-packages.sh",
+        ROOT / "fedora/os/setup-base.sh",
+        "rpm-ostree install",
+    ),
+    (
+        ROOT / "fedora/os/sway-packages.sh",
+        ROOT / "fedora/os/setup-sway.sh",
+        "rpm-ostree install",
+    ),
+    # Inside a toolbox there is no rpm-ostree; the same array is layered with dnf.
+    (
+        ROOT / "fedora/os/base-packages.sh",
+        ROOT / "fedora/os/setup-toolbox.sh",
+        "dnf install",
+    ),
 ]
 
 
-def install_command(wrapper: Path) -> str:
+def install_command(wrapper: Path, marker: str) -> str:
     lines = [
         line
         for line in wrapper.read_text().splitlines()
-        if not line.lstrip().startswith("#") and "rpm-ostree install" in line
+        if not line.lstrip().startswith("#") and marker in line
     ]
     assert len(lines) == 1, f"{wrapper.name}: expected 1 install line, got {lines}"
     return lines[0]
@@ -69,7 +84,7 @@ def load_script(name: str, path: Path) -> types.ModuleType:
 
 class FedoraPackageArrays(unittest.TestCase):
     def test_arrays_are_non_empty_and_unique(self) -> None:
-        for array_script, _ in FEDORA_SETUPS:
+        for array_script in dict.fromkeys(setup[0] for setup in FEDORA_SETUPS):
             with self.subTest(script=array_script.name):
                 packages = read_array(array_script)
                 self.assertTrue(packages, f"{array_script.name} exports no packages")
@@ -80,13 +95,13 @@ class FedoraPackageArrays(unittest.TestCase):
                 )
 
     def test_wrappers_install_the_sourced_array(self) -> None:
-        for array_script, wrapper in FEDORA_SETUPS:
+        for array_script, wrapper, marker in FEDORA_SETUPS:
             with self.subTest(script=wrapper.name):
                 var = f"{array_script.name.split('-')[0]}_packages"
-                self.assertIn(f'"${{{var}[@]}}"', install_command(wrapper))
+                self.assertIn(f'"${{{var}[@]}}"', install_command(wrapper, marker))
 
     def test_scripts_are_syntactically_valid(self) -> None:
-        for array_script, wrapper in FEDORA_SETUPS:
+        for array_script, wrapper, _ in FEDORA_SETUPS:
             for script in (array_script, wrapper):
                 with self.subTest(script=script.name):
                     subprocess.run(["bash", "-n", str(script)], check=True)
