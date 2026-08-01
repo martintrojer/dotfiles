@@ -425,7 +425,9 @@ export const NAMED_PROBES: Record<string, { command: string; description: string
  * through anything that isn't a known name as a literal command. */
 export function expandProbe(probe: string): string {
 	const [name, ...rest] = probe.split(/\s+/);
-	const named = NAMED_PROBES[name];
+	// Object.hasOwn, not a bare lookup: `constructor`/`toString`/`__proto__` are
+	// inherited from Object.prototype and would otherwise "expand" to undefined.
+	const named = Object.hasOwn(NAMED_PROBES, name) ? NAMED_PROBES[name] : undefined;
 	if (!named) return probe;
 	return rest.length > 0 ? `${named.command} ${rest.join(" ")}` : named.command;
 }

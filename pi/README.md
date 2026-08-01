@@ -101,3 +101,11 @@ export BRAVE_SEARCH_API_KEY="your-brave-search-api-key"
 ```
 
 Then ask for web/current information normally; the model can call `brave_search` and cite returned URLs. Ask specifically for news, images, or videos when you want the model to use those specialized Brave tools.
+
+## Tests
+
+`.pi/agent/extensions/tests/lib.test.ts` covers the pure helpers in `_lib.ts` (`parseInterval`, `formatInterval`, `blockText`, `conversationTranscript`, `expandProbe`). Run them with `make check-ts-tests`, which is part of `make check-all`.
+
+No runner dependency and no `package.json`: node strips the TS types itself, so `node --test` runs the files directly. The `tests/` directory is never linked into `$HOME` — `tests` is in `NAME_PATTERNS` (`_dotfiles_sync/ignore.py`), so pi never sees it as an extension.
+
+The tmux status contract is covered separately, end-to-end, by `tmux/.config/tmux/scripts/test-status-tools`.

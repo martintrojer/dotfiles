@@ -10,5 +10,9 @@
 		"types": ["node"],
 		"skipLibCheck": true
 	},
-	"include": ["pi/.pi/agent/extensions/*.ts", "opencode/.config/opencode/plugin/*.ts"]
+	"include": [
+		"pi/.pi/agent/extensions/*.ts",
+		"pi/.pi/agent/extensions/tests/*.ts",
+		"opencode/.config/opencode/plugin/*.ts"
+	]
 }
