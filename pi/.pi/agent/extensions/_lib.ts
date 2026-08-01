@@ -13,7 +13,7 @@ import { exec } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
 export interface ContentBlock {
@@ -491,111 +491,12 @@ function formatWatchLoopSummary(): string {
 		.join(" ");
 }
 
-function formatTokens(count: number): string {
-	if (count < 1000) return count.toString();
-	if (count < 10000) return `${(count / 1000).toFixed(1)}k`;
-	if (count < 1000000) return `${Math.round(count / 1000)}k`;
-	if (count < 10000000) return `${(count / 1000000).toFixed(1)}M`;
-	return `${Math.round(count / 1000000)}M`;
-}
-
-function formatCwdForWatchLoopFooter(cwd: string, home: string | undefined): string {
-	if (!home) return cwd;
-	const resolvedCwd = resolve(cwd);
-	const resolvedHome = resolve(home);
-	const rel = relative(resolvedHome, resolvedCwd);
-	const insideHome = rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
-	return insideHome ? (rel === "" ? "~" : `~${sep}${rel}`) : cwd;
-}
-
-function truncatePlain(s: string, width: number): string {
-	if (s.length <= width) return s;
-	if (width <= 3) return s.slice(0, width);
-	return `${s.slice(0, width - 3)}...`;
-}
-
-let goalFooterMarker: string | null = null;
-let watchLoopFooterInstalled = false;
-let requestWatchLoopFooterRender: (() => void) | undefined;
-
-function footerHasMarkers(): boolean {
-	return goalFooterMarker !== null || Object.values(watchLoopStores).some((s) => s.items.size > 0);
-}
-
 export function setGoalFooterMarker(ctx: ExtensionContext, marker: string | null): void {
-	goalFooterMarker = marker;
-	syncWatchLoopFooter(ctx);
-}
-
-function syncWatchLoopFooter(ctx: ExtensionContext): void {
-	const active = footerHasMarkers();
-	if (!active) {
-		if (watchLoopFooterInstalled) ctx.ui.setFooter(undefined);
-		watchLoopFooterInstalled = false;
-		requestWatchLoopFooterRender = undefined;
-		return;
-	}
-	if (watchLoopFooterInstalled) {
-		requestWatchLoopFooterRender?.();
-		return;
-	}
-	watchLoopFooterInstalled = true;
-	ctx.ui.setFooter((tui, theme, footerData) => {
-		requestWatchLoopFooterRender = () => tui.requestRender();
-		const unsub = footerData.onBranchChange(() => tui.requestRender());
-		return {
-			dispose: unsub,
-			invalidate() {},
-			render(width: number): string[] {
-				let input = 0;
-				let output = 0;
-				let cacheRead = 0;
-				let cacheWrite = 0;
-				let cost = 0;
-				for (const entry of ctx.sessionManager.getBranch()) {
-					if (entry.type !== "message" || entry.message?.role !== "assistant") continue;
-					const usage = entry.message.usage;
-					if (!usage) continue;
-					input += usage.input;
-					output += usage.output;
-					cacheRead += usage.cacheRead;
-					cacheWrite += usage.cacheWrite;
-					cost += usage.cost.total;
-				}
-
-				let cwd = formatCwdForWatchLoopFooter(ctx.sessionManager.getCwd(), process.env.HOME || process.env.USERPROFILE);
-				const branch = footerData.getGitBranch();
-				if (branch) cwd = `${cwd} (${branch})`;
-				const sessionName = ctx.sessionManager.getSessionName();
-				if (sessionName) cwd = `${cwd} • ${sessionName}`;
-				const loopSummary = formatWatchLoopSummary();
-				const summary = [goalFooterMarker, loopSummary].filter(Boolean).join(" ");
-				const first = `${cwd}${summary ? ` • ${summary}` : ""}`;
-
-				const parts: string[] = [];
-				if (input) parts.push(`↑${formatTokens(input)}`);
-				if (output) parts.push(`↓${formatTokens(output)}`);
-				if (cacheRead) parts.push(`R${formatTokens(cacheRead)}`);
-				if (cacheWrite) parts.push(`W${formatTokens(cacheWrite)}`);
-				if (cost) parts.push(`$${cost.toFixed(3)}`);
-				const usage = ctx.getContextUsage();
-				const percent = usage?.percent === null ? "?" : (usage?.percent ?? 0).toFixed(1);
-				parts.push(`${percent}%/${formatTokens(usage?.contextWindow ?? ctx.model?.contextWindow ?? 0)} (auto)`);
-
-				const left = parts.join(" ");
-				const right = ctx.model?.id ?? "no-model";
-				const pad = " ".repeat(Math.max(1, width - left.length - right.length));
-				return [
-					theme.fg("dim", truncatePlain(first, width)),
-					theme.fg("dim", truncatePlain(left + pad + right, width)),
-				];
-			},
-		};
-	});
+	ctx.ui.setStatus("goal", marker ?? undefined);
 }
 
 function updateWatchLoopStatus(_store: WatchLoopStore, ctx: ExtensionCommandContext): void {
-	syncWatchLoopFooter(ctx);
+	ctx.ui.setStatus("watchloop", formatWatchLoopSummary() || undefined);
 }
 
 function watchLoopCompletions(store: WatchLoopStore, prefix: string) {
