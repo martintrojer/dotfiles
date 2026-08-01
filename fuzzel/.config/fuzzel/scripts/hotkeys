@@ -18,7 +18,7 @@ from pathlib import Path
 from _common import (
     ScriptError,
     cli_main,
-    fuzzel_dmenu,
+    fuzzel_dmenu_index,
     notify,
     picker_cache_path,
     require_commands,
@@ -102,25 +102,24 @@ def main() -> int:
         notify("Hotkeys", "No bindsym entries found")
         return 0
 
-    label_to_action = dict(entries)
-    selected = fuzzel_dmenu(
+    idx = fuzzel_dmenu_index(
         prompt=args.prompt,
         width=args.width,
         lines=args.lines,
         cache=picker_cache_path("hotkeys"),
-        options=(label for label, _ in entries),
+        options=[label for label, _ in entries],
         hide_before_typing=args.hide_before_typing,
     )
-    if not selected:
+    if idx is None:
         return 0
 
-    # Free-text Enter in fuzzel returns the typed string verbatim; if it
-    # doesn't match a known label we surface the failure to the user rather
-    # than silently dispatching the wrong action.
-    action = label_to_action.get(selected)
-    if action is None:
+    # Free-text Enter makes fuzzel --index print -1; surface that rather than
+    # silently dispatching the wrong action.
+    if idx < 0:
         notify("Hotkeys", "Could not resolve selected entry to an action")
         return 1
+
+    action = entries[idx][1]
 
     if args.no_exec:
         print(action)

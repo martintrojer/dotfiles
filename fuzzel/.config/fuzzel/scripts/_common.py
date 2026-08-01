@@ -65,6 +65,24 @@ def run(
     )
 
 
+def _dmenu_cmd(
+    *,
+    prompt: str,
+    width: int,
+    lines: int | None,
+    cache: str | None,
+    hide_before_typing: bool,
+) -> list[str]:
+    cmd = ["fuzzel", "--dmenu", "--prompt", prompt, "--width", str(width)]
+    if hide_before_typing:
+        cmd.append("--hide-before-typing")
+    if lines is not None:
+        cmd.extend(["--lines", str(lines)])
+    if cache:
+        cmd.extend(["--cache", cache])
+    return cmd
+
+
 def fuzzel_dmenu(
     *,
     prompt: str,
@@ -75,20 +93,60 @@ def fuzzel_dmenu(
     input_text: str | None = None,
     hide_before_typing: bool = False,
 ) -> str:
-    cmd = ["fuzzel", "--dmenu", "--prompt", prompt, "--width", str(width)]
-    if hide_before_typing:
-        cmd.append("--hide-before-typing")
-    if lines is not None:
-        cmd.extend(["--lines", str(lines)])
-    if cache:
-        cmd.extend(["--cache", cache])
-
+    cmd = _dmenu_cmd(
+        prompt=prompt,
+        width=width,
+        lines=lines,
+        cache=cache,
+        hide_before_typing=hide_before_typing,
+    )
     payload = "\n".join(options) if options is not None else input_text or ""
 
     result = run(cmd, input_text=payload, check=False)
     if result.returncode != 0:
         return ""
     return result.stdout.strip()
+
+
+def fuzzel_dmenu_index(
+    *,
+    prompt: str,
+    width: int,
+    options: Sequence[str],
+    lines: int | None = None,
+    cache: str | None = None,
+    hide_before_typing: bool = False,
+) -> int | None:
+    """Like :func:`fuzzel_dmenu` but returns the selected *row index*.
+
+    Uses fuzzel's own ``--index``, so a row is identified by position rather
+    than by its display string. Duplicate labels therefore stay distinct, and
+    callers no longer need markers or whitespace tricks to keep a reverse
+    lookup honest.
+
+    Returns ``None`` when the user cancelled (Escape / focus loss), ``-1``
+    when the user hit Enter on free text that matched no row (fuzzel prints
+    ``-1`` for that), otherwise the 0-based index into ``options``.
+    """
+    cmd = _dmenu_cmd(
+        prompt=prompt,
+        width=width,
+        lines=lines,
+        cache=cache,
+        hide_before_typing=hide_before_typing,
+    )
+    cmd.append("--index")
+
+    result = run(cmd, input_text="\n".join(options), check=False)
+    if result.returncode != 0:
+        return None
+    try:
+        idx = int(result.stdout.strip())
+    except ValueError:
+        return None
+    if idx < 0 or idx >= len(options):
+        return -1
+    return idx
 
 
 def require_commands(commands: Sequence[str]) -> None:
