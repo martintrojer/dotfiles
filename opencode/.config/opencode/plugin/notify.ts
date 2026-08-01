@@ -20,14 +20,19 @@ const plugin: Plugin = async ({ client, $ }) => {
 		event: async ({ event }) => {
 			if (event.type === "session.idle") {
 				const { sessionID } = event.properties;
-				// No `limit`: the v1 /session query takes only `directory`. The old
-				// `{ limit: 50 }` was spread at the top level of the request options,
-				// never into `query`, so it was already a no-op at runtime.
-				const sessions = await client.session.list();
-				const session = sessions.data?.find((s: { id: string }) => s.id === sessionID);
-				if (!session || session.parentID) return;
+				// Fetch the one session directly. Listing and scanning the result
+				// meant a long-running session that had aged out of the returned
+				// window was silently treated the same as a subagent, and no idle
+				// notification fired -- exactly the session this plugin exists for.
+				const session = await client.session
+					.get({ path: { id: sessionID } })
+					.then((r) => r.data)
+					.catch(() => undefined);
+				// Only a known subagent is skipped. An unknown id still notifies:
+				// a notification with a generic title beats a missed one here.
+				if (session?.parentID) return;
 
-				notify("session.idle", session.title || "Task completed");
+				notify("session.idle", session?.title || "Task completed");
 			}
 
 			if ((event as { type: string }).type === "permission.asked") {
