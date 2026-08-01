@@ -42,16 +42,16 @@ class Weather:
     summary: str
     wind: str
     humidity: str | None
-    uv_index: str | None
-    sunrise: str | None
-    sunset: str | None
-    min_temp_c: int | None
-    max_temp_c: int | None
-    rain_chance: int | None
-    snow_chance: int | None
-    precip_mm: float | None
-    wind_direction: str | None
-    visibility_km: int | None
+    uv_index: str | None = None
+    sunrise: str | None = None
+    sunset: str | None = None
+    min_temp_c: int | None = None
+    max_temp_c: int | None = None
+    rain_chance: int | None = None
+    snow_chance: int | None = None
+    precip_mm: float | None = None
+    wind_direction: str | None = None
+    visibility_km: int | None = None
 
 
 def weather_url() -> str:
@@ -234,16 +234,6 @@ def read_cache() -> Weather | None:
         data = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             return None
-        data.setdefault("uv_index", None)
-        data.setdefault("sunrise", None)
-        data.setdefault("sunset", None)
-        data.setdefault("min_temp_c", None)
-        data.setdefault("max_temp_c", None)
-        data.setdefault("rain_chance", None)
-        data.setdefault("snow_chance", None)
-        data.setdefault("precip_mm", None)
-        data.setdefault("wind_direction", None)
-        data.setdefault("visibility_km", None)
         return Weather(**data)
     except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
         return None
