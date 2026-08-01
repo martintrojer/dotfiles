@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import Final
 
@@ -17,6 +18,29 @@ BACKUP_DIR_NAME: Final[str] = ".dotfiles-sync-backups"
 # after earlier tasks had already mutated the target tree. Moving the
 # callables here instead would make config.py import external/
 # fedora_systemd/integration_checks, inverting the dependency direction.
+
+
+def lazy_header(name: str) -> Callable[[], None]:
+    """Return a callable that logs ``[name]`` once, on the first call.
+
+    Sections only announce themselves if they have something to report, so a
+    clean run stays quiet. That latch was hand-rolled as an identical six-line
+    closure in three places and open-coded as ``if not found_issue:`` in a
+    fourth, where it shared a flag with the return value -- so adding a branch
+    meant remembering to print the header in it.
+
+    The leading newline is part of the format: it separates sections in the
+    output, so the first thing printed is a blank line, not a bare header.
+    """
+    printed = False
+
+    def print_header() -> None:
+        nonlocal printed
+        if not printed:
+            LOGGER.warning(f"\n[{name}]")
+            printed = True
+
+    return print_header
 
 
 def task_enabled(

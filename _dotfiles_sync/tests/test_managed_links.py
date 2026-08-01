@@ -18,7 +18,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from _dotfiles_sync import repo_checks
+from _dotfiles_sync import config, repo_checks
 from _dotfiles_sync.model import PackageSpec
 
 
@@ -100,6 +100,34 @@ class IterManagedLinksTests(unittest.TestCase):
         self.assertEqual(
             [(a.name, b.name) for a, b in pairs[:3]],
             [("__pycache__", "__pycache__"), ("app", "app"), (".config", ".config")],
+        )
+
+
+class LazyHeaderTests(unittest.TestCase):
+    """Sections announce themselves once, and only if they have something to say."""
+
+    def test_header_is_not_printed_until_called(self) -> None:
+        with self.assertNoLogs("dotfiles-sync", level="WARNING"):
+            config.lazy_header("quiet-section")
+
+    def test_header_is_printed_once_however_many_calls(self) -> None:
+        print_header = config.lazy_header("noisy-section")
+        with self.assertLogs("dotfiles-sync", level="WARNING") as caught:
+            print_header()
+            print_header()
+            print_header()
+        self.assertEqual(caught.output, ["WARNING:dotfiles-sync:\n[noisy-section]"])
+
+    def test_each_header_latches_independently(self) -> None:
+        first = config.lazy_header("one")
+        second = config.lazy_header("two")
+        with self.assertLogs("dotfiles-sync", level="WARNING") as caught:
+            first()
+            second()
+            first()
+        self.assertEqual(
+            caught.output,
+            ["WARNING:dotfiles-sync:\n[one]", "WARNING:dotfiles-sync:\n[two]"],
         )
 
 
