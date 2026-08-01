@@ -320,7 +320,18 @@ def upload_lfs_objects(
 
         for remote_obj in remote_objects:
             oid = remote_obj["oid"]
-            local = by_oid[oid]
+            local = by_oid.get(oid)
+            if local is None:
+                raise RuntimeError(f"server returned unknown oid: {oid}")
+            # The batch API answers HTTP 200 even for per-object failures, which
+            # arrive as an `error` field with `actions` omitted. Without this the
+            # object would look like it is already on the server.
+            err = remote_obj.get("error")
+            if err:
+                raise RuntimeError(
+                    f"server rejected {local.name} ({oid}): "
+                    f"{err.get('code')} {err.get('message')}"
+                )
             actions = remote_obj.get("actions") or {}
             upload = actions.get("upload")
             verify = actions.get("verify")
