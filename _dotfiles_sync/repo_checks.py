@@ -4,6 +4,7 @@ import ipaddress
 import logging
 import os
 import re
+import subprocess
 from itertools import chain
 from pathlib import Path
 from urllib.parse import urlparse
@@ -34,6 +35,9 @@ PRIVATE_ENV_SAFE_FILENAMES = {
     "secrets.example",
     "secrets.sample",
 }
+# Fallback skip list, used only when the repo cannot be listed via git (see
+# _iter_repo_files). Prefer .gitignore: a path git ignores is a path that
+# cannot be committed, which is exactly what these scans are about.
 REPO_SCAN_SKIP_DIRS = {
     ".direnv",
     ".git",
@@ -111,7 +115,36 @@ def _repo_rel(path: Path) -> str:
     return path.relative_to(SCRIPT_DIR).as_posix()
 
 
+def _git_tracked_or_committable() -> list[Path] | None:
+    """Repo files git would let you commit today, or None if git can't say.
+
+    ``--cached --others --exclude-standard`` is "tracked, plus untracked but
+    not ignored" -- precisely the set the private-env scan cares about. A
+    gitignored file was never committable, so flagging it only costs an
+    ``--ignore`` entry that never expires.
+    """
+    result = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=SCRIPT_DIR,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return [
+        SCRIPT_DIR / rel for rel in result.stdout.split("\0") if rel and rel.strip()
+    ]
+
+
 def _iter_repo_files() -> list[Path]:
+    from_git = _git_tracked_or_committable()
+    if from_git is not None:
+        # git lists deleted-but-staged paths and symlinks too; keep the walk's
+        # contract of "real files present on disk".
+        return [path for path in from_git if path.is_file() and not path.is_symlink()]
+    # No usable git (e.g. a bare jj workspace): fall back to walking the tree
+    # with the hand-maintained skip list.
     files: list[Path] = []
     for root, dirnames, filenames in os.walk(SCRIPT_DIR):
         root_path = Path(root)
