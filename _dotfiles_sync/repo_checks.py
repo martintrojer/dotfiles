@@ -92,6 +92,24 @@ PRIVATE_ENDPOINT_ASSIGNMENT_RE = re.compile(
     r"(?P<name>[A-Z][A-Z0-9_]*(?:BASE_URL|API_URL|ENDPOINT|URL)[A-Z0-9_]*)"
     r"\s*=\s*(?P<value>.+?)\s*$"
 )
+EXEC_DIRECTIVE_RE = re.compile(r"^\s*Exec(?:Start|StartPre|StartPost|Stop|Reload)\s*=")
+# Units live in the `systemd` package but their ExecStart targets live in other
+# packages (sway, waybar, fedora/bin). Rename one of those scripts and every
+# gate stays green while the next login comes up with no bar and no wallpaper.
+# Paths that are not %h-relative (/usr/bin/waybar, /usr/bin/kanshi) belong to
+# the distro, not this repo, so they are skipped. /usr/local/bin copies made by
+# a setup script are covered by EXTRA_UNIT_TARGETS instead.
+UNIT_HOME_PATH_RE = re.compile(r"%h(/[^\s'\"]+)")
+# ExecStart targets this repo owns but cannot reach through %h, because a setup
+# script installs a copy outside $HOME. Asserting the *source* exists is the
+# closest static check available. Maps a unit path to the repo paths it needs.
+EXTRA_UNIT_TARGETS: dict[str, tuple[str, ...]] = {
+    # setup-steam-pause.sh installs ~/.local/bin/steam-pause (from the gaming
+    # `home` package) to /usr/local/bin/steam-pause, where the unit finds it.
+    "fedora/gaming/config/systemd-system/steam-pause-games.service": (
+        "fedora/gaming/home/.local/bin/steam-pause",
+    ),
+}
 
 
 def check_package_coverage(specs: dict[str, PackageSpec], *, ignore: set[str]) -> bool:
@@ -284,6 +302,73 @@ def check_private_env_mistakes(*, ignore: set[str]) -> bool:
                         f"endpoint {name}; keep machine-local endpoints outside "
                         f"the repo  (--ignore {issue_id})"
                     )
+
+    return found_issue
+
+
+def check_systemd_unit_targets(
+    specs: dict[str, PackageSpec], *, ignore: set[str]
+) -> bool:
+    """Assert every %h path in a shipped unit resolves inside a stow package.
+
+    Pure filesystem, no systemd needed, so it runs on macOS and in CI. The
+    owning package is reported so cross-scope references stay visible: units
+    are scope "fedora" while sway/waybar are scope "linux".
+    """
+    found_issue = False
+
+    def warn(message: str) -> None:
+        nonlocal found_issue
+        if not found_issue:
+            LOGGER.warning("\n[systemd-unit-targets]")
+        found_issue = True
+        LOGGER.warning(message)
+
+    # %h expands to the user's home, and every stow package mirrors $HOME, so a
+    # %h path resolves by trying it under each package root.
+    def owner_of(home_rel: str) -> PackageSpec | None:
+        for spec in specs.values():
+            if (spec.package_dir / home_rel).exists():
+                return spec
+        return None
+
+    for path in sorted(_iter_repo_files()):
+        if path.suffix != ".service":
+            continue
+        rel_unit = _repo_rel(path)
+        try:
+            lines = path.read_text(errors="replace").splitlines()
+        except OSError:
+            continue
+
+        for lineno, line in enumerate(lines, start=1):
+            if not EXEC_DIRECTIVE_RE.match(line):
+                continue
+            for match in UNIT_HOME_PATH_RE.finditer(line):
+                home_rel = match.group(1).lstrip("/")
+                spec = owner_of(home_rel)
+                if spec is not None:
+                    LOGGER.info(f"  ok  {rel_unit}: %h/{home_rel} [{spec.name}]")
+                    continue
+                issue_id = f"unit-target:{rel_unit}:{home_rel}"
+                if issue_id in ignore:
+                    continue
+                warn(
+                    f"UNIT-TARGET: {rel_unit}:{lineno} needs %h/{home_rel}, which "
+                    f"no stow package provides  (--ignore {issue_id})"
+                )
+
+        for repo_rel in EXTRA_UNIT_TARGETS.get(rel_unit, ()):
+            if (SCRIPT_DIR / repo_rel).exists():
+                LOGGER.info(f"  ok  {rel_unit}: {repo_rel}")
+                continue
+            issue_id = f"unit-target:{rel_unit}:{repo_rel}"
+            if issue_id in ignore:
+                continue
+            warn(
+                f"UNIT-TARGET: {rel_unit} is installed from {repo_rel}, which is "
+                f"missing  (--ignore {issue_id})"
+            )
 
     return found_issue
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+import logging
 import os
 import re
 import shutil
@@ -139,6 +140,48 @@ class FedoraStowGroupTests(unittest.TestCase):
         self.assertIsNone(
             package_for_conflict("elsewhere/bin/tool", ROOT / "fedora", ROOT.parent)
         )
+
+
+class SystemdUnitTargetTests(unittest.TestCase):
+    """Units live in the `systemd` package but point at scripts in `sway`,
+    `waybar` and `fedora/bin`. Nothing else in the gate notices when one of
+    those moves; the failure would otherwise surface at next login."""
+
+    def setUp(self) -> None:
+        sys.path.insert(0, str(ROOT))
+        from _dotfiles_sync.inventory import build_specs
+        from _dotfiles_sync.repo_checks import check_systemd_unit_targets
+
+        self.check = check_systemd_unit_targets
+        self.specs = build_specs()
+        # The negative cases warn by design; keep the test output readable.
+        logger = logging.getLogger("dotfiles-sync")
+        previous = logger.disabled
+        logger.disabled = True
+        self.addCleanup(setattr, logger, "disabled", previous)
+
+    def test_every_shipped_unit_target_resolves_today(self) -> None:
+        self.assertFalse(self.check(self.specs, ignore=set()))
+
+    def test_a_moved_execstart_target_is_caught(self) -> None:
+        target = ROOT / "sway/.config/sway/scripts/session-wallpaper"
+        moved = target.with_name(target.name + ".moved-by-test")
+        target.rename(moved)
+        try:
+            self.assertTrue(self.check(self.specs, ignore=set()))
+        finally:
+            moved.rename(target)
+
+    def test_a_missing_install_source_is_caught(self) -> None:
+        # steam-pause reaches its unit via a sudo-install copy in /usr/local/bin,
+        # so the check asserts the repo-side source instead.
+        target = ROOT / "fedora/gaming/home/.local/bin/steam-pause"
+        moved = target.with_name(target.name + ".moved-by-test")
+        target.rename(moved)
+        try:
+            self.assertTrue(self.check(self.specs, ignore=set()))
+        finally:
+            moved.rename(target)
 
 
 class FedoraPythonHelperTests(unittest.TestCase):

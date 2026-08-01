@@ -31,6 +31,9 @@ CHECK_TASKS: Final[tuple[TaskPolicy, ...]] = (
     TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
     TaskPolicy("agent-notify", full_run_only=True),
     TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
+    # Static, filesystem-only: no systemd, no stowed target, so it runs
+    # everywhere and on every run rather than only on Fedora.
+    TaskPolicy("systemd-unit-targets"),
     TaskPolicy("repo-backlinks", full_run_only=True),
 )
 
