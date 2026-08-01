@@ -10,6 +10,9 @@ PRETTIER_CONFIG := .prettierrc.json
 PYTHON_PY_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f --extension py --print0 .
 PYTHON_SHEBANG_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f '^[^.]+$$' . -X bash -lc 'for path in "$$@"; do IFS= read -r first < "$$path" || true; if [[ $$first =~ ^\#!.*python ]]; then printf "%s\\0" "$$path"; fi; done' bash
 PYTHON_FILES_CMD := { $(PYTHON_PY_FILES_CMD); $(PYTHON_SHEBANG_FILES_CMD); }
+SHELL_SH_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f --extension sh --print0 .
+SHELL_SHEBANG_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f '^[^.]+$$' . -X bash -lc 'for path in "$$@"; do IFS= read -r first < "$$path" || true; if [[ $$first =~ ^\#!.*(ba|z|da|k)?sh([[:space:]]|$$) ]]; then printf "%s\\0" "$$path"; fi; done' bash
+SHELL_FILES_CMD := { $(SHELL_SH_FILES_CMD); $(SHELL_SHEBANG_FILES_CMD); }
 LUA_FILES := $(shell $(RG) -g '*.lua')
 PRETTIER_FILES := $(shell $(RG) -g '*.ts' -g '*.json' -g '*.jsonc' -g '*.css')
 TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
@@ -20,6 +23,7 @@ FEDORA_TEST_DIRS := fedora/tests fedora/gaming/tests
 	check-all \
 	format-all \
 	check-python \
+	check-shell \
 	format-python \
 	check-lua \
 	format-lua \
@@ -39,10 +43,11 @@ FEDORA_TEST_DIRS := fedora/tests fedora/gaming/tests
 help:
 	printf '%s\n' \
 	  'Targets:' \
-	  '  make check-all         # python + lua + prettier + focused behavior tests' \
+	  '  make check-all         # python + shell + lua + prettier + ts + focused behavior tests' \
 	  '  make format-all        # python + lua + prettier formatters' \
 	  '  make check-python      # ruff check/format + ty + py_compile on all Python files/scripts' \
 	  '  make format-python     # ruff format + safe autofixes' \
+	  '  make check-shell       # shellcheck --severity=style on all sh/bash scripts' \
 	  '  make check-lua         # stylua --check + luacheck' \
 	  '  make format-lua        # stylua' \
 	  '  make check-prettier    # prettier --check on ts/json/jsonc/css' \
@@ -58,7 +63,7 @@ help:
 	  '  make check-guides      # validate guide sources without writing output' \
 	  '  make clean-guides      # rm -rf guides/build'
 
-check-all: check-python check-lua check-prettier check-tmux-tests check-fedora-tests check-guides check-theme
+check-all: check-python check-shell check-lua check-prettier check-tmux-tests check-fedora-tests check-guides check-theme
 
 format-all: format-python format-lua format-prettier
 
@@ -71,6 +76,9 @@ check-python:
 format-python:
 	$(PYTHON_FILES_CMD) | xargs -0 ruff format --config $(RUFF_CONFIG)
 	$(PYTHON_FILES_CMD) | xargs -0 ruff check --config $(RUFF_CONFIG) --fix
+
+check-shell:
+	$(SHELL_FILES_CMD) | xargs -0 shellcheck --severity=style
 
 check-lua:
 	stylua --check $(LUA_FILES)
