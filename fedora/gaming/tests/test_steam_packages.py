@@ -3,114 +3,35 @@
 
 from __future__ import annotations
 
-import importlib.machinery
-import importlib.util
-import re
 import signal
-import subprocess
 import sys
 import tempfile
-import types
 import unittest
 from pathlib import Path
 from typing import Any, cast
 from unittest import mock
 
+sys.path.insert(0, str(Path(__file__).parents[2] / "tests"))
+
+# Imported after the sys.path line above.
+import _package_harness as harness
+
 FEDORA = Path(__file__).parents[2]
 STEAM_PAUSE = FEDORA / "gaming/home/.local/bin/steam-pause"
+load_script = harness.load_script
 
-# (package array script, wrapper script)
-SETUPS = [
-    (FEDORA / "gaming/os/steam-packages.sh", FEDORA / "gaming/os/setup-steam.sh"),
+# (package array script, wrapper script, install command the wrapper uses)
+GAMING_SETUPS = [
+    (
+        FEDORA / "gaming/os/steam-packages.sh",
+        FEDORA / "gaming/os/setup-steam.sh",
+        "rpm-ostree install",
+    ),
 ]
 
-# Shipped by the Sericea base image, so deliberately absent from the arrays:
-# listing one makes `rpm-ostree install` fail with "already provided by" and
-# layer nothing at all. See the header of steam-packages.sh.
-BASE_IMAGE_PACKAGES = {"gamemode", "7zip"}
 
-
-def install_command(wrapper: Path) -> str:
-    """The actual `rpm-ostree install` line, with comments stripped.
-
-    Matching against the whole file would let an explanatory comment satisfy
-    the assertion while the real command differs.
-    """
-    lines = [
-        line
-        for line in wrapper.read_text().splitlines()
-        if not line.lstrip().startswith("#") and "rpm-ostree install" in line
-    ]
-    assert len(lines) == 1, f"{wrapper.name}: expected 1 install line, got {lines}"
-    return lines[0]
-
-
-def load_script(name: str, path: Path) -> types.ModuleType:
-    loader = importlib.machinery.SourceFileLoader(name, str(path))
-    spec = importlib.util.spec_from_loader(loader.name, loader)
-    assert spec is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    loader.exec_module(module)
-    return module
-
-
-def read_array(script: Path) -> list[str]:
-    """Source the array script and echo its one array, exactly as setup does."""
-    name = re.match(r"(\w+?)-packages\.sh", script.name)
-    assert name, script.name
-    var = f"{name.group(1)}_packages"
-    out = subprocess.run(
-        [
-            "bash",
-            "-c",
-            f'source "$1"; printf "%s\\n" "${{{var}[@]}}"',
-            "_",
-            str(script),
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return [line for line in out.stdout.split("\n") if line]
-
-
-class PackageArrays(unittest.TestCase):
-    def test_arrays_are_non_empty_and_unique(self):
-        for array_script, _ in SETUPS:
-            with self.subTest(script=array_script.name):
-                packages = read_array(array_script)
-                self.assertTrue(packages, f"{array_script.name} exports no packages")
-                self.assertCountEqual(
-                    packages,
-                    set(packages),
-                    f"{array_script.name} lists a package twice",
-                )
-
-    def test_arrays_omit_base_image_packages(self):
-        """A base-image package in the array makes rpm-ostree layer nothing."""
-        for array_script, _ in SETUPS:
-            with self.subTest(script=array_script.name):
-                listed = set(read_array(array_script)) & BASE_IMAGE_PACKAGES
-                self.assertFalse(
-                    listed,
-                    f"{array_script.name} lists base-image package(s) "
-                    f"{sorted(listed)}; rpm-ostree will fail with 'already "
-                    f"provided by' and layer none of the array. Drop them, or "
-                    f"add --allow-inactive to the wrapper.",
-                )
-
-    def test_wrappers_install_the_sourced_array(self):
-        for array_script, wrapper in SETUPS:
-            with self.subTest(script=wrapper.name):
-                var = f"{array_script.name.split('-')[0]}_packages"
-                self.assertIn(f'"${{{var}[@]}}"', install_command(wrapper))
-
-    def test_scripts_are_syntactically_valid(self):
-        for array_script, wrapper in SETUPS:
-            for script in (array_script, wrapper):
-                with self.subTest(script=script.name):
-                    subprocess.run(["bash", "-n", str(script)], check=True)
+class PackageArrays(harness.PackageArrayChecks):
+    SETUPS = GAMING_SETUPS
 
 
 class GamingPythonHelperTests(unittest.TestCase):
