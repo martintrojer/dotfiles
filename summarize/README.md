@@ -40,4 +40,4 @@ Notes:
 ## Notes
 
 - Keep the package minimal; the helper is intentionally config-driven.
-- If the workflow changes, update this package README alongside the config so the behavior stays documented near the stowed files.
+- If the workflow changes, update this package README alongside the config so the behavior stays documented near the linked files.

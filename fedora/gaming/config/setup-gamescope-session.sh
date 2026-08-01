@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Install the SteamOS-style gamescope sessions so they can be picked from the
 # SDDM login screen. Both are embedded/DRM gamescope sessions that exec the same
-# stowed launcher; only env knobs differ. See fedora/gaming/docs/GAMESCOPE-SESSION.md.
+# linked launcher; only env knobs differ. See fedora/gaming/docs/GAMESCOPE-SESSION.md.
 #
 #   steam.desktop         4K HDR for couch PC gaming (launcher defaults)
 #   steam-stream.desktop  1080p SDR + Sunshine for streaming to a handheld
@@ -13,8 +13,8 @@ set -euo pipefail
 # /usr/local -> /var/usrlocal symlink), which SDDM already searches
 # (SessionDir=/usr/local/share/wayland-sessions,...):
 #
-#   /usr/local/bin/steam-session                        -> the stowed launcher
-#   /usr/local/bin/steamos-session-select               -> the stowed exit shim
+#   /usr/local/bin/steam-session                        -> the linked launcher
+#   /usr/local/bin/steamos-session-select               -> the linked exit shim
 #   /usr/local/share/wayland-sessions/steam.desktop        couch HDR entry
 #   /usr/local/share/wayland-sessions/steam-stream.desktop streaming entry
 #
@@ -23,7 +23,7 @@ set -euo pipefail
 # steamos-session-select via a PATH we don't control, so we put it where the
 # system PATH already reaches. See fedora/gaming/docs/GAMESCOPE-SESSION.md.
 #
-# Prereqs: steam + gamescope layered (os/setup-steam.sh) and the dotfiles stowed
+# Prereqs: steam + gamescope layered (os/setup-steam.sh) and the dotfiles linked
 # (dotfiles-sync --apply), so ~/.local/bin/steam-session exists. Run as your
 # normal user; it uses sudo for the system paths.
 
@@ -39,7 +39,7 @@ desktop_srcs=(
 for f in "$launcher" "$session_select"; do
   if [[ ! -x "$f" ]]; then
     echo "error: $f not found or not executable." >&2
-    echo "Run 'dotfiles-sync --apply' first to stow ~/.local/bin." >&2
+    echo "Run 'dotfiles-sync --apply' first to link ~/.local/bin." >&2
     exit 1
   fi
 done

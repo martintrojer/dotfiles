@@ -8,16 +8,16 @@ Intentionally **not** a generic dotfiles framework. It exists so the repo bootst
 
 Owns:
 
-- Stow apply/check orchestration
+- Symlink planning, apply and check
 - OS/distro scope selection
 - Conflict handling and backlink checks
 - Pinned third-party clones (zsh plugins, TPM)
-- Per-package stow folding (`skills/` folds; everything else is `--no-folding`)
+- Per-package link mode (`skills/` links each skill as one bundle; everything else per-leaf)
 - Post-apply hints for the manual Codex notify step
 
 Does **not** own:
 
-- Top-level stow packages (`zsh/`, `nvim/`, `tmux/`, `skills/`, `pi/`, ...)
+- Top-level packages (`zsh/`, `nvim/`, `tmux/`, `skills/`, `pi/`, ...)
 - The `fedora/` namespace, which stays a special-case package subtree plus setup wrappers
 
 ## Module map
@@ -27,7 +27,9 @@ Does **not** own:
 - `inventory.py` — package inventory, package grouping, selection logic
 - `pins.py` — pinned clone refs and destinations
 - `system.py` — OS/distro detection and active scope selection
-- `stow.py` — Stow command execution, conflict parsing, apply/check helpers
+- `link.py` — the symlink planner: link states, per-leaf vs bundle walk, apply
+- `ignore.py` — the one rule set for paths that never link into `$HOME`
+- `sync.py` — check/apply policy over the planner: conflicts, `--ignore`, backups
 - `repo_checks.py` — package coverage, private-env guardrails, ignore-driven cleanup, backlink checks, systemd unit-target resolution
 - `integration_checks.py` — external drift checks (zsh plugins, TPM, Codex notify)
 - `external.py` — pinned third-party clone management (zsh plugins, TPM)

@@ -24,8 +24,8 @@ history is in [`docs/DECISIONS.md`](./docs/DECISIONS.md) here.
 - **`docs/`** — [gamescope session](./docs/GAMESCOPE-SESSION.md),
   [HDR gaming](./docs/HDR-GAMING.md), and [streaming](./docs/STREAMING.md)
   procedures.
-- **`home/`** — the single stow package. Everything gaming that lands in `$HOME`
-  (bin helpers, GameMode config, the Sunshine unit override). Stowed
+- **`home/`** — the single package. Everything gaming that lands in `$HOME`
+  (bin helpers, GameMode config, the Sunshine unit override). Linked
   by default, skipped with `--skip-gaming`.
 
 ## Setup Flow
@@ -148,7 +148,7 @@ tracked in this repo.
   `--mangoapp`, and in SteamOS game mode (`-steamos3`) Steam **owns** it: the
   Quick Access "Performance" panel drives mangoapp over its control socket and
   rewrites `~/.config/MangoHud/MangoHud.conf` at runtime. That's why the config
-  isn't stowed — Steam would clobber it every session.
+  isn't linked — Steam would clobber it every session.
 
 ## GameMode (Feral)
 

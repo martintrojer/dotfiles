@@ -82,7 +82,7 @@ How the break is contained so it doesn't rot the rest of the setup:
   pillars, just defaults for a CLI-first host. The host's job changed.
 
 **Reconsider only if:** the machine stops being a gaming box (then delete
-`steam-packages.sh`/`setup-steam.sh`, the gaming stow packages, drop RPM Fusion +
+`steam-packages.sh`/`setup-steam.sh`, the gaming packages, drop RPM Fusion +
 the Sunshine COPR, and this whole layer reverts cleanly), OR Fedora ships these in
 stock repos (unlikely for the nonfree pieces), OR a future Atomic image bundles a
 gaming profile that supersedes the manual COPR/RPM-Fusion dance.

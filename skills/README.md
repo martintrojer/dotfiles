@@ -4,7 +4,7 @@ Shared agent skills following the [Agent Skills standard](https://agentskills.io
 
 ## Distribution
 
-This is a Stow package: skills live at `.agents/skills/<name>/` so the in-package path mirrors `$HOME`. `./dotfiles-sync --apply` stows each `<name>/` into `~/.agents/skills/<name>` as a single directory symlink (stow folds this package, so each skill links as an opaque bundle and vendored `README`/`LICENSE` files ride along). Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, and other generic agents read that path natively. Edits propagate live.
+This is a package: skills live at `.agents/skills/<name>/` so the in-package path mirrors `$HOME`. `./dotfiles-sync --apply` links each `<name>/` into `~/.agents/skills/<name>` as a single directory symlink (a `bundle_dirs` package, so each skill links as an opaque bundle and vendored `README`/`LICENSE` files ride along). Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw, and other generic agents read that path natively. Edits propagate live.
 
 Skills are auto-discovered and can be invoked explicitly with `/skill:name` or loaded automatically when the agent detects a matching task.
 

@@ -1,6 +1,6 @@
 # VS Code / Cursor / Code OSS notes
 
-VS Code is no longer a stowed package in this repo. The settings were small,
+VS Code is no longer a package in this repo. The settings were small,
 manual, and not worth a dedicated top-level pseudo-package.
 
 Apply these by hand in your editor's user settings if you still care about

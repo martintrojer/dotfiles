@@ -74,7 +74,7 @@ network" renders, so the user cannot tell). Run it with `make
 check-desktop-tests`.
 
 This is the same policy `tmux/.config/tmux/scripts/_status_common.py` encodes,
-copied rather than imported: the two live in different stow packages and rely on
+copied rather than imported: the two live in different packages and rely on
 `sys.path[0]` colocation (see [`docs/DECISIONS.md`](../docs/DECISIONS.md), "A
 shared `pylib/` helper module").
 

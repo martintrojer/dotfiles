@@ -6,11 +6,8 @@ near-instant windows that share one process.
 
 ## Package layout
 
-Single stow package, Linux-only (foot is Wayland-only).
-
-```sh
-stow foot
-```
+Single package, Linux-only (foot is Wayland-only). Linked by
+`./dotfiles-sync --apply`.
 
 Foot reloads its config automatically on file change.
 

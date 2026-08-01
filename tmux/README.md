@@ -223,7 +223,7 @@ The `/bin/sh -lc` wrapper is important here because Codex's TOML array form does
 
 ### OpenCode (auto — `./dotfiles-sync --apply`)
 
-Lives in the [`opencode/`](../opencode) stow package. `dotfiles-sync --apply` symlinks `opencode/.config/opencode/plugin/notify.ts` to `~/.config/opencode/plugin/notify.ts`.
+Lives in the [`opencode/`](../opencode) package. `dotfiles-sync --apply` symlinks `opencode/.config/opencode/plugin/notify.ts` to `~/.config/opencode/plugin/notify.ts`.
 
 Subscribes to `session.idle` and `permission.asked` events.
 

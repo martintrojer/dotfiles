@@ -1,5 +1,5 @@
 # Fedora userland tools. `fedora/setup-mise.sh` installs this manifest;
-# `dotfiles-sync --apply` stows it as the global mise config.
+# `dotfiles-sync --apply` links it as the global mise config.
 min_version = "2026.6.14"
 
 [tools]
