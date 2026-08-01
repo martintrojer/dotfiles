@@ -33,17 +33,24 @@ With the monorepo kept, the obvious follow-up was one importable helper module f
 
 ---
 
-### A unified Rust CLI for the script layer (rejected 2026-08-01)
+### A unified Rust CLI for the script layer (rejected 2026-08-01, re-argued same day)
 
-Considered collapsing the timer-driven renderers and pickers into one compiled binary.
+Revisited as "fold *every* script — pickers, renderers, `_dotfiles_sync`, the lot — into one binary". Still no — and after inspection, not even for the one component that looked like a fair candidate. The original two reasons were both wrong on measurement; keeping them would have got this relitigated.
 
-- **The pro is real:** 25-40ms interpreter start × ~8 timer-driven renderers, plus compiler-enforced types for the agent-state contract that currently spans 5 packages as bare strings.
-- **It loses anyway on pillar #1/#2.** The daily loop is "open script, change 3 lines, next refresh". A build step kills that.
-- **Precedent:** oh-my-zsh, chezmoi, conform.nvim and herdr were all rejected on the same pillars. The one accepted Rust rewrite (`tmux-fingers-rs`) was a single scoped tool driven by a toolchain failure, not a monolith.
+- **Retracted: the perf pro.** Claimed 25-40ms interpreter start. Measured: `python3 -c pass` is 10ms, ~20ms with typical imports. The hot renderers cost 50-80ms and the bulk is `git`/`swaymsg` subprocesses, not Python. A rewrite removes the 20ms and leaves the 60ms.
+- **Retracted: "a build step kills the loop".** Measured warm incremental: `cargo run` 0.12s, `go run` 0.13s — the same, and both invisible. `make check-ts` already costs 4.4s unremarked.
+- **The reason it actually loses — fit.** 44 of 72 scripts are text-munging and process orchestration: 493 f-strings, 48 `subprocess.run`, 45 `.splitlines()`, 35 `os.environ.get`, 23 `shutil.which`. `toolboxes:43` parses `toolbox list` by splitting on `\s{2,}` in 16 lines; the honest Rust is ~28 with a `OnceLock<Regex>`, a `Kind` enum, and three `to_string()`s to dodge lifetimes. Screen-scraping another CLI's columns is *inherently* untyped, so types buy least exactly where the code is most script-like. Paying a systems language for a scripting workload.
+- **Also:** one binary means one dependency tree and one release cadence for image processing, HTTP+zip, VDF editing, symlink management and 14 pickers. Coupling bought to solve a tooling problem worth ~300 lines of config.
+- **Wrong axis.** The question was never Python-vs-Rust, it was untyped-vs-typed, and we are already on the good side. `Literal` under `ty` is a real closed sum type: `h: Action = "bogus"` is an `invalid-assignment`, and a missing branch surfaces as `invalid-return-type`. That is the guarantee the whole idea was reaching for. Go would actually be a *downgrade* here — it has no sum types at all, only string constants.
 
-**Reconsider only if:** status-bar latency becomes measurably annoying — then rewrite *one* hot path (status segments) in the `tmux-fingers-rs` shape, never the whole layer.
+**The pro that survives, narrowed:** a third of one audit's bugs were contract drift in disguise, but only the *cross-package* ones are still open. `ty` sees inside a package, so the `config.py`/`cli.py` join was fixable in place; it cannot follow `agent-attention.ts` -> `_tmux_common.py`, which is why agent-state stayed bare strings and `STATE_GLYPH` needed a codegen pipeline to have one source of truth. That gap is a stow-layout consequence, not a language one.
+
+**`_dotfiles_sync/` was the one candidate — and reading it closed the case.** 2.5k lines, annotated throughout, `ty`-clean, six frozen dataclasses, `Literal` aliases for `Action`/`PackageScope`, 39 tests, eight stringly-typed lookups left. It also reads well, which is what a rewrite would most likely lose: the value in `stow.py` and `repo_checks.py` is not the types but the comments recording *why* — `--no-folding` avoids the shared-target fold bug, `iter_managed_links` order is load-bearing for the prune step's parent walk. That is knowledge about stow, not about Python, so a port carries it verbatim and improves nothing.
+
+**Reconsider only if:** a contract spanning packages starts drifting *despite* `ty` — the agent-state strings are the live candidate, and the cheaper fix there is a shared enum plus the generator that already exists, not a language change.
 
 ---
+
 
 ### Arch and Ubuntu toolbox bootstrap scripts (removed 2026-05-01)
 
