@@ -8,6 +8,43 @@ Each entry: context, key points, what would justify revisiting. Pillars from [`R
 
 ## Rejected
 
+### Splitting the four big scripts into their own repos (rejected 2026-08-01)
+
+A complexity heatmap flagged four files as "programs wearing dotfile clothing": `tms` (993), `agent-attention` (976), `wallpaper` (825), `optiscaler-sync` (938) — ~3.7k lines, 14% of the repo in four files. Considered extracting them.
+
+- **Three are genuinely coupled.** `tms` and `agent-attention` import `_tmux_common`; `tms` and `wallpaper` carry generated `THEME BEGIN` blocks from `render_theme.py`. `agent-attention` is the worst candidate — it's a protocol endpoint, not a program: six packages participate in its state machine (pi extension, opencode plugin, mako, `.tmux.conf`, `status-ai`, `integration_checks.py`).
+- **Only `optiscaler-sync` is separable** — pure stdlib, no theme block, own test file, two consumers. Still not worth its own repo alone.
+- **Cost per extracted repo:** duplicate the four-stage `check-python` gate, lose stow as the install story, turn atomic changes into two-PR dances, and let `render_theme.py` write into a directory it doesn't own.
+- The heatmap flagged these files for being **big and churny**, not **misplaced**. Extraction relocates complexity without reducing it.
+
+**Reconsider only if:** `optiscaler-sync` attracts outside users, OR `fedora/gaming/` needs a different release cadence than the shell config (in which case the honest unit is that whole directory, not four scattered scripts).
+
+---
+
+### A shared `pylib/` helper module (rejected 2026-08-01)
+
+With the monorepo kept, the obvious follow-up was one importable helper module for the duplicated `run()` wrappers, XDG resolution, notification sending, and JSON state IO across `tmux/`, `fuzzel/`, `waybar/`, `sway/`, `local-bin/`, `fedora/bin/`.
+
+- **Killer argument:** every script relies on `sys.path[0]` colocation (documented at `fuzzel/_common.py:5-7`). A shared module needs `PYTHONPATH` set in *both* `environment.d` and zsh exports — the same two-place-PATH problem already used to reject a `gaming/` subdir. `environment.d` is also Linux-only, while tmux scripts run on macOS.
+- **The duplication is smaller than it looks:** the five `run()` wrappers are five *different* 3-line functions, not five copies. Abstracting them buys nothing.
+- **What to do instead:** fix the two real duplications in place — XDG spelled two ways across 6 packages (the `,`-default form is buggy on empty env), and clipboard copy implemented three ways where the best impl is the least used.
+
+**Reconsider only if:** a helper genuinely needed by >4 packages appears AND exceeds ~30 lines, OR the macOS surface disappears (removing the `environment.d` portability blocker).
+
+---
+
+### A unified Rust CLI for the script layer (rejected 2026-08-01)
+
+Considered collapsing the timer-driven renderers and pickers into one compiled binary.
+
+- **The pro is real:** 25-40ms interpreter start × ~8 timer-driven renderers, plus compiler-enforced types for the agent-state contract that currently spans 5 packages as bare strings.
+- **It loses anyway on pillar #1/#2.** The daily loop is "open script, change 3 lines, next refresh". A build step kills that.
+- **Precedent:** oh-my-zsh, chezmoi, conform.nvim and herdr were all rejected on the same pillars. The one accepted Rust rewrite (`tmux-fingers-rs`) was a single scoped tool driven by a toolchain failure, not a monolith.
+
+**Reconsider only if:** status-bar latency becomes measurably annoying — then rewrite *one* hot path (status segments) in the `tmux-fingers-rs` shape, never the whole layer.
+
+---
+
 ### Arch and Ubuntu toolbox bootstrap scripts (removed 2026-05-01)
 
 `fedora/setup-toolbox-arch.sh` and `-ubuntu.sh` were added in the initial commit and never invoked again. Removed.
@@ -207,6 +244,18 @@ Even if you never re-enable SwayFX, these bit on first setup:
 ---
 
 ## Accepted (non-obvious)
+
+---
+
+### Gate the two unchecked languages: shellcheck and tsc (accepted 2026-08-01)
+
+A repo-wide audit found `pi/` (2,955 lines of TypeScript) was prettier-formatted but never type-checked, and 37 shell files across 8 packages had no linter at all — the two largest ungated surfaces in the repo.
+
+- **Measured, not assumed:** `shellcheck --severity=style` over all 37 shell files exits 0 with zero output today. The gate costs ~5 Makefile lines and zero remediation.
+- `tsc` closes the TS hole. `ty` was verified to already resolve per-directory sibling `_common.py` imports correctly, so Python coverage was never the gap.
+- This is a ratchet, not a testing policy change — see the entry below, which still stands.
+
+**Reconsider only if:** either tool starts producing noise that outweighs the regressions it catches.
 
 ---
 
@@ -416,6 +465,8 @@ Only test runner is `tmux/.config/tmux/scripts/test-status-tools`. `_dotfiles_sy
 - **The tmux exception:** `test-status-tools` exists because status helpers run headless every few seconds, so silent breakage is invisible.
 
 **Reconsider individual scripts if:** any grows past ~300 lines AND ships a bug that costs >30 min to debug. Add a focused smoke test for that regression, not a generic suite.
+
+**Amended 2026-08-01:** the audit triggered this clause for real. `tms` (993 lines) shipped a `KeyError("red")` that crashes the picker whenever a session has a crashed agent, and `render_theme.py` rewrites 16 live config files with zero tests. Both now earn focused smoke tests under the existing exception — not a generic suite. The policy holds for everything else.
 
 ---
 
