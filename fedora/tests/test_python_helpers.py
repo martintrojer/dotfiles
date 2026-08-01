@@ -8,6 +8,7 @@ import importlib.util
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -15,10 +16,12 @@ import types
 import unittest
 from pathlib import Path
 from typing import Any, cast
+from unittest import mock
 
 ROOT = Path(__file__).parents[2]
 WALLPAPER = ROOT / "fedora/bin/.local/bin/wallpaper"
 TBX = ROOT / "fedora/bin/.local/bin/tbx"
+LMSTUDIO = ROOT / "fedora/bin/.local/bin/lmstudio-server"
 FEDORA_SETUPS = [
     (ROOT / "fedora/os/base-packages.sh", ROOT / "fedora/os/setup-base.sh"),
     (ROOT / "fedora/os/sway-packages.sh", ROOT / "fedora/os/setup-sway.sh"),
@@ -177,6 +180,56 @@ class FedoraPythonHelperTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, "real:argument\n")
+
+    def test_lmstudio_signal_deaths_map_to_conventional_exit_codes(self) -> None:
+        lmstudio = cast(Any, load_script("lmstudio_server_test", LMSTUDIO))
+        # A stop we asked for is a clean shutdown, whatever Popen reports.
+        self.assertEqual(lmstudio.exit_status(-signal.SIGTERM, True), 0)
+        # An unrequested signal death reports 128+signum, not a negative
+        # number: sys.exit(-15) reaches systemd as 241.
+        self.assertEqual(lmstudio.exit_status(-signal.SIGTERM, False), 143)
+        self.assertEqual(lmstudio.exit_status(-signal.SIGKILL, False), 137)
+        # A crash still fails, so Restart=on-failure keeps working.
+        self.assertEqual(lmstudio.exit_status(1, False), 1)
+        self.assertEqual(lmstudio.exit_status(0, False), 1)
+        self.assertEqual(lmstudio.exit_status(None, False), 1)
+
+    def test_lmstudio_exits_zero_when_terminated_while_supervising(self) -> None:
+        lmstudio = cast(Any, load_script("lmstudio_server_test", LMSTUDIO))
+        handlers: dict[int, Any] = {}
+        child = subprocess.Popen(["sleep", "30"])
+        self.addCleanup(child.wait)
+        self.addCleanup(child.kill)
+
+        def sleep(_seconds: float) -> None:
+            # Stand in for systemd delivering SIGTERM mid-supervision.
+            handlers[signal.SIGTERM](signal.SIGTERM, None)
+            child.wait(timeout=5)
+
+        with (
+            mock.patch.object(lmstudio, "wait_for_wayland", return_value=True),
+            mock.patch.object(lmstudio, "wait_for_daemon", return_value=True),
+            # False once so main() does not refuse an already-running API,
+            # then healthy for the readiness and supervision loops.
+            mock.patch.object(lmstudio, "api_ready", side_effect=[False] + [True] * 8),
+            mock.patch.object(lmstudio, "notify"),
+            mock.patch.object(
+                lmstudio,
+                "lms",
+                return_value=subprocess.CompletedProcess([], 0, "", ""),
+            ),
+            mock.patch.object(
+                lmstudio.signal,
+                "signal",
+                side_effect=lambda num, handler: handlers.__setitem__(num, handler),
+            ),
+            mock.patch.object(lmstudio.subprocess, "Popen", return_value=child),
+            mock.patch.object(lmstudio.time, "sleep", side_effect=sleep),
+        ):
+            status = lmstudio.main()
+
+        self.assertEqual(child.returncode, -signal.SIGTERM)
+        self.assertEqual(status, 0)
 
 
 if __name__ == "__main__":
