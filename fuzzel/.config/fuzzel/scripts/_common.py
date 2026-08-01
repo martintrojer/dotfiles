@@ -97,7 +97,7 @@ def require_commands(commands: Sequence[str]) -> None:
         raise ScriptError(f"Missing required command(s): {', '.join(missing)}")
 
 
-def list_sway_windows(*, mru: bool = False) -> list[dict]:
+def list_sway_windows(*, mru: bool = False, strict: bool = False) -> list[dict]:
     """Return a flat list of sway windows extracted from ``swaymsg -t get_tree``.
 
     Each entry has ``id`` (sway con id), ``app_id`` (Wayland app_id, falling
@@ -112,9 +112,13 @@ def list_sway_windows(*, mru: bool = False) -> list[dict]:
 
     Returns an empty list if swaymsg fails or the tree cannot be parsed; let
     callers decide how to surface that to the user (notify, ScriptError, etc.).
+    With ``strict=True`` that failure raises ``ScriptError`` instead, for
+    callers that must not confuse "could not ask sway" with "no such window".
     """
     tree = _get_sway_tree()
     if tree is None:
+        if strict:
+            raise ScriptError("sway IPC unavailable (swaymsg -t get_tree failed)")
         return []
     if mru:
         return _focused_last(_collect_mru(tree))

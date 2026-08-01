@@ -57,7 +57,15 @@ def main() -> int:
     )
 
     if window_id is None:
-        for window in list_sway_windows():
+        # strict=True: a swaymsg failure must not look like "no such window",
+        # or --spawn-sh launches a duplicate app on every IPC hiccup.
+        try:
+            windows = list_sway_windows(strict=True)
+        except ScriptError:
+            if args.notify_missing:
+                notify("Raise Window", "Cannot query sway; not spawning")
+            raise
+        for window in windows:
             # _common.list_sway_windows guarantees these are strings.
             app_id = window.get("app_id", "")
             title = window.get("title", "")
