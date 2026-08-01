@@ -76,6 +76,13 @@ Python scripts in this package should pass:
 - `ty check`
 - `ruff format`
 
+`.config/fuzzel/scripts/tests/` holds a focused regression suite for the picker
+helpers whose failure mode is a silent wrong answer (row selection, the sway
+tree walk feeding it, XDG cache resolution). Run it with `make
+check-desktop-tests`. It is not a general suite for this package — see
+[`docs/DECISIONS.md`](../docs/DECISIONS.md), "No unit tests for the
+control-plane and helper scripts".
+
 ## Configuration
 
 Located at `fuzzel/.config/fuzzel/fuzzel.ini`:

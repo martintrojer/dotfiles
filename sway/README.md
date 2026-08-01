@@ -96,7 +96,10 @@ Layout containers:
   centered, 90×90% centered, then 70% wide × full height centered) — mirroring hammerspoon's Hyper+R
   minus full (which is covered by tiling). Each step positions the window
   absolutely within the workspace. State is persisted in
-  `$XDG_STATE_HOME/sway/` (separate files for tiled and floating).
+  `$XDG_STATE_HOME/sway/` (separate files for tiled and floating). Its tree
+  walk and floating detection both shipped crashes on an ordinary keypress, so
+  they carry a focused regression suite in `~/.config/sway/scripts/tests/`,
+  run by `make check-desktop-tests`.
 - `mod+-` / `mod+=` — shrink / grow width by 10 ppt; `Shift+-` / `Shift+=` for
   height. Resize *mode* is intentionally not bound — the preset cycle plus the
   ten-percent steppers cover the workflow.

@@ -468,6 +468,10 @@ Only test runner is `tmux/.config/tmux/scripts/test-status-tools`. `_dotfiles_sy
 
 **Amended 2026-08-01:** the audit triggered this clause for real. `tms` (993 lines) shipped a `KeyError("red")` that crashes the picker whenever a session has a crashed agent, and `render_theme.py` rewrites 16 live config files with zero tests. Both now earn focused smoke tests under the existing exception — not a generic suite. `wallpaper` (825 lines) joins them for its lock-cache path only: `sway/.config/sway/scripts/lock-screen` parses `wallpaper status` and silently degrades to a solid-colour lock when it is malformed, and a failed cache rebuild used to delete the working lock image. Four tests, covering status output, rebuild durability, cache keying and archive deletion — not the other 700 lines. The policy holds for everything else.
 
+**Amended again 2026-08-01 (desktop scripts):** three desktop helpers shipped bugs in one session whose failure mode is a *silent wrong answer* — you cannot tell the bug from normal operation, so the "regressions show up next run" argument does not hold. `fuzzel/_common.py` focused the wrong window when two rows rendered the same label, `preset-width` crashed on every keypress on an empty workspace, and `weather` discarded a valid cache and rendered exactly what "no network" renders. Each earns a focused suite next to the script it covers: `fuzzel/.config/fuzzel/scripts/tests/`, `sway/.config/sway/scripts/tests/`, `waybar/.config/waybar/scripts/tests/`. Colocated because the scripts rely on `sys.path[0]`; `.stowrc` has a repo-wide `--ignore=tests` so they never link into `$HOME`.
+
+- **Not covered, deliberately:** the list parsers (`parse_hosts`, `parse_toolboxes`, `parse_distroboxes`, `parse_bind_entries`), `compact_condition`'s 40-branch code table, and `infer_remote`. Each fails *visibly* — an empty or obviously wrong picker, a wrong glyph in the bar, a push to nowhere. Pillar #3 covers them: they are short enough to audit on read, and the amendment is a bug-driven exception, not a licence for a generic suite.
+
 ---
 
 ### Split the repo control plane into `dotfiles-sync` + `_dotfiles_sync/` (accepted 2026-04-27)

@@ -68,6 +68,11 @@ still crashes loudly, so bugs surface in development instead of decaying into a
 permanently quiet bar. Callers must print exactly once, at the end of the
 renderer, so a fallback can never append to partial output.
 
+`.config/waybar/scripts/tests/` covers this policy plus the weather cache
+round-trip (a cache that silently fails to load renders exactly what "no
+network" renders, so the user cannot tell). Run it with `make
+check-desktop-tests`.
+
 This is the same policy `tmux/.config/tmux/scripts/_status_common.py` encodes,
 copied rather than imported: the two live in different stow packages and rely on
 `sys.path[0]` colocation (see [`docs/DECISIONS.md`](../docs/DECISIONS.md), "A

@@ -19,6 +19,7 @@ LUA_FILES := $(shell $(RG) -g '*.lua')
 PRETTIER_FILES := $(shell $(RG) -g '*.ts' -g '*.json' -g '*.jsonc' -g '*.css')
 TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
 FEDORA_TEST_DIRS := fedora/tests fedora/gaming/tests
+DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests sway/.config/sway/scripts/tests waybar/.config/waybar/scripts/tests
 
 .PHONY: \
 	help \
@@ -35,6 +36,7 @@ FEDORA_TEST_DIRS := fedora/tests fedora/gaming/tests
 	format-ts \
 	check-tmux-tests \
 	check-fedora-tests \
+	check-desktop-tests \
 	build-guides \
 	serve-guides \
 	check-guides \
@@ -56,6 +58,7 @@ help:
 	  '  make format-prettier   # prettier --write on ts/json/jsonc/css' \
 	  '  make check-tmux-tests  # isolated tmux smoke tests' \
 	  '  make check-fedora-tests # isolated Fedora and gaming helper behavior tests' \
+	  '  make check-desktop-tests # focused fuzzel/sway/waybar script regression tests' \
 	  '  make theme             # render docs/palette.toml into every THEME BEGIN..END region' \
 	  '  make check-theme       # renderer behavior tests + theme regions in sync with docs/palette.toml' \
 	  '  make check-ts          # tsc --noEmit on pi extensions + opencode plugin' \
@@ -65,7 +68,7 @@ help:
 	  '  make check-guides      # validate guide sources without writing output' \
 	  '  make clean-guides      # rm -rf guides/build'
 
-check-all: check-python check-shell check-lua check-prettier check-ts check-tmux-tests check-fedora-tests check-guides check-theme
+check-all: check-python check-shell check-lua check-prettier check-ts check-tmux-tests check-fedora-tests check-desktop-tests check-guides check-theme
 
 format-all: format-python format-lua format-prettier
 
@@ -110,6 +113,10 @@ check-tmux-tests:
 # last directory's status and a failure in an earlier suite would pass silently.
 check-fedora-tests:
 	for dir in $(FEDORA_TEST_DIRS); do python3 -m unittest discover -s "$$dir" -p 'test_*.py'; done
+
+# Same .SHELLFLAGS -e dependency as check-fedora-tests above.
+check-desktop-tests:
+	for dir in $(DESKTOP_TEST_DIRS); do python3 -m unittest discover -s "$$dir" -p 'test_*.py'; done
 
 build-guides:
 	python3 guides/build.py
