@@ -194,10 +194,14 @@ def picker() -> int:
 
 
 def clear() -> int:
-    run(["makoctl", "dismiss", "--all"])
-    # mako has no explicit "clear history" command. Restarting clears history
-    # and the user service brings it back in this dotfiles setup.
-    run(["pkill", "-x", "mako"])
+    # mako has no "clear history" command, but `restore` pulls an entry back
+    # out of history and `dismiss --no-history` drops it for good, so pulling
+    # everything back and dismissing once empties both the visible set and the
+    # history — without bouncing the daemon that owns
+    # org.freedesktop.Notifications.
+    for _ in range(len(mako_json("history"))):
+        run(["makoctl", "restore"])
+    run(["makoctl", "dismiss", "--all", "--no-history"])
     return 0
 
 
