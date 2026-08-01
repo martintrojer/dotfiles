@@ -217,7 +217,7 @@ and uptime.
 - **Right:** boxed `PREFIX` and `AI` segments, then CPU, RAM, host, uptime
 - agent-attention marks windows with pending attention as `[!]`
 - shows a boxed `AI <count>` segment in the status bar
-- `prefix`+`A` opens a picker listing flagged windows
+- `prefix`+`a` opens a picker listing flagged windows
 - attention clears when you focus the actual agent pane
 - pending attention lives in `$XDG_STATE_HOME/tmux-agent-attention/pending.jsonl`;
   the script can fire desktop notifications and OSC 777 terminal notifications
@@ -227,8 +227,8 @@ and uptime.
 [[questions]]
 q = "Which binding opens the agent-attention picker?"
 options = ["`prefix`+`a`", "`prefix`+`A`", "`prefix`+`!`"]
-answer = 1
-why = "Uppercase `A` opens the list of flagged windows."
+answer = 0
+why = "Lowercase `a` opens the list of flagged windows."
 
 [[questions]]
 q = "What does a window marker of `[!]` mean?"
