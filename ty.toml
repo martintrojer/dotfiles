@@ -1,3 +1,8 @@
+[environment]
+# fedora/gaming/tests imports the shared package-array harness that lives in
+# fedora/tests, the same way unittest discovery does at runtime.
+extra-paths = ["fedora/tests"]
+
 [terminal]
 error-on-warning = true
 

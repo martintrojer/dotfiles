@@ -3,21 +3,24 @@
 
 from __future__ import annotations
 
-import importlib.machinery
-import importlib.util
 import logging
 import os
-import re
 import shutil
 import signal
 import subprocess
 import sys
 import tempfile
-import types
 import unittest
 from pathlib import Path
 from typing import Any, cast
 from unittest import mock
+
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Imported after the sys.path line above.
+import _package_harness as harness
+
+load_script = harness.load_script
 
 ROOT = Path(__file__).parents[2]
 WALLPAPER = ROOT / "fedora/bin/.local/bin/wallpaper"
@@ -44,68 +47,8 @@ FEDORA_SETUPS = [
 ]
 
 
-def install_command(wrapper: Path, marker: str) -> str:
-    lines = [
-        line
-        for line in wrapper.read_text().splitlines()
-        if not line.lstrip().startswith("#") and marker in line
-    ]
-    assert len(lines) == 1, f"{wrapper.name}: expected 1 install line, got {lines}"
-    return lines[0]
-
-
-def read_array(script: Path) -> list[str]:
-    name = re.match(r"(\w+?)-packages\.sh", script.name)
-    assert name, script.name
-    var = f"{name.group(1)}_packages"
-    out = subprocess.run(
-        [
-            "bash",
-            "-c",
-            f'source "$1"; printf "%s\\n" "${{{var}[@]}}"',
-            "_",
-            str(script),
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return [line for line in out.stdout.split("\n") if line]
-
-
-def load_script(name: str, path: Path) -> types.ModuleType:
-    loader = importlib.machinery.SourceFileLoader(name, str(path))
-    spec = importlib.util.spec_from_loader(loader.name, loader)
-    assert spec is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    loader.exec_module(module)
-    return module
-
-
-class FedoraPackageArrays(unittest.TestCase):
-    def test_arrays_are_non_empty_and_unique(self) -> None:
-        for array_script in dict.fromkeys(setup[0] for setup in FEDORA_SETUPS):
-            with self.subTest(script=array_script.name):
-                packages = read_array(array_script)
-                self.assertTrue(packages, f"{array_script.name} exports no packages")
-                self.assertCountEqual(
-                    packages,
-                    set(packages),
-                    f"{array_script.name} lists a package twice",
-                )
-
-    def test_wrappers_install_the_sourced_array(self) -> None:
-        for array_script, wrapper, marker in FEDORA_SETUPS:
-            with self.subTest(script=wrapper.name):
-                var = f"{array_script.name.split('-')[0]}_packages"
-                self.assertIn(f'"${{{var}[@]}}"', install_command(wrapper, marker))
-
-    def test_scripts_are_syntactically_valid(self) -> None:
-        for array_script, wrapper, _ in FEDORA_SETUPS:
-            for script in (array_script, wrapper):
-                with self.subTest(script=script.name):
-                    subprocess.run(["bash", "-n", str(script)], check=True)
+class FedoraPackageArrays(harness.PackageArrayChecks):
+    SETUPS = FEDORA_SETUPS
 
 
 class FedoraStowGroupTests(unittest.TestCase):
