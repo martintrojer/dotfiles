@@ -20,6 +20,7 @@ ZSH_FILES := $(shell $(RG) -g '*.zsh' -g '.zshrc')
 PRETTIER_FILES := $(shell $(RG) -g '*.ts' -g '*.json' -g '*.jsonc' -g '*.css')
 TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
 FEDORA_TEST_DIRS := fedora/tests fedora/gaming/tests
+TS_TEST_GLOB := pi/.pi/agent/extensions/tests/*.test.ts
 DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests sway/.config/sway/scripts/tests waybar/.config/waybar/scripts/tests
 
 .PHONY: \
@@ -35,6 +36,7 @@ DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests sway/.config/sway/scrip
 	check-prettier \
 	format-prettier \
 	check-ts \
+	check-ts-tests \
 	format-ts \
 	check-tmux-tests \
 	check-fedora-tests \
@@ -65,13 +67,14 @@ help:
 	  '  make theme             # render docs/palette.toml into every THEME BEGIN..END region' \
 	  '  make check-theme       # renderer behavior tests + theme regions in sync with docs/palette.toml' \
 	  '  make check-ts          # tsc --noEmit on pi extensions + opencode plugin' \
+	  '  make check-ts-tests    # node --test on the pi extension helper tests' \
 	  '  make format-ts         # alias for format-prettier' \
 	  '  make build-guides      # render guides/*.md → guides/build/*.html' \
 	  '  make serve-guides      # build then http.server in guides/build' \
 	  '  make check-guides      # validate guide sources without writing output' \
 	  '  make clean-guides      # rm -rf guides/build'
 
-check-all: check-python check-shell check-zsh check-lua check-prettier check-ts check-tmux-tests check-fedora-tests check-desktop-tests check-guides check-theme
+check-all: check-python check-shell check-zsh check-lua check-prettier check-ts check-ts-tests check-tmux-tests check-fedora-tests check-desktop-tests check-guides check-theme
 
 format-all: format-python format-lua format-prettier
 
@@ -112,6 +115,12 @@ format-prettier:
 check-ts:
 	python3 _dotfiles_sync/link_ts_types.py
 	npx -y -p typescript@$(TYPESCRIPT_VERSION) tsc -p $(TSCONFIG)
+
+# No runner dependency: node strips the TS types itself, so `node --test` runs
+# the *.test.ts files directly. The glob is quoted so node expands it (make/sh
+# would fail the target if it ever matched nothing).
+check-ts-tests:
+	node --test '$(TS_TEST_GLOB)'
 
 format-ts: format-prettier
 
