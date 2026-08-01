@@ -20,9 +20,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import select
 import shutil
 import sqlite3
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import NamedTuple
@@ -450,6 +452,37 @@ def resolve_target(target: str) -> tuple[str | None, str] | None:
 # ---------- subcommands ----------
 
 
+def read_stdin_payload() -> dict[str, object]:
+    """Parse a JSON object piped on stdin, or return ``{}``.
+
+    The opencode plugin (``opencode/.config/opencode/plugin/notify.ts``)
+    invokes ``notify`` with no flags and pipes
+    ``{source,type,title,message}`` on stdin, so without this the whole
+    payload is discarded and every opencode event lands in the DB as
+    ``source='agent' message='attention'``.
+
+    Never blocks: an interactive stdin is skipped outright, a pipe with
+    nothing ready is treated as absent (codex's hook inherits an idle
+    stdin that may never close), and anything that isn't a JSON object is
+    ignored so a stray pipe can't turn a notification into a traceback.
+    """
+    try:
+        if sys.stdin is None or sys.stdin.isatty():
+            return {}
+        if not select.select([sys.stdin], [], [], 0.2)[0]:
+            return {}
+        raw = sys.stdin.read()
+    except (OSError, ValueError):
+        return {}
+    if not raw.strip():
+        return {}
+    try:
+        payload = json.loads(raw)
+    except ValueError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
 def cmd_notify(args: argparse.Namespace) -> int:
     """Legacy notify path for non-pi agents (e.g. codex/opencode).
 
@@ -461,6 +494,10 @@ def cmd_notify(args: argparse.Namespace) -> int:
     line (see tmux/README.md § Hook Setup); they name the harness and
     the reason it wants attention, so they feed the stored message and
     the (opt-in) desktop notification rather than being dropped.
+
+    The same four fields may instead arrive as a JSON object on stdin,
+    which is opencode's plugin form. Flags win over the payload, so the
+    codex hook line behaves identically either way.
     """
     if not tmux_exists():
         return 0
@@ -468,10 +505,20 @@ def cmd_notify(args: argparse.Namespace) -> int:
     if ctx is None:
         return 0
 
-    source = sanitize(args.source or "agent")
-    title = sanitize(args.title or "")
-    event_type = sanitize(args.event_type or "")
-    message = sanitize(args.message or "") or title or event_type or "attention"
+    payload = read_stdin_payload()
+
+    def field(key: str, flag: str | None) -> str:
+        """Flag, else the same-named stdin field, else empty."""
+        if flag:
+            return sanitize(flag)
+        value = payload.get(key)
+        return sanitize(value) if isinstance(value, str) else ""
+
+    source = field("source", args.source) or "agent"
+    title = field("title", args.title)
+    # The payload spells the event type "type"; the flag is --event-type.
+    event_type = field("type", args.event_type)
+    message = field("message", args.message) or title or event_type or "attention"
 
     insert_event(
         session_id=ctx["session_id"],

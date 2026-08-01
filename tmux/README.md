@@ -209,6 +209,8 @@ Runtime state is stored in:
 
 Each agent harness calls `agent-attention notify --source <name>` when it needs attention. The script resolves the current tmux target from `--pane`, then `TMUX_PANE`, then the controlling TTY, which makes hook subprocesses more reliable.
 
+The `source`/`message` fields may also arrive as a JSON object piped on stdin (`{"source":…,"type":…,"title":…,"message":…}`), which is what the opencode plugin does. Flags win when both are present; unparseable stdin is ignored.
+
 ### Codex CLI (manual — `$HOME/.codex/config.toml`)
 
 Add to the top level:
