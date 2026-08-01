@@ -347,7 +347,11 @@ def is_useful_path(path: str, *, mode: str, config: TmsConfig) -> bool:
     if any(part in blocked for part in parts):
         return False
 
-    home = Path.home()
+    # Both sides must be resolved: on distros where /home symlinks to
+    # /var/home, comparing a resolved path against a bare Path.home() makes
+    # relative_to() raise for *every* path under $HOME, silently disabling
+    # the dotdir / dotfiles / zoxide-depth filters below.
+    home = Path.home().resolve()
     try:
         rel = p.resolve().relative_to(home)
         rel_parts = rel.parts

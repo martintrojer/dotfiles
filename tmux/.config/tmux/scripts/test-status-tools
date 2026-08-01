@@ -573,6 +573,245 @@ def run_tms_tests() -> None:
         True,
     )
 
+    run_tms_row_tests(tms)
+    run_tms_path_tests(tms)
+    run_tms_entry_tests(tms)
+
+
+def run_tms_row_tests(tms) -> None:
+    """The Entry <-> fzf row round trip.
+
+    The picker serialises entries to tab-joined rows and parses the selected
+    one back. Field order lives in FZF_ROW_FIELDS and is consumed by both
+    halves, so a mismatch is silent until someone opens a session at the
+    wrong path.
+    """
+    print()
+    entry = tms.Entry(
+        kind="default",
+        name="proj",
+        session_name="proj",
+        path="/tmp/proj",
+        startup="nvim",
+        split="vertical",
+    )
+    payload = tms.EntryPayload.from_fzf_row(entry.to_fzf_row())
+    expect("round trip keeps session_name", payload.session_name, "proj")
+    expect("round trip keeps path", payload.path, "/tmp/proj")
+    expect("round trip keeps startup", payload.startup, "nvim")
+    expect("round trip keeps split", payload.split, "vertical")
+
+    # Trailing empty fields are the fragile case: str.split keeps them, but
+    # only if the producer emitted them. An entry with no startup/split ends
+    # in two empty columns.
+    bare = tms.Entry(kind="tmux", name="s", session_name="s", path="/tmp/s")
+    row = bare.to_fzf_row()
+    expect(
+        "empty trailing fields survive serialisation",
+        len(row.split("\t")),
+        len(tms.FZF_ROW_FIELDS),
+    )
+    bare_payload = tms.EntryPayload.from_fzf_row(row)
+    expect("empty path/startup become None", bare_payload.startup, None)
+    expect(
+        "empty split falls back to the default", bare_payload.split, tms.DEFAULT_SPLIT
+    )
+
+    # A row that lost a column must fail loudly rather than shift fields.
+    try:
+        tms.Entry.from_fzf_row("a\tb")
+        expect("short picker row raises ConfigError", "no raise", "ConfigError")
+    except tms.ConfigError:
+        expect("short picker row raises ConfigError", "ConfigError", "ConfigError")
+
+
+def run_tms_path_tests(tms) -> None:
+    """Session-name normalisation and the path filter.
+
+    `session_name_for_path` has to agree with tmux's own name mangling or
+    create-then-attach targets different sessions; `is_useful_path` is what
+    keeps the picker from listing every node_modules on the disk.
+    """
+    expect(
+        "dots normalise to underscores",
+        tms.sanitize_session_part("a.b"),
+        "a_b",
+    )
+    expect(
+        "runs of punctuation collapse to one dash",
+        tms.sanitize_session_part("a  b//c"),
+        "a-b-c",
+    )
+    expect(
+        "leading/trailing separators are trimmed",
+        tms.sanitize_session_part("--x--"),
+        "x",
+    )
+
+    home = Path.home()
+    expect(
+        "a dotted dir under $HOME normalises",
+        tms.session_name_for_path(str(home / "a.b" / "c")),
+        "a_b/c",
+    )
+    expect(
+        "a path that sanitises away still yields a name",
+        tms.session_name_for_path("/"),
+        "session",
+    )
+
+    config = tms.TmsConfig(
+        sessions=(),
+        blacklist=frozenset({".cache"}),
+        noisy_basenames=frozenset({"node_modules"}),
+        find_max_depth=2,
+        preview_command="true",
+    )
+    cases = (
+        (str(home / "code"), "find", True, "a plain project dir is useful"),
+        (str(home / ".cache"), "find", False, "a blacklisted basename is not"),
+        (
+            str(home / "code" / "node_modules"),
+            "find",
+            False,
+            "a noisy basename is not",
+        ),
+        (
+            str(home / "code" / "node_modules" / "pkg"),
+            "find",
+            False,
+            "a noisy path segment rejects its children",
+        ),
+        (str(home / ".ssh"), "find", False, "a dotdir is not useful"),
+        (
+            str(home / "dotfiles" / "tmux"),
+            "find",
+            False,
+            "inside the dotfiles repo is not (the repo root itself is)",
+        ),
+        (
+            str(home / "a" / "b" / "c"),
+            "zoxide",
+            False,
+            "zoxide mode stops at two levels below $HOME",
+        ),
+        (str(home / "a" / "b"), "zoxide", True, "two levels is still fine"),
+    )
+    for path, mode, want, name in cases:
+        expect(name, tms.is_useful_path(path, mode=mode, config=config), want)
+
+
+def run_tms_entry_tests(tms) -> None:
+    """build_entries: which sessions appear, in what order, merged with what.
+
+    This is the function the picker is, and it had no coverage. Stub the two
+    outside sources (live tmux sessions, agent state) so the merge logic is
+    the only thing under test.
+    """
+    from _tmux_common import AgentState, AgentStats
+
+    configured = (
+        tms.SessionConfig(name="dotfiles", path="/tmp/dotfiles", startup="yazi"),
+        tms.SessionConfig(name="notes", path="/tmp/notes"),
+    )
+    config = tms.TmsConfig(
+        sessions=configured,
+        blacklist=frozenset(),
+        noisy_basenames=frozenset(),
+        find_max_depth=1,
+        preview_command="true",
+    )
+
+    stats = AgentStats()
+    stats._by_session = {
+        "notes": AgentStats(blocked=1),
+        "zed": AgentStats(crashed=1),
+    }
+
+    originals = (
+        tms.load_config,
+        tms.list_tmux_sessions,
+        tms.scan_agent_states,
+        tms.zoxide_paths,
+    )
+    tms.load_config = lambda: config
+    # Deliberately unsorted, and overlapping the configured set.
+    tms.list_tmux_sessions = lambda: ["zed", "notes", "alpha"]
+    tms.scan_agent_states = lambda: stats
+    # `all` mode also merges zoxide; silence it so only the session merge
+    # is under test (build_path_entries has its own coverage above).
+    tms.zoxide_paths = list
+    try:
+        entries = tms.build_entries("all")
+        names = [e.name for e in entries]
+        expect(
+            "configured sessions come first, in config order",
+            names[:2],
+            ["dotfiles", "notes"],
+        )
+        expect(
+            "a live session that is also configured is not listed twice",
+            names.count("notes"),
+            1,
+        )
+        expect(
+            "remaining live sessions follow, sorted",
+            names[2:],
+            ["alpha", "zed"],
+        )
+
+        by_name = {e.name: e for e in entries}
+        expect(
+            "a configured session that is live is marked running",
+            by_name["notes"].is_running,
+            True,
+        )
+        expect(
+            "a configured session that is not live is not",
+            by_name["dotfiles"].is_running,
+            False,
+        )
+        expect(
+            "agent state attaches to the configured entry",
+            by_name["notes"].worst_state,
+            AgentState.blocked,
+        )
+        expect(
+            "agent state attaches to a bare live session",
+            by_name["zed"].worst_state,
+            AgentState.crashed,
+        )
+        expect(
+            "a session with no agent has no state",
+            by_name["alpha"].worst_state,
+            None,
+        )
+        expect(
+            "configured metadata survives the merge",
+            (by_name["dotfiles"].startup, by_name["dotfiles"].path),
+            ("yazi", "/tmp/dotfiles"),
+        )
+
+        # `tmux` mode is the live-only view: configured-but-dead drops out.
+        live_names = [e.name for e in tms.build_entries("tmux")]
+        expect(
+            "tmux mode lists only live sessions", live_names, ["alpha", "notes", "zed"]
+        )
+
+        # `default` mode is the pinned list, whether or not it is running.
+        expect(
+            "default mode lists only configured sessions",
+            [e.name for e in tms.build_entries("default")],
+            ["dotfiles", "notes"],
+        )
+    finally:
+        (
+            tms.load_config,
+            tms.list_tmux_sessions,
+            tms.scan_agent_states,
+            tms.zoxide_paths,
+        ) = originals
+
 
 def run_cheatsheet_tests() -> None:
     cs = _import_cheatsheet()
