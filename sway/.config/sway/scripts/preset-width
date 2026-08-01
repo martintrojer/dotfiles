@@ -54,10 +54,10 @@ def get_focused():
 
 
 def is_floating(container: dict) -> bool:
-    return (
-        container.get("floating", "").startswith("user_")
-        or container.get("type") == "floating_con"
-    )
+    # Workspace nodes carry "floating": null, so the dict.get default never
+    # fires — coerce to "" explicitly.
+    floating = container.get("floating") or ""
+    return floating.startswith("user_") or container.get("type") == "floating_con"
 
 
 def state_dir() -> str:
@@ -86,6 +86,11 @@ def main() -> None:
     if not result:
         sys.exit(0)
     _output, workspace, container = result
+
+    # On an empty workspace sway marks the workspace node itself focused;
+    # there is nothing to resize.
+    if container.get("type") == "workspace":
+        sys.exit(0)
 
     floating = is_floating(container)
 
