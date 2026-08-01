@@ -10,6 +10,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -589,6 +590,51 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.sync.uninstall_game(managed, force=False)
         self.assertIn('"%command% --skip"', self.config.read_text())
         self.assertNotIn("optirun %command%", second.read_text())
+
+    def test_removed_steam_user_drops_launch_config_instead_of_wedging(self) -> None:
+        app = self.app()
+        second = self.steam / "userdata/2/config/localconfig.vdf"
+        second.parent.mkdir(parents=True)
+        second.write_text(self.config.read_text())
+        release = self.sync.Release("v1", "https://example.invalid", "0" * 64)
+        self.sync.install_game(self.target(app), self.payload(app.path), release)
+        shutil.rmtree(second.parent.parent)
+
+        managed = self.sync.managed_target(app)
+        assert managed is not None
+        reports = self.sync.install_game(
+            managed,
+            self.payload(app.path, b"v2"),
+            self.sync.Release("v2", "https://example.invalid", "0" * 64),
+        )
+        self.assertIn(
+            "dropped missing Steam config userdata/2/config/localconfig.vdf", reports
+        )
+        manifest = json.loads(
+            (app.path / self.sync.STATE_DIR / self.sync.MANIFEST).read_text()
+        )
+        self.assertEqual(
+            manifest["launch_configs"], ["userdata/1/config/localconfig.vdf"]
+        )
+
+        managed = self.sync.managed_target(app)
+        assert managed is not None
+        self.sync.uninstall_game(managed, force=False)
+        self.assertFalse((app.path / "dxgi.dll").exists())
+
+    def test_launch_config_present_but_appid_gone_is_still_an_error(self) -> None:
+        app = self.app()
+        second = self.steam / "userdata/2/config/localconfig.vdf"
+        second.parent.mkdir(parents=True)
+        second.write_text(self.config.read_text())
+        release = self.sync.Release("v1", "https://example.invalid", "0" * 64)
+        self.sync.install_game(self.target(app), self.payload(app.path), release)
+        second.write_text('"UserLocalConfigStore"\n{\n}\n')
+
+        managed = self.sync.managed_target(app)
+        assert managed is not None
+        with self.assertRaisesRegex(ValueError, "AppID missing from Steam config"):
+            self.sync.uninstall_game(managed, force=True)
 
     def test_main_dry_run_is_host_safe_and_apply_refuses_running_steam(self) -> None:
         home = self.root / "home"
