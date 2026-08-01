@@ -15,6 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from _dotfiles_sync.link import (
+    Link,
     LinkState,
     apply_link,
     plan_package,
@@ -140,6 +141,65 @@ class PlanPackageTests(unittest.TestCase):
         self.assertTrue((self.home / ".config/deep/nested/file").is_symlink())
         self.assertTrue((self.home / ".config/deep").is_dir())
         self.assertFalse((self.home / ".config/deep").is_symlink())
+
+
+class ApplyLinkDirectoryTests(unittest.TestCase):
+    """apply_link is the only function here that deletes user data.
+
+    No package pair in the current inventory reaches it with a real directory --
+    the conflict/backup policy in sync.py gets there first. It stays reachable in
+    principle because a group's plan is computed before any of it is applied, so
+    one link's mkdir can turn a path another link planned as MISSING into a
+    directory. Refuse with an actionable message, not IsADirectoryError.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        root = Path(self._tmp.name)
+        self.source = root / "repo" / "pkg" / ".conf"
+        self.source.parent.mkdir(parents=True)
+        self.source.write_text("from repo\n")
+        self.home = root / "home"
+        self.home.mkdir()
+
+    def _link(self) -> Link:
+        return Link(
+            package="pkg",
+            source=self.source,
+            target=self.home / ".conf",
+            state=LinkState.MISSING,
+            rel=".conf",
+        )
+
+    def test_directory_target_is_refused_with_a_clear_message(self) -> None:
+        target = self.home / ".conf"
+        target.mkdir()
+        (target / "inner").write_text("precious\n")
+
+        with self.assertRaises(SystemExit) as caught:
+            apply_link(self._link())
+
+        message = str(caught.exception)
+        self.assertIn("refusing to replace directory", message)
+        self.assertIn(str(target), message)
+        self.assertEqual(
+            (target / "inner").read_text(), "precious\n", "refusal must not delete"
+        )
+        self.assertFalse(target.is_symlink())
+
+    def test_symlink_to_a_directory_is_still_replaced(self) -> None:
+        """is_dir() follows symlinks; only a *real* directory is refused."""
+        elsewhere = Path(self._tmp.name) / "elsewhere"
+        elsewhere.mkdir()
+        target = self.home / ".conf"
+        target.symlink_to(elsewhere)
+
+        apply_link(self._link())
+
+        self.assertTrue(target.is_symlink())
+        self.assertEqual(target.resolve(), self.source.resolve())
+        self.assertTrue(elsewhere.is_dir(), "the pointed-at directory must survive")
 
 
 if __name__ == "__main__":
