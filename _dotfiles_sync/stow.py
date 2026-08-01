@@ -1,312 +1,159 @@
+"""Check and apply a package's symlinks.
+
+Named for history: this used to shell out to GNU Stow and regex-scrape its
+output. The linking itself now lives in link.py; this module is the policy
+layer on top -- conflict reporting, --ignore handling, backups, and clearing
+stale links under --force-overwrite.
+"""
+
 from __future__ import annotations
 
 import filecmp
 import logging
-import os
 import shlex
 import shutil
-import subprocess
-import sys
-from collections.abc import Sequence
 from pathlib import Path
 
-from .config import CONFLICT_RE, FOREIGN_TARGET_RE, SCRIPT_DIR
-from .model import Conflict
+from .link import Link, LinkState, apply_link, plan_package
+from .model import PackageSpec
 
 LOGGER = logging.getLogger("dotfiles-sync")
 
 
-def ensure_stow_available() -> None:
-    if shutil.which("stow") is None:
-        LOGGER.error("GNU Stow is required but not installed.")
-        raise SystemExit(1)
-
-
-def meaningful_output(output: str) -> str:
-    lines: list[str] = []
-    for line in output.splitlines():
-        # Suppress any stow WARNING: line. Currently only the simulation
-        # banner exists; matching the prefix keeps us robust to phrasing
-        # changes between stow point releases.
-        if line.startswith("WARNING:"):
-            continue
-        if line.startswith("UNLINK: "):
-            continue
-        if line.endswith(" (reverts previous action)"):
-            continue
-        if not line.strip():
-            continue
-        lines.append(line)
-    return "\n".join(lines)
-
-
-def run_stow_command(
-    stow_dir: Path,
-    packages: Sequence[str],
-    target: Path,
-    *,
-    simulate: bool,
-    verbose: bool,
-    fold: bool = False,
-) -> subprocess.CompletedProcess[str]:
-    # --no-folding (default): always create per-leaf symlinks; never fold a
-    # directory into a single symlink. Folding was responsible for the
-    # "two scopes share a target dir" class of bugs (e.g. local-bin and
-    # fedora/bin both contributing to ~/.local/bin/, where the first
-    # scope's stow run folded .local/ into a symlink and the second
-    # refused to merge). Per-leaf is more verbose but predictable, and
-    # `ls -la ~/.config/foo/` always shows where each entry points.
-    #
-    # fold=True opts a package back into stow's default folding, where a whole
-    # source subtree becomes one directory symlink. Used by packages like
-    # skills/ that must link each subtree as an opaque bundle (see PackageSpec).
-    cmd = ["stow", "--restow"]
-    if not fold:
-        cmd.append("--no-folding")
-    if simulate:
-        cmd.append("--no")
-    if verbose:
-        cmd.append("--verbose")
-    cmd.extend(["-d", str(stow_dir), "-t", str(target)])
-    cmd.extend(packages)
-    return subprocess.run(
-        cmd,
-        cwd=SCRIPT_DIR,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def parse_conflicts(output: str) -> list[Conflict]:
-    conflicts: list[Conflict] = []
-    seen: set[str] = set()
-    for line in output.splitlines():
-        match = CONFLICT_RE.match(line)
-        if not match:
-            continue
-        source_rel, target_rel = match.groups()
-        if target_rel in seen:
-            continue
-        conflicts.append((source_rel, target_rel))
-        seen.add(target_rel)
-    return conflicts
-
-
-def package_for_conflict(source_rel: str, stow_dir: Path, target: Path) -> str | None:
-    """Package name owning a conflicting source path stow printed.
-
-    stow prints the source target-relative, so the leading components are the
-    path to the group's stow_dir, not the package: for the fedora group it is
-    "dotfiles/fedora/bin/..." and for gaming "dotfiles/fedora/gaming/home/...".
-    Only groups whose stow_dir is the repo root put the package name second.
-    Strip the stow_dir prefix so every group shape yields the real package.
-    """
-    prefix = Path(os.path.relpath(stow_dir, target))
-    try:
-        rest = Path(source_rel).relative_to(prefix)
-    except ValueError:
-        return None
-    parts = rest.parts
-    return parts[0] if parts else None
-
-
-def source_path_for_conflict(source_rel: str, target: Path) -> Path:
-    if source_rel.startswith("dotfiles/"):
-        return target / source_rel
-    return SCRIPT_DIR / source_rel
-
-
-def show_conflict_diffs(output: str, target: Path) -> None:
-    found = False
-    for source_rel, target_rel in parse_conflicts(output):
-        source_path = source_path_for_conflict(source_rel, target)
-        target_path = target / target_rel
-        if not source_path.is_file() or not target_path.is_file():
-            continue
-        if not found:
-            LOGGER.warning("Diffs:")
-            found = True
-        if filecmp.cmp(target_path, source_path, shallow=False):
-            LOGGER.warning(
-                f"  {target_rel} matches repo copy; "
-                "safe to replace with --apply --force-overwrite"
+def plan_group(
+    packages: list[str], specs: dict[str, PackageSpec], target: Path
+) -> list[Link]:
+    links: list[Link] = []
+    for name in packages:
+        spec = specs[name]
+        links.extend(
+            plan_package(
+                name,
+                spec.package_dir,
+                target,
+                bundle_dirs=spec.bundle_dirs,
             )
-        else:
-            LOGGER.warning(
-                f"  diff -u {shlex_quote(target_path)} {shlex_quote(source_path)}"
-            )
-
-
-def parse_foreign_targets(output: str) -> list[str]:
-    """Target-relative paths stow refuses because it does not own them."""
-    targets: list[str] = []
-    seen: set[str] = set()
-    for line in output.splitlines():
-        match = FOREIGN_TARGET_RE.match(line)
-        if not match:
-            continue
-        rel = match.group(1)
-        if rel in seen:
-            continue
-        targets.append(rel)
-        seen.add(rel)
-    return targets
-
-
-def clear_stale_repo_links(output: str, target: Path) -> None:
-    """Remove stale symlinks that point back into the repo at a dead path.
-
-    stow reports pre-existing symlinks it did not create as "not owned by
-    stow" and aborts. The common cause is an intra-repo file move: an old
-    managed link now points at a path that no longer exists. Under
-    --force-overwrite, drop exactly those (a symlink into SCRIPT_DIR whose
-    resolved target is missing). Anything else -- real files, or links
-    outside the repo -- is left untouched so stow still aborts on it.
-    """
-    script_real = SCRIPT_DIR.resolve()
-    for rel in parse_foreign_targets(output):
-        path = target / rel
-        if not path.is_symlink():
-            continue
-        raw = Path(os.readlink(path))
-        resolved = (path.parent / raw).resolve(strict=False)
-        if not resolved.is_relative_to(script_real):
-            continue
-        if resolved.exists():
-            continue
-        path.unlink()
-        LOGGER.warning(f"CLEARED STALE: {path} -> {raw}")
-
-
-def backup_conflict_path(rel_path: str, target: Path, backup_root: Path) -> None:
-    target_path = target / rel_path
-    if not target_path.exists() and not target_path.is_symlink():
-        return
-    backup_path = backup_root / rel_path
-    backup_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(target_path), str(backup_path))
-    LOGGER.warning(f"BACKED UP: {target_path} -> {backup_path}")
+        )
+    return links
 
 
 def shlex_quote(path: Path) -> str:
     return shlex.quote(str(path))
 
 
+def show_conflict_diffs(conflicts: list[Link]) -> None:
+    found = False
+    for link in conflicts:
+        if not link.source.is_file() or not link.target.is_file():
+            continue
+        if not found:
+            LOGGER.warning("Diffs:")
+            found = True
+        if filecmp.cmp(link.target, link.source, shallow=False):
+            LOGGER.warning(
+                f"  {link.rel} matches repo copy; "
+                "safe to replace with --apply --force-overwrite"
+            )
+        else:
+            LOGGER.warning(
+                f"  diff -u {shlex_quote(link.target)} {shlex_quote(link.source)}"
+            )
+
+
+def backup_conflict_path(link: Link, backup_root: Path) -> None:
+    if not link.target.exists() and not link.target.is_symlink():
+        return
+    backup_path = backup_root / link.rel
+    backup_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(link.target), str(backup_path))
+    LOGGER.warning(f"BACKED UP: {link.target} -> {backup_path}")
+
+
 def run_check_group(
     label: str,
-    stow_dir: Path,
     packages: list[str],
+    specs: dict[str, PackageSpec],
     target: Path,
     show_diffs: bool,
     verbose: bool,
     *,
     ignore: set[str],
-    fold: bool = False,
 ) -> bool:
+    """Report what --apply would do. True if anything needs attention."""
     if not packages:
         return False
-    result = run_stow_command(
-        stow_dir, packages, target, simulate=True, verbose=True, fold=fold
-    )
-    raw = result.stdout + result.stderr
-    output = meaningful_output(raw)
-    if not output:
+
+    links = plan_group(packages, specs, target)
+    conflicts = [
+        link
+        for link in links
+        if link.state is LinkState.CONFLICT and f"conflict:{link.rel}" not in ignore
+    ]
+    pending = [link for link in links if link.is_actionable]
+
+    if not conflicts and not pending:
         if verbose:
             LOGGER.debug(f"\n[{label}]")
             LOGGER.debug("OK")
         return False
-    conflicts = parse_conflicts(raw)
-    ignored_targets = {t for _, t in conflicts if f"conflict:{t}" in ignore}
-    remaining = [(s, t) for s, t in conflicts if t not in ignored_targets]
-    if not remaining and conflicts:
-        return False
-    if ignored_targets:
-        output = "\n".join(
-            line
-            for line in output.splitlines()
-            if not any(target_rel in line for target_rel in ignored_targets)
-        )
-    if not output:
-        return False
+
     LOGGER.warning(f"\n[{label}]")
-    sys.stdout.write(f"{output}\n")
-    for _, target_rel in remaining:
-        LOGGER.warning(f"  (--ignore conflict:{target_rel})")
+    for link in pending:
+        verb = "LINK" if link.state is LinkState.MISSING else "RELINK"
+        LOGGER.warning(f"  {verb}: {link.rel} -> {link.source}")
+    for link in conflicts:
+        LOGGER.warning(f"  CONFLICT: {link.rel} (exists, not ours)")
+        LOGGER.warning(f"  (--ignore conflict:{link.rel})")
     if show_diffs:
-        show_conflict_diffs(raw, target)
-    return True
+        show_conflict_diffs(conflicts)
+
+    # Pending links alone are not a failure in --check: that is just drift the
+    # next --apply fixes. Only conflicts need a human.
+    return bool(conflicts)
 
 
 def run_apply_group(
     label: str,
-    stow_dir: Path,
     packages: list[str],
+    specs: dict[str, PackageSpec],
     target: Path,
     verbose: bool,
     force_overwrite: bool,
     backup_root: Path | None,
     *,
     ignore: set[str],
-    fold: bool = False,
-    fold_anchors: tuple[Path, ...] = (),
 ) -> None:
     if not packages:
         return
 
-    # Pin the fold level for folded packages: stow only folds a source subtree
-    # into a directory symlink when the parent target dir already exists as a
-    # real directory. Without this, ~/.agents would become a single symlink
-    # instead of ~/.agents/skills/<name> links. Harmless for non-folded runs.
-    for anchor in fold_anchors:
-        (target / anchor).mkdir(parents=True, exist_ok=True)
+    links = plan_group(packages, specs, target)
+    conflicts = [
+        link
+        for link in links
+        if link.state is LinkState.CONFLICT and f"conflict:{link.rel}" not in ignore
+    ]
 
-    probe = run_stow_command(
-        stow_dir, packages, target, simulate=True, verbose=True, fold=fold
-    )
-    conflicts = parse_conflicts(probe.stdout + probe.stderr)
-    if conflicts:
-        ignored = {
-            source
-            for source, target_rel in conflicts
-            if f"conflict:{target_rel}" in ignore
-        }
-        if ignored:
-            skip_pkgs = {
-                package
-                for package in (
-                    package_for_conflict(source, stow_dir, target) for source in ignored
-                )
-                if package is not None
-            }
-            packages = [package for package in packages if package not in skip_pkgs]
-            for package in sorted(skip_pkgs):
-                LOGGER.warning(f"Skipping package '{package}' (ignored conflict)")
-            if not packages:
-                return
+    if conflicts and not force_overwrite:
+        # Skip whole packages that have an unresolved conflict rather than
+        # half-linking them, matching the previous behaviour.
+        blocked = {link.package for link in conflicts}
+        for package in sorted(blocked):
+            LOGGER.warning(f"Skipping package '{package}' (conflict; see --check)")
+        links = [link for link in links if link.package not in blocked]
 
-        if force_overwrite:
-            LOGGER.warning(f"\n[{label}]")
-            filtered = meaningful_output(probe.stdout + probe.stderr)
-            if filtered:
-                sys.stdout.write(f"{filtered}\n")
-            assert backup_root is not None
-            for _, target_rel in conflicts:
-                if f"conflict:{target_rel}" not in ignore:
-                    backup_conflict_path(target_rel, target, backup_root)
+    if force_overwrite and conflicts:
+        assert backup_root is not None
+        LOGGER.warning(f"\n[{label}]")
+        for link in conflicts:
+            backup_conflict_path(link, backup_root)
 
-    if force_overwrite:
-        clear_stale_repo_links(probe.stdout + probe.stderr, target)
-
-    result = run_stow_command(
-        stow_dir,
-        packages,
-        target,
-        simulate=False,
-        verbose=verbose,
-        fold=fold,
-    )
-    if result.returncode != 0:
-        sys.stdout.write(result.stdout)
-        sys.stderr.write(result.stderr)
-        raise SystemExit(result.returncode)
+    for link in links:
+        if link.state is LinkState.OK:
+            continue
+        if link.state is LinkState.CONFLICT and not force_overwrite:
+            continue
+        if link.state is LinkState.STALE:
+            LOGGER.warning(f"CLEARED STALE: {link.target}")
+        apply_link(link)
+        if verbose:
+            LOGGER.debug(f"LINK: {link.rel} -> {link.source}")

@@ -89,12 +89,11 @@ IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
     "node_modules",  # scratch type-package symlinks built by `make check-ts`
 }
 
-# Packages that stow with folding instead of the global --no-folding, mapping
-# each to the fold-anchor dirs that must exist before stowing so the fold lands
-# at the right level. See PackageSpec.fold / .fold_anchors.
-FOLDED_PACKAGES: Final[dict[str, tuple[Path, ...]]] = {
-    # skills/<name>/ must link as one opaque directory symlink so each skill's
-    # vendored README/LICENSE ride along past the .stowrc ignore rules.
+# Package-relative dirs whose children link as opaque directory symlinks
+# instead of per-leaf. See PackageSpec.bundle_dirs.
+BUNDLE_DIRS: Final[dict[str, tuple[Path, ...]]] = {
+    # Each skill must land as one directory symlink so its vendored
+    # README/LICENSE ride along past the ignore rules.
     "skills": (Path(".agents") / "skills",),
 }
 
@@ -105,8 +104,7 @@ def build_specs() -> dict[str, PackageSpec]:
             name=name,
             stow_dir=stow_dir,
             scope=scope,
-            fold=name in FOLDED_PACKAGES,
-            fold_anchors=FOLDED_PACKAGES.get(name, ()),
+            bundle_dirs=BUNDLE_DIRS.get(name, ()),
         )
         for scope, stow_dir, names in PACKAGE_GROUPS
         for name in names
@@ -141,12 +139,14 @@ def resolve_requested_packages(
 
 def group_active_packages(
     specs: dict[str, PackageSpec], active_names: set[str]
-) -> dict[tuple[PackageScope, Path, bool], list[str]]:
-    # Folding differs per package and is a stow-invocation flag, so it joins
-    # scope+stow_dir in the group key: folded packages get their own stow run.
-    groups: dict[tuple[PackageScope, Path, bool], list[str]] = {}
+) -> dict[PackageScope, list[str]]:
+    """Group active packages by scope, purely for reporting.
+
+    Link mode is now a per-package property the planner reads directly, so it
+    no longer has to split the grouping the way stow's per-invocation --fold
+    flag did.
+    """
+    groups: dict[PackageScope, list[str]] = {}
     for name in sorted(active_names):
-        spec = specs[name]
-        key = (spec.scope, spec.stow_dir, spec.fold)
-        groups.setdefault(key, []).append(name)
+        groups.setdefault(specs[name].scope, []).append(name)
     return groups

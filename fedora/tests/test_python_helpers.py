@@ -55,38 +55,26 @@ class FedoraPackageArrays(harness.PackageArrayChecks):
     SETUPS = FEDORA_SETUPS
 
 
-class FedoraStowGroupTests(unittest.TestCase):
-    """The fedora/gaming groups nest their stow_dir below the repo root, so the
-    package name is not at a fixed offset in the source path stow prints."""
+class PackageOwnershipTests(unittest.TestCase):
+    """The fedora/gaming groups nest their package dir below the repo root.
 
-    def test_ignored_conflict_maps_to_the_owning_package(self) -> None:
+    The planner carries the owning package on every Link, so the old
+    reverse-mapping from a printed source path (package_for_conflict) is gone.
+    This pins the property that replaced it: a link knows its package
+    regardless of how deep the group sits.
+    """
+
+    def test_links_report_their_owning_package(self) -> None:
         sys.path.insert(0, str(ROOT))
-        from _dotfiles_sync.stow import package_for_conflict
+        from _dotfiles_sync.inventory import build_specs
+        from _dotfiles_sync.stow import plan_group
 
-        target = ROOT.parent
-        cases = [
-            (ROOT, "zsh/.zshrc", "zsh"),
-            (ROOT / "fedora", "bin/.local/bin/cava", "bin"),
-            (
-                ROOT / "fedora/gaming",
-                "home/.config/MangoHud/MangoHud.conf",
-                "home",
-            ),
-        ]
-        for stow_dir, tail, expected in cases:
-            source_rel = f"{os.path.relpath(stow_dir, target)}/{tail}"
-            with self.subTest(stow_dir=stow_dir.name):
-                self.assertEqual(
-                    package_for_conflict(source_rel, stow_dir, target), expected
-                )
-
-    def test_conflict_outside_the_group_maps_to_nothing(self) -> None:
-        sys.path.insert(0, str(ROOT))
-        from _dotfiles_sync.stow import package_for_conflict
-
-        self.assertIsNone(
-            package_for_conflict("elsewhere/bin/tool", ROOT / "fedora", ROOT.parent)
-        )
+        specs = build_specs()
+        for name in ("bin", "home", "zsh"):
+            with self.subTest(package=name):
+                links = plan_group([name], specs, ROOT / "nonexistent-target")
+                self.assertTrue(links, f"{name} planned no links")
+                self.assertEqual({link.package for link in links}, {name})
 
 
 class SystemdUnitTargetTests(unittest.TestCase):
