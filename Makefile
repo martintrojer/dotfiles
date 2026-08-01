@@ -16,6 +16,7 @@ SHELL_SH_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node
 SHELL_SHEBANG_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f '^[^.]+$$' . -X bash -lc 'for path in "$$@"; do IFS= read -r first < "$$path" || true; if [[ $$first =~ ^\#!.*(ba|z|da|k)?sh([[:space:]]|$$) ]]; then printf "%s\\0" "$$path"; fi; done' bash
 SHELL_FILES_CMD := { $(SHELL_SH_FILES_CMD); $(SHELL_SHEBANG_FILES_CMD); }
 LUA_FILES := $(shell $(RG) -g '*.lua')
+ZSH_FILES := $(shell $(RG) -g '*.zsh' -g '.zshrc')
 PRETTIER_FILES := $(shell $(RG) -g '*.ts' -g '*.json' -g '*.jsonc' -g '*.css')
 TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
 FEDORA_TEST_DIRS := fedora/tests fedora/gaming/tests
@@ -27,6 +28,7 @@ DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests sway/.config/sway/scrip
 	format-all \
 	check-python \
 	check-shell \
+	check-zsh \
 	format-python \
 	check-lua \
 	format-lua \
@@ -47,11 +49,12 @@ DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests sway/.config/sway/scrip
 help:
 	printf '%s\n' \
 	  'Targets:' \
-	  '  make check-all         # python + shell + lua + prettier + ts + focused behavior tests' \
+	  '  make check-all         # python + shell + zsh + lua + prettier + ts + focused behavior tests' \
 	  '  make format-all        # python + lua + prettier formatters' \
 	  '  make check-python      # ruff check/format + ty + py_compile on all Python files/scripts' \
 	  '  make format-python     # ruff format + safe autofixes' \
 	  '  make check-shell       # shellcheck --severity=style on all sh/bash scripts' \
+	  '  make check-zsh         # zsh -n syntax check on .zshrc and .zsh fragments' \
 	  '  make check-lua         # stylua --check + luacheck' \
 	  '  make format-lua        # stylua' \
 	  '  make check-prettier    # prettier --check on ts/json/jsonc/css' \
@@ -68,7 +71,7 @@ help:
 	  '  make check-guides      # validate guide sources without writing output' \
 	  '  make clean-guides      # rm -rf guides/build'
 
-check-all: check-python check-shell check-lua check-prettier check-ts check-tmux-tests check-fedora-tests check-desktop-tests check-guides check-theme
+check-all: check-python check-shell check-zsh check-lua check-prettier check-ts check-tmux-tests check-fedora-tests check-desktop-tests check-guides check-theme
 
 format-all: format-python format-lua format-prettier
 
@@ -84,6 +87,12 @@ format-python:
 
 check-shell:
 	$(SHELL_FILES_CMD) | xargs -0 shellcheck --severity=style
+
+# zsh has no shellcheck equivalent; `zsh -n` still catches the parse errors that
+# would break a login shell (tools.zsh is machine-edited by render_theme.py).
+# Same .SHELLFLAGS -e dependency as check-fedora-tests below.
+check-zsh:
+	for file in $(ZSH_FILES); do zsh -n "$$file"; done
 
 check-lua:
 	stylua --check $(LUA_FILES)
