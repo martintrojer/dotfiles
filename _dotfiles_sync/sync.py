@@ -14,7 +14,7 @@ import shutil
 from pathlib import Path
 
 from .link import Link, LinkState, apply_link, plan_package
-from .model import PackageSpec
+from .model import Overwrite, PackageSpec
 
 LOGGER = logging.getLogger("dotfiles-sync")
 
@@ -117,8 +117,7 @@ def run_apply_group(
     specs: dict[str, PackageSpec],
     target: Path,
     verbose: bool,
-    force_overwrite: bool,
-    backup_root: Path | None,
+    overwrite: Overwrite | None,
     *,
     ignore: set[str],
 ) -> None:
@@ -135,7 +134,7 @@ def run_apply_group(
     ]
     conflicts = [link for link in links if link.state is LinkState.CONFLICT]
 
-    if conflicts and not force_overwrite:
+    if conflicts and overwrite is None:
         # Skip whole packages that have an unresolved conflict rather than
         # half-linking them, matching the previous behaviour.
         blocked = {link.package for link in conflicts}
@@ -143,16 +142,15 @@ def run_apply_group(
             LOGGER.warning(f"Skipping package '{package}' (conflict; see --check)")
         links = [link for link in links if link.package not in blocked]
 
-    if force_overwrite and conflicts:
-        assert backup_root is not None
+    if overwrite is not None and conflicts:
         LOGGER.warning(f"\n[{label}]")
         for link in conflicts:
-            backup_conflict_path(link, backup_root)
+            backup_conflict_path(link, overwrite.backup_root)
 
     for link in links:
         if link.state is LinkState.OK:
             continue
-        if link.state is LinkState.CONFLICT and not force_overwrite:
+        if link.state is LinkState.CONFLICT and overwrite is None:
             continue
         if link.state is LinkState.STALE:
             LOGGER.warning(f"CLEARED STALE: {link.target}")
