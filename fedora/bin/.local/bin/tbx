@@ -46,7 +46,6 @@ def usage(prog: str) -> str:
             "Options:",
             "  -c, --container, --toolbox NAME  Toolbox/container name",
             "  --prefer-host, --host-first      Prefer a real host binary, then toolbox",
-            "  --remote-only, --toolbox-only    Always run through toolbox",
             "  -h, --help                       Show this help",
         ]
     )
@@ -99,10 +98,6 @@ def find_outside_wrapper_dirs(command: str) -> str | None:
     )
 
 
-def default_prefer_host() -> bool:
-    return False
-
-
 def consume_option_value(argv: list[str], index: int, option: str) -> tuple[str, int]:
     if "=" in option:
         _, value = option.split("=", 1)
@@ -117,7 +112,7 @@ def consume_option_value(argv: list[str], index: int, option: str) -> tuple[str,
 
 def parse_args(argv: list[str]) -> Options:
     prog = Path(sys.argv[0]).name
-    prefer_host = default_prefer_host()
+    prefer_host = False
     explicit_toolbox: str | None = None
     index = 0
 
@@ -125,10 +120,6 @@ def parse_args(argv: list[str]) -> Options:
         arg = argv[index]
         if arg in ("-h", "--help"):
             raise UsageError(usage(prog))
-        if arg in ("--remote-only", "--toolbox-only"):
-            prefer_host = False
-            index += 1
-            continue
         if arg in ("--prefer-host", "--host-first"):
             prefer_host = True
             index += 1
