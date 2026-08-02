@@ -72,8 +72,12 @@ client.urgent           $red      $red     $text     $red      $red
 client.placeholder      $mantle   $mantle  $text     $mantle   $mantle
 client.background       $base
 
-for_window [title="^Picture in picture$"] floating enable, sticky enable, border pixel 2
-for_window [title="^Picture-in-Picture$"] floating enable, sticky enable, border pixel 2
+# Browser picture-in-picture. One case-insensitive rule rather than one literal
+# per spelling: Chrome titles it "Picture-in-picture" (lowercase second word),
+# Firefox uses "Picture-in-Picture", and older Chromium used spaces. Sway matches
+# PCRE case-sensitively, so the two literal rules that lived here matched neither
+# Chrome spelling and the PiP window tiled full-size instead of floating.
+for_window [title="(?i)^picture[- ]in[- ]picture$"] floating enable, sticky enable, border pixel 2
 # Thunar — float when summoned ad-hoc, useful default size.
 for_window [app_id="^thunar$"] floating enable, resize set 50 ppt 60 ppt, move position center
 # imv image viewer — throwaway, float it.
