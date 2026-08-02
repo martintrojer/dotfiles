@@ -175,8 +175,12 @@ bindsym $mod+Shift+l move right
 
 bindsym $mod+Page_Down workspace next
 bindsym $mod+Page_Up workspace prev
-# mod+g: toggle to last workspace (mirrors tmux prefix+g for last session).
+# g means "back where I was", Shift narrows the scope: last workspace, last
+# window on it. (mod+g mirrors tmux prefix+g for last session.) Sway has
+# back_and_forth for workspaces but no window equivalent and no focus verb
+# that reads history -- hence the script, named for the command it completes.
 bindsym $mod+g workspace back_and_forth
+bindsym $mod+Shift+g exec ~/.config/sway/scripts/window-back-and-forth
 # NB: next/prev only cycle through workspaces that already exist, so these
 # won't move to an empty (not-yet-created) adjacent workspace. Use the
 # numbered $mod+Shift+1..6 bindings to reach an empty target.

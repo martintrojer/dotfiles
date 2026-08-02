@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """Cycle preset sizes for the focused window.
 
-Tiled windows:  rotate width through 33 → 50 → 67 ppt (unchanged behavior).
-Floating windows: rotate through center90 and tallCenter rects, mirroring
-                  hammerspoon's Hyper+R cycle on macOS (minus full, which is
-                  covered by tiling).
+Tiled:    width through 33 → 50 → 67 ppt.
+Floating: center50 → center90 → tallCenter, mirroring hammerspoon's Hyper+R
+          on macOS minus full (which tiling already covers).
 
-State is stored in $XDG_STATE_HOME/sway/ so consecutive presses cycle.
-Tiled and floating windows track their cycle position independently.
+The cycle index lives in $XDG_STATE_HOME/sway/, tracked separately per layer.
 """
 
 import json
@@ -29,20 +27,18 @@ FLOAT_PRESETS = [
 ]
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+# ── sway tree ────────────────────────────────────────────────────────────────
+# swaymsg + get_tree are copied verbatim in window-back-and-forth, and ported
+# from fuzzel's _common.py (``_get_sway_tree``, the hardened original).
+# Copied on purpose: 17 stable lines across two scripts in one package is
+# under the bar docs/DECISIONS.md sets in "A shared pylib/ helper module", and
+# the walks below them differ anyway. Keep the three comparable.
 def swaymsg(*args: str) -> str:
     return subprocess.check_output(["swaymsg", *args], text=True)
 
 
 def get_tree():
-    """Run ``swaymsg -t get_tree`` and return the parsed root, or ``None``.
-
-    Guards ported from fuzzel/.config/fuzzel/scripts/_common.py
-    (``_get_sway_tree``). That file is the hardened original; it lives in a
-    different stow package, so it cannot be imported from here (see
-    docs/DECISIONS.md, "A shared pylib/ helper module"). Keep the two
-    comparable when either changes.
-    """
+    """Run ``swaymsg -t get_tree`` and return the parsed root, or ``None``."""
     try:
         raw = swaymsg("-t", "get_tree")
     except (OSError, subprocess.CalledProcessError):
@@ -88,6 +84,24 @@ def is_floating(container: dict) -> bool:
     return floating.startswith("user_") or container.get("type") == "floating_con"
 
 
+def focused_window_and_workspace() -> tuple[dict, dict] | None:
+    """Return (workspace, focused window), or None when there's nothing to resize.
+
+    Two guards: an empty workspace (sway marks the *workspace node* focused,
+    which is no window) and a missing workspace rect (the window is in the
+    scratchpad). None means exit quietly -- a keypress with nothing to act on
+    isn't an error.
+    """
+    result = get_focused()
+    if not result:
+        return None
+    _output, workspace, container = result
+    if container.get("type") == "workspace" or not workspace:
+        return None
+    return workspace, container
+
+
+# ── state ────────────────────────────────────────────────────────────────────
 def state_dir() -> str:
     d = os.path.join(
         os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local/state"),
@@ -111,22 +125,12 @@ def write_index(path: str, idx: int) -> None:
 
 # ── main ─────────────────────────────────────────────────────────────────────
 def main() -> None:
-    result = get_focused()
+    result = focused_window_and_workspace()
     if not result:
         sys.exit(0)
-    _output, workspace, container = result
+    workspace, container = result
 
-    # On an empty workspace sway marks the workspace node itself focused;
-    # there is nothing to resize.
-    if container.get("type") == "workspace":
-        sys.exit(0)
-
-    floating = is_floating(container)
-
-    if floating:
-        if not workspace:
-            # e.g. focused window is in the scratchpad: no real workspace rect.
-            sys.exit(0)
+    if is_floating(container):
         ws = workspace["rect"]
         state_file = os.path.join(state_dir(), "preset-float")
         idx = read_index(state_file)
