@@ -82,11 +82,16 @@ for_window [title="(?i)^picture[- ]in[- ]picture$"] floating enable, sticky enab
 for_window [app_id="^thunar$"] floating enable, resize set 50 ppt 60 ppt, move position center
 # imv image viewer — throwaway, float it.
 for_window [app_id="^imv$"] floating enable, resize set 50 ppt 60 ppt, move position center
-# Chrome auth/print/save dialogs reuse the same app_id as the main window
-# on Wayland, so we can't target them by app_id alone. Title-match the
-# common transient ones instead.
 for_window [app_id="^google-chrome$"] border pixel 2
-for_window [app_id="^google-chrome$" title="^(Open File|Save File|Save As|Print|Sign in)"] floating enable, move position center
+# File/print dialogs are not drawn by the requesting app at all: xdg-desktop-
+# portal-gtk owns them, so they carry app_id `xdg-desktop-portal-gtk`. The rule
+# here used to AND `app_id=^google-chrome$` with the dialog title, which can
+# never both hold, so every portal dialog tiled instead of floating. Match the
+# portal itself and every app gets the same behaviour for free.
+for_window [app_id="^xdg-desktop-portal-gtk$"] floating enable, move position center
+# Chrome's own in-process transients (Sign in, task manager, ...) do reuse the
+# browser app_id, so those still need a title match.
+for_window [app_id="^google-chrome$" title="^(Sign in|Task Manager)"] floating enable, move position center
 # VS Code is Electron → CSD; force Sway's border.
 for_window [app_id="^(code|vscode)$"] border pixel 2
 # Generic auth prompt title (polkit/ssh-askpass style).
