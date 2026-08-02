@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""`workspace back_and_forth`, one level in: the window equivalent.
+
+mod+g returns to the last workspace, mod+Shift+g to the last window within
+this one -- and never leaves it. Sway keeps that history in each container's
+``focus`` array, most recent first, so the target is the workspace's second
+entry: no state of our own, and pressing twice returns you home.
+
+Sway has the verb for workspaces but not for windows. The focus family was
+measured on 1.11 against three windows whose history order deliberately
+differed from their layout order (with two you can't tell a toggle from a
+cycle):
+
+  focus prev/next [sibling]  walk the layout, stopping at the edge; never
+                             wrap, never consult history
+  focus child                no-op on a flat workspace
+  focus tiling/floating      recall the last window of *that layer*, so they
+                             can't move between two floats
+  focus mode_toggle          crosses layers (mod+a), not within one
+
+Marks are the other tempting route and also fail: `mark --add`/`unmark` act
+on the *focused* window, so the bookkeeping clobbers the mark it just set.
+
+Floats are why it's bound -- directional focus doesn't work between them --
+but reading history ignores the tiled/floating barrier that the verbs above
+are organised around, so it toggles across that too.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+
+
+# ── sway tree ────────────────────────────────────────────────────────────────
+# swaymsg + get_tree are duplicated verbatim in preset-width, and ported from
+# fuzzel's _common.py (``_get_sway_tree``, the hardened original). See the
+# note there: copied on purpose rather than shared. The walk below diverges --
+# it needs only the workspace, and folds in the empty-workspace guard.
+def swaymsg(*args: str) -> str:
+    return subprocess.check_output(["swaymsg", *args], text=True)
+
+
+def get_tree():
+    """Run ``swaymsg -t get_tree`` and return the parsed root, or ``None``."""
+    try:
+        raw = swaymsg("-t", "get_tree")
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    try:
+        tree = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return tree if isinstance(tree, dict) else None
+
+
+def focused_workspace() -> dict | None:
+    """Return the workspace holding focus, or None if nothing actionable."""
+    tree = get_tree()
+    if tree is None:
+        return None
+
+    def walk(node, workspace=None):
+        # The root's name really is null, so coerce before prefix tests.
+        name = node.get("name") or ""
+        if node.get("type") == "workspace" and not name.startswith("__"):
+            workspace = node
+        if node.get("focused"):
+            # An empty workspace marks *itself* focused, and a scratchpad
+            # window has no real workspace: nothing to swap in either case.
+            return workspace if node.get("type") != "workspace" else None
+        for child in (*node.get("nodes", []), *node.get("floating_nodes", [])):
+            if not isinstance(child, dict):
+                continue
+            result = walk(child, workspace)
+            if result:
+                return result
+        return None
+
+    return walk(tree)
+
+
+def leaf_of(container: dict, by_id: dict[int, dict]) -> dict | None:
+    """Follow a container's focus chain down to an actual window.
+
+    A ``focus`` entry can name a split container rather than a window, and
+    only a leaf gives a stable con_id to address. Descend focus[0] until the
+    children run out.
+    """
+    seen: set[int] = set()
+    node = container
+    while True:
+        cid = node.get("id")
+        # A malformed tree must not hang a keybinding. Nodes without an int id
+        # can't be revisit-checked or addressed, so they're dead ends too.
+        if not isinstance(cid, int) or cid in seen:
+            return None
+        seen.add(cid)
+        children = [*node.get("nodes", []), *node.get("floating_nodes", [])]
+        if not children:
+            return node
+        focus = node.get("focus") or []
+        nxt = next((by_id[c] for c in focus if c in by_id), None)
+        if nxt is None:
+            nxt = next((c for c in children if isinstance(c, dict)), None)
+        if nxt is None:
+            return node
+        node = nxt
+
+
+def other_window_id(workspace: dict) -> int | None:
+    """Return the workspace's previously focused window, or None."""
+    by_id = {}
+
+    def index(node: dict) -> None:
+        if isinstance(node.get("id"), int):
+            by_id[node["id"]] = node
+        for child in (*node.get("nodes", []), *node.get("floating_nodes", [])):
+            if isinstance(child, dict):
+                index(child)
+
+    index(workspace)
+
+    # focus[0] is the current window, focus[1] the one before it. A workspace
+    # with a single window (or none) has nothing to swap to.
+    focus = [c for c in workspace.get("focus") or [] if c in by_id]
+    if len(focus) < 2:
+        return None
+    leaf = leaf_of(by_id[focus[1]], by_id)
+    return leaf.get("id") if leaf else None
+
+
+def main() -> None:
+    if len(sys.argv) > 1:
+        print("usage: window-back-and-forth", file=sys.stderr)
+        sys.exit(2)
+
+    workspace = focused_workspace()
+    if workspace is None:
+        sys.exit(0)
+
+    target = other_window_id(workspace)
+    if target is None:
+        sys.exit(0)
+    swaymsg(f"[con_id={target}] focus")
+
+
+if __name__ == "__main__":
+    main()

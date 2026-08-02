@@ -14,8 +14,8 @@ without surprises.
 
 - `~/.config/sway/config` — main config (Mod4, Catppuccin colors, app launchers,
   workspaces, layout primitives, media keys, screenshots).
-- `~/.config/sway/scripts/` — session, screenshot, lock, app launcher, and
-  preset-width helpers.
+- `~/.config/sway/scripts/` — session, screenshot, lock, app launcher,
+  `preset-width`, and `window-back-and-forth` helpers.
 - Windowing: tiling with splits, tabbed layouts, floating mode, scratchpad-ready
   primitives, and six numbered workspaces.
 
@@ -35,6 +35,7 @@ verb does the same thing whether you're inside tmux or on the bare desktop.
 | Clipboard history picker      | `mod+v`           | `prefix+v`      |
 | Fullscreen / zoom             | `mod+f`           | `prefix+z`      |
 | Last session/workspace        | `mod+g`           | `prefix+g`      |
+| Last window (same workspace)  | `mod+Shift+g`     | `prefix+l`      |
 | Focus left/down/up/right      | `mod+h/j/k/l`     | `C-h/j/k/l`     |
 | Move element left/down/up/right | `mod+Shift+h/j/k/l` | (n/a, panes don't move that way) |
 | Primary "switcher" picker     | `mod+Tab` (windows) | `prefix+s` (sessions) |
@@ -83,26 +84,48 @@ Modifier conventions inside sway:
   (right) — letter-based only.
 - `mod+1..6` — workspaces (`workspace_auto_back_and_forth` makes the same key
   toggle back to the previous workspace, complementing `mod+g`).
+- `mod+g` / `mod+Shift+g` — back to the last workspace / the last window on
+  this workspace. Same verb at two scopes: `g` is "back where I was", Shift
+  narrows it. `mod+g` crosses workspaces, `mod+Shift+g` never leaves one. See
+  the layout section for what the window half has to do to work.
 
 Layout containers:
 
 - `mod+[` / `mod+]` — split vertical / horizontal.
 - `mod+.` — toggle between tabbed and split layout for the current container.
-- `mod+f` / `mod+Shift+f` — fullscreen / floating.
+- `mod+f` / `mod+Shift+space` — fullscreen / floating toggle.
 - `mod+c` / `mod+Ctrl+c` — focus parent / child container.
 - `mod+r` cycles preset sizes via `~/.config/sway/scripts/preset-width`.
-  **Tiled:** rotates width through `33 → 50 → 67 ppt` (same as before).
-  **Floating:** rotates through `center50 → center90 → tallCenter` (50×60%
-  centered, 90×90% centered, then 70% wide × full height centered) — mirroring hammerspoon's Hyper+R
-  minus full (which is covered by tiling). Each step positions the window
-  absolutely within the workspace. State is persisted in
-  `$XDG_STATE_HOME/sway/` (separate files for tiled and floating). Its tree
-  walk and floating detection both shipped crashes on an ordinary keypress, so
-  they carry a focused regression suite in `~/.config/sway/scripts/tests/`,
-  run by `make check-desktop-tests`.
-- `mod+-` / `mod+=` — shrink / grow width by 10 ppt; `Shift+-` / `Shift+=` for
-  height. Resize *mode* is intentionally not bound — the preset cycle plus the
-  ten-percent steppers cover the workflow.
+  **Tiled:** width through `33 → 50 → 67 ppt`. **Floating:** `center50 →
+  center90 → tallCenter` (50×60%, 90×90%, then 70% wide × full height, all
+  centered), mirroring hammerspoon's Hyper+R minus full. Position is absolute
+  within the workspace; the cycle index persists in `$XDG_STATE_HOME/sway/`,
+  separately per layer. Its tree walk and floating detection both shipped
+  crashes on an ordinary keypress, hence the tests in
+  `~/.config/sway/scripts/tests/` (`make check-desktop-tests`).
+- `mod+-` / `mod+=` — shrink / grow width by 50 px; `Shift+-` / `Shift+=` for
+  height (sway clamps on tiled windows). Resize *mode* is intentionally not
+  bound — the preset cycle plus these steppers cover the workflow.
+- `mod+Shift+g` — `workspace back_and_forth` one level in: swap to the last
+  window on this workspace (`~/.config/sway/scripts/window-back-and-forth`,
+  named for the sway command it completes). Reads sway's own per-workspace
+  focus history, inventing no ordering and keeping no state. Floats are why
+  it's bound — directional focus doesn't work between them, so a browser plus
+  one popped-in window otherwise has no one-key swap — but history ignores the
+  tiled/floating barrier the focus verbs are organised *around*, so it toggles
+  across that too. `mod+a` stays the deliberate crossing.
+
+  Nothing in the focus family reads history, measured on 1.11 against three
+  windows whose history order differed from their layout order (with two you
+  can't tell a toggle from a cycle): `focus prev`/`next` walk the layout and
+  dead-end at the edge, `focus child` no-ops when flat, `focus
+  tiling`/`floating` recall only their own layer, `focus mode_toggle` crosses
+  layers. Marks fail too — `mark`/`unmark` act on the *focused* window, so the
+  bookkeeping clobbers the mark it just set.
+
+  One trap, covered by tests since a wrong answer is silent: a `focus` entry
+  can name a split container rather than a window, so the lookup descends
+  `focus[0]` to a leaf and skips stale ids left by closed windows.
 
 Pickers (all under `fuzzel/.config/fuzzel/scripts/`):
 

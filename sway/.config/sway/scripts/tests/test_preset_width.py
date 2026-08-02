@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Focused regression tests for the preset-width sway tree walk.
+"""Focused regression tests for preset-width's sway tree walk.
 
 Scope per docs/DECISIONS.md ("No unit tests for the control-plane and helper
-scripts" + its 2026-08-01 amendment): only the two functions that shipped
-crashes on a normal keypress -- ``is_floating`` against a workspace node, and
-``get_focused``'s walk over a malformed or empty tree. The preset arithmetic
-and the state-file counter are not covered: both fail visibly and immediately.
+scripts" + its 2026-08-01 amendment): only the functions that shipped crashes
+on a normal keypress -- ``is_floating`` on a workspace node, ``get_focused``
+over a malformed tree, and the guard that wraps them. Preset arithmetic and
+the state-file counter stay uncovered: both fail visibly and immediately.
 """
 
 from __future__ import annotations
@@ -139,5 +139,78 @@ class GetFocused(unittest.TestCase):
         self.assertIsNone(self.walk("[1, 2]"))
 
 
-if __name__ == "__main__":
-    unittest.main()
+class FocusedWindowAndWorkspace(unittest.TestCase):
+    """The guard preset-width sits behind.
+
+    Each condition was a crash or a stray resize before it became a guard.
+    """
+
+    def call(self, raw: str):
+        with mock.patch.object(preset, "swaymsg", lambda *a: raw):
+            return preset.focused_window_and_workspace()
+
+    def wrap(self, ws_extra: dict, nodes: list) -> str:
+        return json.dumps(
+            {
+                "type": "root",
+                "name": None,
+                "nodes": [
+                    {
+                        "type": "output",
+                        "name": "DP-1",
+                        "rect": RECT,
+                        "nodes": [
+                            {
+                                "type": "workspace",
+                                "name": "1",
+                                "rect": RECT,
+                                "nodes": nodes,
+                                **ws_extra,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+
+    def test_a_focused_window_comes_back_with_its_workspace(self) -> None:
+        win = {"id": 7, "type": "con", "focused": True, "floating": "auto_off"}
+        result = self.call(self.wrap({}, [win]))
+        assert result is not None
+        workspace, container = result
+        self.assertEqual(workspace["name"], "1")
+        self.assertEqual(container["id"], 7)
+
+    def test_an_empty_workspace_is_not_a_window(self) -> None:
+        # Sway marks the workspace node itself focused; resizing it is
+        # meaningless.
+        self.assertIsNone(self.call(self.wrap({"focused": True}, [])))
+
+    def test_a_scratchpad_window_has_no_workspace_rect(self) -> None:
+        raw = json.dumps(
+            {
+                "type": "root",
+                "name": None,
+                "nodes": [
+                    {
+                        "type": "output",
+                        "name": "__i3",
+                        "rect": RECT,
+                        "nodes": [
+                            {
+                                "type": "workspace",
+                                "name": "__i3_scratch",
+                                "rect": RECT,
+                                "nodes": [
+                                    {"id": 9, "type": "floating_con", "focused": True}
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        self.assertIsNone(self.call(raw))
+
+    def test_a_dead_or_babbling_swaymsg_is_none(self) -> None:
+        self.assertIsNone(self.call("not json"))
