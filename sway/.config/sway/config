@@ -92,7 +92,8 @@ for_window [app_id="^xdg-desktop-portal-gtk$"] floating enable, move position ce
 # Chrome's own in-process transients (Sign in, task manager, ...) do reuse the
 # browser app_id, so those still need a title match.
 for_window [app_id="^google-chrome$" title="^(Sign in|Task Manager)"] floating enable, move position center
-# VS Code is Electron → CSD; force Sway's border.
+# VS Code is Electron → CSD; force Sway's border. No launch binding (started
+# by other means), but the window still needs the rule when it shows up.
 for_window [app_id="^(code|vscode)$"] border pixel 2
 # Generic auth prompt title (polkit/ssh-askpass style).
 for_window [title="^Authentication Required$"] floating enable, move position center
@@ -126,7 +127,6 @@ bindsym $mod+Shift+m exec ~/.config/fuzzel/scripts/cider
 bindsym $mod+Shift+a exec footclient --app-id=wiremix-float wiremix
 bindsym $mod+Shift+b exec footclient --app-id=bluetui-float zsh -il -c bluetui
 bindsym $mod+Shift+w exec footclient --app-id=nmtui-float nmtui
-bindsym $mod+i exec ~/.config/sway/scripts/open-vscode
 
 # Powermenu kept on Shift (destructive: lock/suspend/shutdown), the
 # rest of the pickers promoted off Shift since they're frequent and
