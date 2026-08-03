@@ -43,7 +43,7 @@ verb does the same thing whether you're inside tmux or on the bare desktop.
 Modifier conventions inside sway:
 
 - `mod+<letter>` — launch an app (`b` browser, `y` yazi (TUI files), `m` cider,
-  `i` vscode, `e` emoji). Terminal is `mod+Return` (mirrors `Hyper+Return` in
+  `e` emoji). Terminal is `mod+Return` (mirrors `Hyper+Return` in
   `hammerspoon/` so the verb is identical on Linux and macOS). GUI file
   managers (thunar etc.) deliberately don't get a bind — reach via
   `mod+space` fuzzel on the rare occasion.
@@ -62,7 +62,6 @@ Modifier conventions inside sway:
   | `mod+Shift+a` | Audio mixer    | `wiremix` in a centered floating terminal       | new mixer window         |
   | `mod+Shift+b` | Bluetooth TUI  | `bluetui` in a centered floating terminal       | new Bluetooth TUI        |
   | `mod+Shift+w` | Network TUI    | `nmtui` in a centered floating terminal         | new NetworkManager TUI   |
-  | `mod+i`       | VS Code        | `raise-window` script                           | focus existing / spawn   |
   | `mod+e`       | bemoji         | none (single-shot picker)                       | n/a                      |
 
   `raise-window` is fire-and-forget on cold spawn — the very first
