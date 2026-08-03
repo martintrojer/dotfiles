@@ -6,7 +6,7 @@ set $mod Mod4
 # isn't running, fix the unit rather than papering over it.
 set $term footclient
 set $menu fuzzel --prompt 'Run ' --placeholder 'Search apps...'
-set $browser sh -lc "$HOME/.config/sway/scripts/open-browser"
+set $browser ~/.config/sway/scripts/open-browser
 set $lock ~/.config/sway/scripts/lock-screen
 set $quit ~/.config/sway/scripts/session-quit
 
@@ -119,14 +119,14 @@ bindsym $mod+F1 exec ~/.config/fuzzel/scripts/hotkeys
 bindsym $mod+Return exec $term
 bindsym $mod+space exec $menu
 bindsym $mod+b exec $browser
-bindsym $mod+y exec sh -lc "$HOME/.config/sway/scripts/open-yazi"
+bindsym $mod+y exec ~/.config/sway/scripts/open-yazi
 bindsym $mod+Shift+y exec thunar
-bindsym $mod+m exec sh -lc "$HOME/.config/sway/scripts/open-cider"
+bindsym $mod+m exec ~/.config/sway/scripts/open-cider
 bindsym $mod+Shift+m exec ~/.config/fuzzel/scripts/cider
 bindsym $mod+Shift+a exec footclient --app-id=wiremix-float wiremix
 bindsym $mod+Shift+b exec footclient --app-id=bluetui-float zsh -il -c bluetui
 bindsym $mod+Shift+w exec footclient --app-id=nmtui-float nmtui
-bindsym $mod+i exec sh -lc "$HOME/.config/sway/scripts/open-vscode"
+bindsym $mod+i exec ~/.config/sway/scripts/open-vscode
 
 # Powermenu kept on Shift (destructive: lock/suspend/shutdown), the
 # rest of the pickers promoted off Shift since they're frequent and
@@ -231,8 +231,8 @@ bindsym $mod+equal       resize grow   width  50 px
 bindsym $mod+Shift+minus resize shrink height 50 px
 bindsym $mod+Shift+equal resize grow   height 50 px
 
-bindsym $mod+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot all"
-bindsym $mod+Ctrl+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot output"
-bindsym $mod+Alt+F5 exec sh -lc "$HOME/.config/sway/scripts/screenshot region"
+bindsym $mod+F5 exec ~/.config/sway/scripts/screenshot all
+bindsym $mod+Ctrl+F5 exec ~/.config/sway/scripts/screenshot output
+bindsym $mod+Alt+F5 exec ~/.config/sway/scripts/screenshot region
 
 bindsym Ctrl+Alt+Delete exec $quit
