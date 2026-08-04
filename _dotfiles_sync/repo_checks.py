@@ -399,10 +399,16 @@ def collect_scan_roots(
             if not child.is_dir() or child.is_symlink():
                 continue
             rel = child.relative_to(spec.package_dir)
-            # A bundle dir is linked whole, so its contents live in the repo,
-            # not under `target`. Record the bundle itself and stop: recursing
-            # would invent target paths that cannot exist.
+            # A bundle's *children* link whole, so their contents live in the
+            # repo, not under `target`; recursing would invent target paths
+            # that cannot exist. The bundle dir itself is still a scan root,
+            # because that is exactly where those child links land -- without
+            # it, deleting a bundled item (a skill) stranded its symlink in
+            # $HOME with no scan root able to see it, so neither --check nor
+            # the prune step could ever report or clear it.
             if any(rel.is_relative_to(bundle) for bundle in spec.bundle_dirs):
+                if rel in spec.bundle_dirs:
+                    roots.add(target / rel)
                 continue
             roots.add(target / rel)
     return sorted(roots, key=lambda path: len(path.parts))
