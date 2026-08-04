@@ -34,6 +34,10 @@ NAME_PATTERNS: Final[tuple[str, ...]] = (
     r"\.direnv",
     r"\.DS_Store",
     r"CACHEDIR\.TAG",
+    # Reflow tempfiles from markdown formatters (also in .gitignore). They
+    # appear mid-edit anywhere in the tree, including inside packages, and a
+    # run that catches one would offer to link an editor scratch file.
+    r"\.m-reflow-.+\.md",
     # Focused regression suites live next to the scripts they cover, because
     # those scripts rely on sys.path[0] colocation. They are repo
     # infrastructure, not dotfiles: never link them into $HOME.

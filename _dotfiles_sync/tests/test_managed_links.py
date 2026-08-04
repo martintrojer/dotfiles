@@ -153,6 +153,22 @@ class ScanScopeTests(ManagedLinkLayout):
         dest = self.link(".agents/skills", bundle)
         self.assertEqual(self.walk(), [(dest, bundle.resolve())])
 
+    def test_link_to_a_deleted_bundle_child_is_found(self) -> None:
+        # Bundle children link one-per-directory into the bundle dir, so the
+        # bundle dir must itself be a scan root. It wasn't: deleting a skill
+        # left ~/.agents/skills/<name> dangling, invisible to --check and
+        # unreachable by the prune step, forever.
+        self.specs["pkg"] = PackageSpec(
+            name="pkg",
+            stow_dir=self.repo,
+            scope="common",
+            bundle_dirs=(Path(".agents/skills"),),
+        )
+        self.repo_file(".agents/skills/kept/SKILL.md")
+        gone = self.repo / "pkg" / ".agents" / "skills" / "deleted"
+        dest = self.link(".agents/skills/deleted", gone)
+        self.assertEqual(self.walk(), [(dest, gone.resolve())])
+
 
 class PruneStaleManagedLinksTests(ManagedLinkLayout):
     """Deleting a file from the repo must not strand its link in $HOME.
