@@ -13,4 +13,10 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+# network-online.target is a boot-time sync point: it stays "reached" across a
+# suspend/resume cycle, so it does not gate a Persistent=true catch-up run that
+# fires seconds after wake, before DHCP. flatpak then downgrades every failed
+# ref lookup to a warning, prints "Nothing to update.", and exits 0 -- a silent
+# no-op. nm-online re-checks actual connectivity on each invocation.
+ExecStartPre=/usr/bin/nm-online -s -q --timeout=60
 ExecStart=/usr/bin/flatpak update --system --noninteractive

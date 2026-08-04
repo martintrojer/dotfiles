@@ -25,7 +25,11 @@ This copies `flatpak-update.service` and `flatpak-update.timer` into
 ## Units
 
 - `flatpak-update.service` — oneshot `flatpak update --system --noninteractive`,
-  ordered after `network-online.target`.
+  gated on `nm-online -s`. `network-online.target` alone is not enough: it stays
+  "reached" across suspend/resume, so a `Persistent=true` catch-up run fires
+  seconds after wake with no DHCP lease yet. flatpak treats every failed ref
+  lookup as non-fatal, reports "Nothing to update.", and exits 0, so the failure
+  is silent.
 - `flatpak-update.timer` — `OnCalendar=daily`, `Persistent=true` (catches up
   after downtime), `RandomizedDelaySec=1h`.
 
