@@ -378,14 +378,34 @@ def check_systemd_unit_targets(
 def collect_scan_roots(
     specs: dict[str, PackageSpec], target: Path, active_names: set[str]
 ) -> list[Path]:
-    roots: set[Path] = set()
+    """Every directory under `target` that some package mirrors, plus `target`.
+
+    Only these can hold a managed link: the planner never creates one outside a
+    path shape the repo mirrors. Scanning exactly this set replaces a recursive
+    walk of each top-level root, which on Linux meant descending all of
+    `~/.local` -- 450k entries of Steam depots, mise installs, and container
+    layers -- to find symlinks that only ever live in 76 known directories.
+    macOS never felt it because those trees aren't there.
+
+    Directories are returned parent-first so the prune step's parent walk still
+    sees a containing directory before what it contains.
+    """
+    roots: set[Path] = {target}
     for name in active_names:
         spec = specs[name]
         if not spec.package_dir.is_dir():
             continue
-        for child in spec.package_dir.iterdir():
-            roots.add(target / child.name)
-    return sorted(roots)
+        for child in spec.package_dir.rglob("*"):
+            if not child.is_dir() or child.is_symlink():
+                continue
+            rel = child.relative_to(spec.package_dir)
+            # A bundle dir is linked whole, so its contents live in the repo,
+            # not under `target`. Record the bundle itself and stop: recursing
+            # would invent target paths that cannot exist.
+            if any(rel.is_relative_to(bundle) for bundle in spec.bundle_dirs):
+                continue
+            roots.add(target / rel)
+    return sorted(roots, key=lambda path: len(path.parts))
 
 
 def owner_for_repo_path(
@@ -435,26 +455,63 @@ def iter_managed_links(
     This is the expensive part of both `--apply` and `--check` (cli.py times
     it). Sharing one traversal keeps the two modes from disagreeing about
     which links exist. Callers get the pair and decide what it means: prune
-    tests ignore-patterns, check tests staleness. Iteration order follows
-    collect_scan_roots and rglob, which the prune step's parent walk relies
-    on -- that logic stays in the caller.
+    tests ignore-patterns, check tests staleness.
+
+    Each scan root is read one level deep, because collect_scan_roots already
+    enumerates every mirrored directory -- recursing would re-walk unmanaged
+    trees that happen to sit under a mirrored path. Roots arrive parent-first,
+    so the prune step's parent walk still sees containers before contents.
     """
     script_real = SCRIPT_DIR.resolve()
+    seen: set[Path] = set()
     for scan_root in collect_scan_roots(specs, target, active_names):
-        if not scan_root.exists() and not scan_root.is_symlink():
-            continue
-
-        if scan_root.is_dir() and not scan_root.is_symlink():
-            scan_iter: Iterable[Path] = chain((scan_root,), scan_root.rglob("*"))
+        if scan_root.is_symlink():
+            candidates: Iterable[Path] = (scan_root,)
         else:
-            scan_iter = (scan_root,)
-
-        for path in scan_iter:
-            if not path.is_symlink():
+            try:
+                candidates = chain((scan_root,), sorted(scan_root.iterdir()))
+            except OSError:
+                # Not yet linked, or unreadable. Nothing to audit either way.
                 continue
+
+        for path in candidates:
+            if path in seen or not path.is_symlink():
+                continue
+            seen.add(path)
             repo_target = managed_link_target(path, script_real)
             if repo_target is not None:
                 yield path, repo_target
+
+
+def prune_stale_managed_links(
+    target: Path,
+    specs: dict[str, PackageSpec],
+    active_names: set[str],
+) -> None:
+    """Remove managed links whose repo source is gone.
+
+    `--check` reports these as STALE, but nothing used to clear them:
+    run_apply_group only fixes links that are still in a package's plan, and a
+    file deleted from the repo produces no plan entry. So deleting a script
+    left its symlink in `$HOME` forever, dangling, and every later `--check`
+    reported an issue that no `--apply` could resolve.
+
+    Only broken links are pruned. A dangling symlink into this repo is garbage
+    whoever owns it, whereas a link that still resolves may belong to a package
+    that is merely inactive on this host -- that is the INVALID case, which is
+    reported and left alone.
+    """
+    print_header = lazy_header("stale-symlinks")
+
+    for path, _repo_target in iter_managed_links(target, specs, active_names):
+        if path.exists():
+            continue
+        try:
+            path.unlink()
+        except OSError:
+            continue
+        print_header()
+        LOGGER.warning(f"CLEARED STALE: {path.relative_to(target)}")
 
 
 def prune_managed_ignored_artifact_links(

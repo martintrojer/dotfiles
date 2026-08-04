@@ -22,7 +22,7 @@ from _dotfiles_sync import config, repo_checks
 from _dotfiles_sync.model import PackageSpec
 
 
-class IterManagedLinksTests(unittest.TestCase):
+class ManagedLinkLayout(unittest.TestCase):
     """A miniature stow layout: repo/pkg/... symlinked into target/."""
 
     def setUp(self) -> None:
@@ -59,6 +59,10 @@ class IterManagedLinksTests(unittest.TestCase):
         return list(
             repo_checks.iter_managed_links(self.target, self.specs, self.active)
         )
+
+
+class IterManagedLinksTests(ManagedLinkLayout):
+    """What the shared traversal does and does not yield."""
 
     def test_nested_managed_link_is_found(self) -> None:
         src = self.repo_file(".config/app/conf")
@@ -101,6 +105,97 @@ class IterManagedLinksTests(unittest.TestCase):
             [(a.name, b.name) for a, b in pairs[:3]],
             [("__pycache__", "__pycache__"), ("app", "app"), (".config", ".config")],
         )
+
+
+class ScanScopeTests(ManagedLinkLayout):
+    """The walk covers mirrored directories and nothing else.
+
+    collect_scan_roots used to hand back top-level roots for a recursive
+    rglob, so a managed link under `~/.local/bin` meant descending every
+    unmanaged sibling tree -- 450k entries on this Linux host, ~11s a run.
+    """
+
+    def test_link_in_a_mirrored_dir_is_found_without_walking_siblings(self) -> None:
+        src = self.repo_file(".local/bin/tool")
+        dest = self.link(".local/bin/tool", src)
+
+        # A large unmanaged tree beside the mirrored dir, as ~/.local/share is.
+        bulk = self.target / ".local" / "share" / "depot"
+        bulk.mkdir(parents=True)
+        for index in range(50):
+            (bulk / f"blob{index}").write_text("x", encoding="utf-8")
+
+        self.assertEqual(self.walk(), [(dest, src.resolve())])
+
+    def test_unmanaged_subtree_under_a_mirrored_dir_is_not_descended(self) -> None:
+        self.repo_file(".config/app/conf")
+        stray = self.target / ".config" / "app" / "cache" / "deep"
+        stray.mkdir(parents=True)
+        # A link into the repo, but buried where the planner never puts one.
+        stray_link = stray / "conf"
+        stray_link.symlink_to(self.repo / "pkg" / ".config" / "app" / "conf")
+        self.assertEqual(self.walk(), [])
+
+    def test_bundle_dir_contents_are_not_scanned(self) -> None:
+        # A bundle links as one directory symlink, so scanning inside it walks
+        # back into the repo. Any symlink a vendored tree happens to contain
+        # would then be reported as a managed link in $HOME -- and offered to
+        # the prune step, whose unlink() would land on the repo's own file.
+        self.specs["pkg"] = PackageSpec(
+            name="pkg",
+            stow_dir=self.repo,
+            scope="common",
+            bundle_dirs=(Path(".agents/skills"),),
+        )
+        src = self.repo_file(".agents/skills/one/SKILL.md")
+        (src.parent / "alias").symlink_to(src)
+        bundle = src.parent.parent
+        dest = self.link(".agents/skills", bundle)
+        self.assertEqual(self.walk(), [(dest, bundle.resolve())])
+
+
+class PruneStaleManagedLinksTests(ManagedLinkLayout):
+    """Deleting a file from the repo must not strand its link in $HOME.
+
+    run_apply_group only touches links that are still in a package's plan, so
+    a deleted repo file produced a dangling symlink that --check reported
+    forever and no --apply could clear.
+    """
+
+    def prune(self) -> None:
+        repo_checks.prune_stale_managed_links(self.target, self.specs, self.active)
+
+    def test_dangling_link_into_the_repo_is_removed(self) -> None:
+        missing = self.repo / "pkg" / ".config" / "app" / "deleted"
+        dest = self.link(".config/app/deleted", missing)
+        self.prune()
+        self.assertFalse(dest.is_symlink())
+
+    def test_live_link_is_left_alone(self) -> None:
+        src = self.repo_file(".config/app/conf")
+        dest = self.link(".config/app/conf", src)
+        self.prune()
+        self.assertTrue(dest.is_symlink())
+        self.assertEqual(dest.resolve(), src.resolve())
+
+    def test_dangling_link_outside_the_repo_is_left_alone(self) -> None:
+        # Not ours to clean up, however broken it looks.
+        dest = self.link(".config/stray", self.target.parent / "nowhere")
+        self.prune()
+        self.assertTrue(dest.is_symlink())
+
+    def test_pruning_reports_what_it_removed(self) -> None:
+        missing = self.repo / "pkg" / ".config" / "app" / "deleted"
+        self.link(".config/app/deleted", missing)
+        with self.assertLogs("dotfiles-sync", level="WARNING") as caught:
+            self.prune()
+        self.assertIn("CLEARED STALE: .config/app/deleted", "\n".join(caught.output))
+
+    def test_a_clean_tree_prunes_nothing_and_says_nothing(self) -> None:
+        src = self.repo_file(".config/app/conf")
+        self.link(".config/app/conf", src)
+        with self.assertNoLogs("dotfiles-sync", level="WARNING"):
+            self.prune()
 
 
 class LazyHeaderTests(unittest.TestCase):

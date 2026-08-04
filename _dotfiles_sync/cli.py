@@ -27,6 +27,7 @@ from .repo_checks import (
     check_repo_backlinks,
     check_systemd_unit_targets,
     prune_managed_ignored_artifact_links,
+    prune_stale_managed_links,
 )
 from .sync import run_apply_group, run_check_group
 from .system import active_scopes, detect_system
@@ -211,6 +212,13 @@ def run_apply_tasks(
                 active_names,
                 verbose=verbose,
             ),
+        ),
+        # Full-run only, matching the repo-backlinks check that reports these.
+        # A package-scoped run scans just that package, so it cannot tell a
+        # stale link from one belonging to a package it was not asked about.
+        (
+            TaskPolicy("stale-symlinks", full_run_only=True),
+            lambda: prune_stale_managed_links(target, specs, active_names),
         ),
         (
             TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
