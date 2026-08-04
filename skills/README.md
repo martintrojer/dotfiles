@@ -14,8 +14,8 @@ Skills are auto-discovered and can be invoked explicitly with `/skill:name` or l
 > [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
 > `avoid-ai-writing` is vendored from
 > [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing)
-> (MIT, v3.10.0 @ `6e1369d`) — `SKILL.md` plus the zero-dependency `detector/`
-> engine (`node detector/patterns.js`).
+> (MIT, v3.23.0 @ `f9fef0e`) — `SKILL.md` plus the zero-dependency `detector/`
+> engine (`node detector/patterns.js`, `node detector/validate.js`).
 > Keep edits to vendored skills minimal so they stay easy to re-sync against upstream.
 
 ### Planning & Execution

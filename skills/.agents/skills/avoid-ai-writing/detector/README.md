@@ -10,10 +10,10 @@ stylometric and AI-tool-fingerprint detectors that don't make sense as prose.
 See [`CATEGORIES.md`](./CATEGORIES.md) for the rule ↔ category mapping that keeps
 the two in sync.
 
-> **Vendored copy.** This is `patterns.js` plus its docs, vendored into the
-> dotfiles `skills/` tree. The upstream test suite
-> (`detector/patterns.test.js`, `detector/categories.test.js`) and `package.json`
-> are **not** vendored here — run them from a full clone of
+> **Vendored copy.** This is `patterns.js` and `validate.js` plus their docs,
+> vendored into the dotfiles `skills/` tree. The upstream test suite
+> (`detector/*.test.js`) and `package.json` are **not** vendored here — run them
+> from a full clone of
 > [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing).
 
 ## Run it
@@ -44,6 +44,46 @@ CommonJS).
 `options.contextMode` accepts `general` (default) or `technical`; technical mode
 suppresses flags that are legitimate in code-adjacent prose (e.g. Title Case
 headers). Invalid modes fall back to `general` and set `stats.contextModeFallback`.
+
+## `validate(original, rewritten, options?)` → result
+
+`validate.js` checks that a rewrite kept its hands off the things `SKILL.md`
+says not to touch. Edit mode writes to files, so a violation there is silent
+and destructive.
+
+```js
+const { validate, formatResult } = require("./detector/validate.js");
+const result = validate(originalText, rewrittenText);
+if (!result.ok) console.error(formatResult(result));
+```
+
+```bash
+node detector/validate.js before.md after.md   # exits 1 on a preservation error
+```
+
+**Errors** (the rewrite altered content it had no business touching): fenced
+code modified or dropped, YAML frontmatter changed, blockquote reworded, table
+cell changed, inline code removed, URL or file path lost, heading count or
+nesting changed, and `residual-grew` when the rewrite introduces more flagged
+patterns than it removes.
+
+**Warnings** (usually legitimate, occasionally a mistake): heading reworded,
+a figure from the original missing, more than 40% of the words dropped.
+
+Two edits this skill documents as correct are carved out so the validator never
+fires on its own instructions: stripping AI tracking parameters from URLs
+(`utm_source=chatgpt.com`), and rewording a heading to fix Title Case or remove
+an emoji. Indented code blocks are counted but not enforced, since four-space
+indentation is also how markdown continues a list item.
+
+## Scoring our own docs
+
+```bash
+npm run self-scan          # table
+npm run self-scan:check    # exits 1 if a document is over budget (runs in CI)
+```
+
+Results and the findings it surfaced are in [`../PROOF.md`](../PROOF.md).
 
 ## Design notes
 
