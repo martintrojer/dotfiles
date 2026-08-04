@@ -48,6 +48,12 @@ Provide direct, actionable code-quality review focused on maintainability, simpl
 4. Propose simplifications with concrete alternatives
 5. Prioritize by impact
 
+**Scope check first.** One diff or one module is a single-context job — just do
+it. A repo-wide audit, or several independent areas each wanting a full pass,
+fans out badly in one context: quality decays as the window fills, and the last
+area reviewed gets the worst attention. Split it across `mu` reviewers, one per
+area, and synthesise the findings.
+
 ## Output Format
 
 Use this structure:
@@ -69,9 +75,13 @@ For each finding:
 
 ## Related
 
-For build-time discipline (writing the simplest thing that works), pair this
-with the `ponytail` skill. The over-engineering checks above are the review-time
-mirror of that ladder: deletion is the highest-value outcome.
+| Skill | When |
+|-------|------|
+| `ponytail` | Build-time mirror of this skill — the over-engineering checks above are its ladder run in reverse. Deletion is the highest-value outcome |
+| `test-reviewer` | The diff touches tests. Different failure modes, different skill |
+| `systematic-debugging` | Review turns up a bug — find the root cause before proposing the fix |
+| `receiving-code-review` | You are on the receiving end of this output |
+| `mu` | Repo-wide audit or several independent areas — one reviewer per area, then synthesise |
 
 ## Principles
 

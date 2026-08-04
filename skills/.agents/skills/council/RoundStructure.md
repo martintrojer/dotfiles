@@ -2,19 +2,23 @@
 
 How council debates progress through rounds.
 
+## Members
+
+All council members are custom personas you write inline as briefs. See `CouncilMembers.md` for how to write them and `SKILL.md` for how to run them.
+
 ## Three-Round Debate Structure
 
 ### Round 1 - Initial Positions
 
-Each agent gives their take from their specialized perspective. No interaction yet - just establishing positions.
+Each member gives their take from their specialized perspective. No interaction yet - just establishing positions.
 
 **Goal:** Surface diverse viewpoints before interaction.
 
 ### Round 2 - Responses & Challenges
 
 Each agent reads Round 1 transcript and responds to specific points:
-- "I disagree with Architect's point about X because..."
-- "Building on Designer's concern about Y..."
+- "I disagree with [Agent Name]'s point about X because..."
+- "Building on [Agent Name]'s concern about Y..."
 
 **Goal:** Genuine intellectual friction through direct engagement.
 
@@ -29,19 +33,22 @@ Each agent identifies:
 
 ## The Value Is In Interaction
 
-Not just collecting opinions - genuine challenges where:
-- Architect challenges designer's assumption
-- Engineer points out implementation cost
-- Researcher cites precedent that changes framing
-- Designer defends with user impact data
+Not just collecting opinions - genuine challenges where members with domain-specific knowledge push back on each other's actual points with informed perspectives.
 
 ## Timing
 
+With parallel subagents:
+
 | Phase | Duration | Parallelism |
 |-------|----------|-------------|
-| Round 1 | 10-20 sec | All agents parallel |
-| Round 2 | 10-20 sec | All agents parallel |
-| Round 3 | 10-20 sec | All agents parallel |
+| Write briefs | inline | orchestrator writes 4 briefs |
+| Round 1 | 10-20 sec | All members parallel |
+| Round 2 | 10-20 sec | All members parallel |
+| Round 3 | 10-20 sec | All members parallel |
 | Synthesis | 5 sec | Sequential |
 
-**Total: 30-90 seconds for full debate**
+**Total: 40-90 seconds for full debate**
+
+In-context, every member is sequential: budget one long response per round
+rather than a wall-clock figure. Rounds are sequential in both modes — Round 2
+needs Round 1's transcript.

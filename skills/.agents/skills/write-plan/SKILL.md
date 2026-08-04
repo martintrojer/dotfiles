@@ -1,112 +1,195 @@
 ---
 name: write-plan
-description: This skill should be used when the user asks to "write a plan", "create an implementation plan", "plan this feature", or has an approved design that needs to be broken into executable tasks for implementation.
-version: 0.1.0
-superpowers: writing-plans
+description: Use when you have an approved spec or clear requirements for a multi-step change, before touching code. Turns a design into an ordered set of self-contained, independently verifiable tasks. Triggers on "write a plan", "create an implementation plan", "plan this feature".
+version: 0.2.0
 ---
 
-# Write Plan - Planning Phase
+# Write Plan — Planning Phase
 
-## Purpose
+Write the plan for an engineer who is competent but has zero context for this
+codebase: they don't know the toolset, the domain, or where anything lives.
+Everything they need is in the plan or they can't do the task.
 
-Generate a highly detailed, executable implementation plan tailored for a "junior engineer" with zero context. Every task must be self-contained and actionable.
+That reader is also the realistic case for *you*, a week or a context-compaction
+later.
 
 ## Prerequisites
 
-- An approved design document or clear feature specification
-- Understanding of the project structure and conventions
+An approved spec or clear requirements. If the requirements are still fuzzy, stop
+and use `brainstorm` first — planning a design nobody agreed to wastes both
+passes.
 
-## Plan Structure
+## Where plans live
 
-Save the plan as: `docs/plans/YYYY-MM-DD-<feature-name>.md`
+`docs/plans/YYYY-MM-DD-<feature-name>.md` (user preference overrides). Create the
+directory if it doesn't exist.
 
-### Plan Template
+## Scope check
+
+If the spec covers several independent subsystems, suggest splitting into one
+plan per subsystem. Each plan should produce working, testable software on its
+own.
+
+## File structure first
+
+Before writing tasks, map which files get created or modified and what each is
+responsible for. This is where the decomposition decisions actually get made —
+task boundaries fall out of it.
+
+- One clear responsibility per file. Files that change together live together.
+- Split by responsibility, not by technical layer.
+- Follow the codebase's existing structure. Don't unilaterally restructure — but
+  if a file you're already modifying has grown unwieldy, a split is fair to
+  include.
+
+## Task right-sizing
+
+A task is the smallest unit that carries its own verification and is worth a
+reviewer's gate.
+
+- Fold setup, config, scaffolding, and docs into the task whose deliverable
+  needs them — they are not their own tasks.
+- Split only where a reviewer could sensibly reject one task while approving its
+  neighbour.
+- Every task ends with something independently testable.
+
+Steps within a task are one action each, 2–5 minutes: "write the failing test",
+"run it, confirm it fails", "implement", "run it, confirm it passes", "commit".
+
+## Plan header
 
 ```markdown
-# Implementation Plan: <Feature Name>
+# <Feature Name> Implementation Plan
 
 **Date:** YYYY-MM-DD
-**Design Doc:** <link or reference>
-**Estimated Tasks:** N
+**Spec:** <link or path>
 
-## Overview
-<1-2 sentence summary>
+**Goal:** <one sentence — what this builds>
 
-## Tasks
+**Architecture:** <2-3 sentences on approach>
 
-### Task 1: <Short description>
-**File:** `path/to/file.ext`
-**Time:** ~X minutes
+## Global Constraints
 
-**Steps:**
-1. <Specific action>
-2. <Specific action>
-
-**Code:**
-\`\`\`language
-// Exact code to add/modify
-\`\`\`
-
-**Verify:**
-\`\`\`bash
-<command to verify task is complete>
-\`\`\`
-
-**Commit:** `<conventional commit message>`
+<Project-wide requirements — version floors, dependency limits, naming rules,
+platform requirements. One line each, exact values copied verbatim from the
+spec. Every task implicitly includes these.>
 
 ---
 ```
 
-## Granularity Requirements
+## Task structure
 
-Each task should be:
-- 2-5 minutes of work
-- Focused on a single file or concern
-- Include exact file paths
-- Include code snippets where applicable
-- Include verification command (test, lint, build, curl, etc.)
-- Include suggested commit message
+````markdown
+### Task N: <Component Name>
 
-## Standards to Enforce
+**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py:123-145`
+- Test: `tests/exact/path/to/test.py`
 
-### TDD (Red-Green-Refactor)
-1. Write failing test first
-2. Write minimal code to pass
-3. Refactor if needed
-4. Each cycle is a separate task
+**Interfaces:**
+- Consumes: <what this uses from earlier tasks — exact signatures>
+- Produces: <what later tasks rely on — exact names, parameter and return
+  types. The implementer sees only their own task; this block is how they
+  learn the names their neighbours use.>
 
-### DRY (Don't Repeat Yourself)
-- Flag potential duplication
-- Include refactoring tasks when patterns emerge
+- [ ] **Step 1: Write the failing test**
 
-### Frequent Commits
-- One commit per task
-- Use conventional commit format
-- Keep commits atomic and revertible
+```python
+def test_specific_behavior():
+    assert function(input) == expected
+```
 
-## Plan Metadata
+- [ ] **Step 2: Run it, confirm it fails**
 
-At the end of the plan, include:
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: FAIL, "function not defined"
+
+- [ ] **Step 3: Minimal implementation**
+
+```python
+def function(input):
+    return expected
+```
+
+- [ ] **Step 4: Run it, confirm it passes**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+`<conventional commit message>`
+````
+
+## Standards to enforce
+
+**TDD** — red, green, refactor. The "run it and watch it fail" step is not
+ceremony: a test that has never failed has never been shown to test anything.
+
+**DRY / YAGNI** — flag duplication as it emerges and include the refactoring
+task. Equally, cut speculative tasks: a task nobody asked for is a task that
+gets built, reviewed, and maintained for nothing.
+
+**Frequent commits** — one per task, atomic and revertible.
+
+## No placeholders
+
+Every step contains the actual content the engineer needs. These are plan
+failures, not shorthand:
+
+- "TBD", "TODO", "implement later", "fill in details"
+- "Add appropriate error handling" / "handle edge cases" — say which, and how
+- "Write tests for the above" without the test code
+- "Similar to Task N" — repeat it; tasks get read out of order
+- Steps describing *what* without showing *how* (code steps need code blocks)
+- References to types or functions no task defines
+
+## Self-review
+
+After the plan is written, check it against the spec with fresh eyes. This is
+your own checklist, not a review request.
+
+1. **Spec coverage** — walk each spec requirement. Can you name the task that
+   implements it? List gaps, then close them.
+2. **Placeholder scan** — search for every red flag above. Fix.
+3. **Type consistency** — do names and signatures used in later tasks match what
+   earlier tasks defined? `clearLayers()` in Task 3 and `clearFullLayers()` in
+   Task 7 is a bug you're shipping into the plan.
+
+Fix inline and move on.
+
+## Progress tracker
+
+End the plan with:
 
 ```markdown
-## Progress Tracker
+## Progress
 
 - [ ] Task 1: <description>
 - [ ] Task 2: <description>
-...
 
 ## Notes
-<Any context for resuming work later>
+<Context for resuming later — decisions made mid-flight, things that surprised
+you.>
 ```
 
-## Output
+## Handoff
 
-- Create the plan file in `docs/plans/`
-- Create the directory if it doesn't exist
-- Summarize the plan for the user
-- Confirm the plan is ready for execution
+Summarise the plan, confirm where it's saved, and hand back. Execution is a
+separate pass with fresh context — work through the tasks in order, tick the
+boxes as they land, and stop rather than guess when a task turns out to be
+wrong. A plan that survives contact unchanged is rare; when reality disagrees
+with the plan, the plan is what updates.
 
-## Next Step
+For a plan with independent tracks, or one you want review-gated per task,
+hand it to `mu` rather than grinding through it in one context.
 
-Once the plan is complete, suggest:
-"Plan ready. Invoke the `execute-plan` skill to start implementing tasks sequentially."
+## Related
+
+| Skill | When |
+|-------|------|
+| `brainstorm` | Upstream — produces the spec this plan consumes. Go back if requirements are still fuzzy |
+| `test-driven-development` | Writing the per-task red/green steps |
+| `ponytail` | Sizing tasks. A task nobody asked for still gets built, reviewed, and maintained |
+| `mu` | Executing a multi-track or review-gated plan across agents |

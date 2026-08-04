@@ -2,38 +2,44 @@
 
 Standard format for council debate transcripts.
 
+## Member Names
+
+Use the name and role you gave each member in its brief. Keep those names consistent across all rounds and in the synthesis.
+
 ## Full Debate Transcript
 
 ```markdown
 ## Council Debate: [Topic]
 
+**Council Members:** [Composed agent names with trait summaries]
+
 ### Round 1: Initial Positions
 
-**Architect (Serena):**
-[Position from architectural perspective]
+**[Agent 1 Name] ([trait summary]):**
+[Position from their specialized perspective]
 
-**Designer (Aditi):**
-[Position from design perspective]
+**[Agent 2 Name] ([trait summary]):**
+[Position from their specialized perspective]
 
-**Engineer (Marcus):**
-[Position from implementation perspective]
+**[Agent 3 Name] ([trait summary]):**
+[Position from their specialized perspective]
 
-**Researcher (Ava):**
-[Position with data/precedent]
+**[Agent 4 Name] ([trait summary]):**
+[Position from their specialized perspective]
 
 ### Round 2: Responses & Challenges
 
-**Architect (Serena):**
+**[Agent 1 Name]:**
 [Responds to specific points from Round 1]
 
-**Designer (Aditi):**
+**[Agent 2 Name]:**
 [Responds to specific points from Round 1]
 
 [...]
 
 ### Round 3: Synthesis
 
-**Architect (Serena):**
+**[Agent 1 Name]:**
 [Final position, areas of agreement/disagreement]
 
 [...]
@@ -57,10 +63,10 @@ Standard format for council debate transcripts.
 
 ### Perspectives
 
-**Architect (Serena):**
+**[Agent 1 Name] ([traits]):**
 [Brief take - 30-50 words]
 
-**Designer (Aditi):**
+**[Agent 2 Name] ([traits]):**
 [Brief take]
 
 [...]
@@ -74,7 +80,8 @@ Standard format for council debate transcripts.
 
 ## Output Requirements
 
-- **Length:** 50-150 words per agent per round (debate), 30-50 words (quick)
+- **Length:** 100-150 words per agent per round (debate), 30-50 words (quick)
 - **Tone:** Professional but direct; genuine challenges
 - **Must Include:** Specific references to other agents' points in Round 2+
 - **Must Avoid:** Generic opinions, restating initial position without engagement
+- **Member Names:** Use the names from each member's brief, consistently across rounds

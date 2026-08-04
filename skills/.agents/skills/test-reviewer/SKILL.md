@@ -29,6 +29,11 @@ Evaluate whether tests provide real safety signals or merely appear to do so.
 - Missing assertions
 - Hardcoded expected values that do not constrain behavior
 - Assertions that would still pass for broken logic
+- **Mirror assertions** — the expected value computed by the same code under
+  test, so the check passes whatever that code does
+- **Change detectors** — only an intentional decision can fail them (a
+  constant's value, exact message wording), so they fire on redesign and sleep
+  through bugs
 
 ### 4. Test Smells and Coverage Quality
 - Excessive irrelevant setup
@@ -47,6 +52,12 @@ never delete the last line that fails when the logic breaks.
 3. Confirm test independence and deterministic setup
 4. Identify gaps in behavior coverage and edge cases
 5. Recommend stronger, behavior-focused rewrites
+
+**The mutation check** is the sharpest tool here. Mentally mutate the
+production code — wrong constant, wrong branch, missing side effect, empty
+return, dropped validation — and confirm at least one test fails for each. A
+mutation nothing catches marks the behavior as unprotected, or the test as
+tautological.
 
 ## Output Format
 
@@ -69,8 +80,14 @@ For each finding:
 
 ## Related
 
-For build-time discipline (write the smallest test that catches the bug), pair
-this with the `ponytail` skill.
+This skill is review-time triage: given tests that exist, decide which ones lie.
+
+| Skill | When |
+|-------|------|
+| `test-driven-development` (`writing-good-tests.md`) | Write-time counterpart — the same failure modes as rules to follow while writing. Read it when rewriting a test this skill flagged |
+| `ponytail` | Sizing: the smallest test that catches the bug, no fixtures nobody needs |
+| `code-reviewer` | The production code in the same diff |
+| `systematic-debugging` | A test fails and you don't know why yet |
 
 ## Principles
 
