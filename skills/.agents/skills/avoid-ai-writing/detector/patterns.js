@@ -1,6 +1,6 @@
 /**
  * Avoid AI Writing — detection engine (canonical source of truth)
- * Implements 44-category pattern detection. This repo's SKILL.md
+ * Implements regex, structural, and stylometric pattern detection. This repo's SKILL.md
  * catalogs the human-editable pattern rules; this engine is the executable
  * expression of the regex-detectable subset and extends it with stylometric and
  * AI-tool-fingerprint detectors that don't make sense as skill prose
@@ -131,18 +131,33 @@ const AIDetector = (() => {
     { pattern: /\bthought\s+leader(?:ship)?\b/gi, replace: 'expert, authority' },
     { pattern: /\bbest\s+practices\b/gi, replace: 'what works, proven methods' },
     { pattern: /\bat\s+its\s+core\b/gi, replace: 'cut, just state it' },
-    { pattern: /\bin\s+order\s+to\b/gi, replace: 'to' },
-    { pattern: /\bdue\s+to\s+the\s+fact\s+that\b/gi, replace: 'because' },
-    { pattern: /\bserves\s+as\b/gi, replace: 'is' },
-    { pattern: /\bfeatures\b/gi, replace: 'has, includes', filter: true },
-    { pattern: /\bboasts\b/gi, replace: 'has' },
-    { pattern: /\butiliz(?:e|es|ing|ed)\b/gi, replace: 'use' },
+    { pattern: /\bin\s+order\s+to\b/gi, replace: 'to', clarity: true },
+    { pattern: /\bdue\s+to\s+the\s+fact\s+that\b/gi, replace: 'because', clarity: true },
+    { pattern: /\bserves\s+as\b/gi, replace: 'is', clarity: true },
+    { pattern: /\bfeatures\b/gi, replace: 'has, includes', filter: true, clarity: true },
+    { pattern: /\bboasts\b/gi, replace: 'has', clarity: true },
+    { pattern: /\butiliz(?:e|es|ing|ed)\b/gi, replace: 'use', clarity: true },
     { pattern: /\bshowcas(?:e|es|ing|ed)\b/gi, replace: 'show, demonstrate' },
     { pattern: /\bembark(?:s|ing|ed)?\b/gi, replace: 'start, begin' },
-    { pattern: /\bcommenc(?:e|es|ing|ed)\b/gi, replace: 'start, begin' },
-    { pattern: /\bascertain(?:s|ing|ed)?\b/gi, replace: 'find out, determine' },
-    { pattern: /\bendeavou?r(?:s|ing|ed)?\b/gi, replace: 'effort, attempt, try' },
+    { pattern: /\bcommenc(?:e|es|ing|ed)\b/gi, replace: 'start, begin', clarity: true },
+    { pattern: /\bascertain(?:s|ing|ed)?\b/gi, replace: 'find out, determine', clarity: true },
+    { pattern: /\bendeavou?r(?:s|ing|ed)?\b/gi, replace: 'effort, attempt, try', clarity: true },
     { pattern: /\bunderscor(?:es|ing|ed)\b/gi, replace: 'highlights, shows' },
+    // Hyphen required. The unhyphenated "load bearing" is ordinary English —
+    // "the load bearing down on the bridge" — where `bearing` is a participle,
+    // not part of a compound modifier. The tell is always hyphenated.
+    //
+    // Construction carve-out: exempt attributive `load-bearing` before a literal
+    // structural noun, with one optional material/position adjective in between
+    // ("load-bearing structural wall"). The noun list is limited to commonly
+    // physical nouns; the abstract-capable ones most likely to carry the
+    // metaphor (structure, element, frame, foundation) are omitted so "the
+    // load-bearing structure of the argument" still fires. Some listed nouns
+    // (member, column, partition) can still be used metaphorically and are
+    // silently exempt — a recall loss in the safe direction, tracked in #56.
+    // Predicative use ("the wall is load-bearing") is NOT exempt: the tell
+    // lives in the subject, which a lookahead cannot reach. Also #56.
+    { pattern: /\bload-bearing\b(?!\s+(?:(?:structural|exterior|interior|internal|external|concrete|steel|timber|wooden|brick|masonry|perimeter|basement|main|primary|existing|original)\s+)?(?:walls?|beams?|columns?|joists?|truss(?:es)?|members?|footings?|slabs?|studs?|partitions?|masonry|lintels?|piers?|rafters?|girders?|capacity|capacities)\b)/gi, replace: 'essential, critical, or say what breaks if you remove it' },
   ];
 
   // ─── Tier 2: Flag in clusters (2+ per paragraph) ──────────────────
@@ -187,10 +202,25 @@ const AIDetector = (() => {
     'nascent': 'new, early-stage',
     'quintessential': 'typical, classic, defining',
     'overarching': 'main, central, broad',
+    'quietly': 'cut, or name the concrete contrast',
     'underpinning': 'basis, foundation',
     'underpinnings': 'basis, foundations',
     'paradigm-shifting': 'describe what shifted',
   };
+
+  // Conditional Tier 2 entries: everyday words whose AI tell is a specific
+  // significance collocation, not the word itself. They join a paragraph's
+  // Tier 2 cluster only when the collocation matches — bare uses ("deeply
+  // nested JSON", "cares deeply") never count, because the base rate of
+  // these words in innocent prose is far higher than the rest of the table
+  // and an unconditional entry measurably flags clean human writing.
+  const TIER2_CONDITIONAL = [
+    {
+      word: 'deeply',
+      pattern: /\bdeeply\s+(?:integrated|committed|rooted|personal|human|flawed|resonant|transformative|interconnected|ingrained|embedded|meaningful)\b/i,
+      suggestion: 'cut, or name what specifically runs deep',
+    },
+  ];
 
   // ─── Tier 3: Flag by density ───────────────────────────────────────
   const TIER3 = [
@@ -200,6 +230,11 @@ const AIDetector = (() => {
     'exceptional', 'exceptionally', 'remarkable', 'remarkably',
     'sophisticated', 'instrumental',
     'world-class', 'state-of-the-art', 'best-in-class',
+    // `verbatim` is usually redundant with the verb it modifies ("copies X
+    // verbatim" = "copies X"). It has a genuine term-of-art sense in legal,
+    // research, and QA registers ("verbatim transcript"), so it lives at Tier 3:
+    // density-gated, it only fires on overuse, not on a single legitimate use.
+    'verbatim',
   ];
 
   // Multi-word Tier 3 phrases. Density-gated like single Tier 3 words because
@@ -237,6 +272,9 @@ const AIDetector = (() => {
   // though all three are tagged `critical`.
   const ISSUE_WEIGHTS = {
     tier1: 5,
+    // Wordiness, not an AI-frequency marker. Weighted like tier2 so a
+    // clarity fix cannot push a document toward an AI classification.
+    'tier1-clarity': 3,
     tier2: 3,
     tier3: 2,
     transition: 2,
@@ -251,6 +289,7 @@ const AIDetector = (() => {
     'vague-attribution': 5,
     'hollow-intensifier': 2,
     'emotional-flatline': 2,
+    'lingering-attention': 3,
     'novelty-inflation': 3,
     'cutoff-disclaimer': 10,
     'template-phrase': 3,
@@ -277,6 +316,10 @@ const AIDetector = (() => {
     // otherwise wash out on a short LinkedIn-length post.
     'social-cta-closer': 8,
     'formulaic-opener': 8,
+    // Speculative scenario opener ("Imagine a world where…"). Weighted like
+    // formulaic-opener: a single strong opener tell the length divisor would
+    // otherwise wash out on a short post.
+    'speculative-opener': 8,
     'title-case-header': 4,
     'parenthetical-hedge': 3,
     'smart-punct-signature': 6,
@@ -424,6 +467,30 @@ const AIDetector = (() => {
     /^\s*interesting\s+(?:part|thing|aspect|piece)(?:\s+of\s+(?:the\s+)?\w+)?\s*:/gim,
   ];
 
+  // ─── Lingering-attention claims ────────────────────────────────────
+  // The share-post opener that claims duration of attention instead of
+  // saying anything about the thing ("the line I keep coming back to").
+  //
+  // Precision note: the bare verb phrase "I keep coming back to X" is NOT
+  // matched on its own, because it is legitimate whenever a reason follows
+  // ("I keep coming back to Hirschman because it predicts who quits"), and
+  // the reason clause is not reliably detectable by regex. Only the
+  // noun-anchored frame ("the line/quote/bit ... I keep coming back to")
+  // fires, which is the shape that introduces a subject rather than
+  // asserting something about it. The bare form stays a skill-prose
+  // judgment call. See SKILL.md §Lingering-attention claims carve-out.
+  const LINGERING_ATTENTION = [
+    // "the line I keep coming back to", "the one quote that I keep coming back to"
+    // Noun-anchored frame only. "can't stop thinking about" is deliberately
+    // left to its own pattern below rather than folded into this alternation,
+    // so "the line I can't stop thinking about" scores once, not twice.
+    /\b(?:the|that|this)\s+(?:one\s+)?(?:line|quote|bit|part|idea|point|framing|comment|thing)\s+(?:that\s+)?i\s+keep\s+(?:coming\s+back\s+to|thinking\s+about)\b/gi,
+    /\bi\s+can'?t\s+stop\s+thinking\s+about\b/gi,
+    /\bstill\s+thinking\s+about\s+(?:this|that)\s+one\b/gi,
+    /\b(?:been|be)\s+rattling\s+around\s+(?:in\s+)?my\s+(?:head|brain)\b/gi,
+    /\bi'?ve\s+been\s+chewing\s+on\s+(?:this|that)\b/gi,
+  ];
+
   // ─── Novelty inflation ─────────────────────────────────────────────
   const NOVELTY_INFLATION = [
     /\bthe\s+failure\s+mode\s+nobody'?s?\s+naming\b/gi,
@@ -524,7 +591,12 @@ const AIDetector = (() => {
   // opportunities", "may eventually unlock value." Either word alone is
   // fine; the stack is the tell.
   const HEDGE_STACK = [
-    /\b(?:could|may|might)\s+(?:\w+\s+){0,2}(?:potentially|eventually|ultimately|possibly|conceivably)\b/gi,
+    // At most one intervening word, and never a negator. The old {0,2} gap
+    // matched ordinary English: "could not possibly" (plain emphatic
+    // negation) and inverted questions like "could a savage possibly" both
+    // fired. Measured on the human-control corpus, 3 of 4 hedge-stack flags
+    // were this over-match. See issue #69.
+    /\b(?:could|may|might)\s+(?:(?!not\b|never\b|hardly\b|scarcely\b|barely\b)\w+\s+)?(?:potentially|eventually|ultimately|possibly|conceivably)\b/gi,
     /\b(?:potentially|eventually|ultimately)\s+(?:could|may|might)\b/gi,
   ];
 
@@ -560,12 +632,141 @@ const AIDetector = (() => {
     /\bhas\s+become\s+increasingly\s+(?:important|critical|popular|relevant|prominent|essential)\b/gi,
   ];
 
+  // ─── Speculative scenario openers ──────────────────────────────────
+  // "Imagine a world where...", "Picture a future in which...", "Envision
+  // a world where..." — the LLM habit of opening an argument with a
+  // hypothetical that lists desirable outcomes instead of making a claim.
+  // Gated to the world/future/reality object plus where/in-which so it
+  // stays off instructional "imagine you have an array" (a teaching device
+  // pointing at a concrete example, not a speculative world) and bare
+  // "imagine that" asides. "consider a scenario where…" is deliberately
+  // excluded: that is analytical framing common in technical reasoning,
+  // not the marketing-opener tell. An optional short comma interrupter
+  // catches the equally common "Imagine, for a moment, a world where…"
+  // cadence. Known accepted false positive: fiction openings and staged
+  // thought experiments match too — the engine has no fiction context
+  // mode, so that call is left to the skill's carve-out (highlight-only;
+  // a lone hit cannot flip a document's classification).
+  const SPECULATIVE_OPENERS = [
+    /\b(?:imagine|picture|envision)(?:\s*,[^,\n]{1,30},)?\s+a\s+(?:world|future|reality)\s+(?:where|in\s+which)\b/gi,
+  ];
+
+  // Function words whose presence MID-title marks the AI section-header shape.
+  // Word-anchored: without \b the "A" alternative matches inside any word and
+  // the guard silently degrades to "four tokens".
+  const FUNCTION_WORD = /\b(?:And|Or|Of|The|In|For|To|A|An)\b/;
+
+  // Must accept exactly what TITLE_CASE_HEADER accepts, or the prefix survives
+  // into the token count and reintroduces the ##-as-token bug.
+  const MD_HEADING_PREFIX = /^#{1,6}[ \t]+/;
+
+  /** Byte ranges covered by fenced code blocks, computed once per scan.
+   *
+   * A document that documents Markdown is the normal case for this rule -- a
+   * fenced `## Heading` example is illustration, not the author's own section
+   * header, and flagging it makes every docs page flag itself.
+   *
+   * This tracks the opening delimiter instead of counting them, because a
+   * parity count is wrong on the very case the rule exists for. CommonMark
+   * closes a fence only on the same character at the same length or longer, so
+   * a four-backtick fence wrapping a three-backtick example -- exactly how you
+   * document fences -- nests in practice, and counting delimiters inverts on
+   * it. Up to three spaces of indent are legal. An unclosed fence runs to end
+   * of document, matching how renderers treat it.
+   *
+   * Computed once per scan rather than rescanned per hit: the previous version
+   * sliced the whole document for every candidate, which is quadratic on a
+   * heading-dense file. */
+  function fenceRanges(text) {
+    const re = /^[ \t]{0,3}(`{3,}|~{3,})[^\n]*$/gm;
+    const ranges = [];
+    let open = null;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const marker = m[1];
+      if (!open) {
+        open = { char: marker[0], len: marker.length, start: m.index };
+      } else if (marker[0] === open.char && marker.length >= open.len) {
+        ranges.push([open.start, m.index + m[0].length]);
+        open = null;
+      }
+    }
+    if (open) ranges.push([open.start, text.length]);
+
+    return ranges;
+  }
+
+  function inFenceRange(ranges, index) {
+    return typeof index === 'number' && ranges.some(([a, b]) => index >= a && index < b);
+  }
+
+  // Copy of the text with fenced blocks and inline code spans blanked out.
+  // Index-preserving: each masked character becomes a space and newlines are
+  // kept, so offsets into the result still address the same position in the
+  // original. For rules where a character inside code is something the author
+  // is quoting rather than using — a `#fff` in a CSS sample is not a tag.
+  // Fences are blanked first so their backticks cannot pair with a later
+  // inline span and swallow the prose between them.
+  function maskCode(text) {
+    const chars = text.split('');
+    const blank = (a, b) => {
+      for (let i = a; i < b && i < chars.length; i += 1) {
+        if (chars[i] !== '\n') chars[i] = ' ';
+      }
+    };
+    for (const [a, b] of fenceRanges(text)) blank(a, b);
+    // Indented code blocks are deliberately NOT masked. Four spaces is a code
+    // block only at top level; under a list marker it is a paragraph
+    // continuation, so blanking it silences real tag blocks. #90 reports
+    // fences and inline spans, and those are what this masks.
+    const withoutFences = chars.join('');
+    const inlineRe = /(`+)(?:(?!\1)[^\n])+\1/g;
+    let m;
+    while ((m = inlineRe.exec(withoutFences)) !== null) blank(m.index, m.index + m[0].length);
+    return chars.join('');
+  }
+
+  // ─── Forms that open with `#` but are not social tags ──────────────
+  // `#` is overloaded in technical prose and the hashtag rule counts every
+  // `#word` it sees, so these are subtracted before the threshold applies:
+  //   #88, #1234         issue and PR references
+  //   #1a2b3c            CSS hex colours, 6 or 8 chars AND containing a digit
+  //   #include, #ifndef  C preprocessor directives
+  // Deliberately NOT carving out 3- and 4-digit hex: #dad, #cafe, #b2b, #e2e,
+  // #ace, #face and #bad are real tags, and subtracting them cost true
+  // positives on exactly the stuffed-block shape this rule exists to catch.
+  // Real palettes are dominated by 6-digit values, so a CSS paragraph still
+  // lands under the threshold without the short forms.
+  // `owner/repo#88` and URL fragments need no carve-out: the char before `#`
+  // is a word char, so the rule's own anchor already rejects them.
+  // Ambiguous word tags stay counted on purpose. `#general` as a channel and
+  // `#general` as a tag are the same token, and separating them needs a guess
+  // that costs more precision on real tag blocks than the carve-out buys.
+  // Requires at least one digit: #decade, #facade, #deadbeef are a-f words and
+  // real tags. Every actual palette value in the wild carries a digit.
+  const HEX_COLOUR = /^(?=[0-9a-f]*\d)(?:[0-9a-f]{6}|[0-9a-f]{8})$/i;
+  const CPP_DIRECTIVE = /^(?:include|define|undef|if|ifdef|ifndef|elif|else|endif|pragma|error|warning|line)$/;
+
+  function isSocialTag(tag) {
+    return !/^\d+$/.test(tag) && !HEX_COLOUR.test(tag) && !CPP_DIRECTIVE.test(tag);
+  }
+
   // ─── Title Case Section Headers in non-technical prose ─────────────
   // "Strategic Negotiations And Key Partnerships" — every content word
   // capitalized. Acceptable in API docs, ML papers, news headlines. Tell
   // in marketing/personal/blog prose. Gated to "personal" / "marketing"
   // context modes (technical mode skips this check).
-  const TITLE_CASE_HEADER = /^([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|and|or|of|the|in|for|to|a|an))+\s+[A-Z][a-z]+)\s*$/gm;
+  //
+  // The optional `#{1,6}` prefix is load-bearing (#62): without it the `^[A-Z]`
+  // anchor required the line to START with a capital, so `## Benefits And
+  // Strategic Considerations` never matched — the first character is `#`. The
+  // rule missed the single most common way a heading is actually written, while
+  // catching the bare-line form it is usually converted from. Reported by a
+  // downstream vendoring the detector.
+  //
+  // Setext headings (`Title`/`=====`) need no prefix: their text line is bare
+  // and already matched by this same pattern.
+  const TITLE_CASE_HEADER = /^(?:#{1,6}[ \t]+)?([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|and|or|of|the|in|for|to|a|an))+\s+[A-Z][a-z]+)\s*$/gm;
 
   // ─── Parenthetical hedging asides ──────────────────────────────────
   // "(and increasingly, X)", "(or more precisely, Y)", "(though to be
@@ -777,9 +978,11 @@ const AIDetector = (() => {
         if (tier1Found.has(lower)) continue;
         tier1Found.add(lower);
         issues.push({
-          type: 'tier1',
+          // Clarity-band entries are wordiness edits, not frequency evidence.
+          // Same fix, weaker claim — see the Tier 1A/1B split in SKILL.md.
+          type: phrase.clarity ? 'tier1-clarity' : 'tier1',
           text: match[0],
-          severity: 'high',
+          severity: phrase.clarity ? 'medium' : 'high',
           suggestion: phrase.replace,
         });
       }
@@ -790,9 +993,17 @@ const AIDetector = (() => {
     for (const para of paragraphs) {
       const paraTokens = tokenize(para);
       const found = [];
+      const suggestions = {};
       for (const token of paraTokens) {
         if (TIER2[token] && !found.includes(token)) {
           found.push(token);
+          suggestions[token] = TIER2[token];
+        }
+      }
+      for (const cond of TIER2_CONDITIONAL) {
+        if (!found.includes(cond.word) && cond.pattern.test(para)) {
+          found.push(cond.word);
+          suggestions[cond.word] = cond.suggestion;
         }
       }
       if (found.length >= 2) {
@@ -802,7 +1013,7 @@ const AIDetector = (() => {
             type: 'tier2',
             text: word,
             severity: 'medium',
-            suggestion: TIER2[word],
+            suggestion: suggestions[word],
           });
         }
       }
@@ -844,6 +1055,7 @@ const AIDetector = (() => {
     issues.push(...matchPatterns(text, VAGUE_ATTRIBUTIONS, 'vague-attribution', 'critical'));
     issues.push(...matchPatterns(text, HOLLOW_INTENSIFIERS, 'hollow-intensifier', 'medium'));
     issues.push(...matchPatterns(text, EMOTIONAL_FLATLINE, 'emotional-flatline', 'low'));
+    issues.push(...matchPatterns(text, LINGERING_ATTENTION, 'lingering-attention', 'medium'));
     issues.push(...matchPatterns(text, NOVELTY_INFLATION, 'novelty-inflation', 'medium'));
     issues.push(...matchPatterns(text, CUTOFF_DISCLAIMERS, 'cutoff-disclaimer', 'critical'));
     issues.push(...matchPatterns(text, AI_PLACEHOLDERS, 'ai-placeholder', 'critical'));
@@ -859,6 +1071,7 @@ const AIDetector = (() => {
 
     // ── Tier 1 v2: formulaic openers + parenthetical hedges ──────────
     issues.push(...matchPatterns(text, FORMULAIC_OPENERS, 'formulaic-opener', 'high'));
+    issues.push(...matchPatterns(text, SPECULATIVE_OPENERS, 'speculative-opener', 'high'));
     issues.push(...matchPatterns(text, PARENTHETICAL_HEDGE, 'parenthetical-hedge', 'medium'));
 
     // Title-case headers — gated to marketing/personal/general modes
@@ -868,11 +1081,34 @@ const AIDetector = (() => {
       // Drop matches that look like proper-noun titles (single line, all
       // tokens capitalized incl. function words) — that's headline style,
       // not the AI-section-header tell which has mid-sentence "And".
+      //
+      // The prefix strip is load-bearing. matchPatterns reports match[0], so a
+      // Markdown hit arrives as "## Terms Of Service" and `##` counts as a
+      // token — silently lowering this guard from four content words to three
+      // for headings only, which is exactly the class it exists to protect.
+      // "## Terms Of Service", "## Bank Of America" and "## Table Of Contents"
+      // all flagged as a result: ordinary human headings, on a detector whose
+      // stated first priority is not firing on human writing.
       const filtered = titleHits.filter((h) => {
-        const tokens = h.text.split(/\s+/);
-        return tokens.length >= 4 && /\b(?:And|Or|Of|The|In|For|To|A|An)\b/.test(h.text);
+        const title = h.text.replace(MD_HEADING_PREFIX, '');
+        const tokens = title.trim().split(/\s+/);
+        if (tokens.length < 4) return false;
+
+        // The function word must be MID-title, which is what the comment above
+        // has always said and what the test never enforced. A leading "The"
+        // satisfied a bare /\bThe\b/, so ordinary human headings flagged:
+        // "## The New Security Landscape", "## The Microsoft Approach to
+        // Identity", "### The Four Keys to a Successful and Secure Modern
+        // Workplace". Measured across 81 files that provably predate LLMs
+        // (2018-19 eBooks, 2020 posts): 13 false positives, every one opening
+        // with "The", against zero on main.
+        //
+        // "## Benefits And Strategic Considerations" -- the actual tell, and
+        // this rule's own fixture -- is untouched: its "And" is interior.
+        return FUNCTION_WORD.test(tokens.slice(1).join(' '));
       });
-      issues.push(...filtered);
+      const fences = filtered.length ? fenceRanges(text) : [];
+      issues.push(...filtered.filter((h) => !inFenceRange(fences, h.index)));
     }
 
     // ── Normalization-trigger flag ───────────────────────────────────
@@ -897,15 +1133,37 @@ const AIDetector = (() => {
       });
     }
 
+    // Em dashes in list-item separator position — a bulleted or numbered
+    // list item opening with a bolded lead term or markdown link, then the
+    // dash ("- **Term** — desc", "- [label](url) — desc") — are
+    // definition-list typography, not prose punctuation. Shared by the
+    // smart-punct signature below and the em-dash frequency check (§22).
+    // An optional parenthetical or inline-code span may sit between the bold
+    // lead term and the dash — "- **Lingering-attention claims**
+    // (`lingering-attention`) — the share-post frame…" is the same definition
+    // typography as the bare form. Found by the self-scan (see PROOF.md, #67).
+    const SEPARATOR_DASH_RE = /^\s*(?:[-*+]|\d+[.)])\s+(?:\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^)\n]*\))(?:[ \t]*(?:\([^)\n]*\)|`[^`\n]+`))?[ \t]*—/gm;
+
+    // Keep-a-Changelog version headings (`## [3.21.0] — 2026-07-30`) join a
+    // label to a value exactly as a list separator does. Deliberately narrow:
+    // a bracketed or bare semver token, then a dash, then an ISO date, and
+    // nothing else on the line. Ordinary prose dashes in headings still count,
+    // because SKILL.md applies the em-dash rule to headings too.
+    const VERSION_HEADING_DASH_RE = /^#{1,6}[ \t]+\[?v?\d+\.\d+\.\d+[^\]\n]*\]?[ \t]*—[ \t]*\d{4}-\d{2}-\d{2}[ \t]*$/gm;
+
     // ── Smart-punctuation co-occurrence signature ────────────────────
     // Curly quotes + em-dash + Oxford comma all present + zero typos
     // (no double-spaces, no missing apostrophes in common contractions)
     // is a near-dispositive paste-from-LLM signature: humans typing
     // directly into a textarea don't produce all four. Standalone any of
-    // these is meaningless — co-occurrence is the signal.
+    // these is meaningless — co-occurrence is the signal. Separator-position
+    // dashes are typography and don't corroborate it.
     {
       const hasCurly = /[“”‘’]/.test(text);
-      const hasEmDash = /—/.test(text);
+      const totalEmDashes = (text.match(/—/g) || []).length;
+      const separatorEmDashes = (text.match(SEPARATOR_DASH_RE) || []).length
+        + (text.match(VERSION_HEADING_DASH_RE) || []).length;
+      const hasEmDash = totalEmDashes > separatorEmDashes;
       const oxfordHit = text.match(/\b\w+,\s+\w+,\s+and\s+\w+/g);
       const hasOxford = (oxfordHit?.length || 0) >= 1;
       const doubleSpaces = (text.match(/[^.!?]  +/g) || []).length;
@@ -1110,7 +1368,11 @@ const AIDetector = (() => {
     // Earlier char class `[\s\\]` had a literal backslash and silently
     // missed hashtags after sentence punctuation; an interim `[\s]` fix
     // on origin only caught whitespace-preceded tags.
-    const hashtagMatches = text.match(/(?:^|\W)#\w[\w-]*/g) || [];
+    // Code is masked and non-tag `#` forms are subtracted first — see maskCode
+    // and isSocialTag. Without them a changelog paragraph citing six issue
+    // numbers, or a palette listing six hex colours, scored as a tag block.
+    const hashtagMatches = [...maskCode(text).matchAll(/(?:^|\W)#(\w[\w-]*)/g)]
+      .filter((m) => isSocialTag(m[1]));
     if (hashtagMatches.length >= 6) {
       issues.push({
         type: 'hashtag-stuff',
@@ -1187,6 +1449,19 @@ const AIDetector = (() => {
     }
     flushRun();
 
+    // NOTE: "Wall-of-text replies" (SKILL.md) is deliberately NOT a
+    // detector rule here. A first pass tried "reply-length text, >=4
+    // sentences, zero newlines" as a structural gate — it broke the
+    // "repeated Tier 1 phrase does not inflate score linearly" fixture
+    // and, on reflection, would fire on any ordinary short paragraph
+    // (a blog intro, a single-paragraph email) since "one paragraph with
+    // no internal line break" is simply what continuous prose looks
+    // like, not an AI-specific shape. The tell in SKILL.md depends on
+    // knowing the text is conversational-reply register in the first
+    // place, which the engine can't reliably infer from the bytes alone
+    // (CONTRIBUTING.md: "a signal that fires on most normal prose is not
+    // worth adding"). Left as an LLM-judgment rule; see CATEGORIES.md §C.
+
     // Confidence calibration is only flagged when it stacks (3+ instances).
     // Gating happens pre-dedup on raw match count, since that signals actual
     // stacking, not just vocabulary use.
@@ -1196,7 +1471,15 @@ const AIDetector = (() => {
     // ── 22. Em dash frequency ────────────────────────────────────
     // Match real em dashes, plus `--` only when surrounded by whitespace on at
     // least one side (skips CLI flags like --save-dev and YAML `---` blocks).
-    const emDashCount = (text.match(/—|(?<=\s)--(?=\s|$)|(?<=^|\s)--(?=\s)/gm) || []).length;
+    // Separator-position em dashes (SEPARATOR_DASH_RE above) are excluded
+    // from the rate. The list marker is required on purpose: a line-initial
+    // "**Bold lead** — full sentence" outside a list is itself an AI tell
+    // and still counts, as does a mid-sentence "**bold** — like this"
+    // splice. Em dash only — the `--` substitute is never carved out.
+    const rawEmDashCount = (text.match(/—|(?<=\s)--(?=\s|$)|(?<=^|\s)--(?=\s)/gm) || []).length;
+    const separatorDashCount = (text.match(SEPARATOR_DASH_RE) || []).length
+      + (text.match(VERSION_HEADING_DASH_RE) || []).length;
+    const emDashCount = rawEmDashCount - separatorDashCount;
     const emDashRate = emDashCount / (wordCount / 1000);
     if (emDashRate > 1) {
       issues.push({
@@ -1601,6 +1884,7 @@ const AIDetector = (() => {
 
   const TYPE_LABELS = {
     'tier1': 'AI vocabulary',
+    'tier1-clarity': 'Wordiness',
     'tier2': 'Word cluster',
     'tier3': 'Overused word',
     'transition': 'AI transition',
@@ -1615,6 +1899,7 @@ const AIDetector = (() => {
     'vague-attribution': 'Vague attribution',
     'hollow-intensifier': 'Hollow intensifier',
     'emotional-flatline': 'Emotional flatline',
+    'lingering-attention': 'Lingering-attention claim',
     'novelty-inflation': 'Novelty inflation',
     'cutoff-disclaimer': 'Cutoff disclaimer',
     'template-phrase': 'Template phrase',
@@ -1633,6 +1918,7 @@ const AIDetector = (() => {
     'real-actual-inflation': '"Real/actual" inflation',
     'social-cta-closer': 'Engagement-bait closer',
     'formulaic-opener': 'Formulaic opener',
+    'speculative-opener': 'Speculative scenario opener',
     'title-case-header': 'Title Case header',
     'parenthetical-hedge': 'Parenthetical hedge',
     'smart-punct-signature': 'Smart-punct signature',

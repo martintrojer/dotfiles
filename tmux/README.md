@@ -31,7 +31,7 @@ This config uses TPM plus a mix of quality-of-life, persistence, navigation, and
 - `tmux-plugins/tmux-cpu`: provides the `#{cpu_percentage}` format used by the native status bar's CPU segment.
 - `martintrojer/tmux-fingers-rs`: hint-based picking inside visible pane content, similar to Vimium-style jump labels for paths, URLs, SHAs, numbers, and other matches. This is a Rust port of `Morantron/tmux-fingers`; configuration is the same (`@fingers-*` options), the binary is `tmux-fingers-rs`.
 - `sainnhe/tmux-fzf`: fzf-powered tmux management for sessions, windows, panes, bindings, clipboard history, and process actions.
-- `christoomey/vim-tmux-navigator`: seamless navigation between Neovim splits and tmux panes with the same control-key motions.
+- `christoomey/vim-tmux-navigator`: moves between Neovim splits and tmux panes with the same control-key motions, no prefix.
 
 ## What You Actually Use Here
 
