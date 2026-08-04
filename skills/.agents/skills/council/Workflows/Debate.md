@@ -2,87 +2,84 @@
 
 Full structured multi-agent debate with 3 rounds and visible transcript.
 
-## Voice Notification
+## Announce
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the Debate workflow in the Council skill to run multi-agent debate"}' \
-  > /dev/null 2>&1 &
+Output this line before starting:
+
 ```
-
 Running the **Debate** workflow in the **Council** skill to run multi-agent debate...
+```
 
 ## Prerequisites
 
 - Topic or question to debate
-- Optional: Custom council members (default: architect, designer, engineer, researcher)
+- Optional: Custom council member descriptions (otherwise auto-composed)
+
+## Members
+
+Council members are custom personas you write inline. Write four different briefs tailored to the topic — a persona-less agent produces bland agreement. See `CouncilMembers.md` for writing them and `SKILL.md` § Running the members for the execution modes.
+
+Below, "launch N members" means: dispatch N subagents if the harness has them, otherwise write each member's section yourself in sequence.
 
 ## Execution
 
+### Step 0: Write the Council Members
+
+Before any debate rounds, analyze the topic, decide the 4 perspectives that create the most productive friction, and write a brief for each: a name, their role/expertise, the stance they hold, and what they'll push on. No tool call — you write these directly. See `CouncilMembers.md` for the slot guidance and an example brief.
+
 ### Step 1: Announce the Council
 
-Output the debate header:
+Output the debate header with the member names:
 
 ```markdown
 ## Council Debate: [Topic]
 
-**Council Members:** [List agents participating]
-**Rounds:** 3 (Positions → Responses → Synthesis)
+**Council Members:** [List member names with their one-line role descriptions]
+**Rounds:** 3 (Positions -> Responses -> Synthesis)
 ```
 
 ### Step 2: Round 1 - Initial Positions
 
-Launch 4 parallel Task calls (one per council member).
+Launch 4 members (one per composed council brief).
 
-**Each agent prompt includes:**
+**Each member's input is their brief PLUS:**
 ```
-You are [Agent Name], using the role description from CouncilMembers.md.
-
 COUNCIL DEBATE - ROUND 1: INITIAL POSITIONS
 
 Topic: [The topic being debated]
 
+[Full topic context — include relevant background, data, quotes, etc. that the agent needs to form an informed opinion]
+
 Give your initial position on this topic from your specialized perspective.
 - Speak in first person as your character
-- Be specific and substantive (50-150 words)
+- Be specific and substantive (100-150 words)
 - State your key concern, recommendation, or insight
 - You'll respond to other council members in Round 2
-
-Your perspective focuses on: [agent's domain]
 ```
-
-**Agent domains:**
-- **architect**: System design, patterns, scalability, long-term architectural implications
-- **designer**: User experience, accessibility, user needs, interface implications
-- **engineer**: Implementation reality, tech debt, maintenance burden, practical constraints
-- **researcher** (ClaudeResearcher): Data, precedent, external examples, what others have done
 
 **Output each response as it completes:**
 ```markdown
 ### Round 1: Initial Positions
 
-**🏛️ Architect (Serena):**
+**[Agent 1 Name] ([trait description]):**
 [Response]
 
-**🎨 Designer (Aditi):**
+**[Agent 2 Name] ([trait description]):**
 [Response]
 
-**⚙️ Engineer (Marcus):**
+**[Agent 3 Name] ([trait description]):**
 [Response]
 
-**🔍 Researcher (Ava):**
+**[Agent 4 Name] ([trait description]):**
 [Response]
 ```
 
 ### Step 3: Round 2 - Responses & Challenges
 
-Launch 4 parallel Task calls with Round 1 transcript included.
+Launch 4 members with the Round 1 transcript included.
 
-**Each agent prompt includes:**
+**Each member's input is their brief PLUS:**
 ```
-You are [Agent Name], [brief role description].
-
 COUNCIL DEBATE - ROUND 2: RESPONSES & CHALLENGES
 
 Topic: [The topic being debated]
@@ -95,36 +92,17 @@ Now respond to the other council members:
 - Challenge assumptions or add nuance
 - Build on points you agree with
 - Maintain your specialized perspective
-- 50-150 words
+- 100-150 words
 
-The value is in genuine intellectual friction—engage with their actual arguments.
-```
-
-**Output:**
-```markdown
-### Round 2: Responses & Challenges
-
-**🏛️ Architect (Serena):**
-[Response referencing others' points]
-
-**🎨 Designer (Aditi):**
-[Response referencing others' points]
-
-**⚙️ Engineer (Marcus):**
-[Response referencing others' points]
-
-**🔍 Researcher (Ava):**
-[Response referencing others' points]
+The value is in genuine intellectual friction -- engage with their actual arguments.
 ```
 
 ### Step 4: Round 3 - Synthesis
 
-Launch 4 parallel Task calls with Round 1 + Round 2 transcripts.
+Launch 4 members with the Round 1 + Round 2 transcripts.
 
-**Each agent prompt includes:**
+**Each member's input is their brief PLUS:**
 ```
-You are [Agent Name], [brief role description].
-
 COUNCIL DEBATE - ROUND 3: SYNTHESIS
 
 Topic: [The topic being debated]
@@ -136,26 +114,9 @@ Final synthesis from your perspective:
 - Where does the council agree?
 - Where do you still disagree with others?
 - What's your final recommendation given the full discussion?
-- 50-150 words
+- 100-150 words
 
-Be honest about remaining disagreements—forced consensus is worse than acknowledged tension.
-```
-
-**Output:**
-```markdown
-### Round 3: Synthesis
-
-**🏛️ Architect (Serena):**
-[Final synthesis]
-
-**🎨 Designer (Aditi):**
-[Final synthesis]
-
-**⚙️ Engineer (Marcus):**
-[Final synthesis]
-
-**🔍 Researcher (Ava):**
-[Final synthesis]
+Be honest about remaining disagreements -- forced consensus is worse than acknowledged tension.
 ```
 
 ### Step 5: Council Synthesis
@@ -166,46 +127,34 @@ After all rounds complete, synthesize the debate:
 ### Council Synthesis
 
 **Areas of Convergence:**
-- [Points where 3+ agents agreed]
+- [Points where 3+ members agreed]
 - [Shared concerns or recommendations]
 
 **Remaining Disagreements:**
-- [Points still contested between agents]
+- [Points still contested between members]
 - [Trade-offs that couldn't be resolved]
 
 **Recommended Path:**
 [Based on convergence and weight of arguments, the recommended approach is...]
 ```
 
-## Custom Council Members
-
-If user specifies custom members, adjust accordingly:
-
-- "Council with security" → Add pentester agent
-- "Council with intern" → Add intern agent (fresh perspective)
-- "Council with writer" → Add writer agent (communication focus)
-- Omit agents: "Just architect and engineer" → Only those two
-
-## Agent Type Mapping
-
-| Council Role | Task subagent_type | Personality Reference |
-|--------------|-------------------|----------------------|
-| Architect | Architect | Serena Blackwood |
-| Designer | Designer | Aditi Sharma |
-| Engineer | Engineer | Marcus Webb |
-| Researcher | PerplexityResearcher | Ava Chen |
-| Security | Pentester | Rook Blackburn |
-| general-purpose | Custom Agent (ComposeAgent) | Task-specific |
-| Writer | (use general-purpose with writer prompt) | Emma Hartley |
+If the debate ran in-context, add one line noting it — a convergence you
+reached by simulating four members is weaker evidence than four independent
+agents landing in the same place, and the reader should know which they got.
 
 ## Timing
 
+With parallel subagents:
+
+- Writing member briefs: inline (orchestrator writes 4 briefs)
 - Round 1: ~10-20 seconds (parallel)
 - Round 2: ~10-20 seconds (parallel)
 - Round 3: ~10-20 seconds (parallel)
 - Synthesis: ~5 seconds
 
-**Total: 30-90 seconds for full debate**
+**Total: 40-90 seconds for full debate**
+
+In-context: one long response per round, no wall-clock estimate.
 
 ## Done
 

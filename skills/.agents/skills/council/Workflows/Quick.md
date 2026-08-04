@@ -2,44 +2,47 @@
 
 Fast single-round perspective check. Use for sanity checks and quick feedback.
 
-## Voice Notification
+## Announce
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the Quick workflow in the Council skill to get fast perspectives"}' \
-  > /dev/null 2>&1 &
+Output this line before starting:
+
 ```
-
 Running the **Quick** workflow in the **Council** skill to get fast perspectives...
+```
 
 ## Prerequisites
 
 - Topic or question to evaluate
 - Optional: Custom council members
 
+## Members
+
+Write 4 member briefs inline (name + role + stance). See `CouncilMembers.md` for writing them and `SKILL.md` § Running the members for the execution modes.
+
 ## Execution
 
-### Step 1: Announce Quick Council
+### Step 1: Write & Announce Quick Council
+
+Write 4 member briefs tailored to the topic, then announce:
 
 ```markdown
 ## Quick Council: [Topic]
 
-**Council Members:** [List agents]
+**Council Members:** [List member names with one-line roles]
 **Mode:** Single round (fast perspectives)
 ```
 
 ### Step 2: Parallel Perspective Gathering
 
-Launch all council members in parallel (single Task call batch).
+Launch all council members — in parallel if the harness has subagents, otherwise write each take yourself in sequence.
 
-**Each agent prompt:**
+**Each member's input is their brief PLUS:**
 ```
-You are [Agent Name], [brief role description].
-
 QUICK COUNCIL CHECK
 
 Topic: [The topic]
+
+[Relevant context for the topic]
 
 Give your immediate take from your specialized perspective:
 - Key concern, insight, or recommendation
@@ -54,16 +57,16 @@ This is a quick sanity check, not a full debate.
 ```markdown
 ### Perspectives
 
-**🏛️ Architect (Serena):**
+**[Agent 1 Name] ([traits]):**
 [Brief take]
 
-**🎨 Designer (Aditi):**
+**[Agent 2 Name] ([traits]):**
 [Brief take]
 
-**⚙️ Engineer (Marcus):**
+**[Agent 3 Name] ([traits]):**
 [Brief take]
 
-**🔍 Researcher (Ava):**
+**[Agent 4 Name] ([traits]):**
 [Brief take]
 
 ### Quick Summary
@@ -78,13 +81,13 @@ This is a quick sanity check, not a full debate.
 If the quick check reveals significant disagreement or complex trade-offs, recommend:
 
 ```
-⚠️ This topic has enough complexity for a full council debate.
+This topic has enough complexity for a full council debate.
 Run: "Council: [topic]" for 3-round structured discussion.
 ```
 
 ## Timing
 
-- Total: 10-20 seconds
+- Total: 15-30 seconds with parallel subagents (single round). In-context, one response.
 
 ## Done
 

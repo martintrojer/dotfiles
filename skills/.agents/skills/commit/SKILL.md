@@ -8,12 +8,26 @@ description: >
   staged-files-only when files are already staged in git. Handles jj-specific traps
   (interactive editors, conflict states, the operation log, the post-commit working
   copy gotcha) without dropping into TUIs that block non-interactive shells.
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Commit
 
 Create a commit for the current changes in a consistent format, regardless of which version control system is in use.
+
+## Before you commit
+
+- **Don't claim it works without evidence.** The Test Plan is a factual record,
+  not an intention. If you write `Ran tests`, you ran them *in this session* and
+  saw them pass. See the `verification-before-completion` skill — this is the
+  most common place its rule gets broken, because the commit message is where
+  the claim gets written down permanently.
+- **Run the repo's gate first** if it has one — `make check-all`, `just check`,
+  a `pre-commit` config, whatever the project uses. Check `AGENTS.md` /
+  `CONTRIBUTING.md` if unsure.
+- Commit only what the user asked for. Unrelated drift in the working copy gets
+  mentioned, not swept in — especially under jj, where there is no staging area
+  to hold it back.
 
 ## Detect VCS
 
@@ -40,20 +54,76 @@ For hg, `hg status` shows everything; `hg commit` commits all changes by default
 ## Commit message format
 
 ```
-<terse-summary>
+<scope>: <terse summary>
 
-<detailed-summary>
+<detailed summary>
 
 Test Plan:
-<test-plan>
+<test plan>
 ```
 
-- **Terse summary** (first line): one-line description, max 72 chars. This line is what shows up in `jj log` / `git log --oneline` and is the load-bearing field — make it count.
-- **Detailed summary**: brief paragraph(s) explaining what changed and why. Terse, avoid flowery language. Bullet lists are fine for multiple discrete points.
-- **Test plan**: how this was tested. Acceptable values:
-  - `CI` — covered by existing CI tests.
-  - `Ran tests` — ran the test suite locally.
-  - Specific commands or manual steps if applicable.
+### Subject line
+
+**Match the repo.** Read `git log --oneline -30` (or `jj log`) before writing
+anything and copy the prevailing shape. Don't impose a convention the project
+doesn't use.
+
+Where the repo uses a scope prefix, the shape is `scope: lowercase imperative`,
+max ~72 chars. This is the load-bearing field — it's all anyone sees in a log.
+
+The best subjects name **the change and its reason**, not just the area
+touched. Where it fits, `X, not Y` / `X instead of Y` says what was rejected:
+
+```
+flatpak: gate daily update on real connectivity, not network-online.target
+dotfiles-sync: refuse a directory target in apply_link instead of IsADirectoryError
+sway: float portal file dialogs, which no rule could ever match
+make: syntax-check zsh files, which no gate covered
+```
+
+Each of those answers "why was this needed?" in the subject alone. Compare the
+weak forms: `fix flatpak timer`, `update sway config`, `improve error handling`.
+
+### Body
+
+Explain **why**, not what — the diff already carries the what. Terse, no
+flowery language. Bullets are fine for discrete points.
+
+For a non-obvious bug, the body's job is the causal chain: what was observed,
+why it happened, why the fix addresses the cause rather than the symptom. If
+you can't write that chain, you may not have found the root cause yet — see
+`systematic-debugging`.
+
+Worth stating explicitly when true:
+
+- What was rejected and why (saves the next person re-litigating it)
+- Why a fix lives where it does, if the obvious spot was somewhere else
+- Anything the diff makes look wrong but is deliberate
+
+### Test Plan
+
+What was *actually* done, not what should be done:
+
+- `CI` — covered by existing CI tests.
+- `Ran tests` — ran the suite locally, this session, and it passed.
+- Specific commands, before/after numbers, or manual steps.
+
+Be concrete where concreteness is available. `make check-all (62 tests, green)`
+beats `Ran tests`. Before/after measurements beat "verified it's faster".
+
+**For new tests, state that you watched them fail.** A test never observed
+failing has not been shown to test anything (`test-driven-development`). The
+strongest form names the mutation:
+
+```
+Test Plan:
+make check-all (62 tests, green). Each new test verified by breaking the
+code it covers: no-op'ing the prune fails 2, restoring the rglob fails the
+unmanaged-subtree test.
+```
+
+If something is untested, say so here. An honest gap is information; a false
+`Ran tests` is a lie that outlives the session.
 
 ## Create the commit
 
@@ -163,14 +233,21 @@ jj diff -r <rev> --stat              # just the file list
 ## Example
 
 ```
-Add user authentication middleware
+auth: validate token expiry with <=, not <
 
-JWT auth for API routes. Middleware validates tokens on protected
-endpoints and attaches user context to requests.
+The middleware treated a token expiring exactly on the boundary second as
+still valid, so a request arriving in that window was authenticated against
+an expired token. The comparison is the whole bug; every caller routes
+through this one check, so fixing it here covers all of them.
 
 Test Plan:
-Ran tests
+Ran tests (48, green). New boundary test verified by reverting the operator
+to `<` and watching it fail.
 ```
+
+Note what the subject does: names the fix *and* the rejected alternative in
+72 characters. The body gives the causal chain and says why the fix is at the
+shared choke point. The test plan proves the new test can fail.
 
 ## When things go wrong
 
@@ -179,3 +256,14 @@ Ran tests
 - **Working copy in a conflict state after a rebase?** Inspect `jj st` for affected files, edit the conflict markers, `jj squash` to fold the resolution back into the conflicted commit. Or `jj undo` the rebase if you want to back out entirely.
 - **Forgot `jj new` after `jj describe`/`jj squash` and now your latest edits landed in the wrong commit?** Either: (a) `jj split <paths>` to peel them out into a fresh commit (non-interactive form); or (b) `jj op restore <pre-edit-snapshot>` to rewind, then redo with proper `jj new` discipline.
 - **Pushed to the wrong branch?** Out of scope for this skill — handle separately.
+- **Asked to commit work you haven't verified?** Say so and run the gate, or
+  write the honest Test Plan (`Not tested — <why>`). Don't write `Ran tests`
+  speculatively.
+
+## Related skills
+
+| Skill | When |
+|-------|------|
+| `verification-before-completion` | Before writing any Test Plan. Evidence precedes the claim |
+| `test-driven-development` | New tests in the diff — the watch-it-fail step is what the Test Plan attests to |
+| `systematic-debugging` | Bug fix. The body should carry the root cause, not the symptom |

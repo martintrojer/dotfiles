@@ -61,7 +61,27 @@ every sibling caller still broken. Fix it once, where all callers route through.
 - Fewest files possible. Shortest working diff wins — but only once you understand the problem. The smallest change in the wrong place isn't lazy, it's a second bug.
 - Complex request? Ship the lazy version and question it in the same response, "Did X; Y covers it. Need full X? Say so." Never stall on an answer you can default.
 - Two stdlib options, same size? Take the one that's correct on edge cases. Lazy means writing less code, not picking the flimsier algorithm.
-- Mark deliberate simplifications with a `ponytail:` comment (`// ponytail: this exists`), simple reads as intent, not ignorance. Shortcut with a known ceiling (global lock, O(n²) scan, naive heuristic)? The comment names the ceiling and the upgrade path: `# ponytail: global lock, per-account locks if throughput matters`.
+- Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) with a `ponytail:` comment naming the ceiling and upgrade path (`# ponytail: global lock, per-account locks if throughput matters`).
+
+<!-- local addition: surgical-changes rule, adapted from
+     forrestchang/andrej-karpathy-skills (MIT). Laziness is also about what you
+     DON'T touch; upstream ponytail only covers what you don't write. -->
+
+## Touch only what you must
+
+The laziest diff is the one that doesn't wander. Every changed line should
+trace directly to what was asked.
+
+- Don't "improve" adjacent code, comments, or formatting on the way past.
+- Don't refactor what isn't broken, and don't reformat to your own taste.
+- Match the existing style even where you'd have chosen differently.
+- Notice unrelated dead code? **Mention it, don't delete it.**
+- Clean up only your own mess: remove the imports and helpers *your* change
+  orphaned, not pre-existing ones.
+
+This is the same instinct as the ladder, pointed at the blast radius instead of
+the line count: an unrequested cleanup is speculative work that also has to be
+reviewed, and it buries the change the user actually asked for.
 
 ## Output
 

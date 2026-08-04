@@ -1,40 +1,61 @@
 # Council Members
 
-Reference for council member roles, perspectives, and voice assignments.
+Council members are custom personas you write inline. There is no composition tool and no trait matrix — you write each member's brief directly, tailored to the topic. A capable model writes a sharper, more topic-specific persona than any generic trait lookup, so this is both simpler and better.
 
-## Default Council Members
+## Why inline briefs, not generic personas
 
-| Agent | Perspective | Voice |
-|-------|-------------|-------|
-| **Architect** | System design, patterns, long-term | Serena Blackwood |
-| **Designer** | UX, user needs, accessibility | Aditi Sharma |
-| **Engineer** | Implementation reality, tech debt | Marcus Webb |
-| **Researcher** | Data, precedent, external examples | Ava Chen |
+A persona-less agent has no stake in the topic and produces bland agreement. Council needs members who disagree on the merits. The friction comes from each member having a distinct role, expertise, and stance — which you supply in the brief. Write four different briefs; never run four identical ones.
 
-## Optional Members
+## How to Create Council Members
 
-Add these as needed based on the topic:
+### Step 1: Analyze the Topic
 
-| Agent | Perspective | When to Add |
-|-------|-------------|-------------|
-| **Security** | Risk, attack surface, compliance | Auth, data, APIs |
-| **Fresh Eyes** (custom) | Fresh eyes, naive questions | Complex UX, onboarding |
-| **Writer** | Communication, documentation | Public-facing, docs |
+Decide what perspectives would create the most productive friction for THIS specific debate. Design the roles around the topic, not from a generic list.
 
-## Agent Type Mapping
+**Example — "Should we use WebSockets or SSE?"**
+- Real-time systems architect who defends push-first bidirectional transport
+- Frontend-DX advocate who wants the simplest thing that ships
+- Ops/reliability skeptic who distrusts long-lived connections
+- Industry researcher who weighs precedent and adoption data
 
-| Council Role | Task subagent_type | Personality |
-|--------------|-------------------|-------------|
-| Architect | Architect | Serena Blackwood |
-| Designer | Designer | Aditi Sharma |
-| Engineer | Engineer | Marcus Webb |
-| Researcher | PerplexityResearcher | Ava Chen |
-| Security | Pentester | Rook Blackburn |
-| Fresh Eyes | general-purpose (via ComposeAgent) | Custom composed |
-| Writer | general-purpose (via ComposeAgent) | Emma Hartley |
+**Example — "Is AI overhyped?"**
+- AI infrastructure builder who ships with these tools daily
+- Security practitioner skeptic who has seen the failure modes
+- Pragmatic engineer focused on real-world trade-offs
+- Evidence-based researcher who wants the numbers
 
-## Custom Council Composition
+### Step 2: Write Each Member's Brief
 
-- "Council with security" - Add pentester agent
-- "Council with fresh eyes" - Add custom agent for fresh perspective
-- "Just architect and engineer" - Only specified members
+For each member, write 2–4 sentences: a name, their role/expertise, the stance they hold, and what they'll push on and attack. That paragraph IS the persona.
+
+Example brief:
+> **Mara — real-time systems architect.** Believes push-first. Will defend WebSocket bidirectionality and attack SSE's connection-count limits and reconnection story. Speaks precisely, cites protocol behavior.
+
+### Step 3: Run the members
+
+Each member's input is the brief you wrote, plus the round instructions and the topic context. See **Running the members** in `SKILL.md` for the three execution modes — in-context (default), parallel subagents, or `mu` panes.
+
+In-context, that means writing this before you answer as them:
+
+```
+[member brief]
+
+[round instructions]
+
+Topic: [topic + relevant context]
+```
+
+Then answer in that member's voice, in full, before moving to the next member.
+
+## Default Perspective Slots
+
+When the user doesn't specify members, cover these four perspectives — but write each one tailored to the topic, not as a generic role:
+
+| Slot | Purpose |
+|------|---------|
+| **Builder** | Has built things in this domain; argues from what actually ships |
+| **Skeptic** | Challenges assumptions, finds the flaws and failure modes |
+| **Pragmatist** | Implementation reality, cost, and trade-offs |
+| **Analyst** | Data, precedent, and external evidence |
+
+The slots are a starting guide. Adjust the mix to the topic — a pure design question may want two builders and a user advocate instead.

@@ -254,6 +254,22 @@ Even if you never re-enable SwayFX, these bit on first setup:
 
 ---
 
+### Skills are single-agent discipline; orchestration is `mu`'s (accepted 2026-08-04)
+
+The 2026-08 skills audit had to decide, repeatedly, whether to vendor skills that ship their own multi-agent machinery — superpowers' `subagent-driven-development` (503 lines), `dispatching-parallel-agents`, `requesting-code-review`; LifeOS `council`'s parallel debate rounds. The rule that fell out: a skill may describe *how one agent behaves*, never *how several are coordinated*.
+
+- **The duplication is prose vs. a program.** `subagent-driven-development` is `mu`'s `implement → review → address → ship` DAG written as instructions the agent hand-executes. Vendoring it trades a real task graph, per-agent workspaces, and the cherry-pick flow for a description of them.
+- **Orchestration skills assume a dispatch primitive.** They call `Task` / `subagent_type`, which pi doesn't have. `council` had been installed and broken for months for exactly this reason — every trigger word loaded 79 lines of SKILL.md that dead-ended at a nonexistent tool. Discovered only because the audit tried to run it.
+- **The four superpowers skills kept** (`test-driven-development`, `systematic-debugging`, `receiving-code-review`, `verification-before-completion`) share the property that makes them safe: they change one agent's behaviour in one context, need no dispatch, and therefore compose with `mu` — including inside a `mu` worker pane.
+- **`mu` stays a symlink, not a vendored copy.** It's a real program with its own repo and tests; `~/.agents/skills/mu` points at `~/hacking/mu/skills/mu`.
+- **Escape hatch for the genuinely one-shot:** `pi-subagents` for fire-and-return with no follow-up. Not currently installed; its agents set `inheritSkills: false`, so skills wouldn't reach its children anyway.
+
+The operational form of this, plus nine other rules extracted from the same audit, is *Zen Of These Skills* in [`skills/README.md`](../skills/README.md).
+
+**Reconsider if:** `mu` stops being the daily driver, or pi gains a first-class subagent tool that makes the prose-orchestration skills executable as written (its `examples/extensions/subagent/` is the thing to watch).
+
+---
+
 ### Gate the two unchecked languages: shellcheck and tsc (accepted 2026-08-01)
 
 A repo-wide audit found `pi/` (2,955 lines of TypeScript) was prettier-formatted but never type-checked, and 37 shell files across 8 packages had no linter at all — the two largest ungated surfaces in the repo.

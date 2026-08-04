@@ -36,6 +36,7 @@ Many important paths are hidden, so use hidden-aware search:
 ## Useful Pointers
 
 - Tool-specific details live in package docs such as `tmux/README.md`, `sway/README.md`, `fuzzel/README.md`, `pi/README.md`, and `skills/README.md`.
-- `dotfiles-sync --apply` symlinks `skills/*` into `~/.agents/skills/` and `pi/extensions/*.ts` into `~/.pi/agent/extensions/`. All agents read those paths natively.
+- `dotfiles-sync --apply` symlinks `skills/.agents/skills/*` into `~/.agents/skills/` and `pi/.pi/agent/extensions/*.ts` into `~/.pi/agent/extensions/`. All agents read those paths natively.
+- Before adding, syncing, or removing a skill, read *Zen Of These Skills* and *Sync procedure* in [`skills/README.md`](skills/README.md). Multi-agent orchestration is `mu`'s job, not a skill's.
 - Test suites: `_dotfiles_sync/tests/`, `fedora{,/gaming}/tests/`, `guides/`, `tmux/.config/tmux/scripts/test-status-tools`, and beside linked scripts in `{fuzzel,sway,waybar}/.config/*/scripts/tests/`. All run under `make check-all`.
 - Sway window operations use `swaymsg`.
