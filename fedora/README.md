@@ -17,6 +17,8 @@ Scripts split into two buckets by what they do:
 - **`os/`** — package layering (`rpm-ostree`/`dnf`). Re-run these on a cadence:
   after a major-version rebase or when rebuilding the system clean. They need a
   reboot to take effect.
+- **`config/`** — system configuration under `/etc` (writable and persistent on
+  Atomic). Idempotent; re-run only when the tracked file changes.
 - `mise/.config/mise/config.toml` — tracked global manifest for Fedora userland
   tools; `setup-mise.sh` installs it without rewriting it.
 
@@ -25,7 +27,8 @@ Order for a fresh install:
 1. `os/setup-base.sh` — layer base packages (`rpm-ostree`).
 2. `os/setup-sway.sh` — layer extra Sway session packages.
 3. `setup-mise.sh` — install userland tools with `mise`.
-4. `os/setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
+4. `config/setup-zram.sh` — install the zram swap + VM tuning.
+5. `os/setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
 
 For gaming, streaming, RGB, and controller/hardware fixes, see
 [`gaming/README.md`](./gaming/README.md).
@@ -76,6 +79,47 @@ call `rpm-ostree install`:
   `~/.local/share/wallpapers/`, restarts `swaybg.service`). The manifest includes
   ImageMagick for wallpaper renders and Lua for `nvdiff` and repo checks;
   `luacheck` arrives as a luarock under that Lua install, not as its own tool.
+
+## Swap (zram)
+
+There is no disk swap; all swap is zram, tracked in `config/zram/` and
+installed by `config/setup-zram.sh`. Two files, two jobs:
+
+| File | Installs to | Controls |
+| --- | --- | --- |
+| `zram-generator.conf` | `/etc/systemd/zram-generator.conf` | device size, resident RAM limit, algorithm |
+| `99-zram-sysctl.conf` | `/etc/sysctl.d/99-zram-sysctl.conf` | how the VM reclaims into it |
+
+The size knobs are the pair that trips people up:
+
+- `zram-size = ram` is the **virtual** (uncompressed) capacity — how much swap
+  `swapon --show` reports. It costs nothing until used; it is an address-space
+  ceiling, not an allocation. Stock `zram-generator-defaults` ships
+  `min(ram, 8192)`, sized for small machines.
+- `zram-resident-limit = ram / 2` is the **actual RAM cost** ceiling: the
+  compressed footprint (`/sys/block/zram0/mem_limit`). This is the one that
+  bounds memory. Without it, an incompressible workload could grow zram until
+  nothing is left to reclaim into. With zstd's ~3:1 on a desktop working set, a
+  1:1-with-RAM disksize stays well under half of RAM in practice.
+
+sysctl side, all four deviating from Fedora's defaults because the defaults
+assume swap is a disk:
+
+| Knob | Fedora | Here | Why |
+| --- | --- | --- | --- |
+| `vm.swappiness` | 60 | 180 | anon reclaim into RAM is cheaper than evicting page cache |
+| `vm.page-cluster` | 3 | 0 | 3 means 8 pages per fault — decompress 32K to use 4K. Readahead only pays for a seek, and zram has none |
+| `vm.watermark_scale_factor` | 10 | 125 | wake kswapd earlier so compression happens in the background, not in a direct-reclaim stall |
+| `vm.watermark_boost_factor` | 15000 | 0 | fragmentation boosting plus high swappiness evicts in oversized bursts |
+
+No `writeback-device`: incompressible pages stay in RAM rather than landing on
+the NVMe, since the point of a disk-swap-free setup is keeping that write
+amplification off the SSD.
+
+sysctls apply immediately; the device is only re-created at boot, because
+resizing a live zram swap means `swapoff` and the swapped-out pages have to fit
+back in RAM first. Verify with `zramctl`, `swapon --show`, and
+`sysctl vm.swappiness vm.page-cluster`.
 
 ## GTK Theme
 
