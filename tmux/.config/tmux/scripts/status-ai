@@ -24,6 +24,23 @@ from _tmux_common import STATE_GLYPH, AgentState, tmux_cmd
 SCRIPT = Path(__file__).with_name("agent-attention")
 
 
+def render(raw: str) -> tuple[str, str]:
+    """Build the segment from a closed vocabulary: glyphs, digits, spaces.
+
+    ``.tmux.conf`` reads @ai_status through ``#{E:...}``, which re-expands the
+    full tmux format language -- ``#(...)`` in the value is executed as a shell
+    command on every status refresh. So nothing from the upstream string may be
+    echoed through: an unparseable state or a non-numeric count becomes "?".
+    """
+    if not raw:
+        return "", ""
+    state_str, _, count_str = raw.partition("\t")
+    state = AgentState.parse(state_str)
+    glyph = STATE_GLYPH.get(state, "?") if state else "?"
+    count = count_str if count_str.isdigit() else "?"
+    return f" AI {glyph} {count} ", (state.name if state else "")
+
+
 def main() -> None:
     try:
         raw = subprocess.check_output(
@@ -33,20 +50,7 @@ def main() -> None:
         log_error("status-ai", f"agent-attention status failed: {exc}")
         raw = ""
 
-    if raw:
-        parts = raw.split("\t", 1)
-        if len(parts) == 2:
-            state_str, count = parts
-            state = AgentState.parse(state_str)
-            glyph = STATE_GLYPH.get(state, "?") if state else "?"
-            content = f" AI {glyph} {count} "
-            state_name = state.name if state else ""
-        else:
-            state_name = ""
-            content = f" AI {parts[0]} "
-    else:
-        state_name = ""
-        content = ""
+    content, state_name = render(raw)
 
     tmux_cmd("set-option", "-gq", "@ai_status", content, check=False)
     tmux_cmd("set-option", "-gq", "@ai_status_state", state_name, check=False)

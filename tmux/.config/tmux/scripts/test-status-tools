@@ -19,6 +19,7 @@ import argparse
 import contextlib
 import os
 import re
+import shlex
 import shutil
 import sqlite3
 import subprocess
@@ -31,6 +32,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 AGENT_ATTENTION = SCRIPT_DIR / "agent-attention"
 STATUS_WINDOW_LABEL = SCRIPT_DIR / "status-window-label"
 CHEATSHEET = SCRIPT_DIR / "cheatsheet"
+STATUS_AI = SCRIPT_DIR / "status-ai"
 TMS = SCRIPT_DIR / "tms"
 # scripts/ -> tmux/ -> .config/ -> <package root>, where the stowed dotfile lives.
 TMUX_CONF = SCRIPT_DIR.parents[2] / ".tmux.conf"
@@ -531,6 +533,9 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     print("\n[tms]")
     run_tms_tests()
 
+    print("\n[status-ai: format injection]")
+    run_status_ai_injection_tests()
+
 
 # Drives the real extension: registers its handlers against a stub pi API,
 # fires one event, and waits for the handler's queued work to settle.
@@ -771,6 +776,67 @@ def _import_script(path: Path, name: str):
 
 def _import_cheatsheet():
     return _import_script(CHEATSHEET, "cheatsheet_mod")
+
+
+def run_status_ai_injection_tests() -> None:
+    """@ai_status must never carry upstream text.
+
+    ``.tmux.conf`` reads the option through ``#{E:...}``, which re-expands the
+    tmux format language, so a ``#(...)`` sequence in the value is executed as
+    a shell command at every status refresh (verified on a live server: a value
+    of ``pre-#(echo PWNED)-post`` rendered as ``pre-PWNED-post``). status-ai is
+    the sole writer, so the guard belongs there: only STATE_GLYPH glyphs,
+    digits and spaces may reach the option.
+    """
+    status_ai = _import_script(STATUS_AI, "status_ai_mod")
+
+    hostile = 'pre-#(touch /tmp/PWNED_STATUS_AI)-#{host}-#[fg=red]-"post"'
+
+    with tempfile.TemporaryDirectory(prefix="status-ai-injection-") as tmp:
+        stub = Path(tmp) / "agent-attention"
+        stub.write_text(
+            "#!/bin/sh\nprintf '%s'" + f" {shlex.quote(hostile)}\n",
+            encoding="utf-8",
+        )
+        stub.chmod(0o755)
+
+        recorded: dict[str, str] = {}
+
+        def fake_tmux_cmd(*args: str, **kwargs: object) -> None:
+            # set-option -gq <name> <value>
+            recorded[args[2]] = args[3]
+
+        original_script = status_ai.SCRIPT
+        original_cmd = status_ai.tmux_cmd
+        status_ai.SCRIPT = stub
+        status_ai.tmux_cmd = fake_tmux_cmd
+        try:
+            status_ai.main()
+        finally:
+            status_ai.SCRIPT = original_script
+            status_ai.tmux_cmd = original_cmd
+
+    value = recorded.get("@ai_status", "<unset>")
+    expect_truthy("status-ai wrote @ai_status", "@ai_status" in recorded)
+    expect("hostile output does not reach @ai_status", hostile in value, False)
+    for seq in ("#(", "#{", "#[", "#"):
+        expect(f"@ai_status contains no {seq!r}", seq in value, False)
+
+    allowed = set(STATE_GLYPH.values()) | set("0123456789 AI?")
+    stray = sorted(set(value) - allowed)
+    expect(f"@ai_status stays in the closed vocabulary (stray={stray})", stray, [])
+    expect(
+        "@ai_status_state stays a bare state name",
+        recorded.get("@ai_status_state", "") in {s.name for s in AgentState} | {""},
+        True,
+    )
+
+    # The happy path must still render, or the guard could just be "emit nothing".
+    expect(
+        "a well-formed status still renders",
+        status_ai.render("crashed\t2")[0],
+        f" AI {STATE_GLYPH[AgentState.crashed]} 2 ",
+    )
 
 
 def run_tms_tests() -> None:
