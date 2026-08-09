@@ -494,6 +494,7 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
 
     run_agent_state_contract_tests(env, panes["w1p1"])
     run_writer_vocabulary_tests()
+    run_done_lifecycle_tests(env)
 
     print("\n[status-window-label]")
 
@@ -756,6 +757,19 @@ def run_agent_state_contract_tests(env: dict[str, str], pane: str) -> None:
         "the done value parses as an AgentState",
         AgentState.parse(state()),
         AgentState.done,
+    )
+
+    # ...and the Python half of the lifecycle closes over the real write:
+    # focusing the window is the seen-signal `done` is waiting for. Both
+    # writers are the genuine article here (TS sets it, agent-attention
+    # clears it), which is the only place the whole loop is exercised
+    # without a Python stand-in for the extension.
+    attention(env, ["clear-current", "--pane", pane])
+    expect("focusing a window the extension marked done clears it", state(), "")
+    expect(
+        "clearing done leaves the sticky agent marker, so the window goes idle",
+        tmux(env, ["display-message", "-p", "-t", wid, "#{@pane_agent}"]),
+        "1",
     )
 
     # MU_MANAGED short-circuits to a plain clear.
@@ -1062,6 +1076,87 @@ def run_preview_tests(env: dict[str, str]) -> None:
         for sink in ("set-option", "set-window-option", "#{E:", "#{T:", "#("):
             expect(f"preview never routes text into {sink}", sink in preview_src, False)
     finally:
+        with sqlite3.connect(db) as conn:
+            conn.execute("DELETE FROM events WHERE window_id = ?", (wid,))
+
+
+def run_done_lifecycle_tests(env: dict[str, str]) -> None:
+    """``done`` is sticky, and only a side effect clears it.
+
+    Every other state announces itself: ``working`` is written when a turn
+    starts, ``crashed`` when the reaper notices a dead pid, ``blocked`` when
+    an agent asks for something. ``done`` is the opposite shape -- it is set
+    once and then *waits*, and the thing that ends it is not an event at all
+    but the user focusing the window. That is the shape that rots silently:
+    if a regression makes done stop being written, or makes a routine status
+    tick eat it, nothing errors and nothing is logged. The badge merely stops
+    appearing, and a thing that quietly does not happen is a thing nobody
+    reports. So the whole lifecycle is pinned here rather than left to the
+    incidental coverage the feature work happened to leave behind.
+
+    Scoped to a throwaway window so the global ``status`` counts the rest of
+    the suite asserts on are untouched.
+    """
+    print("\n[agent-attention: done lifecycle]")
+
+    tmux(env, ["new-window", "-d", "-t", "s1:", "-n", "donelc"])
+    target = "s1:donelc"
+    wid = tmux(env, ["display-message", "-p", "-t", target, "#{window_id}"])
+
+    def state() -> str:
+        return tmux(env, ["display-message", "-p", "-t", wid, "#{@agent_state}"])
+
+    def status_rows() -> dict[str, int]:
+        out = attention(env, ["status"])
+        rows = (line.split("\t") for line in out.splitlines() if line)
+        return {name: int(count) for name, count in rows}
+
+    pane = tmux(env, ["display-message", "-p", "-t", target, "#{pane_id}"])
+
+    try:
+        # 1. The transition itself. `done` replaced an unconditional clear on
+        #    agent_end, so the failure mode of a revert is an *empty* option,
+        #    not a wrong one -- assert the value, never merely "changed".
+        set_agent_state(env, target, "working", str(os.getpid()))
+        expect("a turn in flight is working", state(), "working")
+        set_agent_state(env, target, "done")
+        expect("working -> done writes done, not an empty option", state(), "done")
+
+        # 2. Sticky across a reconcile pass. `status` runs the reaper and the
+        #    rescan on every 5s status tick, so a done badge lives or dies by
+        #    surviving this call repeatedly, not once.
+        for tick in (1, 2, 3):
+            rows = status_rows()
+            expect(f"done survives status tick {tick}", state(), "done")
+            expect(f"status tick {tick} counts the done window", rows.get("done"), 1)
+
+        # 3. The side effect that ends it. Focus is the seen-signal: the user
+        #    looked, so the report is delivered and the badge retires. The
+        #    window does not vanish from the roll-up though -- @pane_agent is
+        #    sticky, so it falls back to idle rather than disappearing.
+        attention(env, ["clear-current", "--pane", pane])
+        expect("focus clears done", state(), "")
+        expect(
+            "a cleared done window falls back to idle, it does not vanish",
+            status_rows().get("idle", 0) >= 1,
+            True,
+        )
+        expect("no done window is left behind", "done" in status_rows(), False)
+
+        # 4. crashed still outranks done. The extension writes done straight
+        #    to the tmux option and skips the DB (agent_end has no pid to
+        #    record), so the newest DB row stays the `working` one. If that
+        #    pid is gone the agent did not finish, it died mid-report, and
+        #    the reaper must say so -- an alarm may never be masked by an
+        #    informational badge.
+        set_agent_state(env, target, "working", "9999999")
+        tmux(env, ["set-window-option", "-q", "-t", wid, "@agent_state", "done"])
+        expect("the option starts out done", state(), "done")
+        status_rows()
+        expect("a dead pid overrides done with crashed", state(), "crashed")
+    finally:
+        tmux(env, ["kill-window", "-t", wid], check=False)
+        db = Path(env["XDG_STATE_HOME"]) / "tmux-agent-attention" / "events.db"
         with sqlite3.connect(db) as conn:
             conn.execute("DELETE FROM events WHERE window_id = ?", (wid,))
 
