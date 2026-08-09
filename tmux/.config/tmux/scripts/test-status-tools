@@ -945,8 +945,42 @@ def run_tms_tests() -> None:
         )
 
     # Every colour the render path can reach must exist in the palette.
-    for key in ("red", "peach", "sky", "sapphire", "lavender", "subtext0"):
+    for key in ("red", "peach", "teal", "sky", "sapphire", "lavender", "subtext0"):
         expect(f"palette defines {key!r}", key in tms.CATPPUCCIN, True)
+
+    # done is "finished but not yet seen": teal, and informational only. It
+    # gets its own branch so it does not fall through to the kind colour,
+    # but it must stay below the crashed/attention branches -- a blocked or
+    # crashed agent in the same session still owns the row.
+    # visible_text emits truecolor SGR, not hex, so compare against the
+    # escape ansi_style() would produce for that palette entry.
+    def fg_seq(key: str) -> str:
+        hexcolor = tms.CATPPUCCIN[key]
+        r, g, b = (int(hexcolor[i : i + 2], 16) for i in (1, 3, 5))
+        return f"38;2;{r};{g};{b}"
+
+    done = tms.Entry(
+        kind="tmux", name="w", session_name="s", worst_state=AgentState.done
+    )
+    done_text = done.visible_text()
+    expect_truthy("done rows render teal", fg_seq("teal") in done_text)
+    expect_truthy(
+        "done rows keep the done glyph", STATE_GLYPH[AgentState.done] in done_text
+    )
+    # Deliberately a state AgentStats cannot produce (a session with a done
+    # and a blocked agent reports worst_state=blocked). It is the only way to
+    # observe branch order, and order is the invariant: done is informational
+    # and must never take the row away from an alarm.
+    done_and_blocked = tms.Entry(
+        kind="tmux",
+        name="w",
+        session_name="s",
+        worst_state=AgentState.done,
+        attention_count=1,
+    )
+    rendered = done_and_blocked.visible_text()
+    expect_truthy("attention outranks done", fg_seq("peach") in rendered)
+    expect("attention row is not teal", fg_seq("teal") in rendered, False)
 
     # The palette is generated; an unreferenced key means the template drifted.
     source = TMS.read_text(encoding="utf-8")

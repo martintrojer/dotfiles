@@ -42,6 +42,7 @@ KIND_ICON = {
 CATPPUCCIN = {
     "red": "#f38ba8",
     "peach": "#fab387",
+    "teal": "#94e2d5",
     "sky": "#89dceb",
     "sapphire": "#74c7ec",
     "lavender": "#b4befe",
@@ -152,6 +153,14 @@ class Entry:
                 fg=CATPPUCCIN["peach"],
                 bg=CATPPUCCIN["surface0"],
                 bold=True,
+            )
+        # Below crashed/attention on purpose: done is informational, and a
+        # blocked or crashed agent in the same session must still win.
+        if self.worst_state is AgentState.done:
+            return ansi_style(
+                text,
+                fg=CATPPUCCIN["teal"],
+                bg=CATPPUCCIN["surface0"],
             )
         style_map: dict[str, str] = {
             "default": CATPPUCCIN["lavender"],
