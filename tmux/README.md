@@ -45,7 +45,7 @@ From your current `tmux/.tmux.conf`:
 - The `agent-attention` integration is not a plugin. It is a local script in this repo that tracks per-window agent state (`working / blocked / crashed`) via push events from the pi extension, with a pid-liveness reaper for crash detection. See [`docs/DECISIONS.md` § Agent state awareness](../docs/DECISIONS.md).
 - Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
 - Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `codex`, `π - ...`, or a cwd basename.
-- The AI badge is rendered by `$HOME/.config/tmux/scripts/status-ai`, which sets `@ai_status` and `@ai_status_state` tmux options; `.tmux.conf` conditionals handle the coloring.
+- The agent badge is rendered by `$HOME/.config/tmux/scripts/status-ai`, which sets the `@ai_status` tmux option to one glyph per running agent, grouped into colored runs by state (most urgent first, tail past 10 summarised as `+N`). `.tmux.conf` reads it via `#{E:@ai_status}` and supplies only the box background; the script owns the foregrounds, since a color that changes within one value is not expressible as a format conditional.
 
 ## Status Bar Layout
 

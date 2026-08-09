@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
-"""Render the tmux AI agent-state status segment.
+"""Render the tmux agent-state status segment: one glyph per running agent.
 
 Reads the reconciled output from ``agent-attention status``, which emits one
 ``<state>\t<count>`` line per non-zero state, most urgent first (crashed /
 blocked / done / working / idle).  No output at all means no agents.
 
-Sets two tmux user options so ``.tmux.conf`` can render the segment with
-palette colors via conditionals:
+Sets one tmux user option, read from ``.tmux.conf`` as ``#{E:@ai_status}``:
 
-  @ai_status       — content text like "AI ✗ 2" (empty when no agents)
-  @ai_status_state — state name for color selection (empty when no agents)
+  @ai_status — the whole segment body, e.g. "󰚩 ✗ !! ▶▶▶ ··"
+               (empty when no agents, so the conditional hides the segment)
 
-No colors here — ``.tmux.conf`` owns the palette.
+The segment shows one glyph per agent rather than a single worst-state
+rollup with a number, so "three working, one blocked" is a shape you read
+at a glance instead of a count you decode.  Runs are ordered by urgency and
+each run carries its own foreground, so the eye lands on the red first.
+
+Colors live here (not in ``.tmux.conf``) because the foreground changes
+*within* one option value, which a format conditional cannot express.  The
+hex is generated: see the THEME region below and ``docs/THEME.md``.
 """
 
 from __future__ import annotations
@@ -24,19 +30,87 @@ from _tmux_common import STATE_GLYPH, AgentState, tmux_cmd
 
 SCRIPT = Path(__file__).with_name("agent-attention")
 
+# nf-md-robot.  Written as a wide escape on purpose: "\uf06a9" is NOT this
+# character, it is U+F06A followed by the digit 9.
+ICON = "\U000f06a9"
 
-def render(raw: str) -> tuple[str, str]:
-    """Build the segment from a closed vocabulary: glyphs, digits, spaces.
+# Per-state foregrounds, mirroring the window-status glyph colors so the
+# same glyph means the same thing in both places:
+#   crashed — red + bold   (needs you now)
+#   blocked — peach        (needs you soon)
+#   done    — teal         (finished, unseen: informational, not alarming)
+#   working — subtext0     (busy, no signal)
+#   idle    — overlay0     (present, dimmest)
+# Every non-crashed style says `nobold` explicitly: runs are concatenated,
+# so a bold crashed run would otherwise bleed into the runs after it.
+# Backgrounds stay in .tmux.conf — the pill box is a layout decision there.
+# THEME BEGIN: status-ai-colors
+ICON_STYLE = "#[fg=#a6adc8]#[nobold]"
+STATE_STYLE: dict[AgentState, str] = {
+    AgentState.crashed: "#[fg=#f38ba8]#[bold]",
+    AgentState.blocked: "#[fg=#fab387]#[nobold]",
+    AgentState.done: "#[fg=#94e2d5]#[nobold]",
+    AgentState.working: "#[fg=#a6adc8]#[nobold]",
+    AgentState.idle: "#[fg=#6c7086]#[nobold]",
+}
+OVERFLOW_STYLE = "#[fg=#6c7086]#[nobold]"
+# THEME END: status-ai-colors
+
+# How many agent glyphs fit before the tail is summarised as "+N".
+MAX_GLYPHS = 10
+
+# Shown when upstream said something but none of it parsed.  Deliberately
+# style-free: this is the path a hostile ``agent-attention`` reaches, and
+# the fewer constructs it can emit the smaller the sink (see
+# ``run_status_ai_injection_tests``).
+INERT = " ? "
+
+
+def render_segment(
+    counts: dict[AgentState, int], max_glyphs: int = MAX_GLYPHS
+) -> tuple[str, bool]:
+    """Build the glyph runs for *counts*; return ``(text, overflowed)``.
+
+    One glyph per agent, grouped into a contiguous colored run per state,
+    urgency-descending.  Runs are greedily fitted into *max_glyphs*; whatever
+    does not fit is summarised as a muted " +N".  Because the iteration order
+    is urgency-descending, the dropped tail is always the least urgent agents
+    — a crashed agent can never be the one that falls off the end.
+
+    Returns ``("", False)`` for no agents at all, which is the signal
+    ``.tmux.conf`` uses to hide the whole segment.
+    """
+    runs: list[str] = []
+    budget = max_glyphs
+    dropped = 0
+    for state in sorted(counts, reverse=True):
+        count = counts[state]
+        if count <= 0:
+            continue
+        shown = min(count, budget)
+        if shown > 0:
+            runs.append(STATE_STYLE[state] + STATE_GLYPH[state] * shown)
+            budget -= shown
+        dropped += count - shown
+    if not runs:
+        return "", False
+    text = " ".join(runs)
+    if dropped:
+        text += f"{OVERFLOW_STYLE} +{dropped}"
+    return text, bool(dropped)
+
+
+def parse_counts(raw: str) -> dict[AgentState, int]:
+    """Parse the ``agent-attention status`` contract into per-state counts.
 
     ``.tmux.conf`` reads @ai_status through ``#{E:...}``, which re-expands the
-    full tmux format language -- ``#(...)`` in the value is executed as a shell
-    command on every status refresh. So nothing from the upstream string may be
-    echoed through: an unparseable state or a non-numeric count becomes "?".
-
-    Input is multi-line (one state per line); every line is validated and any
-    line that does not parse is dropped rather than echoed.
+    full tmux format language — a ``#(...)`` sequence in the value is executed
+    as a shell command on every status refresh.  So no upstream byte is ever
+    echoed: a line whose state or count does not validate is dropped, and what
+    reaches the option is built here from a closed vocabulary (STATE_GLYPH
+    glyphs, digits, spaces, and the style tags above).
     """
-    counts: dict[AgentState, str] = {}
+    counts: dict[AgentState, int] = {}
     for line in raw.splitlines():
         state_str, tab, count_str = line.partition("\t")
         if not tab:
@@ -46,15 +120,18 @@ def render(raw: str) -> tuple[str, str]:
             continue
         if not count_str.isdigit():
             continue
-        counts[state] = count_str
-    if not counts:
+        counts[state] = counts.get(state, 0) + int(count_str)
+    return counts
+
+
+def render(raw: str) -> str:
+    """Full segment body for the raw ``agent-attention status`` output."""
+    segment, _ = render_segment(parse_counts(raw))
+    if not segment:
         # Distinguish "nothing at all" (hide the segment) from "upstream said
         # something, but none of it parsed" (show a loud, inert marker).
-        if not raw.strip():
-            return "", ""
-        return " AI ? ? ", ""
-    worst = max(counts)
-    return f" AI {STATE_GLYPH[worst]} {counts[worst]} ", worst.name
+        return "" if not raw.strip() else INERT
+    return f" {ICON_STYLE}{ICON} {segment} "
 
 
 def main() -> None:
@@ -66,10 +143,7 @@ def main() -> None:
         log_error("status-ai", f"agent-attention status failed: {exc}")
         raw = ""
 
-    content, state_name = render(raw)
-
-    tmux_cmd("set-option", "-gq", "@ai_status", content, check=False)
-    tmux_cmd("set-option", "-gq", "@ai_status_state", state_name, check=False)
+    tmux_cmd("set-option", "-gq", "@ai_status", render(raw), check=False)
 
 
 if __name__ == "__main__":
