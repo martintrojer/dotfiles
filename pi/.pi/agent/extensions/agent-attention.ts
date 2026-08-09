@@ -53,7 +53,7 @@ export default function (pi: ExtensionAPI) {
 	if (!WINDOW_ID) return;
 
 	// Status decoration must never stall a turn, but the states it writes form a
-	// machine (working -> blocked/cleared) that has to stay monotonic. Serialize
+	// machine (working -> done/cleared) that has to stay monotonic. Serialize
 	// the handlers through one chain so ordering survives without blocking.
 	let queue: Promise<unknown> = Promise.resolve();
 	const enqueue = (work: () => Promise<unknown>): Promise<unknown> => {
@@ -78,6 +78,10 @@ export default function (pi: ExtensionAPI) {
 			// Direct tmux calls only (~34ms each). Survives container
 			// reaping where the full Python script path gets killed.
 			// DB insert is skipped — the reaper only needs working pids.
+			// mu-managed panes are orchestrated, not watched: mu itself
+			// consumes the completion and drives the next step, so a
+			// sticky "finished, unseen" badge would be noise the user is
+			// never expected to acknowledge. Clear unconditionally.
 			if (MU_MANAGED) {
 				await tmux(["set-window-option", "-qu", "-t", WINDOW_ID, "@agent_state"]);
 				await tmux(["refresh-client", "-S"]);
@@ -90,10 +94,14 @@ export default function (pi: ExtensionAPI) {
 				"-p",
 				"#{&&:#{pane_active},#{&&:#{window_active},#{session_attached}}}",
 			]);
+			// You are looking at it -> nothing to report. Otherwise the run
+			// finished unseen: `done`, not `blocked`. `blocked` means "waiting
+			// on you", which pi has no event for; conflating the two rendered
+			// a finished agent and a permission prompt identically.
 			if (focused === "1") {
 				await tmux(["set-window-option", "-qu", "-t", WINDOW_ID, "@agent_state"]);
 			} else {
-				await tmux(["set-window-option", "-q", "-t", WINDOW_ID, "@agent_state", "blocked"]);
+				await tmux(["set-window-option", "-q", "-t", WINDOW_ID, "@agent_state", "done"]);
 			}
 			await tmux(["set-window-option", "-q", "-t", WINDOW_ID, "@pane_agent", "1"]);
 			await tmux(["refresh-client", "-S"]);

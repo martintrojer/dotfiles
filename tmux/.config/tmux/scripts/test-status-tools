@@ -659,14 +659,16 @@ def run_agent_state_contract_tests(env: dict[str, str], pane: str) -> None:
     # Reset: that reap left the window crashed.
     tmux(env, ["set-window-option", "-qu", "-t", wid, "@agent_state"])
 
-    # agent_end on an unfocused pane parks the window as blocked.
+    # agent_end on an unfocused pane parks the window as done: it finished
+    # without being seen. `blocked` means "waiting on you", which is a
+    # different thing and pi has no event for it.
     tmux(env, ["select-window", "-t", "s1:2"])
     fire("agent_end")
-    expect("agent_end on an unfocused pane writes blocked", state(), "blocked")
+    expect("agent_end on an unfocused pane writes done", state(), "done")
     expect(
-        "the blocked value parses as an AgentState",
+        "the done value parses as an AgentState",
         AgentState.parse(state()),
-        AgentState.blocked,
+        AgentState.done,
     )
 
     # MU_MANAGED short-circuits to a plain clear.
