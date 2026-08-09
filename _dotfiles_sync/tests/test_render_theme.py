@@ -211,6 +211,7 @@ class AgentGlyphTests(unittest.TestCase):
             {
                 "crashed": "\u2717",
                 "blocked": "!",
+                "done": "\u2713",
                 "working": "\u25b6",
                 "idle": "\u00b7",
             },

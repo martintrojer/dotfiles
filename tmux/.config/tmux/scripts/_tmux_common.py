@@ -42,13 +42,19 @@ class AgentState(enum.IntEnum):
 
     The int value doubles as sort key for worst-state rollup.
     ``cleared`` is a transient signal, not a displayable state.
+
+    ``done`` means "finished but not yet seen" and deliberately ranks
+    above ``working``: a finished agent wants your attention more than
+    a busy one.  It is informational, not alarming, so it stays out of
+    ``AgentStats.attention_count``.
     """
 
     cleared = 0
     idle = 1
     working = 2
-    blocked = 3
-    crashed = 4
+    done = 3
+    blocked = 4
+    crashed = 5
 
     @classmethod
     def parse(cls, raw: object, default: AgentState | None = None) -> AgentState | None:
@@ -67,13 +73,19 @@ class AgentState(enum.IntEnum):
 
 
 _VISIBLE_STATES = frozenset(
-    {AgentState.working, AgentState.blocked, AgentState.crashed}
+    {
+        AgentState.working,
+        AgentState.done,
+        AgentState.blocked,
+        AgentState.crashed,
+    }
 )
 
 # Glyphs per state — single source for all display surfaces.
 STATE_GLYPH: dict[AgentState, str] = {
     AgentState.crashed: "\u2717",  # ✗
     AgentState.blocked: "!",
+    AgentState.done: "\u2713",  # ✓
     AgentState.working: "\u25b6",  # ▶
     AgentState.idle: "\u00b7",  # ·
 }
@@ -194,25 +206,31 @@ class AgentStats:
     other consumer that needs to know how many agents are in each state.
     """
 
-    __slots__ = ("_by_session", "blocked", "crashed", "idle", "working")
+    __slots__ = ("_by_session", "blocked", "crashed", "done", "idle", "working")
 
     def __init__(
         self,
         *,
         crashed: int = 0,
         blocked: int = 0,
+        done: int = 0,
         working: int = 0,
         idle: int = 0,
     ) -> None:
         self.crashed = crashed
         self.blocked = blocked
+        self.done = done
         self.working = working
         self.idle = idle
         self._by_session: dict[str, AgentStats] = {}
 
     @property
     def attention_count(self) -> int:
-        """Windows needing user action (blocked + crashed)."""
+        """Windows needing user action (blocked + crashed).
+
+        ``done`` is excluded on purpose: it drives informational styling,
+        not the peach/red alarm styling this count feeds.
+        """
         return self.blocked + self.crashed
 
     @property
@@ -222,6 +240,8 @@ class AgentStats:
             return AgentState.crashed
         if self.blocked:
             return AgentState.blocked
+        if self.done:
+            return AgentState.done
         if self.working:
             return AgentState.working
         if self.idle:
@@ -270,6 +290,7 @@ def scan_agent_states() -> AgentStats:
         return AgentStats(
             crashed=counts.get(AgentState.crashed, 0),
             blocked=counts.get(AgentState.blocked, 0),
+            done=counts.get(AgentState.done, 0),
             working=counts.get(AgentState.working, 0),
             idle=counts.get(AgentState.idle, 0),
         )
