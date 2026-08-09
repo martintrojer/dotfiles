@@ -538,6 +538,9 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     print("\n[agent-attention: menu-rows]")
     run_menu_rows_tests(env)
 
+    print("\n[agent-attention: picker preview]")
+    run_preview_tests(env)
+
     print("\n[cheatsheet]")
     run_cheatsheet_tests()
 
@@ -744,6 +747,100 @@ def run_menu_rows_tests(env: dict[str, str]) -> None:
         )
     finally:
         tmux(env, ["set-window-option", "-qu", "-t", wid, "@agent_state"])
+
+
+def run_preview_tests(env: dict[str, str]) -> None:
+    """The preview renders agent-authored text; it must not be able to lie.
+
+    Event messages come from agents, so the preview is an untrusted-text
+    sink pointed straight at a terminal. Three properties are asserted:
+    the history is actually rendered, control characters (ESC, newline,
+    tab) cannot escape their cell, and the fzf wiring interpolates only
+    fzf's own target field — no event text reaches a command line or a
+    tmux option.
+    """
+    aa = _import_script(AGENT_ATTENTION, "agent_attention_mod")
+
+    wid = tmux(env, ["display-message", "-p", "-t", "s1:2", "#{window_id}"])
+    sid = tmux(env, ["display-message", "-p", "-t", "s1:2", "#{session_id}"])
+    db = Path(env["XDG_STATE_HOME"]) / "tmux-agent-attention" / "events.db"
+    hostile = "pwn\x1b[2J\x1b]0;title\x07 line1\nline2\tcol2\r\x9bK"
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            "INSERT INTO events (ts,window_id,source,state,message) VALUES (?,?,?,?,?)",
+            (int(time.time()) - 120, wid, "pi", "working", "picked up the task"),
+        )
+        conn.execute(
+            "INSERT INTO events (ts,window_id,source,state,message) VALUES (?,?,?,?,?)",
+            (int(time.time()), wid, "pi", "blocked", hostile),
+        )
+    try:
+        out = attention(env, ["preview", f"{sid}:{wid}"])
+        lines = out.splitlines()
+        expect("preview renders one line per event", len(lines), 2)
+        expect_truthy(
+            "preview shows the earlier message and its relative age",
+            "picked up the task" in lines[0] and "2m" in lines[0],
+        )
+        expect_truthy(
+            "preview shows the state transition", "working → blocked" in lines[1]
+        )
+
+        # The message's control bytes must not survive into the output.
+        body = out.split("\x1b[0m")[-1]
+        expect("no ESC from the message reaches the pane", "\x1b[2J" in out, False)
+        expect("no OSC introducer reaches the pane", "\x1b]0;" in out, False)
+        expect("no C1 CSI byte reaches the pane", "\x9b" in out, False)
+        expect("the hostile message cannot forge a new line", "line2" in body, True)
+        expect("the hostile message stays on one line", len(lines), 2)
+        expect("the hostile message cannot inject a tab", "\t" in lines[1], False)
+
+        # An unknown window must not error out; fzf would render the traceback.
+        expect_truthy(
+            "preview of a window with no events says so",
+            "no recorded events" in attention(env, ["preview", "@99999"]),
+        )
+
+        # Row protocol: menu-rows output is "<target>\t<label>", so a window
+        # name carrying a tab or newline must not be able to forge a row.
+        rows = aa.format_picker_rows(
+            [
+                aa.PickerRow(
+                    target="$0:@1",
+                    state=AgentState.blocked,
+                    glyph="!",
+                    location="s\t1:1",
+                    name="evil\n$0:@2\tfake",
+                    age="1m",
+                    sort_key=(0, 0, 0),
+                )
+            ]
+        )
+        expect("a hostile window name yields exactly one row", len(rows), 1)
+        expect("no tab survives into the row label", "\t" in rows[0][1], False)
+        expect("no newline survives into the row label", "\n" in rows[0][1], False)
+
+        # The fzf wiring itself: only fzf's {1} placeholder is interpolated,
+        # and nothing from the event store is in the command line at all.
+        cmd = aa.preview_command()
+        expect("preview command interpolates only fzf's target field", "{1}" in cmd, 1)
+        expect(
+            "preview command has no other fzf placeholder",
+            re.findall(r"\{\d+\}", cmd),
+            ["{1}"],
+        )
+
+        # No untrusted text may reach a tmux option (that is the format
+        # re-expansion sink); the preview writes to stdout only.
+        src = AGENT_ATTENTION.read_text(encoding="utf-8")
+        preview_src = src[
+            src.index("def render_preview") : src.index("def attention_windows")
+        ]
+        for sink in ("set-option", "set-window-option", "#{E:", "#{T:", "#("):
+            expect(f"preview never routes text into {sink}", sink in preview_src, False)
+    finally:
+        with sqlite3.connect(db) as conn:
+            conn.execute("DELETE FROM events WHERE window_id = ?", (wid,))
 
 
 def run_writer_vocabulary_tests() -> None:

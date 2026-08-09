@@ -22,6 +22,7 @@ import argparse
 import json
 import os
 import select
+import shlex
 import shutil
 import sqlite3
 import subprocess
@@ -45,6 +46,11 @@ STATE_DIR = (
 )
 DB_PATH = STATE_DIR / "events.db"
 MAX_EVENTS = 4000
+# How many events the picker preview renders for the highlighted window.
+PREVIEW_EVENTS = 10
+# Per-message cap in the preview; one runaway agent message must not push the
+# rest of the history off the pane.
+PREVIEW_MSG_MAX = 300
 ENABLE_SYSTEM_NOTIFY_ENV = "TMUX_AGENT_ATTENTION_ENABLE_SYSTEM_NOTIFY"
 DISABLE_SYSTEM_NOTIFY_ENV = "TMUX_AGENT_ATTENTION_DISABLE_SYSTEM_NOTIFY"
 
@@ -85,6 +91,41 @@ def tmux_query(target: str | None, fields: list[str]) -> list[str] | None:
 
 def sanitize(value: str) -> str:
     return value.replace("\t", " ").replace("\n", " ").replace("\r", " ").strip()
+
+
+def scrub_untrusted(value: str, limit: int = 0) -> str:
+    """Make agent-authored text safe to print into a terminal UI.
+
+    Event messages are written by agents, so they are attacker-influenced
+    text as far as this script is concerned. Two things must not happen
+    when the picker preview renders them:
+
+      * ANSI/OSC escapes reaching the terminal. The preview runs with
+        ``fzf --ansi`` for our own glyph colours, so an embedded ESC in a
+        message could repaint the UI, hide text, or emit OSC sequences.
+        Every C0/C1 control character (ESC included) is replaced, not just
+        stripped, so "\\x1b[2J" degrades to visible text rather than
+        silently splicing its tail onto the surrounding line.
+      * Newlines and tabs breaking the row protocol. Picker rows are
+        "<target>\\t<label>" one per line, so a message carrying either
+        could forge a row (and therefore a switch-client target).
+
+    Note what this deliberately does *not* do: none of this text is ever
+    routed into a tmux option, a ``#()`` command line, or anything read
+    back through ``#{E:...}``/``#{T:...}``. There is no format
+    re-expansion sink here, and adding one would make quoting the only
+    thing standing between an agent message and command execution.
+    """
+    out = []
+    for ch in value:
+        cp = ord(ch)
+        # C0 (incl. ESC/NUL/newline/tab), DEL, and C1 (0x80-0x9f, which
+        # some terminals accept as single-byte CSI/OSC introducers).
+        out.append("\ufffd" if cp < 0x20 or cp == 0x7F or 0x80 <= cp <= 0x9F else ch)
+    text = "".join(out).strip()
+    if limit and len(text) > limit:
+        text = text[: limit - 1].rstrip() + "…"
+    return text
 
 
 def to_int(value: object, default: int = 0) -> int:
@@ -298,6 +339,18 @@ def clear_events_for_window(window_id: str) -> None:
     """Delete all events for a window."""
     with _db() as conn:
         conn.execute("DELETE FROM events WHERE window_id = ?", (window_id,))
+
+
+def recent_events(window_id: str, limit: int = PREVIEW_EVENTS) -> list[sqlite3.Row]:
+    """The newest ``limit`` events for a window, oldest first."""
+    conn = _db()
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT ts, source, state, message, synthetic, reason FROM events "
+        "WHERE window_id = ? ORDER BY ts DESC, rowid DESC LIMIT ?",
+        (window_id, limit),
+    ).fetchall()
+    return list(reversed(rows))
 
 
 def event_summary_by_window() -> dict[str, dict[str, object]]:
@@ -768,6 +821,69 @@ def format_relative(ts: int) -> str:
     return f"{age // 86400}d"
 
 
+# Dim/accent colours for the preview body, matching the picker's palette use.
+_PREVIEW_DIM = "\033[2m"
+_PREVIEW_RESET = "\033[0m"
+
+
+def _state_transition(prev: str, cur: str) -> str:
+    """Render "prev → cur", or just the state on the first/unchanged event."""
+    cur = sanitize(cur)
+    prev = sanitize(prev)
+    if not cur:
+        return ""
+    if prev and prev != cur:
+        return f"{prev} → {cur}"
+    return cur
+
+
+def render_preview(window_id: str) -> list[str]:
+    """Lines of recent event history for one window, for the fzf preview pane.
+
+    Every field that originates outside this script (source, state,
+    message, reason) goes through ``scrub_untrusted`` before it is
+    printed: agents author these strings, and the preview writes straight
+    to a terminal. Only our own colour codes survive.
+    """
+    rows = recent_events(window_id)
+    if not rows:
+        return [f"{_PREVIEW_DIM}no recorded events for this window{_PREVIEW_RESET}"]
+
+    entries: list[tuple[str, str, str, str]] = []
+    prev_state = ""
+    for row in rows:
+        age = format_relative(to_int(row["ts"])) or "?"
+        source = scrub_untrusted(row["source"] or "", 12) or "-"
+        transition = scrub_untrusted(_state_transition(prev_state, row["state"] or ""))
+        message = scrub_untrusted(row["message"] or "", PREVIEW_MSG_MAX)
+        if to_int(row["synthetic"]):
+            reason = scrub_untrusted(row["reason"] or "", 40)
+            marker = f"(synthetic{': ' + reason if reason else ''})"
+            message = f"{message} {marker}".strip()
+        entries.append((age, source, transition, message))
+        if row["state"]:
+            prev_state = row["state"]
+
+    age_w = max(len(e[0]) for e in entries)
+    src_w = max(len(e[1]) for e in entries)
+    trans_w = max(len(e[2]) for e in entries)
+    lines: list[str] = []
+    for age, source, transition, message in entries:
+        head = f"{age:>{age_w}}  {source:<{src_w}}  {transition:<{trans_w}}"
+        lines.append(f"{_PREVIEW_DIM}{head}{_PREVIEW_RESET}  {message}".rstrip())
+    return lines
+
+
+def cmd_preview(args: argparse.Namespace) -> int:
+    """Print the event history for one picker row (fzf --preview target)."""
+    resolved = resolve_target(args.target)
+    if resolved is None:
+        return 0
+    for line in render_preview(resolved[1]):
+        print(line)
+    return 0
+
+
 def attention_windows() -> list[dict[str, str]]:
     out = tmux(
         [
@@ -908,12 +1024,16 @@ def format_picker_rows(rows: list[PickerRow]) -> list[tuple[str, str]]:
     """Format rows with aligned columns for fzf display."""
     if not rows:
         return []
-    loc_w = max(len(r.location) for r in rows)
-    name_w = max(len(r.name) for r in rows)
+    # Window and session names are user/agent-settable, so they are scrubbed
+    # for the same reason the preview scrubs messages: a tab would forge a
+    # row boundary and an ESC could repaint the picker.
+    cells = [(r, scrub_untrusted(r.location), scrub_untrusted(r.name)) for r in rows]
+    loc_w = max(len(loc) for _, loc, _ in cells)
+    name_w = max(len(name) for _, _, name in cells)
     result: list[tuple[str, str]] = []
-    for r in rows:
+    for r, loc, name in cells:
         age_part = f"  {r.age:>3}" if r.age else "     "
-        label = f"{r.glyph} {r.location:<{loc_w}}  {r.name:<{name_w}}{age_part}"
+        label = f"{r.glyph} {loc:<{loc_w}}  {name:<{name_w}}{age_part}"
         result.append((r.target, label))
     return result
 
@@ -956,6 +1076,20 @@ def cmd_menu_rows(args: argparse.Namespace) -> int:
 def menu_rows_command() -> list[str]:
     """Argv that re-invokes this script's ``menu-rows`` subcommand."""
     return [sys.executable, str(Path(__file__).resolve()), "menu-rows"]
+
+
+def preview_command() -> str:
+    """Shell command string fzf runs for ``--preview``.
+
+    fzf runs this through ``sh -c``, so the fixed parts are quoted here and
+    the only interpolation is fzf's own ``{1}`` field, which fzf quotes for
+    us. ``{1}`` is the target column, which this script generates
+    ("<session_id>:<window_id>") — never agent-authored text.
+    """
+    argv = [
+        shlex.quote(part) for part in (sys.executable, str(Path(__file__).resolve()))
+    ]
+    return f"{' '.join(argv)} preview {{1}}"
 
 
 def cmd_menu(_: argparse.Namespace) -> int:
@@ -1018,6 +1152,10 @@ def cmd_menu(_: argparse.Namespace) -> int:
             "enter:accept",
             "--no-select-1",
             "--no-exit-0",
+            "--preview-window",
+            "right:55%,border-left",
+            "--preview",
+            preview_command(),
         ],
         input=chooser_input,
         text=True,
@@ -1076,6 +1214,14 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser(
         "menu", help="Open chooser for attention windows and jump"
     ).set_defaults(func=cmd_menu)
+
+    preview = sub.add_parser(
+        "preview", help="Print recent event history for one window (fzf preview)"
+    )
+    preview.add_argument(
+        "target", help="Target in the form <session_id>:<window_id> or <window_id>"
+    )
+    preview.set_defaults(func=cmd_preview)
 
     menu_rows = sub.add_parser(
         "menu-rows", help="Print the picker rows (tab-delimited target + label)"
