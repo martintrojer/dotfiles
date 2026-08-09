@@ -211,6 +211,21 @@ Each agent harness calls `agent-attention notify --source <name>` when it needs 
 
 The `source`/`message` fields may also arrive as a JSON object piped on stdin (`{"source":…,"type":…,"title":…,"message":…}`), which is what the opencode plugin does. Flags win when both are present; unparseable stdin is ignored.
 
+### Harness Capability
+
+Not every harness can express every state. What each one can actually reach:
+
+| state     | pi  | opencode | codex | how                                       |
+| --------- | --- | -------- | ----- | ----------------------------------------- |
+| `working` | yes | no       | no    | `agent_start` — only pi knows a turn began |
+| `done`    | yes | no       | no    | `agent_end` while the pane is unfocused    |
+| `blocked` | no  | yes      | yes   | legacy `notify` path                       |
+| `crashed` | yes | yes      | yes   | pid reaper, not the harness                |
+
+So a codex or opencode window never shows `working` or `done`, and a pi window never shows `blocked`. Pi has no permission *event* — approval is a `ctx.ui.confirm()` call inside the process, invisible to an extension — so its unfocused `agent_end` arm writes `done`, and `blocked` is now exclusively the notify path. Going the other way is worse: opencode's `session.idle` is ambiguous (it fires both for "finished" and for "stopped, waiting on you") and codex's `notify` carries no state at all, so inferring `done` from them would mean guessing or scraping the terminal — both out of scope under the push-only rule ([`docs/DECISIONS.md`](../docs/DECISIONS.md)).
+
+One extra wrinkle: mu-managed pi panes (`MU_MANAGED_AGENT=1`) clear on `agent_end` unconditionally and never show `done`. mu consumes the completion itself, so a sticky "finished, unseen" badge would be noise nobody is expected to acknowledge.
+
 ### Codex CLI (manual — `$HOME/.codex/config.toml`)
 
 Add to the top level:
