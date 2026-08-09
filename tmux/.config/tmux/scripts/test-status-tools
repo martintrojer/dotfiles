@@ -151,20 +151,31 @@ def label(
     path: str,
     host: str,
     pid: str,
-    window_id: str = "",
-    env: dict[str, str] | None = None,
 ) -> str:
+    """Render a label from explicit fields.
+
+    The script itself takes only a window id and fetches the fields from
+    tmux (see its module docstring: anything a pane can write must not
+    reach a ``#(...)`` command line). The precedence chain it applies to
+    those fields is still worth pinning field-by-field, so these cases
+    drive ``render()`` directly; ``label_for_window`` below covers the
+    fetch-and-dispatch path end to end.
+    """
+    swl = _import_script(STATUS_WINDOW_LABEL, "status_window_label_mod")
+    return swl.render(
+        window_name=window_name,
+        pane_current_command=cmd,
+        pane_title=title,
+        pane_current_path=path,
+        host_name=host,
+        pane_pid=pid,
+    )
+
+
+def label_for_window(env: dict[str, str], window_id: str) -> str:
+    """Run the real script the way ``@win_label`` does: one window id."""
     result = subprocess.run(
-        [
-            str(STATUS_WINDOW_LABEL),
-            window_name,
-            cmd,
-            title,
-            path,
-            host,
-            pid,
-            window_id,
-        ],
+        [str(STATUS_WINDOW_LABEL), window_id],
         env=env,
         capture_output=True,
         text=True,
@@ -174,6 +185,18 @@ def label(
             f"status-window-label failed:\n  stdout={result.stdout}\n  stderr={result.stderr}"
         )
     return result.stdout.strip()
+
+
+def _wait_for(env, target: str, fmt: str, pred, timeout: float = 3.0) -> str:
+    """Poll ``display-message`` until *pred* accepts the value."""
+    deadline = time.monotonic() + timeout
+    value = ""
+    while time.monotonic() < deadline:
+        value = tmux(env, ["display-message", "-p", "-t", target, fmt], check=False)
+        if pred(value):
+            return value
+        time.sleep(0.05)
+    return value
 
 
 def _start_session(env: dict[str, str]) -> None:
@@ -247,13 +270,18 @@ def setup_server(env: dict[str, str]) -> dict[str, str]:
     return panes
 
 
-def teardown_server(env: dict[str, str]) -> None:
-    tmux(env, ["kill-server"], check=False)
-    # kill-server leaves the socket file behind; with a per-pid socket name that
-    # would accumulate one stale entry per run.
+def _unlink_socket(name: str) -> None:
+    """kill-server leaves the socket file behind; with per-pid socket names
+    that would accumulate stale entries in the socket dir, one set per run.
+    """
     socket_dir = os.environ.get("TMUX_TMPDIR") or f"/tmp/tmux-{os.getuid()}"
     with contextlib.suppress(OSError):
-        os.unlink(os.path.join(socket_dir, SOCKET))
+        os.unlink(os.path.join(socket_dir, name))
+
+
+def teardown_server(env: dict[str, str]) -> None:
+    tmux(env, ["kill-server"], check=False)
+    _unlink_socket(SOCKET)
 
 
 # ---------- the actual tests ----------
@@ -516,24 +544,66 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
         "improve-writing",
     )
 
+    # The script fetches its own fields, so the end-to-end path (window id
+    # in, label out) needs a real window.
+    w1_id = tmux(env, ["display-message", "-p", "-t", "s1:1", "#{window_id}"])
+    tmux(env, ["select-pane", "-t", "s1:1.1", "-T", "★ Fetched Title"])
+    expect(
+        "window id alone is enough to render a label",
+        label_for_window(env, w1_id),
+        "★ Fetched Title",
+    )
+    tmux(env, ["select-pane", "-t", "s1:1.1", "-T", ""])
+    expect(
+        "a dead window id degrades to an empty label, not a crash",
+        label_for_window(env, "@99999"),
+        "",
+    )
+
     # @pane_agent is sticky: the push path owns it, and a redraw that can't
     # see the agent (container, custom title, plain shell) must not clear it.
-    w1_id = tmux(env, ["display-message", "-p", "-t", "s1:1", "#{window_id}"])
     tmux(env, ["set-window-option", "-t", w1_id, "@pane_agent", "1"])
-    label("zsh", "zsh", "", "/tmp/projectx", host, fake_pid, w1_id, env)
+    label_for_window(env, w1_id)
     expect(
         "non-agent label leaves sticky @pane_agent alone",
         tmux(env, ["display-message", "-p", "-t", w1_id, "#{@pane_agent}"]),
         "1",
     )
     tmux(env, ["set-window-option", "-u", "-t", w1_id, "@pane_agent"])
-    label("codex", "codex", "", "/tmp/x", host, fake_pid, w1_id, env)
+
+    # An agent window: name in AGENTS, active command a wrapper, no
+    # detectable agent child -- the branch that falls back to the window
+    # name and so marks the window as hosting an agent.
+    tmux(
+        env,
+        [
+            "new-window",
+            "-d",
+            "-t",
+            "s1:",
+            "-n",
+            "codex",
+            "python3 -c 'import time; time.sleep(300)'",
+        ],
+    )
+    agent_id = tmux(env, ["display-message", "-p", "-t", "s1:codex", "#{window_id}"])
+    _wait_for(
+        env,
+        agent_id,
+        "#{pane_current_command}",
+        lambda v: v.startswith("python"),
+    )
+    expect(
+        "agent window renders the agent name", label_for_window(env, agent_id), "codex"
+    )
     expect(
         "agent label sets @pane_agent",
-        tmux(env, ["display-message", "-p", "-t", w1_id, "#{@pane_agent}"]),
+        tmux(env, ["display-message", "-p", "-t", agent_id, "#{@pane_agent}"]),
         "1",
     )
-    tmux(env, ["set-window-option", "-u", "-t", w1_id, "@pane_agent"])
+    tmux(env, ["kill-window", "-t", agent_id])
+
+    run_format_injection_tests()
 
     print("\n[agent-attention: menu-rows]")
     run_menu_rows_tests(env)
@@ -892,6 +962,176 @@ def run_writer_vocabulary_tests() -> None:
         "notify" in plugin,
         True,
     )
+
+
+# Format fields an in-pane program can write, and so must never be
+# interpolated into a string tmux hands to `sh -c`:
+#   pane_title           -- any program, via a bare OSC 2 escape
+#   window_name          -- OSC 0/2 under automatic-rename, or rename-window
+#   pane_current_path    -- mkdir a hostile directory name and cd into it
+#   pane_current_command -- an argv[0] of the attacker's choosing
+TAINTED_FIELDS = (
+    "pane_title",
+    "window_name",
+    "pane_current_path",
+    "pane_current_command",
+)
+
+
+def run_format_injection_tests() -> None:
+    """tmux format expansion into a shell command line is code execution.
+
+    Regression: ``@win_label`` interpolated ``#{pane_title}`` into a
+    ``#(...)`` command. tmux builds ONE string from that and runs it with
+    ``sh -c``, so a pane title of ``x"; touch /tmp/pwned; echo "y`` --
+    which any program in the pane can set with a bare OSC 2 escape --
+    executed as the tmux server user on every status redraw. There is no
+    argv to protect, so quoting is not a fix; the only fix is keeping
+    pane-writable values off the command line entirely.
+
+    Two halves: a static audit of every shell-bound line in .tmux.conf,
+    and one live render that really would create a file if the audit ever
+    missed a spot.
+    """
+    print("\n[format injection]")
+
+    conf = TMUX_CONF.read_text(encoding="utf-8")
+    # Lines whose content reaches `sh -c`: a #(...) inside a format, or a
+    # run-shell / if-shell command (which are format-expanded first).
+    shell_lines = [
+        line
+        for line in conf.splitlines()
+        if not line.lstrip().startswith("#")
+        and ("#(" in line or "run-shell" in line or "if-shell" in line)
+    ]
+    expect_truthy(".tmux.conf has shell-bound format lines to audit", shell_lines)
+    for line in shell_lines:
+        for field in TAINTED_FIELDS:
+            expect(
+                f"no #{{{field}}} on a shell command line: {line[:48]!r}",
+                f"#{{{field}}}" in line,
+                False,
+            )
+
+    # The label option must stay window-id-only; that is the whole fix,
+    # and it is one careless edit away from regressing.
+    win_label = next(
+        (ln for ln in conf.splitlines() if ln.startswith("set -g @win_label ")), ""
+    )
+    expect_truthy(".tmux.conf defines @win_label", bool(win_label))
+    expect(
+        "@win_label interpolates only tmux-minted fields",
+        sorted(set(re.findall(r"#\{([a-z_]+)\}", win_label))),
+        ["window_id"],
+    )
+
+    _assert_hostile_title_renders_inertly()
+
+
+def _assert_hostile_title_renders_inertly() -> None:
+    """Render the real @win_label line against a hostile pane title.
+
+    Harness note: a detached server never draws a status line, so nothing
+    expands and the assertion would pass vacuously. The render needs a
+    *client*. So: an inner server holding the config under test, and an
+    outer server whose only pane runs ``tmux -L inner attach`` to give it
+    one.
+    """
+    inner = f"{SOCKET}-inj-in"
+    outer = f"{SOCKET}-inj-out"
+    tmpdir = Path(tempfile.mkdtemp(prefix="tmux-injection-test-"))
+    canary = tmpdir / "PWNED"
+    payload = f'x"; touch {canary}; echo "y'
+
+    win_label = next(
+        ln
+        for ln in TMUX_CONF.read_text(encoding="utf-8").splitlines()
+        if ln.startswith("set -g @win_label ")
+    )
+    conf = tmpdir / "inner.conf"
+    conf.write_text(
+        "set -g status on\n"
+        "set -g status-interval 1\n"
+        "set -g status-right ''\n"
+        f"{win_label}\n"
+        "set -g window-status-format '[#{E:@win_label}]'\n"
+        "set -g window-status-current-format '[#{E:@win_label}]'\n"
+        # #{T:...} is a third expansion form over the same option; the
+        # original report flagged it, so exercise it in the same render.
+        "set -g set-titles on\n"
+        'set -g set-titles-string "#S #{T:@win_label}"\n',
+        encoding="utf-8",
+    )
+
+    def raw(socket: str, *args: str) -> str:
+        return subprocess.run(
+            ["tmux", "-L", socket, *args], capture_output=True, text=True
+        ).stdout
+
+    try:
+        raw(inner, "kill-server")
+        raw(outer, "kill-server")
+        time.sleep(0.2)
+        raw(
+            inner,
+            "-f",
+            str(conf),
+            "new-session",
+            "-d",
+            "-s",
+            "i",
+            "-n",
+            "w1",
+            "sleep 300",
+        )
+        raw(inner, "select-pane", "-t", "i:w1", "-T", payload)
+        expect(
+            "the hostile pane title was actually set",
+            raw(inner, "display-message", "-p", "-t", "i:w1", "#{pane_title}").strip(),
+            payload,
+        )
+
+        raw(
+            outer,
+            "-f",
+            "/dev/null",
+            "new-session",
+            "-d",
+            "-s",
+            "o",
+            "-x",
+            "120",
+            "-y",
+            "30",
+            f"tmux -L {inner} attach -t i",
+        )
+
+        # Let the attached client run several status redraws. Stop early
+        # only on the bad outcome, so a pass always waits the full budget
+        # rather than racing the first redraw.
+        deadline = time.monotonic() + 6.0
+        rendered = ""
+        while time.monotonic() < deadline:
+            rendered = raw(outer, "capture-pane", "-p", "-t", "o")
+            if canary.exists():
+                break
+            time.sleep(0.25)
+
+        expect_truthy(
+            "the attached client rendered a window-status line",
+            "[" in rendered and "]" in rendered,
+        )
+        expect(
+            "a hostile pane title executes nothing during status expansion",
+            canary.exists(),
+            False,
+        )
+    finally:
+        raw(outer, "kill-server")
+        raw(inner, "kill-server")
+        _unlink_socket(outer)
+        _unlink_socket(inner)
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def _import_script(path: Path, name: str):

@@ -896,6 +896,25 @@ def connect_resolved(
     return 0
 
 
+def pane_cwd(pane_id: str) -> str:
+    """Read a pane's cwd from tmux instead of taking it on a command line.
+
+    SECURITY: the key binding that reaches here runs under ``run-shell``,
+    which format-expands its argument and hands the result to ``sh -c``.
+    Interpolating ``#{pane_current_path}`` there is command injection --
+    a directory whose name contains a newline splits the shell line and
+    the second line runs as a command. ``#{pane_id}`` is minted by tmux
+    (``%[0-9]+``) and is the only value safe to interpolate, so the
+    binding passes that and we fetch the path over a pipe.
+    """
+    result = tmux_cmd(
+        "display-message", "-p", "-t", pane_id, "#{pane_current_path}", check=False
+    )
+    if result.returncode != 0:
+        return ""
+    return result.stdout.removesuffix("\n")
+
+
 def connect(target: str) -> int:
     target = expand(target)
     sessions_by_name = {session.name: session for session in load_config().sessions}
@@ -979,7 +998,12 @@ def main(argv: Iterable[str] | None = None) -> int:
         p_pick_connect.add_argument("--query", default="")
 
         p_connect = sub.add_parser("connect")
-        p_connect.add_argument("target")
+        p_connect.add_argument("target", nargs="?", default="")
+        p_connect.add_argument(
+            "--pane",
+            default="",
+            help="resolve the target from this pane's cwd (see pane_cwd)",
+        )
 
         p_preview = sub.add_parser("preview")
         p_preview.add_argument("--kind", default="")
@@ -998,7 +1022,11 @@ def main(argv: Iterable[str] | None = None) -> int:
         if args.cmd == "pick-and-connect":
             return pick_and_connect(args.mode, query=args.query)
         if args.cmd == "connect":
-            return connect(args.target)
+            target = pane_cwd(args.pane) if args.pane else args.target
+            if not target:
+                print("connect: no target", file=sys.stderr)
+                return 1
+            return connect(target)
         if args.cmd == "preview":
             return preview(args.path, args.session_name, args.kind, args.split)
         if args.cmd == "last":

@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
 """Render a smarter tmux window label from active-pane metadata.
 
-Called per visible window from window-status-format. tmux evaluates
-the format-string variables in the context of the window's active
-pane, so we receive the relevant fields directly as positional args
-and avoid re-querying tmux.
+Called per visible window from window-status-format, with the window
+id as the only argument. Every other field is fetched by asking tmux
+directly.
 
 Usage:
-    status-window-label <window_name> <pane_current_command> \\
-                        <pane_title> <pane_current_path> <host> <pane_pid>
+    status-window-label <window_id>
+
+Why the window id and nothing else -- SECURITY. This script is invoked
+from a ``#(...)`` inside a format string. tmux expands ``#{...}``
+fields into that command line and hands the finished string to
+``sh -c``: there is no argv array, so there is nothing quoting can
+protect. Any field an in-pane program can write (``pane_title`` via a
+bare OSC 2 escape, ``pane_current_path`` via a hostile directory name,
+``window_name``) is therefore arbitrary shell, executed as the tmux
+server user on every status redraw. ``window_id`` is minted by tmux
+itself and matches ``@[0-9]+``, so it is the one value safe to
+interpolate. Everything else arrives over a ``display-message`` pipe,
+where it is data and never a command line.
 
 Customise the agent/editor/shell lists by exporting the matching env
 vars before tmux starts (space-separated):
@@ -30,7 +40,7 @@ import os
 import sys
 
 from _status_common import EXPECTED_ERRORS, log_error
-from _tmux_common import AGENT_COMMANDS, AGENT_WRAPPERS, ProcessSnapshot
+from _tmux_common import AGENT_COMMANDS, AGENT_WRAPPERS, ProcessSnapshot, tmux_cmd
 
 # ---------------------------------------------------------------------
 # Configurable word lists. Defaults match the bash version; env-var
@@ -78,6 +88,49 @@ def detect_agent_in_tree(root_pid: str, agents: tuple[str, ...]) -> str | None:
 
 
 _ps_snapshot = ProcessSnapshot()
+
+
+# ---------------------------------------------------------------------
+# Field fetch (see the module docstring for why this is not argv)
+# ---------------------------------------------------------------------
+
+# SOH as the field separator. tmux refuses to store control characters
+# in a pane title or a window name, so the only field that could smuggle
+# one in is pane_current_path -- which is last, and absorbs any surplus
+# via the split's maxsplit.
+_FIELD_SEP = "\x01"
+_FIELDS = (
+    "window_name",
+    "pane_current_command",
+    "host",
+    "pane_pid",
+    "pane_title",
+    "pane_current_path",
+)
+
+
+def fetch_fields(window_id: str) -> dict[str, str]:
+    """Ask tmux for the active-pane fields of ``window_id``.
+
+    Returns empty strings for every field when the window is gone or
+    tmux cannot be reached, so the caller still renders *something*.
+    """
+    blank = dict.fromkeys(_FIELDS, "")
+    if not window_id:
+        return blank
+    fmt = _FIELD_SEP.join(f"#{{{name}}}" for name in _FIELDS)
+    result = tmux_cmd("display-message", "-p", "-t", window_id, fmt, check=False)
+    if result.returncode != 0:
+        return blank
+    # display-message adds exactly one trailing newline; a path may
+    # legitimately end in one, so strip a single character, not a run.
+    raw = result.stdout
+    if raw.endswith("\n"):
+        raw = raw[:-1]
+    parts = raw.split(_FIELD_SEP, len(_FIELDS) - 1)
+    if len(parts) != len(_FIELDS):
+        return blank
+    return dict(zip(_FIELDS, parts, strict=True))
 
 
 # ---------------------------------------------------------------------
@@ -145,27 +198,24 @@ def render(
 
 
 def main(argv: list[str]) -> int:
-    # Pad missing positional args to empty strings so callers that
-    # omit trailing fields don't crash. Matches the bash version's
-    # `${N-}` default behaviour.
-    args = (argv + [""] * 7)[:7]
+    window_id = argv[0] if argv else ""
+    fields = fetch_fields(window_id)
     try:
         label = render(
-            window_name=args[0],
-            pane_current_command=args[1],
-            pane_title=args[2],
-            pane_current_path=args[3],
-            host_name=args[4],
-            pane_pid=args[5],
+            window_name=fields["window_name"],
+            pane_current_command=fields["pane_current_command"],
+            pane_title=fields["pane_title"],
+            pane_current_path=fields["pane_current_path"],
+            host_name=fields["host"],
+            pane_pid=fields["pane_pid"],
         )
     except EXPECTED_ERRORS as exc:
         log_error("status-window-label", f"render failed: {exc!r}")
         # Best-effort fallback: print whatever window_name we got.
-        label = args[0]
+        label = fields["window_name"]
 
     # Set @pane_agent on the window so tmux format conditionals can
-    # show an idle marker when no @agent_state is active.  The window
-    # id is passed as the 7th arg from .tmux.conf.
+    # show an idle marker when no @agent_state is active.
     #
     # Set-only, never unset: @pane_agent is sticky by contract (see
     # set_state in agent-attention). This renderer runs on every status
@@ -173,11 +223,8 @@ def main(argv: list[str]) -> int:
     # pane has a meaningful title, or the shell branch returns a cwd
     # basename -- so clearing here would wipe the marker the push path
     # set and drop idle agents from the prefix+a picker and status pill.
-    window_id = args[6]
     if window_id and label in AGENTS:
-        from _tmux_common import tmux_cmd as _tmux
-
-        _tmux(
+        tmux_cmd(
             "set-window-option",
             "-q",
             "-t",
