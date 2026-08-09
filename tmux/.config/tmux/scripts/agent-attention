@@ -1020,20 +1020,48 @@ def idle_agent_rows(exclude_windows: set[str]) -> list[PickerRow]:
     return rows
 
 
-def format_picker_rows(rows: list[PickerRow]) -> list[tuple[str, str]]:
-    """Format rows with aligned columns for fzf display."""
+# Row gutter glyph for the window the client is currently on, so you can
+# see where you are in the list (herdr renders the same diamond). Always
+# one column wide, and always one of these two literals: the gutter is
+# script-generated and must never carry agent-authored text.
+CURRENT_MARKER = "\u25c6"  # ◆
+
+
+def current_window_id() -> str:
+    """Window id the invoking client is on, "" when it cannot be resolved.
+
+    ``TMUX_PANE`` first: the picker (and every fzf reload it spawns)
+    inherits it from the pane it was launched in, which is the pane whose
+    window the marker is about. Without it, display-message falls back to
+    tmux's own idea of the current client, which is right for an
+    interactive run and harmlessly empty otherwise.
+    """
+    parts = tmux_query(os.environ.get("TMUX_PANE"), ["#{window_id}"])
+    return sanitize(parts[0]) if parts else ""
+
+
+def format_picker_rows(
+    rows: list[PickerRow], current: str = ""
+) -> list[tuple[str, str]]:
+    """Format rows with aligned columns for fzf display.
+
+    ``current`` is a window id (``@N``); its row gets the gutter marker.
+    """
     if not rows:
         return []
     # Window and session names are user/agent-settable, so they are scrubbed
     # for the same reason the preview scrubs messages: a tab would forge a
-    # row boundary and an ESC could repaint the picker.
+    # row boundary and an ESC could repaint the picker. Widths are measured
+    # on the scrubbed strings; the gutter is a fixed one-column field, so it
+    # shifts every row equally and leaves that alignment intact.
     cells = [(r, scrub_untrusted(r.location), scrub_untrusted(r.name)) for r in rows]
     loc_w = max(len(loc) for _, loc, _ in cells)
     name_w = max(len(name) for _, _, name in cells)
     result: list[tuple[str, str]] = []
     for r, loc, name in cells:
         age_part = f"  {r.age:>3}" if r.age else "     "
-        label = f"{r.glyph} {loc:<{loc_w}}  {name:<{name_w}}{age_part}"
+        gutter = CURRENT_MARKER if current and r.target.endswith(f":{current}") else " "
+        label = f"{gutter} {r.glyph} {loc:<{loc_w}}  {name:<{name_w}}{age_part}"
         result.append((r.target, label))
     return result
 
@@ -1068,7 +1096,8 @@ def cmd_menu_rows(args: argparse.Namespace) -> int:
     if not tmux_exists():
         return 0
     state_filter = AgentState.parse(getattr(args, "filter", None))
-    for target, label in format_picker_rows(picker_rows(state_filter)):
+    current = current_window_id()
+    for target, label in format_picker_rows(picker_rows(state_filter), current):
         print(f"{target}\t{label}")
     return 0
 
