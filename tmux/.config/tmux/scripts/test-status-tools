@@ -535,6 +535,9 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     )
     tmux(env, ["set-window-option", "-u", "-t", w1_id, "@pane_agent"])
 
+    print("\n[agent-attention: menu-rows]")
+    run_menu_rows_tests(env)
+
     print("\n[cheatsheet]")
     run_cheatsheet_tests()
 
@@ -705,6 +708,42 @@ def run_agent_state_contract_tests(env: dict[str, str], pane: str) -> None:
 
     tmux(env, ["set-window-option", "-qu", "-t", wid, "@pane_agent"])
     tmux(env, ["select-window", "-t", "s1:1"])
+
+
+def run_menu_rows_tests(env: dict[str, str]) -> None:
+    """The picker's row source must render every visible state, done included.
+
+    ``done`` was in ``_VISIBLE_STATES`` (so ``attention_windows()`` lists it)
+    but missing from ``STATE_GLYPH_ANSI``, so a finished agent rendered as a
+    literal "?" in the picker.
+    """
+    aa = _import_script(AGENT_ATTENTION, "agent_attention_mod")
+    missing = [s.name for s in STATE_GLYPH if s not in aa.STATE_GLYPH_ANSI]
+    expect("STATE_GLYPH_ANSI covers every STATE_GLYPH state", missing, [])
+
+    wid = tmux(env, ["display-message", "-p", "-t", "s1:2", "#{window_id}"])
+    tmux(env, ["set-window-option", "-t", wid, "@agent_state", "done"])
+    try:
+        sid = tmux(env, ["display-message", "-p", "-t", "s1:2", "#{session_id}"])
+        rows = attention(env, ["menu-rows"]).splitlines()
+        done_rows = [r for r in rows if r.startswith(f"{sid}:{wid}\t")]
+        expect("done window reaches the picker rows", len(done_rows), 1)
+        expect_truthy(
+            "done row carries the done glyph, not '?'",
+            done_rows and STATE_GLYPH[AgentState.done] in done_rows[0],
+        )
+        expect(
+            "--filter done keeps only the done row",
+            attention(env, ["menu-rows", "--filter", "done"]).splitlines(),
+            done_rows,
+        )
+        expect(
+            "--filter crashed drops the done row",
+            attention(env, ["menu-rows", "--filter", "crashed"]),
+            "",
+        )
+    finally:
+        tmux(env, ["set-window-option", "-qu", "-t", wid, "@agent_state"])
 
 
 def run_writer_vocabulary_tests() -> None:
