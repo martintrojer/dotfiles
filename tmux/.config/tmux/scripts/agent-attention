@@ -716,11 +716,16 @@ def cmd_status(_: argparse.Namespace) -> int:
     if not tmux_exists():
         return 0
     stats = reconcile_window_states()
-    worst = stats.worst_state
-    if worst is None:
-        return 0
-    count = getattr(stats, worst.name, 0)
-    print(f"{worst.name}\t{count}", end="")
+    # One line per non-zero state, most urgent first. Empty output keeps its
+    # meaning: no agents at all, so the status segment hides itself.
+    # STATE_GLYPH's keys are exactly the displayable states; AgentState's int
+    # value is the urgency order.
+    lines = [
+        f"{state.name}\t{getattr(stats, state.name, 0)}"
+        for state in sorted(STATE_GLYPH, reverse=True)
+        if getattr(stats, state.name, 0)
+    ]
+    print("\n".join(lines), end="")
     return 0
 
 

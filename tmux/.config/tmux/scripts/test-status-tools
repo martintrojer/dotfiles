@@ -370,7 +370,11 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     set_agent_state(env, "s1:2", "working", "9999999")
     # The reconciler (called by status) should detect the dead pid.
     status_out = attention(env, ["status"])
-    expect("dead pid detected as crashed", status_out, "crashed\t1")
+    expect(
+        "dead pid detected as crashed (and idle is no longer discarded)",
+        status_out,
+        "crashed\t1\nidle\t1",
+    )
     expect(
         "@agent_state set to crashed",
         tmux(env, ["display-message", "-p", "-t", "s1:2", "#{@agent_state}"]),
@@ -390,7 +394,11 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     attention(
         env, ["notify", "--source", "test", "--event-type", "w2"], pane=panes["w2p1"]
     )
-    expect("notify queues on second window", attention(env, ["status"]), "blocked\t1")
+    expect(
+        "notify queues on second window",
+        attention(env, ["status"]),
+        "blocked\t1\nidle\t1",
+    )
     attention(env, ["clear-target", w2_id])
     expect(
         "clear-target clears blocked (idle remains)",
@@ -430,7 +438,7 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     expect(
         "stdin JSON sets blocked",
         attention(env, ["status"]),
-        "blocked\t1",
+        "blocked\t1\nidle\t1",
     )
     expect(
         "stdin JSON payload reaches the DB",
@@ -838,6 +846,39 @@ def run_status_ai_injection_tests() -> None:
         "a well-formed status still renders",
         status_ai.render("crashed\t2")[0],
         f" AI {STATE_GLYPH[AgentState.crashed]} 2 ",
+    )
+
+    # The multi-line contract: every line is validated, the worst state wins
+    # the display, and a hostile line is dropped rather than echoed.
+    expect(
+        "the worst state wins across lines",
+        status_ai.render("blocked\t2\nworking\t3\nidle\t1"),
+        (f" AI {STATE_GLYPH[AgentState.blocked]} 2 ", "blocked"),
+    )
+    expect(
+        "line order does not decide the winner",
+        status_ai.render("idle\t1\ncrashed\t9"),
+        (f" AI {STATE_GLYPH[AgentState.crashed]} 9 ", "crashed"),
+    )
+    expect(
+        "a hostile line is dropped, the good one still renders",
+        status_ai.render("#(touch /tmp/PWNED)\t1\nworking\t4"),
+        (f" AI {STATE_GLYPH[AgentState.working]} 4 ", "working"),
+    )
+    expect(
+        "a non-numeric count drops its line",
+        status_ai.render("crashed\t#{host}\nidle\t2"),
+        (f" AI {STATE_GLYPH[AgentState.idle]} 2 ", "idle"),
+    )
+    expect(
+        "no output still hides the segment",
+        status_ai.render(""),
+        ("", ""),
+    )
+    expect(
+        "all-garbage input renders an inert marker, not the garbage",
+        status_ai.render("#(id)\ncleared\t1"),
+        (" AI ? ? ", ""),
     )
 
 

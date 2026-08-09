@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Render the tmux AI agent-state status segment.
 
-Reads the reconciled output from ``agent-attention status`` which emits
-``<state>\t<count>`` where state is one of working / blocked / crashed / idle.
+Reads the reconciled output from ``agent-attention status``, which emits one
+``<state>\t<count>`` line per non-zero state, most urgent first (crashed /
+blocked / done / working / idle).  No output at all means no agents.
 
 Sets two tmux user options so ``.tmux.conf`` can render the segment with
 palette colors via conditionals:
@@ -31,14 +32,29 @@ def render(raw: str) -> tuple[str, str]:
     full tmux format language -- ``#(...)`` in the value is executed as a shell
     command on every status refresh. So nothing from the upstream string may be
     echoed through: an unparseable state or a non-numeric count becomes "?".
+
+    Input is multi-line (one state per line); every line is validated and any
+    line that does not parse is dropped rather than echoed.
     """
-    if not raw:
-        return "", ""
-    state_str, _, count_str = raw.partition("\t")
-    state = AgentState.parse(state_str)
-    glyph = STATE_GLYPH.get(state, "?") if state else "?"
-    count = count_str if count_str.isdigit() else "?"
-    return f" AI {glyph} {count} ", (state.name if state else "")
+    counts: dict[AgentState, str] = {}
+    for line in raw.splitlines():
+        state_str, tab, count_str = line.partition("\t")
+        if not tab:
+            continue
+        state = AgentState.parse(state_str)
+        if state is None or state not in STATE_GLYPH:
+            continue
+        if not count_str.isdigit():
+            continue
+        counts[state] = count_str
+    if not counts:
+        # Distinguish "nothing at all" (hide the segment) from "upstream said
+        # something, but none of it parsed" (show a loud, inert marker).
+        if not raw.strip():
+            return "", ""
+        return " AI ? ? ", ""
+    worst = max(counts)
+    return f" AI {STATE_GLYPH[worst]} {counts[worst]} ", worst.name
 
 
 def main() -> None:
