@@ -608,6 +608,9 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     print("\n[agent-attention: menu-rows]")
     run_menu_rows_tests(env)
 
+    print("\n[agent-attention: picker state filters]")
+    run_filter_bind_tests(env)
+
     print("\n[agent-attention: picker preview]")
     run_preview_tests(env)
 
@@ -817,6 +820,78 @@ def run_menu_rows_tests(env: dict[str, str]) -> None:
         )
     finally:
         tmux(env, ["set-window-option", "-qu", "-t", wid, "@agent_state"])
+
+
+def run_filter_bind_tests(env: dict[str, str]) -> None:
+    """The state filter must be an axis separate from the text query.
+
+    The binds are constructed data (prompt chip + reload argv), so they are
+    asserted as data and as executables: fzf must accept the bind syntax,
+    and each reload command must really produce that state's rows — not
+    rows whose *name* happens to contain the state word.
+    """
+    aa = _import_script(AGENT_ATTENTION, "agent_attention_mod")
+
+    expect(
+        "every displayable state has a filter key",
+        sorted(s.name for s in aa.FILTER_KEYS.values() if s is not None),
+        sorted(s.name for s in STATE_GLYPH if s is not AgentState.idle),
+    )
+    expect("one key clears the filter", list(aa.FILTER_KEYS.values()).count(None), 1)
+
+    # Collision check against the picker's own binds. Only enter:accept is
+    # bound outside FILTER_KEYS (the preview pane uses --preview, not a key),
+    # so a filter key stealing enter would silently break selection.
+    src = AGENT_ATTENTION.read_text(encoding="utf-8")
+    other_keys = set(re.findall(r'"([a-z-]+):(?:accept|abort|toggle[a-z-]*)"', src))
+    expect("picker binds only enter outside the filter keys", other_keys, {"enter"})
+    expect(
+        "no filter key collides with an existing picker bind",
+        other_keys & set(aa.FILTER_KEYS),
+        set(),
+    )
+
+    binds = aa.filter_binds("!1")
+    expect("one --bind pair per filter key", len(binds), 2 * len(aa.FILTER_KEYS))
+    # fzf parses --bind at startup, so --filter (non-interactive) still
+    # rejects a malformed binding: this is a real parse assertion.
+    parsed = subprocess.run(
+        ["fzf", "--filter", "a", *binds], input="a\n", text=True, capture_output=True
+    )
+    expect("fzf accepts the filter binds", parsed.returncode, 0)
+
+    specs = dict(
+        bind.split(":", 1) for bind in binds[1::2]
+    )  # key -> change-prompt|...|+reload|...|
+    for key, state in aa.FILTER_KEYS.items():
+        chip, _, reload_part = specs[key].partition("|+reload|")
+        prompt = chip[len("change-prompt|") :]
+        if state is None:
+            expect(
+                f"{key} restores the unfiltered prompt", prompt, "Agent state (!1) > "
+            )
+        else:
+            expect_truthy(
+                f"{key} prompt shows the {state.name} chip",
+                prompt.startswith(f"{STATE_GLYPH[state]} {state.name} "),
+            )
+
+        # Run the reload command fzf would run and compare it to the
+        # subcommand it is supposed to be an alias for.
+        got = subprocess.run(
+            ["sh", "-c", reload_part.rstrip("|")],
+            capture_output=True,
+            text=True,
+            env=env,
+        ).stdout
+        want = attention(
+            env, ["menu-rows"] + ([] if state is None else ["--filter", state.name])
+        )
+        expect(
+            f"{key} reloads exactly the {state.name if state else 'all'} rows",
+            got.strip(),
+            want.strip(),
+        )
 
 
 def run_preview_tests(env: dict[str, str]) -> None:

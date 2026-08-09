@@ -1073,9 +1073,60 @@ def cmd_menu_rows(args: argparse.Namespace) -> int:
     return 0
 
 
-def menu_rows_command() -> list[str]:
+def menu_rows_command(state_filter: AgentState | None = None) -> list[str]:
     """Argv that re-invokes this script's ``menu-rows`` subcommand."""
-    return [sys.executable, str(Path(__file__).resolve()), "menu-rows"]
+    argv = [sys.executable, str(Path(__file__).resolve()), "menu-rows"]
+    if state_filter is not None:
+        argv += ["--filter", state_filter.name]
+    return argv
+
+
+# State filter keys, an axis separate from the text query: pressing ctrl-b
+# shows blocked agents, it does not search for the word "blocked" (which
+# would also match a window merely *named* "blocked"). None means "all".
+#
+# Every one of these except ctrl-x shadows an fzf default (ctrl-a
+# beginning-of-line, ctrl-b backward-char, ctrl-w unix-word-rubout, ctrl-d
+# delete-char/eof). That is deliberate and cheap here: the picker's query is
+# a word or two, home/left/bspace still do those jobs, and shadowing ctrl-d
+# removes fzf's eof behaviour where a ctrl-d on an empty query closes the
+# picker. ctrl-a for "all" also matches tms's picker.
+FILTER_KEYS: dict[str, AgentState | None] = {
+    "ctrl-a": None,
+    "ctrl-b": AgentState.blocked,
+    "ctrl-w": AgentState.working,
+    "ctrl-d": AgentState.done,
+    "ctrl-x": AgentState.crashed,
+}
+
+
+def picker_prompt(state_filter: AgentState | None, counts: str) -> str:
+    """Prompt for one filter axis position.
+
+    Unfiltered shows the server-wide state tally; a filter shows its chip
+    (glyph + label) instead, so the active axis is readable at a glance
+    without hunting for which rows disappeared.
+    """
+    if state_filter is not None:
+        return f"{STATE_GLYPH.get(state_filter, '?')} {state_filter.name} > "
+    return f"Agent state ({counts}) > " if counts else "Agent state > "
+
+
+def filter_binds(counts: str) -> list[str]:
+    """``--bind`` argv pairs wiring FILTER_KEYS to prompt swap + reload.
+
+    change-prompt uses ``|`` delimiters because the unfiltered prompt
+    carries parentheses around the counts, which fzf's ``(...)`` form would
+    have to balance.
+    """
+    args: list[str] = []
+    for key, state in FILTER_KEYS.items():
+        reload = " ".join(shlex.quote(p) for p in menu_rows_command(state))
+        args += [
+            "--bind",
+            f"{key}:change-prompt|{picker_prompt(state, counts)}|+reload|{reload}|",
+        ]
+    return args
 
 
 def preview_command() -> str:
@@ -1127,11 +1178,8 @@ def cmd_menu(_: argparse.Namespace) -> int:
         n = getattr(stats, state.name, 0)
         if n:
             prompt_parts.append(f"{STATE_GLYPH.get(state, '?')}{n}")
-    prompt = (
-        f"Agent state ({' '.join(prompt_parts)}) > "
-        if prompt_parts
-        else "Agent state > "
-    )
+    counts = " ".join(prompt_parts)
+    prompt = picker_prompt(None, counts)
 
     env = {k: v for k, v in os.environ.items() if not k.startswith("FZF_DEFAULT_OPTS")}
     selection = subprocess.run(
@@ -1150,6 +1198,7 @@ def cmd_menu(_: argparse.Namespace) -> int:
             "--ansi",
             "--bind",
             "enter:accept",
+            *filter_binds(counts),
             "--no-select-1",
             "--no-exit-0",
             "--preview-window",
