@@ -3,7 +3,8 @@
 
 State model:
   working  — agent is running (set by pi extension directly)
-  blocked  — agent waiting on user (pi extension or legacy notify)
+  done     — agent finished while unseen (pi extension on agent_end)
+  blocked  — agent waiting on user (legacy notify: codex/opencode)
   crashed  — agent died unexpectedly (reaper: pid gone while working)
   cleared  — explicit clear; resets to none
 
@@ -420,8 +421,9 @@ def set_state(window_id: str, state: AgentState | None) -> None:
 def clear_target(window_id: str) -> None:
     """Clear attention state for a window on focus.
 
-    Only clears ``blocked`` and ``crashed`` — these are "look at me"
-    states the user acknowledges by focusing.  ``working`` means the
+    Clears ``done``, ``blocked`` and ``crashed`` — these are "look at
+    me" states the user acknowledges by focusing, and focusing is
+    exactly the seen-signal ``done`` waits for.  ``working`` means the
     agent is still active; focusing doesn't change that.
     """
     cur = AgentState.parse(
@@ -548,8 +550,9 @@ def cmd_event(args: argparse.Namespace) -> int:
     """Record an event and set @agent_state.  Called by the pi extension.
 
     Unlike ``notify``, this takes explicit --window and --state flags
-    and does not resolve pane context.  Handles working/blocked/cleared
-    transitions and sets @pane_agent as a sticky marker.
+    and does not resolve pane context.  Handles
+    working/done/blocked/cleared transitions and sets @pane_agent as a
+    sticky marker.
     """
     if not tmux_exists():
         return 0
@@ -582,6 +585,8 @@ def cmd_event(args: argparse.Namespace) -> int:
     )
     if state == "cleared":
         set_state(window_id, None)
+    elif state == "done":
+        set_state(window_id, AgentState.done)
     elif state == "blocked":
         set_state(window_id, AgentState.blocked)
     elif state == "working":
@@ -617,14 +622,23 @@ def compute_window_state(events: list[sqlite3.Row]) -> WindowState:
 
     Scans newest-first.  Rules:
       - blocked: terminal, wins immediately.
+      - done: terminal, wins immediately (finished but not yet seen).
       - cleared: resets to none.
       - crashed (synthesized): sticky, wins.
       - working: only if pid is still alive; otherwise synthesize crashed.
+
+    ``done`` is handled here even though the pi extension writes it
+    straight to the tmux option: any source (an older or newer
+    extension, the legacy notify path, a manual ``event --state done``)
+    can land one in the DB, and an unrecognized state must not wedge
+    the scan.
     """
     for event in reversed(events):
         state = AgentState.parse(event["state"], AgentState.blocked)
         if state is AgentState.blocked:
             return WindowState(AgentState.blocked, event)
+        if state is AgentState.done:
+            return WindowState(AgentState.done, event)
         if state is AgentState.cleared:
             return WindowState(None, None)
         if state is AgentState.crashed:
@@ -1006,7 +1020,7 @@ def build_parser() -> argparse.ArgumentParser:
     event.add_argument(
         "--state",
         required=True,
-        choices=["working", "blocked", "cleared"],
+        choices=["working", "done", "blocked", "cleared"],
         help="Agent state",
     )
     event.add_argument("--pid", type=int, default=None, help="Agent process pid")
