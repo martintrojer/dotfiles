@@ -818,8 +818,86 @@ def run_menu_rows_tests(env: dict[str, str]) -> None:
             attention(env, ["menu-rows", "--filter", "crashed"]),
             "",
         )
+        run_current_marker_tests(env, aa, wid)
     finally:
         tmux(env, ["set-window-option", "-qu", "-t", wid, "@agent_state"])
+
+
+def run_current_marker_tests(env: dict[str, str], aa, wid: str) -> None:
+    """The row for the window the client is on carries the gutter marker.
+
+    The gutter is a fixed one-column field so it must not disturb the
+    column alignment the other picker tests rely on, and it must stay
+    script-generated: only the two literals "◆" and " " can appear there,
+    never anything derived from a window name.
+    """
+    pane = tmux(env, ["display-message", "-p", "-t", wid, "#{pane_id}"])
+    rows = attention(env, ["menu-rows"], pane=pane).splitlines()
+    marked = [r for r in rows if r.split("\t", 1)[1].startswith(aa.CURRENT_MARKER)]
+    expect("exactly one row is marked as current", len(marked), 1)
+    expect_truthy(
+        "the marked row is the window the client is on",
+        marked
+        and marked[0].startswith(
+            f"{tmux(env, ['display-message', '-p', '-t', wid, '#{session_id}'])}:{wid}\t"
+        ),
+    )
+    expect_truthy(
+        "unmarked rows keep the gutter as a blank column",
+        all(
+            r.split("\t", 1)[1].startswith(" ")
+            for r in rows
+            if not r.split("\t", 1)[1].startswith(aa.CURRENT_MARKER)
+        ),
+    )
+
+    # Alignment: the gutter shifts every label by the same fixed prefix,
+    # so the columns after it still line up.
+    built = [
+        aa.PickerRow(
+            target="$0:@1",
+            state=AgentState.blocked,
+            glyph="!",
+            location="s:1",
+            name="short",
+            age="1m",
+            sort_key=(0, 0, 0),
+        ),
+        aa.PickerRow(
+            target="$0:@2",
+            state=AgentState.blocked,
+            glyph="!",
+            location="session:12",
+            name="a much longer name",
+            age="",
+            sort_key=(0, 0, 0),
+        ),
+    ]
+    labels = [label for _, label in aa.format_picker_rows(built, "@2")]
+    expect("every formatted label has the same width", len({len(x) for x in labels}), 1)
+    expect("the current row's gutter holds the marker", labels[1][0], aa.CURRENT_MARKER)
+    expect("a non-current row's gutter holds a space", labels[0][0], " ")
+
+    # A hostile window name must not be able to fake the marker column.
+    hostile = aa.format_picker_rows(
+        [
+            aa.PickerRow(
+                target="$0:@3",
+                state=AgentState.blocked,
+                glyph="!",
+                location=f"{aa.CURRENT_MARKER} s:1",
+                name="x",
+                age="",
+                sort_key=(0, 0, 0),
+            )
+        ],
+        "@4",
+    )
+    expect(
+        "a window name cannot forge the gutter marker",
+        hostile[0][1].startswith(aa.CURRENT_MARKER),
+        False,
+    )
 
 
 def run_filter_bind_tests(env: dict[str, str]) -> None:
