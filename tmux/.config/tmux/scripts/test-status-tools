@@ -1250,6 +1250,8 @@ def run_status_ai_injection_tests() -> None:
     digits and spaces may reach the option.
     """
     status_ai = _import_script(STATUS_AI, "status_ai_mod")
+    glyph = status_ai.STATE_GLYPH
+    style = status_ai.STATE_STYLE
 
     hostile = 'pre-#(touch /tmp/PWNED_STATUS_AI)-#{host}-#[fg=red]-"post"'
 
@@ -1280,56 +1282,148 @@ def run_status_ai_injection_tests() -> None:
     value = recorded.get("@ai_status", "<unset>")
     expect_truthy("status-ai wrote @ai_status", "@ai_status" in recorded)
     expect("hostile output does not reach @ai_status", hostile in value, False)
-    for seq in ("#(", "#{", "#[", "#"):
-        expect(f"@ai_status contains no {seq!r}", seq in value, False)
-
-    allowed = set(STATE_GLYPH.values()) | set("0123456789 AI?")
-    stray = sorted(set(value) - allowed)
-    expect(f"@ai_status stays in the closed vocabulary (stray={stray})", stray, [])
+    expect("@ai_status is inert for hostile input", value, status_ai.INERT)
     expect(
-        "@ai_status_state stays a bare state name",
-        recorded.get("@ai_status_state", "") in {s.name for s in AgentState} | {""},
+        "the retired @ai_status_state is gone", "@ai_status_state" in recorded, False
+    )
+
+    # The value carries style tags now, so the closed-vocabulary check runs
+    # against the *worst* render this script can produce with every state
+    # populated and overflowing -- the widest vocabulary it can reach.
+    widest = status_ai.render("crashed\t2\nblocked\t2\ndone\t2\nworking\t2\nidle\t9")
+    for seq in ("#(", "#{"):
+        expect(f"@ai_status contains no {seq!r}", seq in widest, False)
+    # Strip only the style tags status-ai builds itself; whatever remains had
+    # better be glyphs, digits, spaces, the icon and the overflow '+'.
+    residue = re.sub(r"#\[(?:fg=\#[0-9a-f]{6}|bold|nobold)\]", "", widest)
+    allowed = set(glyph.values()) | set("0123456789 +") | {status_ai.ICON}
+    stray = sorted(set(residue) - allowed)
+    expect(f"@ai_status stays in the closed vocabulary (stray={stray})", stray, [])
+    expect("no '#' survives outside a style tag", "#" in residue, False)
+
+    # The icon is the wide-escape robot, not U+F06A followed by '9'.
+    expect("the icon is a single U+F06A9 codepoint", len(status_ai.ICON), 1)
+    expect("the icon is nf-md-robot", ord(status_ai.ICON), 0xF06A9)
+
+    # --- render_segment: the pure unit -------------------------------
+    def seg(counts, cap=status_ai.MAX_GLYPHS):
+        return status_ai.render_segment(counts, cap)
+
+    expect(
+        "one glyph per agent, grouped and colored per state",
+        seg(
+            {
+                AgentState.crashed: 1,
+                AgentState.blocked: 2,
+                AgentState.working: 3,
+                AgentState.idle: 2,
+            }
+        ),
+        (
+            f"{style[AgentState.crashed]}{glyph[AgentState.crashed]} "
+            f"{style[AgentState.blocked]}{glyph[AgentState.blocked] * 2} "
+            f"{style[AgentState.working]}{glyph[AgentState.working] * 3} "
+            f"{style[AgentState.idle]}{glyph[AgentState.idle] * 2}",
+            False,
+        ),
+    )
+    expect(
+        "no agents renders empty so the segment stays hidden",
+        seg({}),
+        ("", False),
+    )
+    expect(
+        "a zero count contributes no glyph and no run",
+        seg({AgentState.working: 0, AgentState.idle: 1}),
+        (f"{style[AgentState.idle]}{glyph[AgentState.idle]}", False),
+    )
+    expect(
+        "exactly at the cap does not overflow",
+        seg({AgentState.working: 10}),
+        (f"{style[AgentState.working]}{glyph[AgentState.working] * 10}", False),
+    )
+    expect(
+        "past the cap truncates and appends a muted +N",
+        seg({AgentState.working: 14}),
+        (
+            f"{style[AgentState.working]}{glyph[AgentState.working] * 10}"
+            f"{status_ai.OVERFLOW_STYLE} +4",
+            True,
+        ),
+    )
+    # The load-bearing property: the tail that gets dropped is always the
+    # least urgent agents. A crashed agent can never be the one to fall off.
+    dropped_tail, overflowed = seg({AgentState.crashed: 1, AgentState.idle: 12}, cap=4)
+    expect("overflow is reported", overflowed, True)
+    expect_truthy(
+        "the crashed glyph survives an overflow that eats the idle tail",
+        glyph[AgentState.crashed] in dropped_tail,
+    )
+    expect(
+        "the overflow count is exactly the agents not shown",
+        dropped_tail.endswith(" +9"),
         True,
     )
+    expect(
+        "a cap of zero drops everything and renders nothing",
+        seg({AgentState.idle: 3}, cap=0),
+        ("", False),
+    )
 
-    # The happy path must still render, or the guard could just be "emit nothing".
+    # --- render: parsing + the icon wrapper ---------------------------
+    def body(runs: str) -> str:
+        return f" {status_ai.ICON_STYLE}{status_ai.ICON} {runs} "
+
     expect(
         "a well-formed status still renders",
-        status_ai.render("crashed\t2")[0],
-        f" AI {STATE_GLYPH[AgentState.crashed]} 2 ",
+        status_ai.render("crashed\t2"),
+        body(f"{style[AgentState.crashed]}{glyph[AgentState.crashed] * 2}"),
     )
-
-    # The multi-line contract: every line is validated, the worst state wins
-    # the display, and a hostile line is dropped rather than echoed.
     expect(
-        "the worst state wins across lines",
+        "every state is shown at once, not just the worst",
         status_ai.render("blocked\t2\nworking\t3\nidle\t1"),
-        (f" AI {STATE_GLYPH[AgentState.blocked]} 2 ", "blocked"),
+        body(
+            f"{style[AgentState.blocked]}{glyph[AgentState.blocked] * 2} "
+            f"{style[AgentState.working]}{glyph[AgentState.working] * 3} "
+            f"{style[AgentState.idle]}{glyph[AgentState.idle]}"
+        ),
     )
     expect(
-        "line order does not decide the winner",
-        status_ai.render("idle\t1\ncrashed\t9"),
-        (f" AI {STATE_GLYPH[AgentState.crashed]} 9 ", "crashed"),
+        "line order does not decide run order; urgency does",
+        status_ai.render("idle\t1\ncrashed\t1"),
+        body(
+            f"{style[AgentState.crashed]}{glyph[AgentState.crashed]} "
+            f"{style[AgentState.idle]}{glyph[AgentState.idle]}"
+        ),
     )
     expect(
         "a hostile line is dropped, the good one still renders",
-        status_ai.render("#(touch /tmp/PWNED)\t1\nworking\t4"),
-        (f" AI {STATE_GLYPH[AgentState.working]} 4 ", "working"),
+        status_ai.render("#(touch /tmp/PWNED)\t1\nworking\t2"),
+        body(f"{style[AgentState.working]}{glyph[AgentState.working] * 2}"),
     )
     expect(
         "a non-numeric count drops its line",
         status_ai.render("crashed\t#{host}\nidle\t2"),
-        (f" AI {STATE_GLYPH[AgentState.idle]} 2 ", "idle"),
+        body(f"{style[AgentState.idle]}{glyph[AgentState.idle] * 2}"),
     )
     expect(
         "no output still hides the segment",
         status_ai.render(""),
-        ("", ""),
+        "",
     )
     expect(
         "all-garbage input renders an inert marker, not the garbage",
         status_ai.render("#(id)\ncleared\t1"),
-        (" AI ? ? ", ""),
+        status_ai.INERT,
+    )
+    expect(
+        "a huge upstream count cannot blow past the cap",
+        status_ai.render("working\t9999"),
+        body(
+            f"{style[AgentState.working]}"
+            f"{glyph[AgentState.working] * status_ai.MAX_GLYPHS}"
+            f"{status_ai.OVERFLOW_STYLE} +{9999 - status_ai.MAX_GLYPHS}"
+        ),
     )
 
 

@@ -1,0 +1,9 @@
+ICON_STYLE = "#[fg={{mocha.subtext0}}]#[nobold]"
+STATE_STYLE: dict[AgentState, str] = {
+    AgentState.crashed: "#[fg={{mocha.red}}]#[bold]",
+    AgentState.blocked: "#[fg={{mocha.peach}}]#[nobold]",
+    AgentState.done: "#[fg={{mocha.teal}}]#[nobold]",
+    AgentState.working: "#[fg={{mocha.subtext0}}]#[nobold]",
+    AgentState.idle: "#[fg={{mocha.overlay0}}]#[nobold]",
+}
+OVERFLOW_STYLE = "#[fg={{mocha.overlay0}}]#[nobold]"
