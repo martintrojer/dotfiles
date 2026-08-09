@@ -540,12 +540,32 @@ herdr (`github.com/ogulcancelik/herdr`) is a Rust terminal multiplexer purpose-b
 Evaluated it against the existing tmux setup. Decision: stay on tmux, port the one idea that earns rent (agent state awareness), skip the rest.
 
 - **What herdr does better:** real-time agent-state sidebar across workspaces. Our old `agent-attention` script had a binary flag (`!` or nothing). herdr's model is richer.
-- **What we'd lose:** `vim-tmux-navigator` (seamless nvim↔tmux pane movement), `tmux-fingers-rs` (hint picking), `tms` session recipes, the TPM plugin ecosystem, 17 years of tmux stability, and full control over the status bar. herdr's always-visible left sidebar wastes screen real estate for information you only need occasionally — `prefix+A` surfaces the same data on demand without a permanent column tax. herdr is v0.x, one maintainer, AGPL, with active churn.
+- **What we'd lose:** `vim-tmux-navigator` (seamless nvim↔tmux pane movement), `tmux-fingers-rs` (hint picking), `tms` session recipes, the TPM plugin ecosystem, 17 years of tmux stability, and full control over the status bar. herdr's always-visible left sidebar wastes screen real estate for information you only need occasionally — `prefix+a` surfaces the same data on demand without a permanent column tax. herdr is v0.x, one maintainer, AGPL, with active churn.
 - **What we built instead:** upgraded `agent-attention` from a binary attention flag to a three-state push model (`working / blocked / crashed`) using an `IntEnum` with urgency as the value. Pi's extension pushes state on `agent_start`, `agent_end`, and `session_shutdown`. A pid-liveness reaper detects crashes (zero-fork `os.kill(pid, 0)`). Events are stored in SQLite WAL for crash detection and picker history; `@agent_state` tmux window option is the authoritative display state, written by the extension (direct tmux calls for `agent_end`/`session_shutdown`, Python script for `agent_start` which records the pid). Status pill and window glyphs color by state. `prefix+a` popup groups by urgency with idle agents at the bottom.
 - **Design rule applied:** port the idea, keep the substrate. tmux is the substrate. herdr is a collection of ideas, one of which was worth stealing.
 - **Scope guard:** push-only, no terminal scraping. Pi extension resolves the tmux pane at load time via `tmux display-message` (works across toolbox/container boundaries where `TMUX_PANE` is stripped). Other agents (codex, opencode) still emit the old single-bit `blocked` signal via the `notify` subcommand — they don't get `working` or `done` because they don't push `agent_start`/`agent_end`, and their own signals can't stand in: opencode's `session.idle` fires both for "finished" and "waiting on you", and codex's `notify` carries no state at all, so inferring `done` would mean guessing or scraping. It cuts the other way too: pi has no permission *event* (approval is an in-process `ctx.ui.confirm()`), so its unfocused `agent_end` writes `done` and `blocked` is now notify-only. Capability table in [`tmux/README.md`](../tmux/README.md#harness-capability).
 
 **Reconsider if:** something extraordinary happens. tmux has been the terminal substrate for 17 years and the switching cost is total.
+
+**Extended 2026-08-09 — two more herdr ideas ported.** The decision matured rather than changed: same substrate, same push-only rule, two more borrowed ideas.
+
+- **Per-agent glyphs instead of a rollup count.** `status-ai` now renders one glyph per running agent, grouped into contiguous colored runs, urgency-descending, behind a robot icon (the `AI` label is gone — the icon is the label). Runs are greedily fitted into a 10-glyph budget and the tail becomes a muted `+N`. Because the fit walks urgency-descending, the agent that falls off the end is always the least urgent; a crashed agent can never be the one dropped. "Three working, one blocked" is a shape you read, not a number you decode.
+- **The seen/done bit.** A finished-but-unseen agent gets its own state, `done`, with a teal `✓`. It outranks `working` in the urgency order because state urgency ranks *what wants you*, not *what is busy*: a working agent needs nothing from you, a finished one is waiting. `done` is cleared by focusing the pane — it is an unread marker, not a result.
+- **State filters as an axis, not a search.** `prefix+a` binds `ctrl-a/b/w/d/x` to all/blocked/working/done/crashed, filtering rows rather than typing into the query, plus a `◆` current-window marker and an event-history preview pane.
+- **The boundary that held.** We took the state vocabulary and the display grammar. We still refused the permanent sidebar, live refresh inside the modal (it renders a snapshot; reopen it if you want fresher), and the row-token config DSL. Port the idea, keep the substrate — and keep the config a tmux config.
+- **The modal-vs-pane trade is the load-bearing choice.** herdr pays a permanent column of screen for information you need a few times an hour. `prefix+a` pays a keystroke on demand instead. Everything above follows from that: the status segment must compress to a glyph run because it is always visible, and the picker can afford preview panes and filter keys because it is not.
+
+---
+
+### Pane-controlled values never reach a tmux format shell line (accepted 2026-08-09)
+
+tmux expands `#{...}` *into* the `#(...)` command line and hands the finished string to `sh -c`. Any pane-writable value interpolated there is therefore executable, and there is no argv boundary to protect — so quoting is not a fix. `#{q:}` is a half-fix at best: it escapes shell metacharacters but not the newline separator, and a payload was executed through it via a directory name containing a newline.
+
+This was live: `#{pane_title}` was interpolated into the window-label command. Any program in any pane sets its title with a bare OSC 2 escape — no tmux access needed — and the payload ran on every status redraw. `#{window_name}` and `#{pane_current_path}` had the same shape.
+
+**The rule:** a `#()` command line may only carry values this config generates — ids (`#{pane_id}`, `#{window_id}`), integers, flags. Anything a pane can write is fetched by the script itself, over a pipe, as data. `#{T:}`/`#{E:}` re-expansion of a script's *output* is safe by contrast: neither re-expands `#()`.
+
+**Reconsider if:** never for the rule itself. Re-audit whenever a new `#()` call site is added — the audit that found this also found a second hole (`prefix+T` passing `#{pane_current_path}` to `run-shell`) that the original report had missed.
 
 ---
 

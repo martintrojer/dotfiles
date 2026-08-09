@@ -42,19 +42,19 @@ From your current `tmux/.tmux.conf`:
 - Vim split to tmux pane movement comes from `christoomey/vim-tmux-navigator`.
 - The right side CPU segment comes from `tmux-cpu`.
 - Cross-platform RAM usage is provided by `$HOME/.config/tmux/scripts/status-ram`.
-- The `agent-attention` integration is not a plugin. It is a local script in this repo that tracks per-window agent state (`working / blocked / crashed`) via push events from the pi extension, with a pid-liveness reaper for crash detection. See [`docs/DECISIONS.md` § Agent state awareness](../docs/DECISIONS.md).
+- The `agent-attention` integration is not a plugin. It is a local script in this repo that tracks per-window agent state (`working / done / blocked / crashed`) via push events from the pi extension, with a pid-liveness reaper for crash detection. See [`docs/DECISIONS.md` § Agent state awareness](../docs/DECISIONS.md).
 - Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
 - Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `codex`, `π - ...`, or a cwd basename.
-- The agent badge is rendered by `$HOME/.config/tmux/scripts/status-ai`, which sets the `@ai_status` tmux option to one glyph per running agent, grouped into colored runs by state (most urgent first, tail past 10 summarised as `+N`). `.tmux.conf` reads it via `#{E:@ai_status}` and supplies only the box background; the script owns the foregrounds, since a color that changes within one value is not expressible as a format conditional.
+- The agent segment is rendered by `$HOME/.config/tmux/scripts/status-ai`, which sets the `@ai_status` tmux option to a robot icon (`nf-md-robot`) followed by one glyph per running agent, grouped into colored runs by state (most urgent first, tail past 10 summarised as `+N`). There is no longer an `AI` label or a count — the icon says what the segment is and the run says how many agents are in what shape. `.tmux.conf` reads it via `#{E:@ai_status}` and supplies only the box background; the script owns the foregrounds, since a color that changes within one value is not expressible as a format conditional.
 
 ## Status Bar Layout
 
 The current bar keeps the same useful information as before, but without the pill-style Catppuccin theme chrome. It follows the shared language in [`docs/LAYOUT.md`](../docs/LAYOUT.md): filled cells are affordances for place, focus, modal state, or attention.
 
 - Left: a filled session block.
-- Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline agent state (`▶` working, `!` blocked, `✗` crashed, `·` idle agent) / `Z` markers.
+- Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline agent state (`✗` crashed, `!` blocked, `✓` done, `▶` working, `·` idle agent) / zoom markers.
 - Pane, window, and session switches trigger an immediate `refresh-client -S`, so label changes show up right away instead of waiting for the status timer.
-- Right: boxed `PREFIX` and `AI` segments, followed by flatter glyph-based `CPU`, `RAM`, `host`, and `uptime` segments.
+- Right: a boxed `PREFIX` segment and a boxed agent segment (robot icon + one glyph per agent, urgency-ordered runs, `+N` tail), followed by flatter glyph-based `CPU`, `RAM`, `host`, and `uptime` segments. The agent segment disappears entirely when no agents are running.
 
 ## Built-in Tmux UI
 
@@ -73,7 +73,7 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `!`: break the current pane out into a new window
 - `prefix` + `M`: move the current pane into the selected window or pane as a split
 - `prefix` + `w`: built-in tmux session-window tree picker
-- `prefix` + `a`: agent state picker
+- `prefix` + `a`: agent state picker — `◆` marks the current window, the right pane previews event history, `ctrl-a/b/w/d/x` filter by state (see [AI Agent Attention](#ai-agent-attention))
 - `prefix` + `Ctrl-g`: cheatsheet popup
 - mouse click on the left status session block: opens the tmux session picker
 - built-in menus, prompts, and popups use Mocha background/foreground colors with a sky selection highlight
@@ -193,13 +193,25 @@ This package includes `$HOME/.config/tmux/scripts/agent-attention`, a lightweigh
 
 What it does:
 
-- marks windows with pending agent attention as `[!]`
-- shows total flagged windows in `status-right` as a boxed `AI <count>` segment
-- opens a picker (`prefix + a`) listing flagged windows, then jumps to the selected one
+- marks each window with its agent state glyph (`✗` crashed, `!` blocked, `✓` done, `▶` working, `·` idle agent)
+- shows one glyph per running agent in `status-right`, in urgency-ordered colored runs behind a robot icon
+- opens a picker (`prefix + a`) listing agent windows most urgent first, with an event-history preview and state filters, then jumps to the selected one
 - clears attention automatically when you focus the agent's pane (window-level visit alone is not enough, so vertical splits behave correctly)
-- when a notify event fires, the badge is only suppressed if the user is *already* focused on the agent's pane; same-window-but-different-pane still queues the badge
+- when a notify event fires, attention is only suppressed if the user is *already* focused on the agent's pane; same-window-but-different-pane still queues it
 - sends desktop notifications on macOS/Linux only when opted in with `TMUX_AGENT_ATTENTION_ENABLE_SYSTEM_NOTIFY=1`
 - emits OSC 777 terminal notifications to the controlling TTY (for terminals that support it)
+
+Picker keys (`prefix + a`), a filter axis kept separate from the text query so narrowing to blocked does not also match a window merely *named* "blocked":
+
+| key      | shows   |
+| -------- | ------- |
+| `ctrl-a` | all     |
+| `ctrl-b` | blocked |
+| `ctrl-w` | working |
+| `ctrl-d` | done    |
+| `ctrl-x` | crashed |
+
+Each of these except `ctrl-x` shadows an fzf default; the query here is a word or two, so home/left/bspace still cover the editing jobs. The popup is 80%×60% to leave room for the preview pane.
 
 Runtime state is stored in:
 
