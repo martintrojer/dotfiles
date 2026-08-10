@@ -2627,7 +2627,13 @@ def run_tms_entry_tests(tms) -> None:
         tms.list_tmux_sessions,
         tms.scan_agent_states,
         tms.zoxide_paths,
+        tms.backend,
     )
+    # Pin the backend. It is otherwise chosen from $TMUX / $HERDR_ENV and
+    # cached, so this suite's result depended on which multiplexer the test
+    # runner happened to be sitting in -- green from a tmux pane, two
+    # failures from a herdr one. Agent glyphs are a tmux-backend feature.
+    tms.backend = lambda: tms.TmuxBackend()
     tms.load_config = lambda: config
     # Deliberately unsorted, and overlapping the configured set.
     tms.list_tmux_sessions = lambda: ["zed", "notes", "alpha"]
@@ -2704,6 +2710,7 @@ def run_tms_entry_tests(tms) -> None:
             tms.list_tmux_sessions,
             tms.scan_agent_states,
             tms.zoxide_paths,
+            tms.backend,
         ) = originals
 
 

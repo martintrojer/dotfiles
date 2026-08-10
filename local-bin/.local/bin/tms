@@ -570,7 +570,7 @@ def build_entries(mode: str) -> list[Entry]:
     # and a tmux scan would staple one multiplexer's agent states onto the
     # other's rows -- herdr's own sidebar owns that signal there.
     stats_by_session: dict[str, AgentStats] = {}
-    if isinstance(backend(), TmuxBackend):
+    if backend().has_agent_state:
         stats_by_session = scan_agent_states().per_session()
 
     entries: list[Entry] = []
@@ -935,6 +935,9 @@ class TmuxBackend:
     """tmux sessions. The original tms behavior, unchanged."""
 
     name = "tmux"
+    # Picker rows can carry agent glyphs: they come from this backend's own
+    # @agent_state window options, so they describe exactly these rows.
+    has_agent_state = True
 
     def list_sessions(self) -> list[str]:
         result = tmux_cmd("list-sessions", "-F", "#{session_name}", check=False)
@@ -1016,6 +1019,10 @@ class HerdrBackend:
     """
 
     name = "herdr"
+    # No agent glyphs on herdr rows: the only source tms has is tmux's
+    # @agent_state, which says nothing about a herdr workspace. herdr's
+    # sidebar owns that signal here.
+    has_agent_state = False
 
     def _workspaces(self) -> list[dict]:
         return herdr_cmd("workspace", "list").get("workspaces", [])
