@@ -498,6 +498,7 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     run_done_lifecycle_tests(env)
     run_split_pane_focus_tests(env)
     run_split_pane_label_tests(env)
+    run_last_pane_visibility_tests(env)
     run_popup_focus_tests(env)
 
     print("\n[status-window-label]")
@@ -1449,10 +1450,6 @@ def run_split_pane_label_tests(env: dict[str, str]) -> None:
 
     tmux(sub_env, ["new-window", "-d", "-t", "s1:", "-n", "splitlbl"])
     tmux(sub_env, ["split-window", "-h", "-d", "-t", "s1:splitlbl", "codex 400"])
-    # A window after it: idle_agent_rows drops the server's final pane when
-    # its @pane_agent is unset (filed separately), which would otherwise
-    # mask the assertion this test is making.
-    tmux(sub_env, ["new-window", "-d", "-t", "s1:", "-n", "splitlbltail"])
     wid = tmux(sub_env, ["display-message", "-p", "-t", "s1:splitlbl", "#{window_id}"])
     panes = tmux(
         sub_env,
@@ -1496,7 +1493,55 @@ def run_split_pane_label_tests(env: dict[str, str]) -> None:
             any(row.startswith(f"$0:{wid}\t") for row in rows.splitlines()),
         )
     finally:
-        tmux(sub_env, ["kill-window", "-t", "s1:splitlbltail"], check=False)
+        tmux(sub_env, ["kill-window", "-t", wid], check=False)
+
+
+def run_last_pane_visibility_tests(env: dict[str, str]) -> None:
+    """An agent in the server's *last* pane must still reach the picker.
+
+    ``idle_agent_rows`` asks ``list-panes -a`` for eight tab-separated
+    fields ending in ``#{@pane_agent}``, which is empty for a window the
+    push path never touched. Every line therefore ends in a tab, and the
+    wrapper used to return ``stdout.strip()`` -- which ate the *final*
+    line's tab along with the trailing newline, leaving seven fields and
+    tripping the ``len(parts) != 8`` guard. Only the last pane on the
+    server was affected, so the agent vanished from ``prefix+a`` and
+    reappeared the moment any window was created after it.
+
+    The fixture is therefore the position, not the layout: the agent is
+    the last pane in ``list-panes -a`` order, with nothing after it.
+    """
+    print("\n[agent-attention: last pane on the server]")
+
+    agent_bin = Path(env["XDG_STATE_HOME"]).parent / "probe-bin"
+    agent_bin.mkdir(parents=True, exist_ok=True)
+    shutil.copy("/bin/sleep", agent_bin / "codex")
+    sub_env = {**env, "PATH": f"{agent_bin}:{env['PATH']}"}
+
+    tmux(sub_env, ["new-window", "-d", "-t", "s1:", "-n", "lastpane", "codex 400"])
+    wid = tmux(sub_env, ["display-message", "-p", "-t", "s1:lastpane", "#{window_id}"])
+    pane = tmux(sub_env, ["display-message", "-p", "-t", wid, "#{pane_id}"])
+    _wait_for(sub_env, pane, "#{pane_current_command}", lambda v: v == "codex")
+    try:
+        panes = tmux(sub_env, ["list-panes", "-a", "-F", "#{pane_id}"]).splitlines()
+        expect("the agent really is the server's last pane", panes[-1], pane)
+        expect(
+            "the agent window has no @pane_agent, so its field is empty",
+            tmux(sub_env, ["display-message", "-p", "-t", wid, "#{@pane_agent}"]),
+            "",
+        )
+
+        rows = subprocess.run(
+            ["python3", str(AGENT_ATTENTION), "menu-rows"],
+            env=sub_env,
+            capture_output=True,
+            text=True,
+        ).stdout
+        expect_truthy(
+            "an agent in the server's last pane reaches the picker",
+            any(row.startswith(f"$0:{wid}\t") for row in rows.splitlines()),
+        )
+    finally:
         tmux(sub_env, ["kill-window", "-t", wid], check=False)
 
 
