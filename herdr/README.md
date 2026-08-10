@@ -85,14 +85,31 @@ parse.
 
 ## The Sidebar
 
-`prefix+b` toggles it. It starts collapsed in `compact` mode: the narrow
-status rail keeps agent state glanceable, expansion is on demand.
+`prefix+b` toggles it. It starts collapsed to the narrow `compact` rail,
+expanded on demand.
 
 That is this repo's argument from `docs/DECISIONS.md` — a permanent column is
 too much rent for information you need a few times an hour — wired up as a
-default you can flip in one keystroke. Part of the eval is finding out whether
-the always-open sidebar earns its width. If it does, set
-`ui.sidebar_start_collapsed = false` and say so in DECISIONS.md.
+default you can flip in one keystroke. If the always-open sidebar turns out to
+earn its width, set `ui.sidebar_start_collapsed = false` and say so in
+DECISIONS.md.
+
+Two open questions from living with it:
+
+- **Whether the `compact` rail earns its column.** It is the middle ground —
+  agent state stays glanceable without the full panel — but it still costs
+  width while carrying little you can act on. `sidebar_collapsed_mode =
+  "hidden"` takes that width back to zero and makes `prefix+b` the only way
+  in; worth trying if the rail keeps not paying for itself.
+- **The panel cannot move.** There is no way to put it on top as a horizontal
+  strip; herdr exposes `sidebar_width` / `min` / `max`, `sidebar_start_collapsed`
+  and `sidebar_collapsed_mode`, and nothing else. (`sidebar_position`,
+  `_placement`, `_side`, `_orientation`, `_location` are all rejected as
+  unknown keys, and the
+  [config reference](https://herdr.dev/docs/config-reference/) lists no such
+  setting.) `tab_bar_position` moves the *tab row* top/bottom, which is a
+  different thing. So you cannot trade the column for a row — you can only
+  choose whether to pay it.
 
 `agent_panel_sort = "priority"` orders the panel by attention rather than by
 space, matching what `prefix+a` does in the tmux setup.
