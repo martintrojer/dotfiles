@@ -56,8 +56,9 @@ rmhist() {
 # zsh function with an inline python pty fork; promoted to a real script
 # so the workaround is documented properly. See that file's docstring.
 
-# tm: tmux session picker (pinned sessions + live sessions + zoxide + finder).
+# tm: session picker (pinned sessions + live sessions + zoxide + finder).
+# Backend follows the environment: tmux inside tmux, herdr inside herdr.
 tm() {
-  "$HOME/.config/tmux/scripts/tms" pick-and-connect ${1:+--query} ${1:+"$1"}
+  tms pick-and-connect ${1:+--query} ${1:+"$1"}
 }
 

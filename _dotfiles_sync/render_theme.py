@@ -130,7 +130,7 @@ CONSUMERS: tuple[Consumer, ...] = (
         ("status-ai-colors",),
     ),
     Consumer(
-        repo("tmux/.config/tmux/scripts/tms"),
+        repo("local-bin/.local/bin/tms"),
         ("tms-palette",),
     ),
     Consumer(

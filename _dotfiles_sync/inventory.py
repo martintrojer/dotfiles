@@ -21,6 +21,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "gdu",
             "git",
             "glow",
+            "herdr",
             "jj",
             "local-bin",
             "nvim",

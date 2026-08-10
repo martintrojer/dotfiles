@@ -33,7 +33,9 @@ AGENT_ATTENTION = SCRIPT_DIR / "agent-attention"
 STATUS_WINDOW_LABEL = SCRIPT_DIR / "status-window-label"
 CHEATSHEET = SCRIPT_DIR / "cheatsheet"
 STATUS_AI = SCRIPT_DIR / "status-ai"
-TMS = SCRIPT_DIR / "tms"
+# tms moved to local-bin (shared with the herdr package); the repo copy is
+# three levels up from tmux/.config/tmux/scripts.
+TMS = SCRIPT_DIR.parents[3] / "local-bin" / ".local" / "bin" / "tms"
 # scripts/ -> tmux/ -> .config/ -> <package root>, where the stowed dotfile lives.
 TMUX_CONF = SCRIPT_DIR.parents[2] / ".tmux.conf"
 # <repo>/tmux/.config/tmux/scripts -> <repo>

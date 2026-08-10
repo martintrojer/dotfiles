@@ -18,6 +18,8 @@ gh = "latest"
 "github:zk-org/zk" = "latest"
 glow = "latest"
 go = "latest"
+# Under evaluation as a tmux alternative; see herdr/README.md.
+herdr = "latest"
 imagemagick = "latest"
 jj = "latest"
 just = "latest"
