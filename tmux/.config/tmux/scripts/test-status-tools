@@ -494,8 +494,10 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
 
     run_agent_state_contract_tests(env, panes["w1p1"])
     run_writer_vocabulary_tests()
+    run_agent_end_focus_semantics_tests(env)
     run_done_lifecycle_tests(env)
     run_split_pane_focus_tests(env)
+    run_split_pane_label_tests(env)
     run_popup_focus_tests(env)
 
     print("\n[status-window-label]")
@@ -1420,6 +1422,84 @@ def run_split_pane_focus_tests(env: dict[str, str]) -> None:
             conn.execute("DELETE FROM events WHERE window_id = ?", (wid,))
 
 
+def run_split_pane_label_tests(env: dict[str, str]) -> None:
+    """An agent in a non-active pane is invisible to the label path.
+
+    ``status-window-label`` reads the *active* pane's fields, so in a split
+    where the user sits in the sibling shell it walks the shell's process
+    tree, never finds the agent, and therefore never sets the sticky
+    ``@pane_agent``. Solo-window tests cannot see this: there the active
+    pane *is* the agent pane.
+
+    This is documented behaviour rather than a defect -- the label names
+    what the window is currently showing, and the window is showing a
+    shell. What matters is that the consequence is bounded: the picker's
+    ps-scan walks *every* pane, so the agent still reaches ``prefix+a``
+    even though the label path missed it. That is the invariant pinned
+    here, because it is the one keeping a split-hosted agent findable.
+    """
+    print("\n[agent-attention: split-pane agent visibility]")
+
+    agent_bin = Path(env["XDG_STATE_HOME"]).parent / "probe-bin"
+    agent_bin.mkdir(parents=True, exist_ok=True)
+    # A real process named after a real agent: ProcessSnapshot matches on
+    # the command basename, so the name is the whole fixture.
+    shutil.copy("/bin/sleep", agent_bin / "codex")
+    sub_env = {**env, "PATH": f"{agent_bin}:{env['PATH']}"}
+
+    tmux(sub_env, ["new-window", "-d", "-t", "s1:", "-n", "splitlbl"])
+    tmux(sub_env, ["split-window", "-h", "-d", "-t", "s1:splitlbl", "codex 400"])
+    # A window after it: idle_agent_rows drops the server's final pane when
+    # its @pane_agent is unset (filed separately), which would otherwise
+    # mask the assertion this test is making.
+    tmux(sub_env, ["new-window", "-d", "-t", "s1:", "-n", "splitlbltail"])
+    wid = tmux(sub_env, ["display-message", "-p", "-t", "s1:splitlbl", "#{window_id}"])
+    panes = tmux(
+        sub_env,
+        ["list-panes", "-t", "s1:splitlbl", "-F", "#{pane_id}\t#{pane_active}"],
+    ).splitlines()
+    agent_pane = panes[1].split("\t")[0]
+    _wait_for(
+        sub_env,
+        agent_pane,
+        "#{pane_current_command}",
+        lambda v: v == "codex",
+    )
+
+    try:
+        expect("the agent pane is the inactive one", panes[1].split("\t")[1], "0")
+        label = subprocess.run(
+            [str(STATUS_WINDOW_LABEL), wid],
+            env=sub_env,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        expect_truthy(
+            f"the label describes the active pane, not the agent (got {label!r})",
+            label != "codex",
+        )
+        expect(
+            "so the label path does not mark the window as hosting an agent",
+            tmux(sub_env, ["display-message", "-p", "-t", wid, "#{@pane_agent}"]),
+            "",
+        )
+
+        # The invariant that makes the above survivable.
+        rows = subprocess.run(
+            ["python3", str(AGENT_ATTENTION), "menu-rows"],
+            env=sub_env,
+            capture_output=True,
+            text=True,
+        ).stdout
+        expect_truthy(
+            "the picker's pane scan still finds an agent in a non-active pane",
+            any(row.startswith(f"$0:{wid}\t") for row in rows.splitlines()),
+        )
+    finally:
+        tmux(sub_env, ["kill-window", "-t", "s1:splitlbltail"], check=False)
+        tmux(sub_env, ["kill-window", "-t", wid], check=False)
+
+
 def run_popup_focus_tests(env: dict[str, str]) -> None:
     """An inert popup must not count as looking at the agent.
 
@@ -1570,6 +1650,128 @@ def run_popup_focus_tests(env: dict[str, str]) -> None:
         _unlink_socket(outer)
         _unlink_socket(inner)
         shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def run_agent_end_focus_semantics_tests(env: dict[str, str]) -> None:
+    """What "you are looking at it" means for an agent sharing a window.
+
+    ``agent_end`` clears the badge when
+    ``#{&&:pane_active,window_active,session_attached}`` is 1 and writes
+    ``done`` otherwise. In a solo window that expression is just "is this
+    window on screen". In a split it also demands the agent's own pane be
+    the active one, so an agent finishing in a *visible* window whose pane
+    the user is not in still gets a ``done`` badge.
+
+    That is the right answer, and this test is here to say so deliberately
+    rather than leave it as an accident of the format string. It matches
+    the pane-granularity rule the clear path already enforces: proximity to
+    an agent is not attention to it. A user reading the sibling shell did
+    not watch the run finish, and ``done`` is exactly "finished, unseen" --
+    which the next focus on the agent pane retires.
+
+    Asserted against a real attached client because the expression is three
+    tmux booleans; nothing short of a live server evaluates it honestly.
+    """
+    print("\n[pi extension: agent_end focus semantics]")
+
+    ts = (
+        REPO_ROOT / "pi" / ".pi" / "agent" / "extensions" / "agent-attention.ts"
+    ).read_text(encoding="utf-8")
+    match = re.search(r'"(#\{&&:[^"]*session_attached[^"]*)"', ts)
+    expect_truthy("the extension still uses a focus format expression", match)
+    if not match:
+        return
+    focus_fmt = match.group(1)
+
+    inner = f"{SOCKET}-endfocus-in"
+    outer = f"{SOCKET}-endfocus-out"
+
+    def raw(socket: str, *args: str) -> str:
+        return subprocess.run(
+            ["tmux", "-L", socket, *args], capture_output=True, text=True, env=env
+        ).stdout.strip()
+
+    try:
+        raw(inner, "kill-server")
+        raw(outer, "kill-server")
+        time.sleep(0.2)
+        raw(
+            inner,
+            "-f",
+            "/dev/null",
+            "new-session",
+            "-d",
+            "-s",
+            "i",
+            "-n",
+            "w1",
+            "sleep 300",
+        )
+        raw(inner, "split-window", "-h", "-t", "i:w1", "sleep 300")
+        panes = raw(inner, "list-panes", "-t", "i:w1", "-F", "#{pane_id}").splitlines()
+        if len(panes) != 2:
+            raise TestFailure(f"agent_end fixture wanted 2 panes, got {panes}")
+        agent_pane, user_pane = panes
+        # A second window, so "visible" and "exists" are distinguishable.
+        raw(inner, "new-window", "-d", "-t", "i:", "-n", "bg", "sleep 300")
+        bg_pane = raw(inner, "list-panes", "-t", "i:bg", "-F", "#{pane_id}")
+        raw(inner, "select-pane", "-t", user_pane)
+        raw(
+            outer,
+            "-f",
+            "/dev/null",
+            "new-session",
+            "-d",
+            "-s",
+            "o",
+            "-x",
+            "120",
+            "-y",
+            "30",
+            f"tmux -L {inner} attach -t i",
+        )
+        time.sleep(1.2)
+
+        def focused(pane: str) -> str:
+            return raw(inner, "display-message", "-t", pane, "-p", focus_fmt)
+
+        expect(
+            "the fixture really has an attached client",
+            raw(inner, "display-message", "-p", "#{session_attached}"),
+            "1",
+        )
+        expect(
+            "the pane the user is in reads as focused, so agent_end clears",
+            focused(user_pane),
+            "1",
+        )
+        expect(
+            "an agent in a visible window but an inactive pane reads unfocused, "
+            "so agent_end writes done",
+            focused(agent_pane),
+            "0",
+        )
+        expect(
+            "an agent in a background window also reads unfocused",
+            focused(bg_pane),
+            "0",
+        )
+
+        # The distinction is pane-level, not window-level: moving focus
+        # within the same visible window flips the answer. Without this the
+        # assertions above would also pass for a window-scoped expression.
+        raw(inner, "select-pane", "-t", agent_pane)
+        time.sleep(0.3)
+        expect(
+            "focus is decided per pane, not per window",
+            (focused(agent_pane), focused(user_pane)),
+            ("1", "0"),
+        )
+    finally:
+        raw(outer, "kill-server")
+        raw(inner, "kill-server")
+        _unlink_socket(outer)
+        _unlink_socket(inner)
 
 
 def run_writer_vocabulary_tests() -> None:
