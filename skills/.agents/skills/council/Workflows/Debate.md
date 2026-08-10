@@ -17,7 +17,7 @@ Running the **Debate** workflow in the **Council** skill to run multi-agent deba
 
 ## Members
 
-Council members are custom personas you write inline. Write four different briefs tailored to the topic — a persona-less agent produces bland agreement. See `CouncilMembers.md` for writing them and `SKILL.md` § Running the members for the execution modes.
+Council members are custom personas you write inline. Write four different briefs tailored to the topic — a persona-less agent produces bland agreement. See `../CouncilMembers.md` for writing them and `../SKILL.md` § Running the members for the execution modes.
 
 Below, "launch N members" means: dispatch N subagents if the harness has them, otherwise write each member's section yourself in sequence.
 
@@ -25,7 +25,7 @@ Below, "launch N members" means: dispatch N subagents if the harness has them, o
 
 ### Step 0: Write the Council Members
 
-Before any debate rounds, analyze the topic, decide the 4 perspectives that create the most productive friction, and write a brief for each: a name, their role/expertise, the stance they hold, and what they'll push on. No tool call — you write these directly. See `CouncilMembers.md` for the slot guidance and an example brief.
+Before any debate rounds, analyze the topic, decide the 4 perspectives that create the most productive friction, and write a brief for each: a name, their role/expertise, the stance they hold, and what they'll push on. No tool call — you write these directly. See `../CouncilMembers.md` for the slot guidance and an example brief.
 
 ### Step 1: Announce the Council
 
