@@ -1223,6 +1223,51 @@ FILTER_KEYS: dict[str, AgentState | None] = {
 }
 
 
+def state_ansi(state: AgentState, text: str) -> str:
+    """Wrap *text* in the ANSI colour STATE_GLYPH_ANSI already uses for *state*.
+
+    The colours are not respelled here: that entry is split around its
+    glyph, so the prefix/suffix come from the one table the rows render
+    with and the header cannot drift from them.
+    """
+    prefix, _, suffix = STATE_GLYPH_ANSI.get(state, "").partition(
+        STATE_GLYPH.get(state, "\0")
+    )
+    return f"{prefix}{text}{suffix}"
+
+
+def filter_hints() -> str:
+    """fzf ``--header`` naming every FILTER_KEYS binding.
+
+    Words, not glyphs: the glyph is already visible in the rows right
+    below, and "^x crashed" needs no legend. Glyph+word measures 65
+    columns, which wraps inside an 80%-wide popup on an 80-column client
+    (64 columns of room); words alone fit at 57. Each hint carries its own
+    state colour, so the header doubles as a legend for the status-bar
+    glyphs.
+
+    Hints read urgency-descending to match the row sort and the status
+    pill, which is *not* FILTER_KEYS' declaration order (a/b/w/d/x).
+    Sorting by AgentState value here rather than reordering the dict keeps
+    the declaration grouped by keycap and leaves filter_binds alone.
+
+    The active filter is deliberately not marked: picker_prompt already
+    swaps the prompt to that state's chip one line up, so re-marking it
+    here would need a change-header on every bind to restate what is
+    already on screen.
+    """
+    # "all" leads (as in tms's header); the states follow urgency-descending.
+    ordered = sorted(FILTER_KEYS.items(), key=lambda kv: -int(kv[1]) if kv[1] else -99)
+    hints = [
+        state_ansi(state, f"^{key.removeprefix('ctrl-')} {state.name}")
+        if state
+        else f"^{key.removeprefix('ctrl-')} all"
+        for key, state in ordered
+    ]
+    # Two leading spaces clear fzf's border, as tms's header does.
+    return "  " + "   ".join(hints)
+
+
 def picker_prompt(state_filter: AgentState | None, counts: str) -> str:
     """Prompt for one filter axis position.
 
@@ -1319,6 +1364,8 @@ def cmd_menu(_: argparse.Namespace) -> int:
             "--layout",
             "reverse",
             "--ansi",
+            "--header",
+            filter_hints(),
             "--bind",
             "enter:accept",
             *filter_binds(counts),

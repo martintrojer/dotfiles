@@ -614,6 +614,9 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     print("\n[agent-attention: picker state filters]")
     run_filter_bind_tests(env)
 
+    print("\n[agent-attention: picker filter hints]")
+    run_filter_hint_tests()
+
     print("\n[agent-attention: picker preview]")
     run_preview_tests(env)
 
@@ -986,6 +989,65 @@ def run_filter_bind_tests(env: dict[str, str]) -> None:
             got.strip(),
             want.strip(),
         )
+
+
+def run_filter_hint_tests() -> None:
+    """The picker header must name every filter key.
+
+    The five filter keys shipped with no header at all, so they worked and
+    nobody could find them. The assertion that earns its keep is coverage:
+    it goes red when a sixth filter is added and the hint is forgotten —
+    exactly the drift that produced the missing header.
+    """
+    aa = _import_script(AGENT_ATTENTION, "agent_attention_mod")
+    header = aa.filter_hints()
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", header)
+
+    missing = [
+        key for key in aa.FILTER_KEYS if f"^{key.removeprefix('ctrl-')} " not in plain
+    ]
+    expect("the header names every filter key", missing, [])
+    labels = [s.name if s else "all" for s in aa.FILTER_KEYS.values()]
+    expect(
+        "the header names every filter's state",
+        [label for label in labels if label not in plain],
+        [],
+    )
+
+    # Urgency-descending, matching the row sort and the status pill — not
+    # FILTER_KEYS' declaration order (a/b/w/d/x).
+    states = [s for s in aa.FILTER_KEYS.values() if s is not None]
+    expect(
+        "hints read urgency-descending",
+        # A name the header omits sorts last instead of raising, so the
+        # coverage assertion above stays the one that reports it.
+        sorted(states, key=lambda s: (plain.find(s.name) + 1) or len(plain)),
+        sorted(states, key=lambda s: -int(s)),
+    )
+
+    expect_truthy(
+        "each state hint carries its own state colour",
+        all(
+            aa.state_ansi(s, f"^{k.removeprefix('ctrl-')} {s.name}") in header
+            for k, s in aa.FILTER_KEYS.items()
+            if s is not None
+        ),
+    )
+
+    # The popup is 80% of the client width (.tmux.conf), so an 80-column
+    # client leaves 64 columns; wrapping would push the header onto the rows.
+    expect_truthy(
+        f"header fits an 80-column client (len {len(plain)})", len(plain) <= 64
+    )
+
+    # The builder is only discoverability if cmd_menu actually hands it to fzf.
+    expect_truthy(
+        "cmd_menu passes the hints as fzf --header",
+        re.search(
+            r'"--header",\s*\n\s*filter_hints\(\),',
+            AGENT_ATTENTION.read_text(encoding="utf-8"),
+        ),
+    )
 
 
 def run_preview_tests(env: dict[str, str]) -> None:
