@@ -32,6 +32,10 @@ export HISTSIZE=1048576
 # Application-specific exports
 export ELECTRON_OZONE_PLATFORM_HINT=auto
 
+# mu: per-machine append-only op segments live here. Point every machine
+# at the same synced folder (Syncthing, rsync, ...) to sync workstreams.
+export MU_SYNC_DIR="$HOME/mu"
+
 # PAGER and LESS configuration (requires PATH to be fully configured)
 bat_cmd=""
 if command -v bat >/dev/null 2>&1; then
