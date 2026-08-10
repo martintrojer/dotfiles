@@ -129,9 +129,10 @@ type = "shell"
 command = "herdr pane move \"$HERDR_PANE_ID\" --new-tab --focus"
 
 [ui]
-# Collapsed by default with the narrow status rail still visible: agent
-# state is glanceable without paying a full column for it. prefix+b
-# expands when the fleet actually needs reading.
+# Collapsed to the narrow "compact" rail rather than hidden outright, with
+# prefix+b to expand on demand. herdr cannot move the panel to a horizontal
+# strip on top -- sidebar position is not configurable, only width and
+# collapsed mode -- so the rail is the smallest permanent footprint on offer.
 sidebar_start_collapsed = true
 sidebar_collapsed_mode = "compact"
 
@@ -140,8 +141,18 @@ sidebar_collapsed_mode = "compact"
 agent_panel_sort = "priority"
 
 # Pane borders carry the agent label, so a split pane says what is in it
-# without expanding the sidebar.
+# without expanding the sidebar. That is the only job they do here, which is
+# why pane_borders stays true while everything decorative around it goes.
 show_agent_labels_on_pane_borders = true
+
+# Adjacent panes share one divider instead of each drawing its own border,
+# which is what produced the doubled lines between splits.
+pane_gaps = false
+
+# Reclaim the scrollbar column. Tried it on: tmux never drew one, the mouse
+# wheel still scrolls without it, and the column otherwise lands inside
+# terminal-native selections.
+pane_scrollbars = false
 
 [ui.toast]
 delivery = "herdr"
