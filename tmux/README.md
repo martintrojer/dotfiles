@@ -45,7 +45,7 @@ From your current `tmux/.tmux.conf`:
 - The `agent-attention` integration is not a plugin. It is a local script in this repo that tracks per-window agent state (`working / done / blocked / crashed`) via push events from the pi extension, with a pid-liveness reaper for crash detection. See [`docs/DECISIONS.md` § Agent state awareness](../docs/DECISIONS.md).
 - Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
 - Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `codex`, `π - ...`, or a cwd basename.
-- The agent segment is rendered by `$HOME/.config/tmux/scripts/status-ai`, which sets the `@ai_status` tmux option to a robot icon (`nf-md-robot`) followed by one glyph per running agent, grouped into colored runs by state (most urgent first, tail past 10 summarised as `+N`). There is no longer an `AI` label or a count — the icon says what the segment is and the run says how many agents are in what shape. `.tmux.conf` reads it via `#{E:@ai_status}` and supplies only the box background; the script owns the foregrounds, since a color that changes within one value is not expressible as a format conditional.
+- The agent segment is rendered by `$HOME/.config/tmux/scripts/status-ai`, which sets the `@ai_status` tmux option to a robot icon (`nf-md-robot`) followed by one glyph per running agent, grouped into colored runs by state (most urgent first). A run of more than three agents in one state rolls up to `<N><glyph>` — `!! 8▶ 5·` — so a large fleet stays narrow without any state being summarised away; at three or fewer the run is the literal glyphs. There is no longer an `AI` label or a count — the icon says what the segment is and the run says how many agents are in what shape. `.tmux.conf` reads it via `#{E:@ai_status}` and supplies only the box background; the script owns the foregrounds, since a color that changes within one value is not expressible as a format conditional.
 
 ## Status Bar Layout
 
@@ -54,7 +54,7 @@ The current bar keeps the same useful information as before, but without the pil
 - Left: a filled session block.
 - Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline agent state (`✗` crashed, `!` blocked, `✓` done, `▶` working, `·` idle agent) / zoom markers.
 - Pane, window, and session switches trigger an immediate `refresh-client -S`, so label changes show up right away instead of waiting for the status timer.
-- Right: a boxed `PREFIX` segment and a boxed agent segment (robot icon + one glyph per agent, urgency-ordered runs, `+N` tail), followed by flatter glyph-based `CPU`, `RAM`, `host`, and `uptime` segments. The agent segment disappears entirely when no agents are running.
+- Right: a boxed `PREFIX` segment and a boxed agent segment (robot icon + one glyph per agent, urgency-ordered runs, `<N><glyph>` past three in a state), followed by flatter glyph-based `CPU`, `RAM`, `host`, and `uptime` segments. The agent segment disappears entirely when no agents are running.
 
 ## Built-in Tmux UI
 
