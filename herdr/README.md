@@ -218,7 +218,15 @@ Things to decide if the experiment resumes:
 - **Two agent-state systems.** Confirm `agent-attention.ts` no-ops cleanly
   outside tmux before crediting or blaming herdr's sidebar for anything.
 - **v0.x, one maintainer, AGPL, active churn.** The caveat from DECISIONS.md
-  has not expired.
+  has not expired. This eval spanned a release, and pre-1.0 protocol bumps
+  mean an old client cannot attach to a new server without restarting it.
+- **It fails pillar #11 (human-made, human-owned, heavily tested).** This is
+  the larger objection, and the one that took longer to name than the screen
+  real estate did. Every other load-bearing tool here — tmux, zsh, sway,
+  sqlite — is old, multi-maintainer, distro-packaged and exhaustively tested;
+  herdr is none of those yet. The pillar is about maturity and accountability,
+  not a claim about how the code was written. A 1.0 with a real test suite and
+  more than one maintainer would be a different proposition.
 
 ## Agent Skill
 

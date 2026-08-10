@@ -22,6 +22,7 @@ When tempted, re-read this section before touching anything.
    problems, and keep ambient context quieter. See [`docs/THEME.md`](./docs/THEME.md)
    and [`docs/LAYOUT.md`](./docs/LAYOUT.md).
 10. **Config lives next to the thing it configures.** Tool-specific docs go in the package folder. This root README only describes the repo shape and the rules above.
+11. **Human-made, human-owned, heavily tested.** The corollary to #1: "boring" is about *provenance*, not just release cadence. Prefer infrastructure a person designed, maintains, and is accountable for, with a real test suite and a track record — tmux, zsh, sway, sqlite. Be suspicious of infra that is generated rather than written, or built for agents by agents; a tool whose own substrate is disposable output does not become load-bearing here. This repo delegates plenty of *work* to agents, but the ground they stand on stays human. The asymmetry is the point: a bad line in a script is a bug, a bad line in the substrate is a rebuild.
 
 If a new toy violates more than one of these, it does not belong here — no matter how cool the blur effect is.
 
