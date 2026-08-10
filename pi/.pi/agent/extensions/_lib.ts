@@ -8,7 +8,7 @@
  */
 
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
+import type { Api, AssistantMessage, Model, ProviderHeaders } from "@earendil-works/pi-ai";
 import { exec } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -103,13 +103,17 @@ export function textContent(content: AssistantMessage["content"]): string {
 		.trim();
 }
 
+// Structural, deliberately minimal: it names only the fields these extensions
+// actually read, so the SDK adding more to ResolvedRequestAuth (it has already
+// gained baseUrl/env) cannot break us again. ProviderHeaders is imported rather
+// than re-described, since header values may be null ("unset this header").
 export interface ModelPickerContext {
 	model?: Model<Api>;
 	modelRegistry: {
 		getAvailable(): Model<Api>[];
 		getApiKeyAndHeaders(
 			model: Model<Api>,
-		): Promise<{ ok: true; apiKey?: string; headers?: Record<string, string> } | { ok: false; error: string }>;
+		): Promise<{ ok: true; apiKey?: string; headers?: ProviderHeaders } | { ok: false }>;
 	};
 }
 
@@ -241,7 +245,7 @@ export function markModelSuccess(task: string, model: Model<Api>): void {
 
 export async function pickSessionModel(
 	ctx: ModelPickerContext,
-): Promise<{ model: Model<Api>; apiKey: string; headers?: Record<string, string> } | null> {
+): Promise<{ model: Model<Api>; apiKey: string; headers?: ProviderHeaders } | null> {
 	const candidates: Model<Api>[] = [];
 	if (ctx.model) candidates.push(ctx.model);
 	candidates.push(...ctx.modelRegistry.getAvailable());
@@ -252,7 +256,7 @@ export async function pickSessionModel(
 	return null;
 }
 
-export type PickedModel = { model: Model<Api>; apiKey: string; headers?: Record<string, string> };
+export type PickedModel = { model: Model<Api>; apiKey: string; headers?: ProviderHeaders };
 
 export async function pickFastModels(ctx: ModelPickerContext, task = "default"): Promise<PickedModel[]> {
 	const available = ctx.modelRegistry.getAvailable();
