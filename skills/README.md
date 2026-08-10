@@ -30,7 +30,7 @@ skill-specific ones, extracted from the calls actually made during the
    cross-link over two competing ones — which is why `ponytail-review` and
    `ponytail-audit` are skipped while `ponytail` is kept.
 5. **Backport the idea, don't vendor the skill.** When something popular
-   overlaps 80%, take the 20% that's genuinely new and put it where it belongs.
+   overlaps 80%, take the 20% that's new and put it where it belongs.
    Karpathy's *Surgical Changes* became six lines in `ponytail`; `grill-me`'s
    two good habits became two bullets in `brainstorm`.
 6. **Usage is the audit.** Session history is ground truth. `execute-plan` had
@@ -41,7 +41,7 @@ skill-specific ones, extracted from the calls actually made during the
    fork you now maintain.
 8. **Write down the rejections.** "Why don't we have the 175k-star skill?"
    should cost one table lookup, not another full survey. *Deliberately not
-   vendored* is load-bearing documentation.
+   vendored* is documentation that earns its keep.
 9. **Cross-link at decision points.** A `## Related` row earns its place by
    redirecting work — *when* to jump, not *that* something adjacent exists.
    "See also" lists get skipped.
@@ -96,7 +96,7 @@ diff -r ~/hacking/<upstream>/<path> skills/.agents/skills/<name>/
    and slash commands the harness lacks. Zen #2: if it can't run, it doesn't go
    in.
 3. **Check the frontmatter.** `name` must match the directory; description
-   under 1024 chars. Drop upstream `version:` unless it's genuinely theirs.
+   under 1024 chars. Drop upstream `version:` unless it's theirs.
 4. **Check trigger overlap** against installed skills. Overlap → backport the
    delta (zen #5), don't add a competitor (zen #4).
 5. **Link and verify:** `./dotfiles-sync --apply && make check-all`. A full

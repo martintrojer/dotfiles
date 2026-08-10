@@ -19,7 +19,7 @@ Ghostty is the macOS terminal. The bindings use `open -na "Ghostty"` to spawn wi
 
 - `Hyper+T`: focus/cycle a Ghostty window on the current Space. No-op if Ghostty isn't running or has no window here (won't launch Ghostty or swoosh Spaces).
 - `Hyper+Return` / `Hyper+PadEnter`: always create a new Ghostty window on the current Space (and launch Ghostty if needed).
-- Avoid generic synthetic focus hacks that jump Spaces; the `open -na` primitive is the load-bearing detail.
+- Avoid generic synthetic focus hacks that jump Spaces; the `open -na` primitive is the detail that makes this work.
 
 ## Model
 

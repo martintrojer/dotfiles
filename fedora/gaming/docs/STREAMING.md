@@ -25,7 +25,7 @@ capture (sandbox can't hold `CAP_SYS_ADMIN`) -- must be the COPR rpm.
 The LG panel is **16:9 only** (modes: 2160p, 1440p, 1080p, 720p). No native
 1920x1200, so neither gamescope `--backend drm` nor a host-side swap can produce
 the handheld's 16:10 mode. Target **1080p**; the handheld letterboxes it. True
-1920x1200 needs an EDID/virtual-display hack -- not worth the Atomic upkeep.
+1920x1200 needs an EDID/virtual-display hack, not worth the Atomic upkeep.
 
 ## The session
 
@@ -66,7 +66,7 @@ copy-to-`/usr/local`); the rpm ships its own udev rule + user unit. Verify with
 
 Hardware encode also needs `mesa-va-drivers-freeworld` (also in
 `steam-packages.sh`): stock mesa ships VAAPI with the H264/HEVC/AV1 encoders
-stripped, so without it Sunshine falls back to software x264 -- unusable at 4K.
+stripped, so without it Sunshine falls back to software x264, which is unusable at 4K.
 Verify with `vainfo` showing `VAEntrypointEncSlice`.
 
 Then `config/setup-sunshine.sh` opens the firewall. The rpm ships no firewalld
@@ -108,7 +108,7 @@ pre-authenticate with `sudo -v` when scripting it.
 ## Pairing (one-time, manual)
 
 Sunshine's config + pairing happens through its **web UI on TCP 47990**
-(https://localhost:47990, self-signed TLS -- accept the cert warning). Easiest
+(https://localhost:47990, self-signed TLS; accept the cert warning). Easiest
 from the Sway desktop (the gamescope session has no browser): start the unit
 (`systemctl --user start app-dev.lizardbyte.app.Sunshine.service`), open the UI,
 set the admin username/password on first run.
@@ -120,8 +120,8 @@ UI's **PIN** page to pair. Pairing persists in
 
 ## Washed-out colors fix (client-side BT.601)
 
-Colors looked desaturated/washed over the stream but vibrant on the handheld
-locally. Cause: Moonlight's VAAPI renderer **hardcodes BT.601**
+Colors looked desaturated/washed over the stream but correctly saturated on the
+handheld locally. Cause: Moonlight's VAAPI renderer **hardcodes BT.601**
 (`vaapi.cpp: getDecoderColorspace() return COLORSPACE_REC_601`, citing a 2019
 Mesa bug that's long-fixed on Mesa 26). Moonlight requests 601 via
 `encoderCscMode`; Sunshine's colorspace is **100% client-driven** (no host
@@ -146,8 +146,8 @@ Verified butter-smooth with a Legion Go S paired: KMS capture, `hevc_vaapi`,
 confirm VAAPI hardware encoder, host wired to ethernet.
 
 Handheld (Moonlight): 1080p, ~15-50 Mbps LAN, perf overlay on, plus the
-`COLOR_SPACE_OVERRIDE=1` flatpak override (see above -- else colors wash out).
-Codec is client-negotiated -- the Go S picked HEVC on Auto; force AV1 in Moonlight
+`COLOR_SPACE_OVERRIDE=1` flatpak override (see above; else colors wash out).
+Codec is client-negotiated. The Go S picked HEVC on Auto; force AV1 in Moonlight
 if you want marginally better quality-per-bit. Verify stream is 1080p (not 4K
 boxed), low single-digit ms network latency, VAAPI (not software) encode, and OK
 frame pacing (cap fps to client refresh; Sunshine needs manual vsync/gsync-off

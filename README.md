@@ -9,7 +9,7 @@ The pillars below govern every package in this repo. They exist so future-me can
 When tempted, re-read this section before touching anything.
 
 1. **Boring infra is good infra.** None of the tools here are exciting in 2026. That is the point. The desktop is the substrate, not the hobby.
-2. **Builtins first, plugins last.** A plugin or external tool only lands when a builtin genuinely cannot do the job.
+2. **Builtins first, plugins last.** A plugin or external tool only lands when a builtin cannot do the job.
 3. **Every line is understood.** No framework magic, no hidden keymaps, no "distro" config layers. If a line is here, future-me can explain why; if not, it gets deleted.
 4. **Each piece earns its place.** Every plugin, package, script, and service answers a one-line "why not builtin?" question. Inertia is not an answer.
 5. **Local scripts over upstream plugins.** A small Python script in this repo beats a third-party dependency. Easier to read, easier to fix, doesn't break on upgrade.
@@ -18,11 +18,11 @@ When tempted, re-read this section before touching anything.
 8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway with foot as the terminal. macOS is Hammerspoon with Ghostty as the terminal. The shared layer is the CLI/editor baseline; the desktop stack is allowed to diverge per platform, and once chosen, lean into each OS's native primitives (Spaces and Mission Control on macOS, sway IPC and Wayland layer-shell on Linux; foot's server/client and Ghostty's app-bundle launch model on their respective sides) rather than faking another OS's idioms on top. Each OS is allowed to bloom in its own direction.
 9. **One palette, one layout language.** Catppuccin Mocha is the color system;
    blocky/tmux geometry is the interaction grammar. Blocks are affordances, not
-   decoration: use them for navigation, focus, modal state, or actionable
-   problems, and keep ambient context quieter. See [`docs/THEME.md`](./docs/THEME.md)
+   decoration: use them for navigation, focus, modal state, or problems that
+   need a response, and keep ambient context quieter. See [`docs/THEME.md`](./docs/THEME.md)
    and [`docs/LAYOUT.md`](./docs/LAYOUT.md).
 10. **Config lives next to the thing it configures.** Tool-specific docs go in the package folder. This root README only describes the repo shape and the rules above.
-11. **Human-made, human-owned, heavily tested.** The corollary to #1: "boring" is about *provenance*, not just release cadence. Prefer infrastructure a person designed, maintains, and is accountable for, with a real test suite and a track record — tmux, zsh, sway, sqlite. Be suspicious of infra that is generated rather than written, or built for agents by agents; a tool whose own substrate is disposable output does not become load-bearing here. This repo delegates plenty of *work* to agents, but the ground they stand on stays human. The asymmetry is the point: a bad line in a script is a bug, a bad line in the substrate is a rebuild.
+11. **Human-made, human-owned, heavily tested.** The corollary to #1: "boring" is about *provenance*, not just release cadence. Prefer infrastructure a person designed, maintains, and is accountable for, with a real test suite and a track record — tmux, zsh, sway, sqlite. Be suspicious of infra that is generated rather than written, or built for agents by agents; a tool whose own substrate is disposable output does not get to hold this setup up. This repo delegates plenty of *work* to agents, but the ground they stand on stays human. The asymmetry is the point: a bad line in a script is a bug, a bad line in the substrate is a rebuild.
 
 If a new toy violates more than one of these, it does not belong here — no matter how cool the blur effect is.
 

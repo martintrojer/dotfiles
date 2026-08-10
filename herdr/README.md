@@ -222,7 +222,7 @@ Things to decide if the experiment resumes:
   mean an old client cannot attach to a new server without restarting it.
 - **It fails pillar #11 (human-made, human-owned, heavily tested).** This is
   the larger objection, and the one that took longer to name than the screen
-  real estate did. Every other load-bearing tool here — tmux, zsh, sway,
+  real estate did. Every other tool this setup rests on — tmux, zsh, sway,
   sqlite — is old, multi-maintainer, distro-packaged and exhaustively tested;
   herdr is none of those yet. The pillar is about maturity and accountability,
   not a claim about how the code was written. A 1.0 with a real test suite and
