@@ -10,6 +10,11 @@ substrate ([`../docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state
 awareness). The point of running herdr with real dotfiles is to test that
 decision honestly instead of from the outside.
 
+**Verdict so far (2026-08-10): tried it for a day, went back to tmux.** The
+config stays here and stays working, because the interesting test has not
+been run yet — see [Eval Notes](#eval-notes). Re-entering costs `herdr`, not
+a rebuild.
+
 This is a **common-scope package**: it links on both Linux and macOS, so
 nothing in it may depend on sway, fuzzel, mako, or Homebrew. On Fedora the
 binary comes from mise (`fedora/mise/.config/mise/config.toml`); on macOS
@@ -190,7 +195,21 @@ no-ops when its multiplexer is absent.
 
 ## Eval Notes
 
-Things to actually decide before this stops being an experiment:
+**Where it landed.** Back on tmux after a day. The sidebar is the reason, but
+not for the reason originally given: the compact rail is 4 columns, ~1.5% of
+width, so the cost is not the cells. It is that the panel is fixed to the left
+edge and cannot become a horizontal strip, while tmux's pills share a status
+row that was already being spent. Overhead you have already paid has zero
+marginal cost; a new column does not.
+
+**What has not been tested, and is the whole question.** Everything that
+justifies an always-present agent panel is a fleet feature — priority sort,
+cross-workspace blocked detection, `herdr agent prompt --wait`. At one or two
+agents it reports what you already know. The real trial is 4–6 agents across
+3+ workspaces, which is also the `mu`-on-tmux vs herdr-agent-CLI comparison.
+Until that runs, "unclear what it buys" is accurate, not premature.
+
+Things to decide if the experiment resumes:
 
 - **`mu` is tmux-native.** The orchestration skill spawns tmux panes, and
   `experimental.allow_nested = false` means it cannot run a tmux inside a herdr
