@@ -45,7 +45,7 @@ why = "show_hidden defaults to true here, and `.` flips that visibility."
 
 ## Selection, visual mode, and bulk operations
 
-The power move in Yazi is to think in terms of *selected files*, then apply
+The power move in Yazi is to think about *selected files* first, then apply
 copy / cut / paste / delete / rename to the whole set.
 
 - `Space` — toggle the current file and move down one row

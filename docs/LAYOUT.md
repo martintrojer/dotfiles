@@ -12,7 +12,7 @@ A filled rectangular cell means one of:
 
 - navigation/place (`tmux` session/window, Waybar workspaces)
 - active selection/focus
-- an actionable state that needs attention
+- a state that needs attention or a response
 - a modal/control surface such as a picker, popup, or notification
 
 Ambient context should stay quieter: plain text/icons, transparent background,
@@ -29,7 +29,7 @@ Keep the geometry boring and terminal-like:
 - no blur/glass/shadow as a primary design element
 
 Rounded corners are reserved for places where the toolkit forces the issue or
-where a temporary overlay genuinely benefits from separation. They are not the
+where a temporary overlay benefits from separation. They are not the
 default language.
 
 ## Color and weight
@@ -102,7 +102,7 @@ Default shape:
 
 - workspaces live on the left and are blocks because they are navigation objects
 - issues live in the center and are hidden when healthy
-- notifications are hidden when empty, blocked when actionable
+- notifications are hidden when empty, blocked when they need a response
 - weather and clock are ambient context
 - tray and window title are omitted; controls and context live in keybindings,
   issue click actions, tmux, the focused app, or the window switcher

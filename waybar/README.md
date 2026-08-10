@@ -22,8 +22,8 @@ threshold. Healthy state emits an empty module with the `ok` class.
 Layout language:
 
 - workspaces are blocks because they are navigation objects
-- issues sit in the center and become blocks only when actionable
-- notifications become blocks only when actionable
+- issues sit in the center and become blocks only when they need a response
+- notifications become blocks only when they need a response
 - clock is ambient context, so it stays unboxed
 
 ## Sizing and typography

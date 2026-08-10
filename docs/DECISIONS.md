@@ -12,7 +12,7 @@ Each entry: context, key points, what would justify revisiting. Pillars from [`R
 
 A complexity heatmap flagged four files as "programs wearing dotfile clothing": `tms` (993), `agent-attention` (976), `wallpaper` (825), `optiscaler-sync` (938) — ~3.7k lines, 14% of the repo in four files. Considered extracting them.
 
-- **Three are genuinely coupled.** `tms` and `agent-attention` import `_tmux_common`; `tms` and `wallpaper` carry generated `THEME BEGIN` blocks from `render_theme.py`. `agent-attention` is the worst candidate — it's a protocol endpoint, not a program: six packages participate in its state machine (pi extension, opencode plugin, mako, `.tmux.conf`, `status-ai`, `integration_checks.py`).
+- **Three are coupled.** `tms` and `agent-attention` import `_tmux_common`; `tms` and `wallpaper` carry generated `THEME BEGIN` blocks from `render_theme.py`. `agent-attention` is the worst candidate — it's a protocol endpoint, not a program: six packages participate in its state machine (pi extension, opencode plugin, mako, `.tmux.conf`, `status-ai`, `integration_checks.py`).
 - **Only `optiscaler-sync` is separable** — pure stdlib, no theme block, own test file, two consumers. Still not worth its own repo alone.
 - **Cost per extracted repo:** duplicate the four-stage `check-python` gate, lose stow as the install story, turn atomic changes into two-PR dances, and let `render_theme.py` write into a directory it doesn't own.
 - The heatmap flagged these files for being **big and churny**, not **misplaced**. Extraction relocates complexity without reducing it.
@@ -29,7 +29,7 @@ With the monorepo kept, the obvious follow-up was one importable helper module f
 - **The duplication is smaller than it looks:** the five `run()` wrappers are five *different* 3-line functions, not five copies. Abstracting them buys nothing.
 - **What to do instead:** fix the two real duplications in place — XDG spelled two ways across 6 packages (the `,`-default form is buggy on empty env), and clipboard copy implemented three ways where the best impl is the least used.
 
-**Reconsider only if:** a helper genuinely needed by >4 packages appears AND exceeds ~30 lines, OR the macOS surface disappears (removing the `environment.d` portability blocker).
+**Reconsider only if:** a helper needed by >4 packages appears AND exceeds ~30 lines, OR the macOS surface disappears (removing the `environment.d` portability blocker).
 
 ---
 
@@ -45,7 +45,7 @@ Revisited as "fold *every* script — pickers, renderers, `_dotfiles_sync`, the 
 
 **The pro that survives, narrowed:** a third of one audit's bugs were contract drift in disguise, but only the *cross-package* ones are still open. `ty` sees inside a package, so the `config.py`/`cli.py` join was fixable in place; it cannot follow `agent-attention.ts` -> `_tmux_common.py`, which is why agent-state stayed bare strings and `STATE_GLYPH` needed a codegen pipeline to have one source of truth. That gap is a stow-layout consequence, not a language one.
 
-**`_dotfiles_sync/` was the one candidate — and reading it closed the case.** 2.5k lines, annotated throughout, `ty`-clean, six frozen dataclasses, `Literal` aliases for `Action`/`PackageScope`, 39 tests, eight stringly-typed lookups left. It also reads well, which is what a rewrite would most likely lose: the value in `stow.py` and `repo_checks.py` is not the types but the comments recording *why* — `--no-folding` avoids the shared-target fold bug, `iter_managed_links` order is load-bearing for the prune step's parent walk. That is knowledge about stow, not about Python, so a port carries it verbatim and improves nothing.
+**`_dotfiles_sync/` was the one candidate — and reading it closed the case.** 2.5k lines, annotated throughout, `ty`-clean, six frozen dataclasses, `Literal` aliases for `Action`/`PackageScope`, 39 tests, eight stringly-typed lookups left. It also reads well, which is what a rewrite would most likely lose: the value in `stow.py` and `repo_checks.py` is not the types but the comments recording *why* — `--no-folding` avoids the shared-target fold bug, the prune step's parent walk depends on `iter_managed_links` order. That is knowledge about stow, not about Python, so a port carries it verbatim and improves nothing.
 
 **Reconsider only if:** a contract spanning packages starts drifting *despite* `ty` — the agent-state strings are the live candidate, and the cheaper fix there is a shared enum plus the generator that already exists, not a language change.
 
@@ -84,7 +84,7 @@ Recurring temptation: mirror sway's `$mod+g` (`workspace back_and_forth`) and di
 - **Round 2**, `hs.spaces.gotoSpace` / synthetic `Ctrl+1..5`: semantically closer but visibly janky (Mission Control zoom-out), and the Hyper-wrapped Ctrl variant was unreliable even when plain `Ctrl+1..5` worked.
 - Violates pillar #1 (fighting Mission Control isn't boring), #3 (flaky synthetic events), #4.
 
-**Reconsider only if:** Hammerspoon gains a robust native wrapper around previous-desktop behavior that feels native rather than like a Mission Control hack.
+**Reconsider only if:** Hammerspoon gains a reliable native wrapper around previous-desktop behavior that feels native rather than like a Mission Control hack.
 
 ---
 
@@ -156,7 +156,7 @@ Sway wins on merits, not just maturity:
 - **Manual layout tree is the actual power move.** Sway exposes the tree directly: `splitv`/`splith`, `focus parent/child`, marks, `move container to mark`, scratchpad. You're *building* the layout. Niri's scrollable model hides the structure — beautiful on ultrawide, stops being a feature the moment you want "this window pinned next to that one." (See [Sway School](https://martintrojer.github.io/sway-school/).)
 - **i3 IPC is the standard.** Every Wayland status bar, idle daemon, lock-screen wrapper, screenshot tool assumes the i3 IPC contract. Niri's own IPC is tax paid in glue scripts.
 - **Frozen surface area is a positive property.** Sway is feature-complete; config and IPC are learnable in a weekend. Niri is still adding fundamental concepts.
-- What niri does better: out-of-box animations and visual polish. Nice; not load-bearing.
+- What niri does better: out-of-box animations and visual polish. Nice; not a reason to switch.
 - Violates #1, #2, #5.
 
 **Reconsider only if:** niri ships a stable 1.0 with frozen IPC/config, the i3-IPC ecosystem gains first-class niri support, AND scrollable-tiling gets an addressable-layout escape hatch.
@@ -167,7 +167,7 @@ Sway wins on merits, not just maturity:
 
 Swapped upstream sway for [SwayFX](https://github.com/WillPower3309/swayfx) for an afternoon. Full effects stack: `corner_radius 8`, 2-pass blur on waybar/mako/fuzzel/swaylock, soft Catppuccin shadows, 10% inactive dim. Reverted same day.
 
-- Nice: rounded corners genuinely changed how the desktop *feels*. Glass blur looked good in screenshots.
+- Nice: rounded corners changed how the desktop *feels*. Glass blur looked good in screenshots.
 - Didn't earn keep: most screen-time is terminal + nvim + tmux, none benefit from layer-shell effects. Fuzzel and mako are visible ~2 seconds at a time. Tabbed-layout corners broken upstream ([swayfx#405](https://github.com/WillPower3309/swayfx/issues/405)). Headline animations (fade, window-movement) still on roadmap.
 - Violates #1 (fork lags upstream), #2, #4, plus adds a COPR on Sericea.
 - Upstream sway has explicitly declined effects ([swaywm/sway#3380](https://github.com/swaywm/sway/issues/3380) and friends, all closed "feel free to fork"). SwayFX is the only path, but cost/benefit still fails today.
@@ -262,7 +262,7 @@ The 2026-08 skills audit had to decide, repeatedly, whether to vendor skills tha
 - **Orchestration skills assume a dispatch primitive.** They call `Task` / `subagent_type`, which pi doesn't have. `council` had been installed and broken for months for exactly this reason — every trigger word loaded 79 lines of SKILL.md that dead-ended at a nonexistent tool. Discovered only because the audit tried to run it.
 - **The four superpowers skills kept** (`test-driven-development`, `systematic-debugging`, `receiving-code-review`, `verification-before-completion`) share the property that makes them safe: they change one agent's behaviour in one context, need no dispatch, and therefore compose with `mu` — including inside a `mu` worker pane.
 - **`mu` stays a symlink, not a vendored copy.** It's a real program with its own repo and tests; `~/.agents/skills/mu` points at `~/hacking/mu/skills/mu`.
-- **Escape hatch for the genuinely one-shot:** `pi-subagents` for fire-and-return with no follow-up. Not currently installed; its agents set `inheritSkills: false`, so skills wouldn't reach its children anyway.
+- **Escape hatch for one-shot work:** `pi-subagents` for fire-and-return with no follow-up. Not currently installed; its agents set `inheritSkills: false`, so skills wouldn't reach its children anyway.
 
 The operational form of this, plus nine other rules extracted from the same audit, is *Zen Of These Skills* in [`skills/README.md`](../skills/README.md).
 
@@ -401,7 +401,7 @@ Markdown table formatting was the trigger. The old autocmd called `vim.lsp.buf.f
 Replaces the brief alacritty-everywhere experiment ([above](#alacritty-as-the-cross-os-terminal-tried-2026-04-30-reverted-2026-05-15)). Principle: **let each OS bloom in its own direction.** Most-native-per-platform beats same-everywhere.
 
 - **Linux → foot.** Ships in Sericea. Wayland-native. Run as a server (`sway-foot-server.service`); `footclient` spawns near-instant windows sharing one process — right shape for sway's many-windows model. fuzzel and waybar launch `footclient` directly.
-- **macOS → Ghostty.** The most macOS-native option: native AppKit, real app-bundle launch, single-process tab/split model aligned with Mission Control. 2026-04-30 OOM acknowledged as a known risk; daily `~/.zsh_history` snapshot is the load-bearing mitigation.
+- **macOS → Ghostty.** The most macOS-native option: native AppKit, real app-bundle launch, single-process tab/split model aligned with Mission Control. 2026-04-30 OOM acknowledged as a known risk; daily `~/.zsh_history` snapshot is the mitigation that keeps it survivable.
 - **Shared behavior lives in tmux/zsh.** Always-inside-tmux means the terminal's job is narrow: rendering, input, clipboard, current-Space window creation.
 - **No fallback chains.** Hammerspoon binds Ghostty-only; sway binds footclient-only. If a daemon is down, fix the unit.
 - **Pillar fit:** #8 (each OS gets its native primitive), #4 (best fit per OS, not a both-sides compromise), #2 (foot ships in Sericea; Ghostty is the macOS native option).
@@ -455,7 +455,7 @@ Audited the 12-file split (1,395 lines, largest file 291). Considered collapsing
 - Collapsing would save a few cross-imports at the cost of 250-line modules with multiple concerns.
 - `model.py` is types-only Java-style; cross-imports between `external.py` and `integration_checks.py` smell mildly. Acceptable.
 
-**Reconsider only if:** module count crosses ~20, OR cross-imports form a real cycle, OR a single function genuinely needs to span three modules.
+**Reconsider only if:** module count crosses ~20, OR cross-imports form a real cycle, OR a single function needs to span three modules.
 
 ---
 
@@ -517,7 +517,7 @@ Replaced a ~1300-line bootstrap script with a root entrypoint (`dotfiles-sync`) 
 - Top-level stow packages, `fedora/`, `skills/`, and `pi/` all stayed put.
 - Improves #1, #3, #10. Tax is one new directory.
 
-**Reconsider only if:** control plane shrinks below ~300 lines (collapse the split), OR grows into a genuinely reusable tool (promote to standalone).
+**Reconsider only if:** control plane shrinks below ~300 lines (collapse the split), OR grows into a reusable tool (promote to standalone).
 
 ---
 
@@ -540,7 +540,7 @@ herdr (`github.com/ogulcancelik/herdr`) is a Rust terminal multiplexer purpose-b
 Evaluated it against the existing tmux setup. Decision: stay on tmux, port the one idea that earns rent (agent state awareness), skip the rest.
 
 - **What herdr does better:** real-time agent-state sidebar across workspaces. Our old `agent-attention` script had a binary flag (`!` or nothing). herdr's model is richer.
-- **What we'd lose:** `vim-tmux-navigator` (seamless nvim↔tmux pane movement), `tmux-fingers-rs` (hint picking), `tms` session recipes, the TPM plugin ecosystem, 17 years of tmux stability, and full control over the status bar. herdr's always-visible left sidebar wastes screen real estate for information you only need occasionally — `prefix+a` surfaces the same data on demand without a permanent column tax. herdr is v0.x, one maintainer, AGPL, with active churn.
+- **What we'd lose:** `vim-tmux-navigator` (prefix-free nvim↔tmux pane movement), `tmux-fingers-rs` (hint picking), `tms` session recipes, the TPM plugin ecosystem, 17 years of tmux stability, and full control over the status bar. herdr's always-visible left sidebar wastes screen real estate for information you only need occasionally — `prefix+a` surfaces the same data on demand without a permanent column tax. herdr is v0.x, one maintainer, AGPL, with active churn.
 - **What we built instead:** upgraded `agent-attention` from a binary attention flag to a three-state push model (`working / blocked / crashed`) using an `IntEnum` with urgency as the value. Pi's extension pushes state on `agent_start`, `agent_end`, and `session_shutdown`. A pid-liveness reaper detects crashes (zero-fork `os.kill(pid, 0)`). Events are stored in SQLite WAL for crash detection and picker history; `@agent_state` tmux window option is the authoritative display state, written by the extension (direct tmux calls for `agent_end`/`session_shutdown`, Python script for `agent_start` which records the pid). Status pill and window glyphs color by state. `prefix+a` popup groups by urgency with idle agents at the bottom.
 - **Design rule applied:** port the idea, keep the substrate. tmux is the substrate. herdr is a collection of ideas, one of which was worth stealing.
 - **Scope guard:** push-only, no terminal scraping. Pi extension resolves the tmux pane at load time via `tmux display-message` (works across toolbox/container boundaries where `TMUX_PANE` is stripped). Other agents (codex, opencode) still emit the old single-bit `blocked` signal via the `notify` subcommand — they don't get `working` or `done` because they don't push `agent_start`/`agent_end`, and their own signals can't stand in: opencode's `session.idle` fires both for "finished" and "waiting on you", and codex's `notify` carries no state at all, so inferring `done` would mean guessing or scraping. It cuts the other way too: pi has no permission *event* (approval is an in-process `ctx.ui.confirm()`), so its unfocused `agent_end` writes `done` and `blocked` is now notify-only. Capability table in [`tmux/README.md`](../tmux/README.md#harness-capability).
@@ -550,11 +550,11 @@ Evaluated it against the existing tmux setup. Decision: stay on tmux, port the o
 **Extended 2026-08-09 — two more herdr ideas ported.** The decision matured rather than changed: same substrate, same push-only rule, two more borrowed ideas.
 
 - **Per-agent glyphs instead of a rollup count.** `status-ai` now renders one glyph per running agent, grouped into contiguous colored runs, urgency-descending, behind a robot icon (the `AI` label is gone — the icon is the label). "Three working, one blocked" is a shape you read, not a number you decode.
-  - **Amended 2026-08-10 — per-state rollup replaces the global `+N` tail.** The shipped version fitted runs into a 10-glyph budget and summarised the overflow as one muted `+N`, which erased *state identity*: `x !!! >>>>>> +3` and `x vvv >>>>>> +3` are different fleets that render alike, and a five-state fleet collapsed nine agents into a `+10` from which nothing could be recovered. Now each run repeats its glyph up to `ROLLUP_THRESHOLD` (3, chosen on a live render) and reads `<N><glyph>` past it, so no state is ever swallowed. At or below the threshold the output is byte-identical to before — this is a better failure mode for large fleets, not a redesign of the common case. The glyph cap is retired as redundant (a run is now at most a number plus one glyph), but the reason it was load-bearing is not: `.tmux.conf` re-expands `@ai_status` through `#{E:...}`, so the length of the value must not be upstream's to choose. Digits are not self-bounding, so `MAX_COUNT = 999` inherits that job and a count of `10**400` renders `999+▶`.
+  - **Amended 2026-08-10 — per-state rollup replaces the global `+N` tail.** The shipped version fitted runs into a 10-glyph budget and summarised the overflow as one muted `+N`, which erased *state identity*: `x !!! >>>>>> +3` and `x vvv >>>>>> +3` are different fleets that render alike, and a five-state fleet collapsed nine agents into a `+10` from which nothing could be recovered. Now each run repeats its glyph up to `ROLLUP_THRESHOLD` (3, chosen on a live render) and reads `<N><glyph>` past it, so no state is ever swallowed. At or below the threshold the output is byte-identical to before — this is a better failure mode for large fleets, not a redesign of the common case. The glyph cap is retired as redundant (a run is now at most a number plus one glyph), but the reason it existed is not: `.tmux.conf` re-expands `@ai_status` through `#{E:...}`, so the length of the value must not be upstream's to choose. Digits are not self-bounding, so `MAX_COUNT = 999` inherits that job and a count of `10**400` renders `999+▶`.
 - **The seen/done bit.** A finished-but-unseen agent gets its own state, `done`, with a teal `✓`. It outranks `working` in the urgency order because state urgency ranks *what wants you*, not *what is busy*: a working agent needs nothing from you, a finished one is waiting. `done` is cleared by focusing the pane — it is an unread marker, not a result.
 - **State filters as an axis, not a search.** `prefix+a` binds `ctrl-a/b/w/d/x` to all/blocked/working/done/crashed, filtering rows rather than typing into the query, plus a `◆` current-window marker and an event-history preview pane.
 - **The boundary that held.** We took the state vocabulary and the display grammar. We still refused the permanent sidebar, live refresh inside the modal (it renders a snapshot; reopen it if you want fresher), and the row-token config DSL. Port the idea, keep the substrate — and keep the config a tmux config.
-- **The modal-vs-pane trade is the load-bearing choice.** herdr pays a permanent column of screen for information you need a few times an hour. `prefix+a` pays a keystroke on demand instead. Everything above follows from that: the status segment must compress to a glyph run because it is always visible, and the picker can afford preview panes and filter keys because it is not.
+- **The modal-vs-pane trade decides everything else.** herdr pays a permanent column of screen for information you need a few times an hour. `prefix+a` pays a keystroke on demand instead. Everything above follows from that: the status segment must compress to a glyph run because it is always visible, and the picker can afford preview panes and filter keys because it is not.
 
 **Confirmed 2026-08-10 by running it, not reasoning about it.** The 2026-05 decision was made from the outside, which is a weak way to reject a tool. So herdr got real dotfiles ([`herdr/`](../herdr)), the tmux keymap ported onto it, and a day of actual use. Outcome: back on tmux. The entry stands, now on evidence.
 

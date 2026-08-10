@@ -91,7 +91,7 @@ two dedicated binds cover the difference between *pulling* a pane out and
 - `prefix`+`r` — cycle pane width through 1/3 → 1/2 → 2/3
 - `prefix`+`!` — pull the current pane out into a new one-pane window
 - `prefix`+`M` — choose a target window/pane and insert this pane there as a split
-- `Ctrl`+`h` / `Ctrl`+`j` / `Ctrl`+`k` / `Ctrl`+`l` — focus the pane left / down / up / right (no prefix) via `christoomey/vim-tmux-navigator`. The same chord steps between Neovim splits *and* tmux panes seamlessly: hopping out of an `nvim` window into the next tmux pane (or back in) uses one motion, with no prefix and no mental mode-switch.
+- `Ctrl`+`h` / `Ctrl`+`j` / `Ctrl`+`k` / `Ctrl`+`l` — focus the pane left / down / up / right (no prefix) via `christoomey/vim-tmux-navigator`. The same chord steps between Neovim splits *and* tmux panes: hopping out of an `nvim` window into the next tmux pane (or back in) uses one motion, with no prefix and no mental mode-switch.
 
 ```quiz
 [[questions]]
