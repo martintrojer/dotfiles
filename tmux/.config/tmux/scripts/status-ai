@@ -12,8 +12,11 @@ Sets one tmux user option, read from ``.tmux.conf`` as ``#{E:@ai_status}``:
 
 The segment shows one glyph per agent rather than a single worst-state
 rollup with a number, so "three working, one blocked" is a shape you read
-at a glance instead of a count you decode.  Runs are ordered by urgency and
-each run carries its own foreground, so the eye lands on the red first.
+at a glance instead of a count you decode.  Past ROLLUP_THRESHOLD agents in
+one state that run rolls up to "<N><glyph>" -- per state, so a large fleet
+stays narrow without losing which states it is made of.  Runs are ordered by
+urgency and each run carries its own foreground, so the eye lands on the red
+first.
 
 Colors live here (not in ``.tmux.conf``) because the foreground changes
 *within* one option value, which a format conditional cannot express.  The
@@ -53,11 +56,25 @@ STATE_STYLE: dict[AgentState, str] = {
     AgentState.working: "#[fg=#a6adc8]#[nobold]",
     AgentState.idle: "#[fg=#6c7086]#[nobold]",
 }
-OVERFLOW_STYLE = "#[fg=#6c7086]#[nobold]"
 # THEME END: status-ai-colors
 
-# How many agent glyphs fit before the tail is summarised as "+N".
-MAX_GLYPHS = 10
+# Repeat a state's glyph while the run is still a shape you can count at a
+# glance; past this the run becomes "<N><glyph>".  At 3, three working agents
+# stay "###" and four blocked ones read "4!" instead of the uncountable
+# "!!!!".  At or below the threshold the output is byte-identical to the old
+# one-glyph-per-agent rendering; this only changes the large-fleet case.
+ROLLUP_THRESHOLD = 3
+
+# Largest count rendered exactly; past it a run reads "<MAX_COUNT>+<glyph>".
+#
+# This is the surviving half of the retired MAX_GLYPHS budget, kept for the
+# reason MAX_GLYPHS was load-bearing: .tmux.conf reads @ai_status through
+# #{E:...}, so the *length* of the value must not be upstream's to choose.
+# Per-state rollup retires the "at most 10 glyphs" part as redundant (a run is
+# now at most a number plus one glyph), but digits are not self-bounding -- a
+# count of 10**400 would still be 400 columns wide.  Clamping the number is
+# what actually bounds the option, so that is the part that stays.
+MAX_COUNT = 999
 
 # Shown when upstream said something but none of it parsed.  Deliberately
 # style-free: this is the path a hostile ``agent-attention`` reaches, and
@@ -67,37 +84,36 @@ INERT = " ? "
 
 
 def render_segment(
-    counts: dict[AgentState, int], max_glyphs: int = MAX_GLYPHS
-) -> tuple[str, bool]:
-    """Build the glyph runs for *counts*; return ``(text, overflowed)``.
+    counts: dict[AgentState, int],
+    threshold: int = ROLLUP_THRESHOLD,
+    max_count: int = MAX_COUNT,
+) -> str:
+    """Build the glyph runs for *counts*.
 
-    One glyph per agent, grouped into a contiguous colored run per state,
-    urgency-descending.  Runs are greedily fitted into *max_glyphs*; whatever
-    does not fit is summarised as a muted " +N".  Because the iteration order
-    is urgency-descending, the dropped tail is always the least urgent agents
-    — a crashed agent can never be the one that falls off the end.
+    One contiguous colored run per state, urgency-descending.  A run of at
+    most *threshold* agents is the glyph repeated -- the shape you read; a
+    larger one is its count followed by a single glyph in the same color, so
+    no state is ever summarised away.  A global "+N" tail cannot say whether
+    the agents it swallowed were idle or crashed; "5! 4v 6#" still can.
+    Counts past *max_count* render as ``<max_count>+<glyph>``.
 
-    Returns ``("", False)`` for no agents at all, which is the signal
-    ``.tmux.conf`` uses to hide the whole segment.
+    Returns ``""`` for no agents at all, which is the signal ``.tmux.conf``
+    uses to hide the whole segment.
     """
     runs: list[str] = []
-    budget = max_glyphs
-    dropped = 0
     for state in sorted(counts, reverse=True):
         count = counts[state]
         if count <= 0:
             continue
-        shown = min(count, budget)
-        if shown > 0:
-            runs.append(STATE_STYLE[state] + STATE_GLYPH[state] * shown)
-            budget -= shown
-        dropped += count - shown
-    if not runs:
-        return "", False
-    text = " ".join(runs)
-    if dropped:
-        text += f"{OVERFLOW_STYLE} +{dropped}"
-    return text, bool(dropped)
+        glyph = STATE_GLYPH[state]
+        if count <= threshold:
+            body = glyph * count
+        elif count <= max_count:
+            body = f"{count}{glyph}"
+        else:
+            body = f"{max_count}+{glyph}"
+        runs.append(STATE_STYLE[state] + body)
+    return " ".join(runs)
 
 
 def parse_counts(raw: str) -> dict[AgentState, int]:
@@ -126,7 +142,7 @@ def parse_counts(raw: str) -> dict[AgentState, int]:
 
 def render(raw: str) -> str:
     """Full segment body for the raw ``agent-attention status`` output."""
-    segment, _ = render_segment(parse_counts(raw))
+    segment = render_segment(parse_counts(raw))
     if not segment:
         # Distinguish "nothing at all" (hide the segment) from "upstream said
         # something, but none of it parsed" (show a loud, inert marker).

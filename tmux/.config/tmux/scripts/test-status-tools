@@ -1462,8 +1462,12 @@ def run_status_ai_injection_tests() -> None:
 
     # The value carries style tags now, so the closed-vocabulary check runs
     # against the *worst* render this script can produce with every state
-    # populated and overflowing -- the widest vocabulary it can reach.
-    widest = status_ai.render("crashed\t2\nblocked\t2\ndone\t2\nworking\t2\nidle\t9")
+    # populated and rolled up -- the widest vocabulary it can reach.  Rollup
+    # emits digits, which were already in the vocabulary (the old "+N" tail
+    # used them), so it must not widen the E: sink by a single character.
+    widest = status_ai.render(
+        "crashed\t2\nblocked\t5\ndone\t4\nworking\t99999999\nidle\t9"
+    )
     for seq in ("#(", "#{"):
         expect(f"@ai_status contains no {seq!r}", seq in widest, False)
     # Strip only the style tags status-ai builds itself; whatever remains had
@@ -1479,8 +1483,8 @@ def run_status_ai_injection_tests() -> None:
     expect("the icon is nf-md-robot", ord(status_ai.ICON), 0xF06A9)
 
     # --- render_segment: the pure unit -------------------------------
-    def seg(counts, cap=status_ai.MAX_GLYPHS):
-        return status_ai.render_segment(counts, cap)
+    def seg(counts, threshold=status_ai.ROLLUP_THRESHOLD):
+        return status_ai.render_segment(counts, threshold)
 
     expect(
         "one glyph per agent, grouped and colored per state",
@@ -1496,51 +1500,97 @@ def run_status_ai_injection_tests() -> None:
             f"{style[AgentState.crashed]}{glyph[AgentState.crashed]} "
             f"{style[AgentState.blocked]}{glyph[AgentState.blocked] * 2} "
             f"{style[AgentState.working]}{glyph[AgentState.working] * 3} "
-            f"{style[AgentState.idle]}{glyph[AgentState.idle] * 2}",
-            False,
+            f"{style[AgentState.idle]}{glyph[AgentState.idle] * 2}"
         ),
     )
     expect(
         "no agents renders empty so the segment stays hidden",
         seg({}),
-        ("", False),
+        "",
     )
     expect(
         "a zero count contributes no glyph and no run",
         seg({AgentState.working: 0, AgentState.idle: 1}),
-        (f"{style[AgentState.idle]}{glyph[AgentState.idle]}", False),
+        f"{style[AgentState.idle]}{glyph[AgentState.idle]}",
+    )
+
+    # --- per-state rollup --------------------------------------------
+    #
+    # The point of the rollup is a better failure mode for big fleets, not a
+    # redesign of the common case: at or below the threshold the bytes are the
+    # ones the glyph-per-agent scheme produced, column for column.
+    for n in range(status_ai.ROLLUP_THRESHOLD + 1):
+        expect(
+            f"{n} working is still {n} literal glyphs, byte-identical to before",
+            seg({AgentState.working: n}),
+            f"{style[AgentState.working]}{glyph[AgentState.working] * n}" if n else "",
+        )
+    expect(
+        "exactly at the threshold stays a shape",
+        seg({AgentState.blocked: 3}),
+        f"{style[AgentState.blocked]}{glyph[AgentState.blocked] * 3}",
     )
     expect(
-        "exactly at the cap does not overflow",
-        seg({AgentState.working: 10}),
-        (f"{style[AgentState.working]}{glyph[AgentState.working] * 10}", False),
+        "one past the threshold rolls up to <N><glyph>, not four glyphs",
+        seg({AgentState.blocked: 4}),
+        f"{style[AgentState.blocked]}4{glyph[AgentState.blocked]}",
+    )
+    # Mutation guard for the boundary: an off-by-one in `count <= threshold`
+    # is invisible in normal use, so pin both sides at a threshold the
+    # constant does not supply.
+    expect(
+        "the threshold is a parameter: at t=5, five glyphs stay a shape",
+        seg({AgentState.idle: 5}, threshold=5),
+        f"{style[AgentState.idle]}{glyph[AgentState.idle] * 5}",
     )
     expect(
-        "past the cap truncates and appends a muted +N",
-        seg({AgentState.working: 14}),
+        "the threshold is a parameter: at t=5, six agents roll up",
+        seg({AgentState.idle: 6}, threshold=5),
+        f"{style[AgentState.idle]}6{glyph[AgentState.idle]}",
+    )
+    expect(
+        "at t=0 even a single agent is a number",
+        seg({AgentState.idle: 1}, threshold=0),
+        f"{style[AgentState.idle]}1{glyph[AgentState.idle]}",
+    )
+    # The defect this replaced: a global "+N" tail made these two fleets look
+    # the same. Per-state rollup keeps them distinguishable.
+    nine_blocked = seg(
+        {AgentState.crashed: 1, AgentState.blocked: 3, AgentState.working: 9}
+    )
+    nine_done = seg({AgentState.crashed: 1, AgentState.done: 3, AgentState.working: 9})
+    expect("different fleets no longer render alike", nine_blocked == nine_done, False)
+    expect(
+        "mixed shapes and numbers coexist in one render, urgency-ordered",
+        seg(
+            {
+                AgentState.crashed: 2,
+                AgentState.blocked: 5,
+                AgentState.done: 4,
+                AgentState.working: 6,
+                AgentState.idle: 3,
+            }
+        ),
         (
-            f"{style[AgentState.working]}{glyph[AgentState.working] * 10}"
-            f"{status_ai.OVERFLOW_STYLE} +4",
-            True,
+            f"{style[AgentState.crashed]}{glyph[AgentState.crashed] * 2} "
+            f"{style[AgentState.blocked]}5{glyph[AgentState.blocked]} "
+            f"{style[AgentState.done]}4{glyph[AgentState.done]} "
+            f"{style[AgentState.working]}6{glyph[AgentState.working]} "
+            f"{style[AgentState.idle]}{glyph[AgentState.idle] * 3}"
         ),
     )
-    # The load-bearing property: the tail that gets dropped is always the
-    # least urgent agents. A crashed agent can never be the one to fall off.
-    dropped_tail, overflowed = seg({AgentState.crashed: 1, AgentState.idle: 12}, cap=4)
-    expect("overflow is reported", overflowed, True)
-    expect_truthy(
-        "the crashed glyph survives an overflow that eats the idle tail",
-        glyph[AgentState.crashed] in dropped_tail,
-    )
+    # No state can be swallowed by a rollup any more: every populated state
+    # keeps its own glyph, however lopsided the fleet.
+    lopsided = seg(dict.fromkeys(glyph, 40))
+    for state in glyph:
+        expect_truthy(
+            f"{state.name} survives a fleet where every state rolls up",
+            f"40{glyph[state]}" in lopsided,
+        )
     expect(
-        "the overflow count is exactly the agents not shown",
-        dropped_tail.endswith(" +9"),
-        True,
-    )
-    expect(
-        "a cap of zero drops everything and renders nothing",
-        seg({AgentState.idle: 3}, cap=0),
-        ("", False),
+        "a count past MAX_COUNT is clamped, so the option stays short",
+        seg({AgentState.working: 10**12}),
+        f"{style[AgentState.working]}{status_ai.MAX_COUNT}+{glyph[AgentState.working]}",
     )
 
     # --- render: parsing + the icon wrapper ---------------------------
@@ -1590,13 +1640,23 @@ def run_status_ai_injection_tests() -> None:
         status_ai.INERT,
     )
     expect(
-        "a huge upstream count cannot blow past the cap",
-        status_ai.render("working\t9999"),
+        "a huge upstream count renders as a clamped number, not a wall",
+        status_ai.render("working\t99999999"),
         body(
             f"{style[AgentState.working]}"
-            f"{glyph[AgentState.working] * status_ai.MAX_GLYPHS}"
-            f"{status_ai.OVERFLOW_STYLE} +{9999 - status_ai.MAX_GLYPHS}"
+            f"{status_ai.MAX_COUNT}+{glyph[AgentState.working]}"
         ),
+    )
+    # MAX_COUNT is what bounds the *length* of a value .tmux.conf re-expands
+    # through #{E:...}; the old glyph cap is gone, so pin the guarantee here.
+    absurd = re.sub(
+        r"#\[(?:fg=\#[0-9a-f]{6}|bold|nobold)\]",
+        "",
+        status_ai.render("working\t" + "9" * 400),
+    )
+    expect_truthy(
+        f"an absurd upstream count stays a short option ({len(absurd)} chars)",
+        len(absurd) < 20,
     )
 
 
