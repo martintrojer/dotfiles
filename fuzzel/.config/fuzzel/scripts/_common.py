@@ -314,6 +314,26 @@ def _focused_last(windows: list[dict]) -> list[dict]:
     return out
 
 
+def caffeinate_flag() -> Path:
+    """Path to the caffeinate flag; its presence means "skip idle suspend".
+
+    In ``$XDG_RUNTIME_DIR`` rather than ``$XDG_STATE_HOME`` on purpose: that
+    is a mode=700 tmpfs logind destroys when the user's last session ends, so
+    reboot, crash, and logout all clear the flag with no cleanup code and no
+    way for a stale flag to leave suspend disabled. Kept in sync by hand with
+    ``sway/.config/sway/scripts/session-swayidle`` (which reads it in shell)
+    and ``waybar/.config/waybar/scripts/caffeinate`` (which renders it) --
+    three packages, one path, and no importable helper between them (see
+    docs/DECISIONS.md, "A shared pylib/ helper module").
+    """
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+    return Path(runtime) / "caffeinate"
+
+
+def caffeinated() -> bool:
+    return caffeinate_flag().exists()
+
+
 def picker_cache_path(name: str) -> str:
     cache_home = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
     fuzzel_cache = cache_home / "fuzzel"

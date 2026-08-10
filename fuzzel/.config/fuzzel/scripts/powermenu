@@ -6,14 +6,23 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from _common import cli_main, fuzzel_dmenu, picker_cache_path, require_commands, run
+from _common import (
+    caffeinate_flag,
+    caffeinated,
+    cli_main,
+    fuzzel_dmenu,
+    notify,
+    picker_cache_path,
+    require_commands,
+    run,
+)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prompt", default="Power Menu  ")
     parser.add_argument("--width", type=int, default=25)
-    parser.add_argument("--lines", type=int, default=5)
+    parser.add_argument("--lines", type=int, default=6)
     return parser.parse_args()
 
 
@@ -25,12 +34,16 @@ def main() -> int:
     session_quit = sway_scripts / "session-quit"
 
     cache = picker_cache_path("powermenu")
+    # The caffeinate row reports its own state, so the menu doubles as the
+    # place you check whether it is on -- the waybar glyph is the other.
+    caffeinate_label = "󰅶 Caffeinate: on" if caffeinated() else "󰅶 Caffeinate"
     options = [
         ("󰌾 Lock", "lock"),
         ("󰜺 Reboot", "reboot"),
         ("󰗽 Logout", "logout"),
         ("󰐥 Shutdown", "shutdown"),
         ("󰤄 Suspend", "suspend"),
+        (caffeinate_label, "caffeinate"),
     ]
     display_options = [label for label, _ in options]
 
@@ -56,7 +69,28 @@ def main() -> int:
         run(["systemctl", "reboot"], check=False)
     elif action == "logout":
         run([str(session_quit)], check=False)
+    elif action == "caffeinate":
+        return toggle_caffeinate()
 
+    return 0
+
+
+def toggle_caffeinate() -> int:
+    """Flip the flag, tell waybar, and say which way it went.
+
+    Only the idle *suspend* timeout consults this flag; dim, lock, and
+    display-off are untouched. See session-swayidle.
+    """
+    flag = caffeinate_flag()
+    if flag.exists():
+        flag.unlink(missing_ok=True)
+        notify("Caffeinate off", "Idle suspend re-enabled")
+    else:
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.touch()
+        notify("Caffeinate on", "Idle suspend disabled (screen still locks)")
+    # Nudge waybar so the glyph updates now instead of on its next poll.
+    run(["pkill", "-RTMIN+8", "waybar"], check=False)
     return 0
 
 

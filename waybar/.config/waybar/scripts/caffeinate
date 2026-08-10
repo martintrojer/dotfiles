@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Waybar caffeinate indicator: visible only while idle suspend is disabled.
+
+Quiet by default, like ``issues``: inactive renders empty text plus a class
+the stylesheet collapses, so the bar shows nothing at all in the normal case.
+The flag is owned by the fuzzel powermenu and read by
+``sway/.config/sway/scripts/session-swayidle``; this script only reports it.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+
+from _state import guarded_render, run
+
+# Degrades to the inactive shape: a broken renderer collapses the module
+# rather than claiming caffeinate is on, which would be the dangerous lie
+# here (you would think suspend was disabled when it is not).
+OFF_PAYLOAD: dict[str, object] = {
+    "text": "",
+    "tooltip": "Idle suspend enabled",
+    "class": ["off"],
+}
+
+ICON = "󰅶"
+
+
+def flag_path() -> Path:
+    """Kept in sync by hand with fuzzel's ``_common.caffeinate_flag()``.
+
+    $XDG_RUNTIME_DIR is a mode=700 tmpfs logind destroys with the user's last
+    session, so reboot, crash, and logout all clear the flag for free. Three
+    packages spell this path; none of them can import from the others (see
+    docs/DECISIONS.md, "A shared pylib/ helper module").
+    """
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+    return Path(runtime) / "caffeinate"
+
+
+def render() -> int:
+    if not flag_path().exists():
+        print(json.dumps(OFF_PAYLOAD, ensure_ascii=False))
+        return 0
+    print(
+        json.dumps(
+            {
+                "text": ICON,
+                "tooltip": "Caffeinate on — idle suspend disabled\n"
+                "Screen lock and display-off are unaffected\n"
+                "Clears on logout, reboot, or crash",
+                "class": ["on"],
+            },
+            ensure_ascii=False,
+        )
+    )
+    return 0
+
+
+def toggle() -> int:
+    flag = flag_path()
+    if flag.exists():
+        flag.unlink(missing_ok=True)
+    else:
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.touch()
+    run(["pkill", "-RTMIN+8", "waybar"])
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "command",
+        nargs="?",
+        default="render",
+        choices=["render", "toggle"],
+        help="render the module (default) or toggle the flag",
+    )
+    args = parser.parse_args()
+    if args.command == "toggle":
+        return toggle()
+    return guarded_render("caffeinate", render, OFF_PAYLOAD)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

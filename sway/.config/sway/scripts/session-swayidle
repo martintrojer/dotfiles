@@ -14,6 +14,19 @@ restore_cmd="brightnessctl -r; rm -f \"$saved_flag\""
 
 lock_screen="${HOME}/.config/sway/scripts/lock-screen"
 
+# Caffeinate flag: when present, the suspend timeout below is skipped and
+# nothing else changes -- dim, lock, and display-off still fire on schedule.
+# Toggled from the fuzzel powermenu, rendered by waybar's custom/caffeinate.
+#
+# It lives in $XDG_RUNTIME_DIR, not $XDG_STATE_HOME, because that is a
+# mode=700 tmpfs logind destroys when the last session for the user ends.
+# Reboot, crash, and logout therefore all clear it with no cleanup code --
+# and there is no path where a stale flag silently leaves suspend disabled.
+# A guard inside the timeout is deliberate: `systemd-inhibit --what=sleep`
+# would block every sleep path (lid, logind IdleAction, explicit suspend)
+# and needs a process to hold the lock, where the ask was one timeout.
+caffeinate_flag="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/caffeinate"
+
 exec swayidle -w \
   before-sleep "pidof swaylock || \"$lock_screen\" --daemonize" \
   timeout 300 "$dim_cmd" \
@@ -21,4 +34,4 @@ exec swayidle -w \
   timeout 330 "pidof swaylock || \"$lock_screen\" --daemonize" \
   timeout 350 'swaymsg "output * power off"' \
   resume 'swaymsg "output * power on"' \
-  timeout 3600 'systemctl suspend'
+  timeout 3600 "[ -f '$caffeinate_flag' ] || systemctl suspend"

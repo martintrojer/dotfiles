@@ -198,6 +198,31 @@ Idle behavior lives in `~/.config/sway/scripts/session-swayidle` because
 monitor power commands are compositor-specific
 (`swaymsg "output * power off"`).
 
+The idle ladder is dim (300s) → lock (330s) → displays off (350s) → suspend
+(3600s).
+
+### Caffeinate
+
+The suspend step — and only that step — is skipped while the caffeinate flag
+exists. Dim, lock, and display-off still fire on schedule, so caffeinate keeps
+a long job alive without leaving the screen unlocked.
+
+Toggle it from the fuzzel powermenu (`mod+Shift+e` → `Caffeinate`), which also
+reports the current state in its label, or by clicking the waybar glyph. While
+active, waybar shows `󰅶` in the centre; see
+[`waybar/README.md`](../waybar/README.md#caffeinate).
+
+The flag is `$XDG_RUNTIME_DIR/caffeinate`, deliberately not under
+`$XDG_STATE_HOME`: that directory is a `mode=700` tmpfs which logind destroys
+when your last session ends, so **reboot, crash, and logout all clear it** with
+no cleanup code to get wrong. A persistent flag could survive a crash and
+silently leave suspend disabled for days.
+
+It is a guard inside the timeout rather than `systemd-inhibit --what=sleep`,
+which would block every sleep path (lid switch, logind's own `IdleAction`, an
+explicit `systemctl suspend`) and would need a live process to hold the lock.
+The ask was one timeout.
+
 `Ctrl+Alt+Delete` runs `~/.config/sway/scripts/session-quit`, which stops
 `sway-session.target` and then `swaymsg exit` — leaving systemd cleanly
 shutting down the daemons before the compositor itself terminates.

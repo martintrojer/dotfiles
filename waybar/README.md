@@ -52,6 +52,27 @@ Details stay in the tooltip; the bar text stays compact. Click behavior follows
 one rule: left click opens the relevant TUI, right click performs the safe direct
 fix where one exists.
 
+## Caffeinate
+
+`custom/caffeinate` renders `󰅶` in the centre while idle suspend is disabled,
+and nothing at all otherwise — same quiet-by-default rule as `custom/issues`,
+with the stylesheet collapsing the block in the `off` class so it costs no
+width. Left click toggles it off.
+
+The state is a flag file, owned by the fuzzel powermenu and consumed by
+`session-swayidle`; this module only reports it. Rationale for the flag's
+location and for guarding one timeout instead of using `systemd-inhibit` lives
+in [`sway/README.md`](../sway/README.md#caffeinate).
+
+Two details worth keeping if this is edited:
+
+- The failure payload is the **inactive** shape. A broken renderer must not
+  claim caffeinate is on — that is the dangerous direction, because you would
+  believe suspend was disabled when it was not.
+- Updates arrive by `SIGRTMIN+8` (`"signal": 8`) so the glyph changes the
+  instant the flag flips. The 30s interval is only a backstop; nothing but the
+  toggle changes this state.
+
 ## Failure policy
 
 A Waybar module that dies must degrade to a sane JSON payload, not vanish: every
