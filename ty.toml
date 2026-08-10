@@ -1,7 +1,12 @@
 [environment]
 # fedora/gaming/tests imports the shared package-array harness that lives in
 # fedora/tests, the same way unittest discovery does at runtime.
-extra-paths = ["fedora/tests"]
+#
+# local-bin/.local/bin/tms imports _tmux_common from the tmux package: the
+# picker is shared by the tmux and herdr packages, so it lives in local-bin
+# while the tmux IPC helpers stay with the tmux scripts. At runtime tms
+# appends ~/.config/tmux/scripts to sys.path; this is the static equivalent.
+extra-paths = ["fedora/tests", "tmux/.config/tmux/scripts"]
 
 [terminal]
 error-on-warning = true

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -13,7 +14,20 @@ from functools import cache
 from pathlib import Path
 from shlex import quote as sh_quote
 
-from _tmux_common import (
+# `_tmux_common` is not a sibling any more: tms is shared by the tmux and
+# herdr packages and so lives in local-bin, while that module stays with the
+# tmux scripts it serves. Both packages are common scope, so the tmux package
+# is always synced and this import always resolves -- no fallback stub, which
+# would mean a second copy of AgentState.
+# TMS_TMUX_SCRIPTS_DIR lets test-status-tools point at its own checkout.
+_TMUX_SCRIPTS_DIR = Path(
+    os.environ.get("TMS_TMUX_SCRIPTS_DIR")
+    or Path.home() / ".config" / "tmux" / "scripts"
+)
+if str(_TMUX_SCRIPTS_DIR) not in sys.path:
+    sys.path.append(str(_TMUX_SCRIPTS_DIR))
+
+from _tmux_common import (  # noqa: E402
     STATE_GLYPH,
     AgentState,
     AgentStats,
@@ -23,7 +37,12 @@ from _tmux_common import (
 
 DISPLAY_NAME_WIDTH = 20
 DEFAULT_SPLIT = ""
-CONFIG_PATH = Path(__file__).resolve().parent.parent / "tms.toml"
+# Stays at ~/.config/tmux/tms.toml even though tms itself now lives in
+# local-bin: it is the user's session recipe file, moving it would break
+# every existing checkout for no gain. TMS_CONFIG overrides it for tests.
+CONFIG_PATH = Path(
+    os.environ.get("TMS_CONFIG") or Path.home() / ".config" / "tmux" / "tms.toml"
+)
 STATE_DIR = (
     Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state") / "tms"
 )
@@ -260,6 +279,35 @@ def run(
 # socket-env honoring used by `test-status-tools` works here too.
 
 
+def herdr_text(*args: str) -> str:
+    """Run a herdr subcommand that answers with raw text rather than JSON.
+
+    ``pane read`` is the exception to the JSON rule: it streams the pane's
+    screen straight to stdout. Parsing it as JSON silently yields ``{}``,
+    so it gets its own helper instead of a special case inside herdr_cmd.
+    """
+    result = run(["herdr", *args], check=False)
+    return result.stdout if result.returncode == 0 else ""
+
+
+def herdr_cmd(*args: str, check: bool = False) -> dict:
+    """Run a herdr CLI subcommand and return its parsed ``result`` object.
+
+    Every mutating herdr command answers with one JSON line shaped
+    ``{"id": ..., "result": {...}}`` on stdout, or a JSON error on stderr
+    with exit 1. We only ever want the result body, and a failed call is a
+    normal outcome here (no server, closed workspace), so the default is
+    check=False returning ``{}``.
+    """
+    result = run(["herdr", *args], check=check)
+    if result.returncode != 0:
+        return {}
+    try:
+        return json.loads(result.stdout).get("result", {})
+    except (json.JSONDecodeError, AttributeError):
+        return {}
+
+
 def exact_session_target(name: str) -> str:
     return f"={name}"
 
@@ -317,10 +365,7 @@ def display_name_for_path(path: str) -> str:
 
 
 def list_tmux_sessions() -> list[str]:
-    result = tmux_cmd("list-sessions", "-F", "#{session_name}", check=False)
-    if result.returncode != 0:
-        return []
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return backend().list_sessions()
 
 
 def zoxide_paths() -> list[str]:
@@ -520,8 +565,13 @@ def build_entries(mode: str) -> list[Entry]:
     sessions_by_name = {session.name: session for session in configured_sessions}
     configured_paths = {expand(session.path) for session in configured_sessions}
     live_names = set(list_tmux_sessions())
-    agent_stats = scan_agent_states()
-    stats_by_session = agent_stats.per_session()
+    # Agent glyphs come from tmux window options (@agent_state), so they only
+    # describe tmux sessions. Under the herdr backend the rows are workspaces
+    # and a tmux scan would staple one multiplexer's agent states onto the
+    # other's rows -- herdr's own sidebar owns that signal there.
+    stats_by_session: dict[str, AgentStats] = {}
+    if isinstance(backend(), TmuxBackend):
+        stats_by_session = scan_agent_states().per_session()
 
     entries: list[Entry] = []
 
@@ -691,12 +741,73 @@ def tmux_session_preview(name: str) -> int:
     return 0
 
 
+def tildify(path: str) -> str:
+    """Render a path with $HOME as ``~``.
+
+    Not ``str.replace``: on this distro $HOME resolves under /var/home while
+    panes report /var/home/... directly, so a substring swap produces
+    ``/var~/hacking/mu``. Compare resolved paths instead.
+    """
+    if not path:
+        return ""
+    home = Path.home().resolve()
+    try:
+        return str(Path("~") / Path(path).resolve().relative_to(home))
+    except ValueError:
+        return path
+
+
+def herdr_workspace_preview(name: str) -> int:
+    """Preview a live herdr workspace: header, then the active pane's screen."""
+    b = backend()
+    workspace_id = b._id_for(name) if isinstance(b, HerdrBackend) else ""
+    if not workspace_id:
+        return 1
+    info = herdr_cmd("workspace", "get", workspace_id).get("workspace", {})
+    tabs = info.get("tab_count", 0)
+    panes = info.get("pane_count", 0)
+    status = info.get("agent_status", "")
+    meta = [
+        f"{tabs} tab{'s' if tabs != 1 else ''}",
+        f"{panes} pane{'s' if panes != 1 else ''}",
+    ]
+    if status and status != "unknown":
+        meta.append(status)
+    print(f"{name} ({', '.join(meta)})")
+
+    active_tab = info.get("active_tab_id", "")
+    pane_list = herdr_cmd("pane", "list", "--workspace", workspace_id).get("panes", [])
+    active = next(
+        (p for p in pane_list if p.get("focused")),
+        next((p for p in pane_list if p.get("tab_id") == active_tab), None),
+    )
+    if not active:
+        return 0
+    print(f"pane: {active.get('pane_id', '')}  {tildify(active.get('cwd') or '')}")
+    print()
+    # Text, not ansi: the preview is rendered inside fzf's preview window,
+    # which owns the colors here. `pane read` streams raw text, not JSON.
+    text = herdr_text(
+        "pane",
+        "read",
+        active.get("pane_id", ""),
+        "--source",
+        "recent-unwrapped",
+        "--lines",
+        "200",
+    )
+    print(text.rstrip() if text.strip() else "(unable to read active pane)")
+    return 0
+
+
 def preview(path: str, session_name: str = "", kind: str = "", split: str = "") -> int:
     if (
         kind in {"tmux", "default"}
         and session_name
         and tmux_session_exists(session_name)
     ):
+        if isinstance(backend(), HerdrBackend):
+            return herdr_workspace_preview(session_name)
         return tmux_session_preview(session_name)
 
     target = expand(path)
@@ -815,66 +926,184 @@ def pick_and_connect(mode: str = "all", query: str = "") -> int:
     )
 
 
-def tmux_session_exists(name: str) -> bool:
-    return (
-        tmux_cmd(
-            "has-session",
-            "-t",
-            exact_session_target(name),
-            check=False,
-            capture=True,
-        ).returncode
-        == 0
-    )
-
-
 def update_last(name: str) -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     LAST_FILE.write_text(name + "\n")
 
 
-def switch_or_attach(name: str) -> None:
-    if os.environ.get("TMUX"):
-        tmux_cmd("switch-client", "-t", exact_session_target(name), capture=False)
-    else:
-        subprocess.run(
-            ["tmux", "attach-session", "-t", exact_session_target(name)],
-            check=True,
+class TmuxBackend:
+    """tmux sessions. The original tms behavior, unchanged."""
+
+    name = "tmux"
+
+    def list_sessions(self) -> list[str]:
+        result = tmux_cmd("list-sessions", "-F", "#{session_name}", check=False)
+        if result.returncode != 0:
+            return []
+        return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+    def exists(self, name: str) -> bool:
+        return (
+            tmux_cmd(
+                "has-session",
+                "-t",
+                exact_session_target(name),
+                check=False,
+                capture=True,
+            ).returncode
+            == 0
         )
-    update_last(name)
+
+    def switch(self, name: str) -> None:
+        if os.environ.get("TMUX"):
+            tmux_cmd("switch-client", "-t", exact_session_target(name), capture=False)
+        else:
+            subprocess.run(
+                ["tmux", "attach-session", "-t", exact_session_target(name)],
+                check=True,
+            )
+        update_last(name)
+
+    def create(
+        self, name: str, path: str, startup: str | None, split: str = ""
+    ) -> None:
+        tmux_cmd("new-session", "-d", "-s", name, "-c", path, capture=False)
+        if startup:
+            tmux_cmd(
+                "send-keys",
+                "-t",
+                exact_pane_target(name, "1.1"),
+                startup,
+                "C-m",
+                capture=False,
+            )
+        if split in ("vertical", "horizontal"):
+            tmux_cmd(
+                "split-window",
+                "-h" if split == "vertical" else "-v",
+                "-t",
+                exact_pane_target(name, "1.1"),
+                "-c",
+                path,
+                capture=False,
+            )
+
+    def last_candidates(self) -> list[str]:
+        result = tmux_cmd(
+            "display-message", "-p", "#{client_last_session}", check=False
+        )
+        if result.returncode != 0:
+            return []
+        name = result.stdout.strip()
+        return [name] if name else []
+
+    def current_cwd(self, ref: str) -> str:
+        return pane_cwd(ref)
+
+
+class HerdrBackend:
+    """herdr workspaces, mapped onto the same session vocabulary.
+
+    A tms "session" is a herdr *workspace*: it is the unit that owns a cwd
+    and a set of tabs/panes, which is what a tmux session is. Workspace
+    labels are not required to be unique, so we address by workspace_id
+    internally and match on label at the edges, first match wins.
+
+    Split naming is deliberately translated, not passed through: tms's
+    `vertical` means "a vertical divider" (new pane to the right, tmux
+    `split-window -h`), which is herdr's `--direction right`. herdr's own
+    `split_vertical` keybinding uses the same convention.
+    """
+
+    name = "herdr"
+
+    def _workspaces(self) -> list[dict]:
+        return herdr_cmd("workspace", "list").get("workspaces", [])
+
+    def _id_for(self, name: str) -> str:
+        for ws in self._workspaces():
+            if ws.get("label") == name:
+                return ws.get("workspace_id", "")
+        return ""
+
+    def list_sessions(self) -> list[str]:
+        return [ws.get("label", "") for ws in self._workspaces() if ws.get("label")]
+
+    def exists(self, name: str) -> bool:
+        return bool(self._id_for(name))
+
+    def switch(self, name: str) -> None:
+        workspace_id = self._id_for(name)
+        if workspace_id:
+            herdr_cmd("workspace", "focus", workspace_id)
+            update_last(name)
+
+    def create(
+        self, name: str, path: str, startup: str | None, split: str = ""
+    ) -> None:
+        created = herdr_cmd(
+            "workspace", "create", "--cwd", path, "--label", name, "--no-focus"
+        )
+        root_pane = created.get("root_pane", {}).get("pane_id", "")
+        if not root_pane:
+            return
+        if startup:
+            herdr_cmd("pane", "run", root_pane, startup)
+        if split in ("vertical", "horizontal"):
+            herdr_cmd(
+                "pane",
+                "split",
+                root_pane,
+                "--direction",
+                "right" if split == "vertical" else "down",
+                "--cwd",
+                path,
+                "--no-focus",
+            )
+
+    def last_candidates(self) -> list[str]:
+        # herdr exposes no "previously focused workspace" pointer, so the
+        # LAST_FILE written by switch() is the only source. connect_resolved
+        # appends it; nothing to add here.
+        return []
+
+    def current_cwd(self, ref: str) -> str:
+        pane = herdr_cmd("pane", "get", ref) if ref else herdr_cmd("pane", "current")
+        info = pane.get("pane", {})
+        return info.get("foreground_cwd") or info.get("cwd") or ""
+
+
+@cache
+def backend() -> TmuxBackend | HerdrBackend:
+    """Pick a backend from the environment.
+
+    $TMUX is checked first: inside a tmux pane the user means tmux, even if
+    that tmux happens to be running inside a herdr pane (which would also
+    export HERDR_ENV). The override exists for the picker's preview
+    subprocess and for tests.
+    """
+    forced = os.environ.get("TMS_BACKEND", "")
+    if forced == "herdr":
+        return HerdrBackend()
+    if forced == "tmux":
+        return TmuxBackend()
+    if os.environ.get("TMUX"):
+        return TmuxBackend()
+    if os.environ.get("HERDR_ENV") == "1":
+        return HerdrBackend()
+    return TmuxBackend()
+
+
+def tmux_session_exists(name: str) -> bool:
+    return backend().exists(name)
+
+
+def switch_or_attach(name: str) -> None:
+    backend().switch(name)
 
 
 def create_session(name: str, path: str, startup: str | None, split: str = "") -> None:
-    tmux_cmd("new-session", "-d", "-s", name, "-c", path, capture=False)
-    if startup:
-        tmux_cmd(
-            "send-keys",
-            "-t",
-            exact_pane_target(name, "1.1"),
-            startup,
-            "C-m",
-            capture=False,
-        )
-    if split == "vertical":
-        tmux_cmd(
-            "split-window",
-            "-h",
-            "-t",
-            exact_pane_target(name, "1.1"),
-            "-c",
-            path,
-            capture=False,
-        )
-    elif split == "horizontal":
-        tmux_cmd(
-            "split-window",
-            "-v",
-            "-t",
-            exact_pane_target(name, "1.1"),
-            "-c",
-            path,
-            capture=False,
-        )
+    backend().create(name, path, startup, split)
 
 
 def connect_resolved(
@@ -949,15 +1178,10 @@ def last() -> int:
     # what `connect()` would do for a configured name) and not erroring
     # with "No such session or path" for an unconfigured one.
     #
-    # We collect both pointers (tmux's client_last_session, then our own
+    # We collect both pointers (the backend's own notion of "last", then our
     # LAST_FILE) and switch to the first that's still live. If none are,
     # exit 0 without output.
-    candidates: list[str] = []
-    result = tmux_cmd("display-message", "-p", "#{client_last_session}", check=False)
-    if result.returncode == 0:
-        name = result.stdout.strip()
-        if name:
-            candidates.append(name)
+    candidates: list[str] = list(backend().last_candidates())
     if LAST_FILE.exists():
         name = LAST_FILE.read_text().strip()
         if name and name not in candidates:
@@ -1022,7 +1246,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         if args.cmd == "pick-and-connect":
             return pick_and_connect(args.mode, query=args.query)
         if args.cmd == "connect":
-            target = pane_cwd(args.pane) if args.pane else args.target
+            target = backend().current_cwd(args.pane) if args.pane else args.target
             if not target:
                 print("connect: no target", file=sys.stderr)
                 return 1

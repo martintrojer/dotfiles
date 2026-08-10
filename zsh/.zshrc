@@ -136,6 +136,9 @@ command -v fzf >/dev/null && eval "$(fzf --zsh)"
 # zoxide: z <pat> jumps to scored dir, zi opens an interactive picker.
 command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
 
+# herdr completions. No init hook to run, just the compdef script.
+command -v herdr >/dev/null && eval "$(herdr completion zsh)"
+
 # Syntax highlighting must be sourced LAST per upstream docs (it wraps zle widgets).
 [[ -f "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] \
   && source "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"

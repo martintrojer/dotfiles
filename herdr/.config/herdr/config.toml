@@ -1,0 +1,160 @@
+# herdr — terminal workspace manager for coding agents.
+#
+# Under evaluation as a tmux alternative; see herdr/README.md and
+# docs/DECISIONS.md § Agent state awareness. Only settings that differ
+# from the herdr default are written here — run `herdr --default-config`
+# to see the full annotated set.
+
+onboarding = false
+
+[theme]
+# Built-in catppuccin, matching every other package in this repo
+# (docs/THEME.md). herdr ships its own palette, so there is no
+# THEME BEGIN/END block here and `make theme` does not touch this file.
+name = "catppuccin"
+
+[terminal]
+# New panes open where the source pane is, matching tmux's
+# `split-window -c "#{pane_current_path}"` bindings in .tmux.conf.
+new_cwd = "follow"
+
+[update]
+# mise owns the herdr binary (fedora/mise/.config/mise/config.toml).
+# Self-update would fight it and leave two copies on $PATH.
+channel = "stable"
+version_check = false
+manifest_check = false
+
+# -----------------------------------------------------------------------------
+# Keys — muscle memory carried over from tmux/.tmux.conf
+# -----------------------------------------------------------------------------
+# Already identical to tmux and therefore not repeated below:
+#   prefix ctrl+b, prefix+c new tab, prefix+n/p next/prev, prefix+1..9,
+#   prefix+x close pane, prefix+z zoom, prefix+r resize, prefix+shift+r reload,
+#   prefix+b toggle sidebar.
+#
+# Accepted losses (no herdr equivalent, documented in herdr/README.md):
+#   prefix+! break-pane (the key parser has no name for "!"),
+#   ctrl+h/j/k/l vim-tmux-navigator, prefix+Tab tmux-fingers-rs hint picking,
+#   prefix+v clipboard history (the desktop already owns that shortcut, and
+#   the picker is per-OS -- not something a cross-platform config can bind).
+[keys]
+prefix = "ctrl+b"
+
+# tmux prefix+d detaches. herdr's default puts that on prefix+q and leaves
+# prefix+d unbound, which is a 20-year reflex aimed at nothing.
+detach = "prefix+d"
+
+# tmux prefix+, renames the window; a herdr tab is the closest thing.
+rename_tab = "prefix+comma"
+
+# tmux prefix+& kills the window.
+close_tab = "prefix+ampersand"
+
+# tmux splits, kept on the exact same two characters. herdr's naming is the
+# opposite of the intuition: split_vertical puts the new pane to the *right*
+# (tmux %) and split_horizontal puts it *below* (tmux "), because the names
+# describe the divider, not the motion. herdr's own prefix+v / prefix+minus
+# stay bound as the second entry so both dialects work.
+split_vertical = ["prefix+%", "prefix+v"]
+split_horizontal = ["prefix+\"", "prefix+minus"]
+
+# tmux prefix+a opens the agent-attention picker. herdr has no agent picker
+# surface -- the sidebar's agent panel *is* that view -- so selection is
+# indexed and cyclic rather than modal:
+#   prefix+a          cycle forward through the agent panel
+#   prefix+A          cycle back
+#   prefix+alt+1..9   jump straight to an agent row
+# focus_agent is indexed-only: it rejects a bare key ("indexed keybinding
+# must use 1..9") and takes a modifier rather than a leader, so
+# "prefix+a+1..9" does not parse. With agent_panel_sort = "priority" below,
+# row 1 is the most urgent agent -- which is what prefix+a meant in tmux.
+next_agent = "prefix+a"
+previous_agent = "prefix+shift+a"
+focus_agent = "prefix+alt+1..9"
+
+# prefix+g is tmux's "last session" ([[keys.command]] below). herdr's goto
+# defaults to that key, and config check does not report the collision, so
+# move goto off it explicitly rather than trusting precedence. prefix+w is
+# free (workspace_picker went to shift+w) and is where tmux's tree picker
+# lives, which is roughly what goto does.
+goto = "prefix+w"
+
+# tmux prefix+s is the tms picker, and so is this (see [[keys.command]]
+# below). herdr's built-in workspace picker moves to prefix+shift+w and
+# settings out of the way entirely.
+workspace_picker = "prefix+shift+w"
+settings = "prefix+shift+s"
+
+# The left sidebar is the permanent-column tax this repo argued against
+# (docs/DECISIONS.md). Start collapsed, toggle it on demand.
+toggle_sidebar = "prefix+b"
+
+# tmux binds prefix+arrows to select-pane -L/-D/-U/-R. herdr defaults these
+# to hjkl; hjkl still works inside navigate mode, so arrows here cost nothing.
+focus_pane_left = "prefix+left"
+focus_pane_down = "prefix+down"
+focus_pane_up = "prefix+up"
+focus_pane_right = "prefix+right"
+
+# tmux prefix+s: the same tms picker, same pinned sessions from
+# ~/.config/tmux/tms.toml, same zoxide/fd fallbacks. tms picks the herdr
+# backend from $HERDR_ENV, so no flag is needed here. A popup rather than a
+# pane so it overlays the layout like tmux's display-popup does.
+[[keys.command]]
+key = "prefix+s"
+type = "popup"
+command = "tms pick-and-connect"
+width = "90%"
+height = "85%"
+
+# tmux prefix+g switches to the last session.
+[[keys.command]]
+key = "prefix+g"
+type = "shell"
+command = "tms last"
+
+# tmux prefix+T roots a session at the current pane's cwd.
+[[keys.command]]
+key = "prefix+shift+t"
+type = "shell"
+command = "tms connect --pane \"$HERDR_PANE_ID\""
+
+# tmux prefix+! breaks the current pane out into its own window. Not on
+# shift+1: terminals send "!" for that chord and herdr's parser has no name
+# for it, so the binding would parse and then never fire. shift+b for break.
+[[keys.command]]
+key = "prefix+shift+b"
+type = "shell"
+command = "herdr pane move \"$HERDR_PANE_ID\" --new-tab --focus"
+
+[ui]
+# Collapsed by default with the narrow status rail still visible: agent
+# state is glanceable without paying a full column for it. prefix+b
+# expands when the fleet actually needs reading.
+sidebar_start_collapsed = true
+sidebar_collapsed_mode = "compact"
+
+# Attention queue, not space order. This is what makes focus_agent's 1..9
+# indexes meaningful: row 1 is the agent that most wants you.
+agent_panel_sort = "priority"
+
+# Pane borders carry the agent label, so a split pane says what is in it
+# without expanding the sidebar.
+show_agent_labels_on_pane_borders = true
+
+[ui.toast]
+delivery = "herdr"
+
+[ui.sound]
+# Toasts are enough. Sound would need a per-OS audio backend to behave the
+# same way on both platforms, and this package is common scope.
+enabled = false
+
+[session]
+resume_agents_on_restore = true
+
+[experimental]
+# Nesting herdr inside a herdr pane is a footgun, and the mu skill's tmux
+# panes are the supported way to get a multiplexer inside a pane.
+allow_nested = false

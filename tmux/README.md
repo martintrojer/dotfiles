@@ -16,7 +16,9 @@ prefix + alt + u   # uninstall plugins removed from .tmux.conf
 lifecycle from there. The trade-off is documented in
 [`docs/DECISIONS.md` § Vendoring tmux plugins](../docs/DECISIONS.md).
 
-This setup uses a local Python session launcher (`$HOME/.config/tmux/scripts/tms`) for the repo-defined session flows in `tmux/.tmux.conf`, such as `prefix + s`, `prefix + g`, and `prefix + T`.
+This setup uses a local Python session launcher (`$HOME/.local/bin/tms`) for the repo-defined session flows in `tmux/.tmux.conf`, such as `prefix + s`, `prefix + g`, and `prefix + T`.
+
+`tms` lives in the [`local-bin/`](../local-bin) package rather than beside the other tmux scripts because the [`herdr/`](../herdr) package drives the same picker against herdr workspaces. It picks a backend from the environment (`$TMUX` wins over `$HERDR_ENV`) and reads the same `~/.config/tmux/tms.toml` either way; see [`herdr/README.md`](../herdr/README.md#sessions-tms). Nothing about the tmux behavior changed.
 
 ## Interactive Guide
 
