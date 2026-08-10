@@ -8,8 +8,8 @@ rules in [`docs/LAYOUT.md`](../docs/LAYOUT.md).
 The default bar is a sparse top HUD:
 
 - left: workspaces
-- center: issues, hidden when healthy
-- right: notifications, weather, and clock
+- center: deliberately empty (see below)
+- right: issues, caffeinate, notifications, weather, and clock
 
 There is intentionally no tray and no window title. App/system controls live in
 keybindings and issue click actions; focused-window context belongs to the app,
@@ -25,6 +25,23 @@ Layout language:
 - issues sit in the center and become blocks only when they need a response
 - notifications become blocks only when they need a response
 - clock is ambient context, so it stays unboxed
+
+## The empty center
+
+The webcam foot stands at the dead center of the main display, and Waybar
+centers `modules-center` on the screen, so anything in that group renders
+under the foot. The group is empty; everything lives in `modules-right`.
+
+Two rejected fixes, because both look reasonable. Sharing the group between
+`custom/caffeinate` and `custom/issues` failed whenever the system was healthy:
+`issues` rendered empty text, leaving caffeinate alone and centered onto the
+foot. Having `issues` own the group and reserve the middle columns around a
+blank notch failed too — the arithmetic worked, but a module that reserves
+space still occupies the group, so the problem just moved to whichever module
+was on screen. Only an empty group has no glyph to misplace.
+
+Both failures are invisible: a hidden glyph looks exactly like a module with
+nothing to report. Keep the group empty.
 
 ## Sizing and typography
 
