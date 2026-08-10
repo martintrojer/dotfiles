@@ -64,7 +64,20 @@ export default function (pi: ExtensionAPI) {
 	pi.on("agent_start", async () => {
 		enqueue(async () => {
 			// Full script path: DB records the pid for crash reaper (~300ms).
-			const ok = await script(["event", "--window", WINDOW_ID, "--state", "working", "--pid", String(process.pid)]);
+			// --pane is what lets the focus-clear tell this pane from its
+			// siblings: the badge is a window option, but "the user looked"
+			// is only true when the focused pane is the agent's own.
+			const ok = await script([
+				"event",
+				"--window",
+				WINDOW_ID,
+				"--pane",
+				PANE_ID!,
+				"--state",
+				"working",
+				"--pid",
+				String(process.pid),
+			]);
 			if (ok) return;
 			// Fallback: at least set the tmux option.
 			await tmux(["set-window-option", "-q", "-t", WINDOW_ID, "@agent_state", "working"]);
@@ -115,7 +128,7 @@ export default function (pi: ExtensionAPI) {
 		// die, and the reaper reports a clean exit as a crash on the next 5s
 		// status tick.
 		await enqueue(async () => {
-			if (await script(["event", "--window", WINDOW_ID, "--state", "cleared"])) return;
+			if (await script(["event", "--window", WINDOW_ID, "--pane", PANE_ID!, "--state", "cleared"])) return;
 			// Fallback: at least clear the tmux option.
 			await tmux(["set-window-option", "-qu", "-t", WINDOW_ID, "@agent_state"]);
 		});
