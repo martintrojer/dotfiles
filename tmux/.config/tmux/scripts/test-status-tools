@@ -1007,13 +1007,15 @@ def run_filter_hint_tests() -> None:
     plain = re.sub(r"\x1b\[[0-9;]*m", "", header)
 
     missing = [
-        key for key in aa.FILTER_KEYS if f"^{key.removeprefix('ctrl-')} " not in plain
+        key for key in aa.FILTER_KEYS if f"^{key.removeprefix('ctrl-')}" not in plain
     ]
     expect("the header names every filter key", missing, [])
-    labels = [s.name if s else "all" for s in aa.FILTER_KEYS.values()]
+    # Each state is identified by its glyph, which is what makes the header
+    # double as a legend for the same glyph in the rows below.
+    marks = [STATE_GLYPH[s] if s else "all" for s in aa.FILTER_KEYS.values()]
     expect(
-        "the header names every filter's state",
-        [label for label in labels if label not in plain],
+        "the header marks every filter's state",
+        [m for m in marks if m not in plain],
         [],
     )
 
@@ -1022,25 +1024,44 @@ def run_filter_hint_tests() -> None:
     states = [s for s in aa.FILTER_KEYS.values() if s is not None]
     expect(
         "hints read urgency-descending",
-        # A name the header omits sorts last instead of raising, so the
+        # A glyph the header omits sorts last instead of raising, so the
         # coverage assertion above stays the one that reports it.
-        sorted(states, key=lambda s: (plain.find(s.name) + 1) or len(plain)),
+        sorted(states, key=lambda s: (plain.find(STATE_GLYPH[s]) + 1) or len(plain)),
         sorted(states, key=lambda s: -int(s)),
     )
 
     expect_truthy(
         "each state hint carries its own state colour",
         all(
-            aa.state_ansi(s, f"^{k.removeprefix('ctrl-')} {s.name}") in header
+            aa.state_ansi(s, f"^{k.removeprefix('ctrl-')}{STATE_GLYPH[s]}") in header
             for k, s in aa.FILTER_KEYS.items()
             if s is not None
         ),
     )
 
-    # The popup is 80% of the client width (.tmux.conf), so an 80-column
-    # client leaves 64 columns; wrapping would push the header onto the rows.
+    # WIDTH. The bug this pins: the header was sized against the popup (80%
+    # of the client) when the list pane is what it actually gets, because
+    # fzf hands 55% of the popup to the preview. The real field is about a
+    # third of the terminal, so a 57-column "words" header truncated at
+    # every width tested, 120 included.
+    #
+    # 25 is measured, not derived: a ruler header rendered through the real
+    # geometry (display-popup -w 80% -h 60% from .tmux.conf, fzf
+    # --preview-window right:55%, a real attached client) truncates above 25
+    # columns at an 80-col client. The ladder is 25/28/32/39 at 80/90/100/120.
+    # An arithmetic estimate lands near 28 and is optimistic -- borders and
+    # padding eat the difference -- which is exactly why this is a measured
+    # constant rather than a formula.
     expect_truthy(
-        f"header fits an 80-column client (len {len(plain)})", len(plain) <= 64
+        f"header fits the list pane at an 80-column client (len {len(plain)} <= 25)",
+        len(plain) <= 25,
+    )
+    # The constant above is only valid while the preview keeps that share.
+    # If this fails, re-measure the ladder; do not just bump the number.
+    expect_truthy(
+        "the preview still takes 55%, so the measured 25 still applies",
+        '"right:55%,border-left"'
+        in AGENT_ATTENTION.read_text(encoding="utf-8").replace("'", '"'),
     )
 
     # The builder is only discoverability if cmd_menu actually hands it to fzf.
