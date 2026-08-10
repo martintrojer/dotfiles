@@ -64,15 +64,27 @@ def tmux_exists() -> bool:
 
 def tmux(args: list[str], check: bool = True) -> str:
     """agent-attention's local convenience wrapper: takes a list,
-    returns stripped stdout, and re-raises non-zero exits as
-    ``RuntimeError`` with the most useful stream text we have. Built
-    on `_tmux_common.tmux_cmd` so the socket-env honoring is shared.
+    returns stdout minus its single trailing newline, and re-raises
+    non-zero exits as ``RuntimeError`` with the most useful stream text
+    we have. Built on `_tmux_common.tmux_cmd` so the socket-env honoring
+    is shared.
+
+    Only the one newline tmux appends is removed -- never a run of
+    whitespace. Every format string here is tab-separated and several end
+    in an option that is routinely empty (``#{@pane_agent}``,
+    ``#{@agent_state}``), so the last line ends in a tab that carries the
+    final, empty field. ``.strip()`` ate it, that line came back one field
+    short, and the field-count guards in the row builders dropped the
+    server's last pane -- an idle agent in the newest window was invisible
+    to the picker until any window was created after it.
+    ``status-window-label`` and ``scan_agent_states`` already read tmux
+    output this way; this makes the third reader agree.
     """
     result = tmux_cmd(*args, check=False)
     if check and result.returncode != 0:
         msg = result.stderr.strip() or result.stdout.strip() or "tmux command failed"
         raise RuntimeError(msg)
-    return result.stdout.strip()
+    return result.stdout.removesuffix("\n")
 
 
 def tmux_query(target: str | None, fields: list[str]) -> list[str] | None:
