@@ -7,8 +7,10 @@
 		// This ensures full-screen windows hide the bar
 		"mode": "dock",
 		"modules-left": ["sway/workspaces"],
-		"modules-center": ["custom/caffeinate", "custom/issues"],
-		"modules-right": ["custom/notifications", "custom/weather", "clock"],
+		// Empty on purpose: waybar centres this group under the webcam foot, so
+		// anything here is hidden. See waybar/README.md.
+		"modules-center": [],
+		"modules-right": ["custom/issues", "custom/caffeinate", "custom/notifications", "custom/weather", "clock"],
 		"sway/workspaces": {
 			"disable-scroll": false,
 			"all-outputs": false,
