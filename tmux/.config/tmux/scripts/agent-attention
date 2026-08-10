@@ -341,6 +341,28 @@ def clear_events_for_window(window_id: str) -> None:
         conn.execute("DELETE FROM events WHERE window_id = ?", (window_id,))
 
 
+def agent_pane_for_window(window_id: str) -> str:
+    """The pane the agent most recently wrote from, empty when unrecorded.
+
+    ``@agent_state`` is a *window* option, but "has the user seen it" is a
+    question about a *pane*: in the documented split layout the agent owns
+    one pane and the user sits in its sibling. The event rows are the only
+    place that finer identity is kept, so the newest row carrying a
+    ``pane_id`` is what the focus-clear consults.
+
+    Newest-wins is what makes a restart self-heal: an agent that comes back
+    up in a different pane writes a fresh event, and that row's pane
+    immediately becomes the one focus has to match.
+    """
+    conn = _db()
+    row = conn.execute(
+        "SELECT pane_id FROM events WHERE window_id = ? AND pane_id != '' "
+        "ORDER BY ts DESC, rowid DESC LIMIT 1",
+        (window_id,),
+    ).fetchone()
+    return row[0] if row else ""
+
+
 def recent_events(window_id: str, limit: int = PREVIEW_EVENTS) -> list[sqlite3.Row]:
     """The newest ``limit`` events for a window, oldest first."""
     conn = _db()
@@ -471,13 +493,57 @@ def set_state(window_id: str, state: AgentState | None) -> None:
         # @pane_agent intentionally NOT cleared — it's sticky.
 
 
-def clear_target(window_id: str) -> None:
-    """Clear attention state for a window on focus.
+def pane_exists(pane_id: str) -> bool:
+    """True when *pane_id* still names a live pane on this server."""
+    if not pane_id:
+        return False
+    return bool(
+        tmux(["display-message", "-p", "-t", pane_id, "#{pane_id}"], check=False)
+    )
+
+
+def focus_counts_as_seen(window_id: str, focused_pane: str) -> bool:
+    """Did focusing *focused_pane* mean the user looked at the agent?
+
+    Only the agent's own pane counts. A sibling pane in the same window
+    does not, and neither does a popup dismissal that hands focus back to
+    the pane the user never left -- both used to clear the badge for a
+    window the user had not so much as glanced at.
+
+    Two inputs have no honest answer, and both fall back to clearing,
+    which is the pre-fix behaviour:
+
+      * **No recorded pane.** Nothing in the event store names the agent's
+        pane -- a trimmed history, or a writer that never supplied one.
+        Refusing to clear would strand a badge with no way to dismiss it,
+        which is worse than clearing one early.
+      * **The recorded pane is gone.** The agent's pane was closed, so
+        there is nothing left to focus and the badge would be permanent.
+        (A merely *stale* pane -- agent restarted elsewhere while the old
+        pane lives on -- is not this case; it resolves itself on the
+        restarted agent's first event.)
+    """
+    agent_pane = agent_pane_for_window(window_id)
+    if not agent_pane:
+        return True
+    if agent_pane == focused_pane:
+        return True
+    return not pane_exists(agent_pane)
+
+
+def clear_target(window_id: str, focused_pane: str = "") -> None:
+    """Clear attention state for a window.
 
     Clears ``done``, ``blocked`` and ``crashed`` — these are "look at
     me" states the user acknowledges by focusing, and focusing is
     exactly the seen-signal ``done`` waits for.  ``working`` means the
     agent is still active; focusing doesn't change that.
+
+    ``focused_pane`` is the pane a focus hook just landed on, and gates
+    the clear through :func:`focus_counts_as_seen`. Callers that pass
+    nothing are asking for an *explicit* clear -- the picker, or a
+    hand-run ``clear-target`` -- where the user named the window rather
+    than merely arriving near it, so no pane check applies.
     """
     cur = AgentState.parse(
         tmux(
@@ -486,6 +552,8 @@ def clear_target(window_id: str) -> None:
         )
     )
     if cur is AgentState.working:
+        return
+    if focused_pane and not focus_counts_as_seen(window_id, focused_pane):
         return
     set_state(window_id, None)
     clear_events_for_window(window_id)
@@ -599,6 +667,31 @@ def cmd_notify(args: argparse.Namespace) -> int:
     return 0
 
 
+def event_pane_id(pane: str | None, window_id: str) -> str:
+    """The pane an ``event`` came from, for the focus-clear pane check.
+
+    ``event`` is the pi path and takes a *window*, so unlike ``notify`` it
+    never resolved a pane -- every row it wrote left ``pane_id`` empty,
+    and a window whose only rows come from pi has no agent pane on record
+    at all. Filling it in is what gives :func:`focus_counts_as_seen`
+    something to compare against on the path most agents actually use.
+
+    Order: the explicit flag, then ``TMUX_PANE`` (set in the agent's own
+    pane, which is where the extension runs), then the window's active
+    pane. The last is a guess and only right when the agent is the active
+    pane at write time -- but ``working`` is written as the agent starts a
+    turn, which is exactly when that tends to hold. An unresolvable pane
+    yields "", which is the documented clear-anyway case.
+    """
+    candidate = pane or os.environ.get("TMUX_PANE")
+    if candidate:
+        parts = tmux_query(candidate, ["#{pane_id}"])
+        if parts:
+            return parts[0]
+    parts = tmux_query(window_id, ["#{pane_id}"])
+    return parts[0] if parts else ""
+
+
 def cmd_event(args: argparse.Namespace) -> int:
     """Record an event and set @agent_state.  Called by the pi extension.
 
@@ -631,6 +724,7 @@ def cmd_event(args: argparse.Namespace) -> int:
         window_id=window_id,
         window_index=widx,
         window_name=wname,
+        pane_id=event_pane_id(args.pane, window_id),
         source="pi",
         state=state,
         message=state,
@@ -791,7 +885,7 @@ def cmd_clear_current(args: argparse.Namespace) -> int:
     ctx = current_context(args.pane)
     if ctx is None:
         return 0
-    clear_target(ctx["window_id"])
+    clear_target(ctx["window_id"], ctx["pane_id"])
     return 0
 
 
@@ -1276,6 +1370,14 @@ def build_parser() -> argparse.ArgumentParser:
         "event", help="Record a state event (called by pi extension)"
     )
     event.add_argument("--window", required=True, help="tmux window id")
+    event.add_argument(
+        "--pane",
+        help=(
+            "Pane the agent occupies (defaults to TMUX_PANE, else the "
+            "window's active pane). Recorded so the focus-clear can tell "
+            "the agent's pane from its siblings."
+        ),
+    )
     event.add_argument(
         "--state",
         required=True,
