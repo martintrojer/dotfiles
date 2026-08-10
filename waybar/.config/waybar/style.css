@@ -53,6 +53,7 @@ window#waybar,
 	transition: all 0.15s ease-in-out;
 }
 
+#waybar.first #custom-caffeinate,
 #waybar.first #custom-issues,
 #waybar.first #custom-notifications {
 	font-family: "JetBrains Mono Nerd Font";
@@ -79,6 +80,7 @@ window#waybar,
 	color: @text;
 }
 
+#waybar.first #custom-caffeinate.off,
 #waybar.first #custom-issues.ok,
 #waybar.first #custom-notifications.empty,
 #waybar.first #custom-weather.empty {
@@ -89,6 +91,9 @@ window#waybar,
 	background: transparent;
 }
 
+/* Caffeinate is a deliberate user choice, not a problem: same lavender
+   emphasis as a warning, no blink. */
+#waybar.first #custom-caffeinate.on,
 #waybar.first #custom-issues.warning,
 #waybar.first #custom-notifications.has-history {
 	color: @lavender;
