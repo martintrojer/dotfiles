@@ -44,6 +44,27 @@ Write code before the test? Delete it. Start over.
 
 Implement fresh from tests. Period.
 
+## Seams - Where Tests Go
+
+<!-- local addition: adapted from mattpocock/skills `tdd` (MIT). Upstream covers
+     what a good test is, but never where it goes or who agrees to that. -->
+
+A **seam** is the public boundary you test at: the interface where you can
+observe behavior without reaching inside. Tests live at seams, never against
+internals.
+
+**Test only at pre-agreed seams.** Before writing any test, name the seams under
+test and confirm them with the user. No test is written at an unconfirmed seam.
+
+You can't test everything. Agreeing the seams up front is how testing effort
+lands on the critical paths and the complex logic instead of being spread evenly
+over every edge case. Ask: "what's the public interface, and which seams should
+we test?"
+
+When the shape of that interface is itself the open question, that's a design
+question — `brainstorm` it before writing tests against a boundary you don't
+believe in.
+
 ## Red-Green-Refactor
 
 ```dot
@@ -195,6 +216,19 @@ Keep tests green. Don't add behavior.
 
 Next failing test for next feature.
 
+**One vertical slice at a time.** One seam, one test, one minimal
+implementation, then repeat. Each test is a tracer bullet that responds to what
+the last cycle taught you.
+
+<!-- local addition: horizontal slicing, from mattpocock/skills `tdd` (MIT) -->
+
+The failure mode is **horizontal slicing** — writing all the tests first, then
+all the implementation. Bulk tests verify *imagined* behavior: you test the
+shape of things rather than what a user does, the tests go insensitive to real
+changes, and you commit to a test structure before understanding the
+implementation. Writing the whole suite up front is not "extra thorough TDD"; it
+is tests-after with the order swapped.
+
 ## Good Tests
 
 | Quality | Good | Bad |
@@ -232,6 +266,8 @@ When writing or changing any test, read [writing-good-tests.md](writing-good-tes
 - Test passes immediately
 - Can't explain why test failed
 - Tests added "later"
+- Writing several tests before any implementation (horizontal slicing)
+- Writing a test at a seam nobody agreed to
 - Rationalizing "just this once"
 - "I already manually tested it"
 - "Tests after achieve the same purpose"

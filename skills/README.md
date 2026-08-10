@@ -117,13 +117,19 @@ done | sort -rn
 Counts include the session doing the counting — discount the last few days when
 a skill only shows loads from the audit itself.
 
+Also discount anything recently linked. As of the 2026-08 re-audit the four
+superpowers skills sit at 2 loads each purely because they were linked days
+earlier; that is audit noise, not a delete signal. Their keep is **provisional**
+until a later count sees real use.
+
 | Skill | Upstream | Notes |
 |-------|----------|-------|
-| `avoid-ai-writing` | [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing) (MIT) | v3.23.0 @ `f9fef0e`; `SKILL.md` plus the zero-dependency `detector/` engine (`node detector/patterns.js`, `node detector/validate.js`). Upstream ships a `version:` field, so this one is the exception to the rule above |
+| `avoid-ai-writing` | [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing) (MIT) | v3.23.0 @ `f9fef0e`; `SKILL.md` plus the zero-dependency `detector/` engine. `validate.js` has a CLI (`node detector/validate.js <before> <after>`); `patterns.js` is a **library only** — call `analyzeText` via `node -e`, as `SKILL.md` shows. Upstream ships a `version:` field, so this one is the exception to the rule above |
 | `caveman` | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) (MIT) | Synced @ `7066cc8`, byte-identical to upstream `skills/caveman/SKILL.md` |
-| `council` | [danielmiessler/LifeOS](https://github.com/danielmiessler/LifeOS) `install/skills/Council` | Upstream v1.1.20 @ `47df8ee`. **De-Clauded**: dropped the voice-notification curl, the `~/.claude/LIFEOS/` customization path, the execution-log JSONL, and the RedTeam cross-references; `name` lowercased to match the directory. Upstream's `subagent_type: general-purpose` calls became the harness-neutral *Running the members* section |
+| `council` | [danielmiessler/LifeOS](https://github.com/danielmiessler/LifeOS) `install/skills/Council` | Upstream v1.1.20 @ `47df8ee`. **De-Clauded**: dropped the voice-notification curl, the `~/.claude/LIFEOS/` customization path, the execution-log JSONL, and the RedTeam cross-references; `name` lowercased to match the directory. Upstream's `subagent_type: general-purpose` calls became the harness-neutral *Running the members* section. Also fixed upstream's bare `CouncilMembers.md` / `SKILL.md` references inside `Workflows/` to `../` |
 | `ponytail` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT) | Synced @ `16f2980`. One local addition: a *Touch only what you must* section adapted from [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT) — upstream ponytail covers what you don't *write*, not what you don't *touch*. Upstream also ships five sibling skills (`-review`, `-audit`, `-debt`, `-gain`, `-help`), deliberately not vendored — see below |
 | `summarize` | [steipete/summarize](https://github.com/steipete/summarize) | Locally rewritten backend section: this host pins OpenCode (`big-pickle`) as the only provider. See `summarize/README.md` |
+| `writing-for-agents` | [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) `skills/productivity/writing-for-agents` @ `84fdeff` | Plus `SKILL-MECHANICS.md`. Local: dropped the `CLAUDE.md` mentions from the description and opening line, added a `## Related` table. Upstream's `agents/openai.yaml` is Codex-plugin metadata, not vendored |
 | `receiving-code-review` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Local: "your human partner" → "the user"; two quoted-maxim attributions rewritten as standalone rules |
 | `systematic-debugging` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Plus `root-cause-tracing.md`, `defense-in-depth.md`, `condition-based-waiting.md` + example, `find-polluter.sh`. Local: retargeted two `superpowers:`-prefixed sub-skill references, fixed a mangled `## your human partner's Signals` heading |
 | `test-driven-development` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Plus `writing-good-tests.md` (the write-time counterpart to `test-reviewer`). Same "human partner" and `superpowers:` retargeting |
@@ -147,6 +153,7 @@ a skill only shows loads from the audit itself.
 | Skill | Trigger | Description |
 |-------|---------|-------------|
 | `/skill:avoid-ai-writing` | "remove AI-isms", "clean up AI writing", "make this sound less like AI" | Audit/rewrite text to strip AI writing patterns. Detect, rewrite, and edit-in-place modes; optional voice profiles; bundled deterministic `detector/patterns.js` |
+| `/skill:writing-for-agents` | Creating or editing a skill, or modifying `AGENTS.md` | The counterpart for prose *agents* read: context pointers, the two loads, progressive disclosure, leading words, the no-op hunt. `SKILL-MECHANICS.md` covers skill frontmatter and the model- vs user-invoked choice |
 
 ### Code Quality
 
@@ -169,7 +176,7 @@ a skill only shows loads from the audit itself.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `/skill:caveman` | "caveman mode", "be brief" | Ultra-compressed communication (~75% token savings). Levels: lite, full, ultra |
+| `/skill:caveman` | "caveman mode", "be brief" | Ultra-compressed communication (~65% measured token savings). Levels: lite, full, ultra |
 | `/skill:ponytail` | "ponytail", "be lazy", "yagni", "simplest solution" | Forces the laziest solution that works: YAGNI, stdlib/native first, shortest diff. Levels: lite, full, ultra |
 
 ### Tools & Integrations
@@ -213,10 +220,12 @@ to be worth a decision.
 | Skill | Stars | Verdict |
 |-------|-------|---------|
 | [`andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) | ~175k | **Partly taken.** Four rules: *Think Before Coding* ≈ `brainstorm`, *Simplicity First* ≈ `ponytail`, *Goal-Driven Execution* ≈ `test-driven-development` + `verification-before-completion`. Only *Surgical Changes* had no home — adapted into `ponytail`. Also it's a `CLAUDE.md`, always-on by design, which is a worse fit than a triggered skill |
-| [`mattpocock/skills`](https://github.com/mattpocock/skills) `grill-me` / `grilling` | ~200k repo | **Partly taken.** Same one-question-at-a-time interview `brainstorm` already runs. Took the two refinements it has and we lacked: carry a recommended answer with each question, and answer from the repo rather than asking. Vendoring the whole thing would duplicate `brainstorm` |
+| [`mattpocock/skills`](https://github.com/mattpocock/skills) `grill-me` / `grilling` | ~200k repo | **Partly taken**, twice. First pass took the recommended-answer-per-question and answer-from-the-repo refinements. Re-checked @ `84fdeff`: `grilling` had since become a **design tree** worked in **rounds** — ask the whole *frontier* (decisions whose prerequisites are settled) at once, recompute, repeat, done when the frontier is empty. That replaced `brainstorm`'s strict one-question-per-message rule, which was paying round-trips to re-derive an ordering the tree already encodes. `grill-me` and `grill-with-docs` are thin aliases into it |
 | `mattpocock/skills` `handoff` | — | Skipped. Pi ships a `handoff` **extension** (`examples/extensions/handoff.ts`) that forks a real session — strictly better than a skill that writes a markdown file |
 | `mattpocock/skills` main flow (`to-spec`, `to-tickets`, `implement`, `triage`, `wayfinder`) | — | Skipped. An issue-tracker-shaped pipeline needing `setup-matt-pocock-skills` per repo. Overlaps `brainstorm` → `write-plan` → `mu` and assumes GitHub/Linear |
-| `superpowers` `writing-skills`, mattpocock `writing-great-skills` | — | Skipped for now. Both real, both large, and skill-authoring happens a few times a year — read from `~/hacking/` when it comes up |
+| `superpowers` `writing-skills` | — | Skipped. 679 lines for something done a few times a year — read it from `~/hacking/superpowers/` when actually writing one. (mattpocock's `writing-great-skills` was rejected alongside it on the same size grounds; it has since been rewritten to 81 lines as `writing-for-agents` and is now **vendored** — see the table above) |
+| `mattpocock/skills` `diagnosing-bugs`, `tdd`, `code-review` | — | **Partly taken.** Three backports rather than three competing skills (zen #4): the tight-feedback-loop Phase 1 and ranked-falsifiable-hypotheses fix into `systematic-debugging`, pre-agreed seams and the horizontal-slicing anti-pattern into `test-driven-development`, and the Fowler smell baseline into `code-reviewer`. Skipped from `code-review`: the Standards/Spec two-axis split and its parallel sub-agents — no issue tracker here, and the fan-out is `mu`'s |
+| `mattpocock/skills` `codebase-design`, `improve-codebase-architecture`, `prototype`, `wizard`, `teach`, `research`, `resolving-merge-conflicts` | — | Skipped. Capability, not discipline (zen #1). `research` dispatches a background agent (`mu`'s job); `improve-codebase-architecture` renders a Tailwind/Mermaid HTML report and depends on a `CONTEXT.md` this repo doesn't keep; `resolving-merge-conflicts` is 14 lines of git-only flow in a jj-first repo |
 | `code-simplifier`, `pr-review-expert`, `tech-debt-tracker` | various | Skipped. `code-reviewer` + `ponytail` cover this ground and are actually used (57 loads) |
 | Frontend Design, UI/UX Pro Max, Vercel React/design rules, theme-factory | 90k+ | Not applicable. No frontend work in this repo |
 | Claude Mem, Context7, Supermemory, Skill Seekers | various | Skipped. Memory/doc-fetching infrastructure, not discipline. `mu` task notes already survive compaction |

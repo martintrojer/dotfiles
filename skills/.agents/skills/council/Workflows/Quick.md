@@ -17,7 +17,7 @@ Running the **Quick** workflow in the **Council** skill to get fast perspectives
 
 ## Members
 
-Write 4 member briefs inline (name + role + stance). See `CouncilMembers.md` for writing them and `SKILL.md` § Running the members for the execution modes.
+Write 4 member briefs inline (name + role + stance). See `../CouncilMembers.md` for writing them and `../SKILL.md` § Running the members for the execution modes.
 
 ## Execution
 

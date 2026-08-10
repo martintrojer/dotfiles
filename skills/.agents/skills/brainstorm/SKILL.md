@@ -1,7 +1,7 @@
 ---
 name: brainstorm
-description: Use before any non-trivial creative work — new features, new components, new behaviour, or reworking existing behaviour. Explores intent, constraints and design through one-question-at-a-time dialogue, then produces an approved spec. Triggers on "brainstorm", "design a feature", "think through an idea", "help me plan", or any vague concept that needs refining before code gets written.
-version: 0.2.0
+description: Use before any non-trivial creative work — new features, new components, new behaviour, or reworking existing behaviour. Explores intent, constraints and design by working a decision tree in rounds of questions, then produces an approved spec. Triggers on "brainstorm", "design a feature", "think through an idea", "help me plan", or any vague concept that needs refining before code gets written.
+version: 0.3.0
 ---
 
 # Brainstorm — Design Phase
@@ -49,23 +49,49 @@ Help decompose: what are the independent pieces, how do they relate, what order
 should they be built in. Then brainstorm the *first* piece properly. Each piece
 gets its own spec.
 
-### 3. Clarifying questions — one at a time
+### 3. Clarifying questions — the design tree
 
-- **One question per message.** Not two, not a numbered list of six. A batch
-  of parallel questions loses the dependency order — an early answer often
-  reshapes which questions still matter.
-- **Carry your own recommended answer** with each question. The user should be
-  reacting to a proposal, not staring at a blank prompt.
-- **Answer it from the repo if the repo can answer it.** Never ask the user to
-  explain what already exists in the code.
+Map the design as a **tree**: every decision branches into the decisions that
+hang off it. Work the tree in **rounds**.
+
+The **frontier** is every decision whose prerequisites are already settled — the
+questions you can ask *now* without guessing at answers you haven't heard yet.
+**Ask the whole frontier in one round**, then wait for the answers before the
+next. A question whose answer depends on another question still open in this
+round belongs to a *later* round, not this one.
+
+Each answer reshapes the tree: settled decisions push the frontier outward and
+unblock what depended on them. Recompute, ask the next round.
+
+Batching only the frontier is what makes it safe — the dependency order is
+already encoded in the tree, so serialising genuinely independent questions buys
+nothing but round-trips.
+
+Format each question:
+
+```
+❓ **Q1** — **<short title>**: <the question, multiple choice where possible>
+
+➡️ <your recommended answer, and why>
+```
+
+- **Always carry your recommended answer.** The user should be reacting to a
+  proposal, not staring at a blank prompt.
+- **Answer it from the repo if the repo can answer it.** Facts are your job,
+  never the user's — read the files, run the command, check the history.
+  *Decisions* are the user's. If a frontier question needs a fact you have to go
+  find, don't block the round on it: ask the rest of the frontier now, and let
+  only the questions downstream of that fact wait.
 - Prefer multiple choice; open-ended is fine when the space is genuinely open.
 - Aim at purpose, constraints, and success criteria — not implementation trivia
   you could decide yourself.
-- Stop when you can state what "done" looks like. Extra questions are a cost.
 
-Good: "Is the priority here A) fewest moving parts, or B) handling the
-multi-user case from day one? I'd take A — nothing in the repo suggests a
-second user yet, and B is reversible."
+**Done when the frontier is empty** — every branch visited, nothing left
+silently assumed. Extra questions past that are a cost.
+
+Good: "❓ **Q1** — **Scope of state**: fewest moving parts, or handle the
+multi-user case from day one? ➡️ Fewest moving parts — nothing in the repo
+suggests a second user yet, and it's reversible."
 Bad: "What are your thoughts on the architecture?"
 
 ### 4. Propose 2–3 approaches
@@ -132,6 +158,8 @@ Wait. If they want changes, make them and re-run step 7.
 - Surface trade-offs explicitly, including ones that count against your
   recommendation.
 - Never ask a question whose answer you could have found by reading the repo.
+- Don't act on the design until the user confirms you have reached a shared
+  understanding.
 
 ## Next step
 

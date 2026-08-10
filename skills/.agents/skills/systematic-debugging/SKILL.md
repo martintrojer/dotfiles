@@ -15,9 +15,12 @@ description: Use when encountering any bug, test failure, or unexpected behavior
 
 ```
 NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
+NO HYPOTHESES WITHOUT A RED-CAPABLE LOOP FIRST
 ```
 
-If you haven't completed Phase 1, you cannot propose fixes.
+If you haven't completed Phase 1, you cannot propose fixes. If you catch
+yourself reading code to build a theory before the loop below exists, stop —
+jumping straight to a hypothesis is the exact failure this skill prevents.
 
 ## When to Use
 
@@ -55,11 +58,60 @@ You MUST complete each phase before proceeding to the next.
    - Read stack traces completely
    - Note line numbers, file paths, error codes
 
-2. **Reproduce Consistently**
-   - Can you trigger it reliably?
-   - What are the exact steps?
-   - Does it happen every time?
-   - If not reproducible → gather more data, don't guess
+2. **Build a Feedback Loop**
+
+   <!-- local addition: adapted from mattpocock/skills `diagnosing-bugs` (MIT).
+        Upstream Phase 1 says "reproduce consistently"; it does not say to build
+        the loop first, or how. -->
+
+   **This is the phase.** Everything else is mechanical. With a *tight* pass/fail
+   signal that goes red on *this* bug, bisection and instrumentation just consume
+   it. Without one, no amount of staring at code will save you. Be aggressive,
+   be creative, refuse to give up — this is where disproportionate effort pays.
+
+   Ways to construct one, in roughly this order:
+
+   1. **Failing test** at whatever seam reaches the bug
+   2. **Curl / HTTP script** against a running dev server
+   3. **CLI invocation** with a fixture input, diffed against a known-good snapshot
+   4. **Headless browser script** driving the UI, asserting on DOM/console/network
+   5. **Replay a captured trace** — a saved payload or event log, run through the
+      code path in isolation
+   6. **Throwaway harness** — minimal subset of the system, one function call
+   7. **Property / fuzz loop** for "sometimes wrong output"
+   8. **Bisection harness** — automate "boot at state X, check, repeat" so
+      `git bisect run` can drive it
+   9. **Differential loop** — same input through two versions or configs, diff
+
+   **Tighten it.** Once you have *a* loop, treat it as a product: faster (cache
+   setup, narrow scope), sharper (assert the specific symptom, not "didn't
+   crash"), more deterministic (pin time, seed RNG, isolate the filesystem). A
+   30-second flaky loop is barely better than none; a 2-second deterministic
+   one is a superpower.
+
+   **Non-deterministic bugs:** the goal is not a clean repro but a higher
+   reproduction rate. Loop the trigger 100×, parallelise, inject sleeps to
+   narrow timing windows. A 50%-flake bug is debuggable; 1% is not.
+
+   **Done when** you can name **one command** you have already run at least
+   once (show the invocation and its output) that is:
+
+   - **Red-capable** — drives the real code path and asserts the *user's exact
+     symptom*, so it goes red on this bug and green once fixed
+   - **Deterministic** — same verdict every run
+   - **Fast** — seconds, not minutes
+   - **Agent-runnable** — you can run it unattended
+
+   **If you genuinely cannot build one, stop and say so.** List what you tried
+   and ask the user for environment access, a captured artifact, or permission
+   to add temporary instrumentation. Do not proceed to hypothesise without a
+   loop.
+
+   Once it is red, **minimise**: shrink to the smallest scenario that still goes
+   red, cutting inputs, callers, config and steps one at a time and re-running
+   after each cut. Done when removing any remaining element makes it go green.
+   A minimal repro shrinks the hypothesis space in Phase 3 and becomes the
+   regression test in Phase 4.
 
 3. **Check Recent Changes**
    - What changed that could cause this?
@@ -144,10 +196,25 @@ You MUST complete each phase before proceeding to the next.
 
 **Scientific method:**
 
-1. **Form Single Hypothesis**
-   - State clearly: "I think X is the root cause because Y"
-   - Write it down
-   - Be specific, not vague
+1. **Form 3–5 Ranked Hypotheses**
+
+   <!-- local addition: adapted from mattpocock/skills `diagnosing-bugs` (MIT).
+        Upstream says "form single hypothesis", which instructs the anchoring
+        failure it should prevent. -->
+
+   Generate them all *before* testing any. Single-hypothesis generation anchors
+   on the first plausible idea.
+
+   Each must be **falsifiable** — state the prediction it makes:
+
+   > "If X is the cause, then changing Y will make the bug disappear."
+
+   If you can't state the prediction, the hypothesis is a vibe. Discard or
+   sharpen it.
+
+   **Show the ranked list to the user before testing.** They often re-rank it
+   instantly ("we just deployed a change to #3") or know what's already ruled
+   out. Cheap checkpoint, big saving. Don't block on it if they're away.
 
 2. **Test Minimally**
    - Make the SMALLEST possible change to test hypothesis
@@ -258,9 +325,9 @@ If you catch yourself thinking:
 
 | Phase | Key Activities | Success Criteria |
 |-------|---------------|------------------|
-| **1. Root Cause** | Read errors, reproduce, check changes, gather evidence | Understand WHAT and WHY |
+| **1. Root Cause** | Read errors, build + tighten + minimise the loop, check changes, gather evidence | One red-capable command, already run |
 | **2. Pattern** | Find working examples, compare | Identify differences |
-| **3. Hypothesis** | Form theory, test minimally | Confirmed or new hypothesis |
+| **3. Hypothesis** | Rank 3–5 falsifiable theories, test minimally | Confirmed or new hypothesis |
 | **4. Implementation** | Create test, fix, verify | Bug resolved, tests pass |
 
 ## When Process Reveals "No Root Cause"
