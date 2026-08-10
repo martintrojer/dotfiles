@@ -1251,12 +1251,20 @@ def state_ansi(state: AgentState, text: str) -> str:
 def filter_hints() -> str:
     """fzf ``--header`` naming every FILTER_KEYS binding.
 
-    Words, not glyphs: the glyph is already visible in the rows right
-    below, and "^x crashed" needs no legend. Glyph+word measures 65
-    columns, which wraps inside an 80%-wide popup on an 80-column client
-    (64 columns of room); words alone fit at 57. Each hint carries its own
-    state colour, so the header doubles as a legend for the status-bar
-    glyphs.
+    Glyphs, not words, because the budget is far tighter than the popup
+    width suggests. The popup is 80% of the client, but fzf then gives
+    55% of *that* to the preview, so the header field is roughly a third
+    of the terminal: measured against a real attached client it is 25
+    columns at an 80-col client, 28 at 90, 32 at 100, 39 at 120. Sizing
+    against the popup instead of the list pane is what shipped a header
+    truncated at every width ("^b bloc..").
+
+    That the glyph is already on every row below is what makes this
+    affordable: the legend sits directly above rows carrying the same
+    coloured glyph, so "^x ✗" is decoded by the very next line. Key and
+    glyph are joined without a space so the pair reads as one token and
+    the whole line fits 24 columns -- the widest arrangement tried that
+    survives an 80-column client.
 
     Hints read urgency-descending to match the row sort and the status
     pill, which is *not* FILTER_KEYS' declaration order (a/b/w/d/x).
@@ -1271,13 +1279,13 @@ def filter_hints() -> str:
     # "all" leads (as in tms's header); the states follow urgency-descending.
     ordered = sorted(FILTER_KEYS.items(), key=lambda kv: -int(kv[1]) if kv[1] else -99)
     hints = [
-        state_ansi(state, f"^{key.removeprefix('ctrl-')} {state.name}")
+        state_ansi(state, f"^{key.removeprefix('ctrl-')}{STATE_GLYPH[state]}")
         if state
         else f"^{key.removeprefix('ctrl-')} all"
         for key, state in ordered
     ]
     # Two leading spaces clear fzf's border, as tms's header does.
-    return "  " + "   ".join(hints)
+    return "  " + " ".join(hints)
 
 
 def picker_prompt(state_filter: AgentState | None, counts: str) -> str:
