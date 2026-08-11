@@ -109,6 +109,11 @@ for_window [app_id="^btop-float$"] floating enable, resize set 50 ppt 60 ppt, mo
 # The app_id is lowercase `cider` and sway matches it case-sensitively, so
 # `^Cider$` here silently matched nothing and the window landed on a workspace.
 for_window [app_id="^cider$"] border pixel 2, move scratchpad
+# T3 Code is Electron → CSD. Tiled it keeps Sway's border, but the moment it
+# floats sway honours the CSD request and `border` flips to `csd`, leaving the
+# window frameless and awkward to grab. Pin the border like VS Code above.
+# The launcher also omits WaylandWindowDecorations for the same reason.
+for_window [app_id="^t3code$"] border pixel 2
 
 exec_always ~/.config/sway/scripts/session-start
 

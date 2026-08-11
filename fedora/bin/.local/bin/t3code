@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Launcher for the extracted T3 Code AppImage. Installed by
+# fedora/t3code/setup-t3code.sh; see fedora/t3code/README.md.
+set -euo pipefail
+
+root="$HOME/.local/opt/t3code/squashfs-root"
+
+if [[ ! -x $root/AppRun ]]; then
+  echo "error: T3 Code is not installed. Run fedora/t3code/setup-t3code.sh" >&2
+  exit 1
+fi
+
+# T3 Code drives agent CLIs (codex, claude, opencode) as subprocesses, so they
+# must be on PATH. Launched from fuzzel the app inherits the systemd user
+# manager's PATH, which has ~/.local/bin (10-local-bin.conf) but not mise's
+# toolchain — mise is activated by zsh, and this never runs under zsh. The
+# shims dir is version-agnostic, unlike installs/node/<version>/bin, so a mise
+# upgrade does not silently strip codex from the app's PATH.
+export PATH="$HOME/.local/share/mise/shims:$HOME/.opencode/bin:$PATH"
+
+# Same problem one level deeper: the agent CLIs need API keys and base URLs
+# from ~/.zsh/zz-local-env.zsh (untracked, holds secrets). zsh sources it for
+# interactive shells; a GUI launch never runs zsh, so opencode's modelbridge
+# plugin fell back to http://127.0.0.1:3000, failed to reach it, and
+# registered no models — every modelbridge/* model then errored inside T3 Code
+# while working fine from a terminal. The file is plain `export` lines.
+if [[ -r $HOME/.zsh/zz-local-env.zsh ]]; then
+	# shellcheck source=/dev/null
+	source "$HOME/.zsh/zz-local-env.zsh"
+fi
+
+# Native Wayland via Ozone rather than XWayland: crisp text on fractional
+# scaling. WaylandWindowDecorations is deliberately NOT enabled — it makes
+# Electron request client-side decorations, and Sway then drops its own border
+# when the window floats. The sway config pins `border pixel 2` for this
+# app_id as a second line of defence.
+exec "$root/AppRun" \
+	--no-sandbox \
+	--ozone-platform-hint=auto \
+	--enable-features=WaylandFractionalScaleV1 \
+	"$@"

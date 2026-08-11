@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=T3 Code
+Comment=Agent harness control surface (Codex, Claude, Cursor, OpenCode)
+Exec=t3code %U
+Type=Application
+Icon=t3code
+Terminal=false
+StartupWMClass=t3code
+Categories=Development;
+MimeType=x-scheme-handler/t3code;x-scheme-handler/t3code-dev;

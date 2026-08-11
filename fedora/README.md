@@ -35,6 +35,9 @@ For daily automatic flatpak updates (no stock Fedora timer on Sway Atomic) and
 per-app flatpak fixes (e.g. the Cider Apple Music client), see
 [`flatpak/README.md`](./flatpak/README.md).
 
+For T3 Code (agent-harness UI, shipped upstream as a bare AppImage with no
+Fedora package), see [`t3code/README.md`](./t3code/README.md).
+
 ## Package Lists
 
 The `os/` setup scripts are thin wrappers around shared package arrays; all
