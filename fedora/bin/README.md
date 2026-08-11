@@ -59,6 +59,14 @@ The headless server is normally managed by `lmstudio-server.service` through
 the companion `lmstudio-server` supervisor (see [../README.md](../README.md));
 this wrapper remains useful for ad-hoc CLI commands.
 
+## t3code
+
+Launcher for the extracted T3 Code AppImage at
+`~/.local/opt/t3code/squashfs-root/`. It puts mise's shims on `PATH` (T3 Code
+spawns `codex`/`claude`/`opencode`, which a GUI launch would not otherwise
+find) and selects native Wayland. Installed and updated by
+[`fedora/t3code/setup-t3code.sh`](../t3code/README.md).
+
 ## Wallpaper helpers
 
 - `wallpaper set <url-or-file>` stores the wallpaper under `~/.local/share/wallpapers/archive/`, updates `~/.local/share/wallpapers/current`, and restarts `swaybg.service`
