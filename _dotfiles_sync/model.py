@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, TypeAlias
+from typing import Literal
 
-Action: TypeAlias = Literal["check", "apply"]
-PackageScope: TypeAlias = Literal["common", "darwin", "linux", "fedora", "gaming"]
-Conflict: TypeAlias = tuple[str, str]
+type Action = Literal["check", "apply"]
+type PackageScope = Literal["common", "darwin", "linux", "fedora", "gaming"]
+type Conflict = tuple[str, str]
 
 
 @dataclass(frozen=True)

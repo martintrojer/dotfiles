@@ -56,4 +56,4 @@ From the repo root:
 
 ## Quality bar
 
-From the repo root, `make check-python` runs `ruff` + `ty` + `py_compile` on every Python file in the repo (not just this module). Run it before sending any change here.
+From the repo root, `make check-python` runs `ruff` + `ty` + `py_compile` on every Python file in the repo (not just this module). Run it before sending any change here. Versions are pinned in the Makefile and fetched through `uv`, so you don't need them installed — see *Pinned toolchain* in [`../docs/SETUP.md`](../docs/SETUP.md).

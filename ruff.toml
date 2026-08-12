@@ -1,5 +1,10 @@
 line-length = 88
-target-version = "py311"
+# The checkers run under the uv-pinned interpreter (see PYTHON_VERSION in the
+# Makefile), but these scripts are executed by each host's `#!/usr/bin/env
+# python3`. Keep the emitted syntax at 3.13 so a 3.14-only rewrite (e.g. PEP 758
+# unparenthesized `except A, B:`) can't turn a linter bump into a runtime
+# SyntaxError on a machine that hasn't caught up.
+target-version = "py313"
 extend-exclude = [
   "yazi/.config/yazi/flavors",
 ]
