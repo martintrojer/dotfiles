@@ -30,6 +30,9 @@ neovim = "latest"
 # Pinned to a major, not latest: pi and other Node tooling are installed into
 # this runtime, and a major bump silently orphans their global installs.
 node = "24"
+# prettier/shellcheck/stylua are here for editor format-on-save and ad-hoc CLI
+# use. The repo's `make check-*` gate does not use them: it pins its own
+# versions and runs them via uvx/npx (see docs/SETUP.md).
 prettier = "latest"
 rclone = "latest"
 ripgrep = "latest"

@@ -8,7 +8,29 @@ RUFF_CONFIG := ruff.toml
 TY_CONFIG := ty.toml
 PRETTIER_CONFIG := .prettierrc.json
 TSCONFIG := tsconfig.json
-TYPESCRIPT_VERSION := 5
+
+# Toolchain is pinned here, not inherited from whatever each machine happens to
+# have installed: uv/npm are the only assumed binaries and both fetch-and-cache
+# the exact pinned version, so `make check-all` behaves identically on every
+# host and a toolchain bump is a reviewable one-line diff.
+#
+# luacheck stays a system binary: it is a Lua rock with no usable npm/PyPI
+# distribution (the `luacheck` npm package is unrelated 2015 bindings).
+PYTHON_VERSION := 3.14
+RUFF_VERSION := 0.16.2
+TY_VERSION := 0.0.70
+SHELLCHECK_VERSION := 0.11.0.1
+STYLUA_VERSION := 2.5.2
+PRETTIER_VERSION := 3.9.6
+TYPESCRIPT_VERSION := 7.0.2
+
+PYTHON := uv run --python $(PYTHON_VERSION) --no-project --quiet python
+RUFF := uvx --quiet ruff@$(RUFF_VERSION)
+TY := uvx --quiet ty@$(TY_VERSION)
+SHELLCHECK := uvx --quiet --from shellcheck-py==$(SHELLCHECK_VERSION) shellcheck
+STYLUA := npx -y @johnnymorganz/stylua-bin@$(STYLUA_VERSION)
+PRETTIER := npx -y prettier@$(PRETTIER_VERSION)
+TSC := npx -y -p typescript@$(TYPESCRIPT_VERSION) tsc
 PYTHON_PY_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f --extension py --print0 .
 PYTHON_SHEBANG_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f '^[^.]+$$' . -X bash -lc 'for path in "$$@"; do IFS= read -r first < "$$path" || true; if [[ $$first =~ ^\#!.*python ]]; then printf "%s\\0" "$$path"; fi; done' bash
 PYTHON_FILES_CMD := { $(PYTHON_PY_FILES_CMD); $(PYTHON_SHEBANG_FILES_CMD); }
@@ -49,12 +71,14 @@ DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests sway/.config/sway/scrip
 	clean-guides \
 	theme \
 	check-theme \
+	tool-versions \
 	push
 
 help:
 	printf '%s\n' \
 	  'Targets:' \
 	  '  make check-all         # python + shell + zsh + lua + prettier + ts + focused behavior tests' \
+	  '  make tool-versions     # print the pinned toolchain versions' \
 	  '  make format-all        # python + lua + prettier formatters' \
 	  '  make check-python      # ruff check/format + ty + py_compile on all Python files/scripts' \
 	  '  make format-python     # ruff format + safe autofixes' \
@@ -83,17 +107,17 @@ check-all: check-python check-shell check-zsh check-lua check-prettier check-ts 
 format-all: format-python format-lua format-prettier
 
 check-python:
-	$(PYTHON_FILES_CMD) | xargs -0 ruff check --config $(RUFF_CONFIG)
-	$(PYTHON_FILES_CMD) | xargs -0 ruff format --check --config $(RUFF_CONFIG)
-	$(PYTHON_FILES_CMD) | xargs -0 ty check --config-file $(TY_CONFIG)
-	$(PYTHON_FILES_CMD) | xargs -0 python3 -m py_compile
+	$(PYTHON_FILES_CMD) | xargs -0 $(RUFF) check --config $(RUFF_CONFIG)
+	$(PYTHON_FILES_CMD) | xargs -0 $(RUFF) format --check --config $(RUFF_CONFIG)
+	$(PYTHON_FILES_CMD) | xargs -0 $(TY) check --config-file $(TY_CONFIG)
+	$(PYTHON_FILES_CMD) | xargs -0 $(PYTHON) -m py_compile
 
 format-python:
-	$(PYTHON_FILES_CMD) | xargs -0 ruff format --config $(RUFF_CONFIG)
-	$(PYTHON_FILES_CMD) | xargs -0 ruff check --config $(RUFF_CONFIG) --fix
+	$(PYTHON_FILES_CMD) | xargs -0 $(RUFF) format --config $(RUFF_CONFIG)
+	$(PYTHON_FILES_CMD) | xargs -0 $(RUFF) check --config $(RUFF_CONFIG) --fix
 
 check-shell:
-	$(SHELL_FILES_CMD) | xargs -0 shellcheck --severity=style
+	$(SHELL_FILES_CMD) | xargs -0 $(SHELLCHECK) --severity=style
 
 # zsh has no shellcheck equivalent; `zsh -n` still catches the parse errors that
 # would break a login shell (tools.zsh is machine-edited by render_theme.py).
@@ -102,23 +126,23 @@ check-zsh:
 	for file in $(ZSH_FILES); do zsh -n "$$file"; done
 
 check-lua:
-	stylua --check $(LUA_FILES)
+	$(STYLUA) --check $(LUA_FILES)
 	luacheck $(LUA_FILES)
 
 format-lua:
-	stylua $(LUA_FILES)
+	$(STYLUA) $(LUA_FILES)
 
 check-prettier:
-	prettier --config $(PRETTIER_CONFIG) --check $(PRETTIER_FILES)
+	$(PRETTIER) --config $(PRETTIER_CONFIG) --check $(PRETTIER_FILES)
 
 format-prettier:
-	prettier --config $(PRETTIER_CONFIG) --write $(PRETTIER_FILES)
+	$(PRETTIER) --config $(PRETTIER_CONFIG) --write $(PRETTIER_FILES)
 
 # No package.json here: the TS is loaded by globally installed hosts, so the
 # type packages are symlinked into a scratch node_modules first (gitignored).
 check-ts:
-	python3 _dotfiles_sync/link_ts_types.py
-	npx -y -p typescript@$(TYPESCRIPT_VERSION) tsc -p $(TSCONFIG)
+	$(PYTHON) _dotfiles_sync/link_ts_types.py
+	$(TSC) -p $(TSCONFIG)
 
 # No runner dependency: node strips the TS types itself, so `node --test` runs
 # the *.test.ts files directly. The glob is quoted so node expands it (make/sh
@@ -134,31 +158,42 @@ check-tmux-tests:
 # Relies on .SHELLFLAGS -e above: without it the loop would report only the
 # last directory's status and a failure in an earlier suite would pass silently.
 check-fedora-tests:
-	for dir in $(FEDORA_TEST_DIRS); do python3 -m unittest discover -s "$$dir" -p 'test_*.py'; done
+	for dir in $(FEDORA_TEST_DIRS); do $(PYTHON) -m unittest discover -s "$$dir" -p 'test_*.py'; done
 
 # Same .SHELLFLAGS -e dependency as check-fedora-tests above.
 check-desktop-tests:
-	for dir in $(DESKTOP_TEST_DIRS); do python3 -m unittest discover -s "$$dir" -p 'test_*.py'; done
+	for dir in $(DESKTOP_TEST_DIRS); do $(PYTHON) -m unittest discover -s "$$dir" -p 'test_*.py'; done
 
 build-guides:
-	python3 guides/build.py
+	$(PYTHON) guides/build.py
 
 serve-guides: build-guides
-	python3 -m http.server --directory guides/build 8000
+	$(PYTHON) -m http.server --directory guides/build 8000
 
 check-guides:
-	python3 guides/build.py --check
-	python3 -m unittest discover -s guides -p 'test_*.py'
+	$(PYTHON) guides/build.py --check
+	$(PYTHON) -m unittest discover -s guides -p 'test_*.py'
 
 clean-guides:
 	rm -rf guides/build
 
 theme:
-	python3 _dotfiles_sync/render_theme.py --write
+	$(PYTHON) _dotfiles_sync/render_theme.py --write
 
 check-theme:
-	python3 _dotfiles_sync/render_theme.py --check
-	python3 -m unittest discover -s _dotfiles_sync/tests -p 'test_*.py'
+	$(PYTHON) _dotfiles_sync/render_theme.py --check
+	$(PYTHON) -m unittest discover -s _dotfiles_sync/tests -p 'test_*.py'
+
+tool-versions:
+	printf '%s\n' \
+	  'python      $(PYTHON_VERSION) (uv)' \
+	  'ruff        $(RUFF_VERSION) (uvx)' \
+	  'ty          $(TY_VERSION) (uvx)' \
+	  'shellcheck  $(SHELLCHECK_VERSION) (uvx shellcheck-py)' \
+	  'stylua      $(STYLUA_VERSION) (npx)' \
+	  'prettier    $(PRETTIER_VERSION) (npx)' \
+	  'typescript  $(TYPESCRIPT_VERSION) (npx)' \
+	  'luacheck    system binary (no npm/PyPI distribution)'
 
 # The repo's push gate. This is a make target rather than a pre-push hook
 # because jj (0.42) has no hook point at all and `jj git push` does not run
