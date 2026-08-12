@@ -153,6 +153,7 @@ until a later count sees real use.
 | Skill | Trigger | Description |
 |-------|---------|-------------|
 | `/skill:avoid-ai-writing` | "remove AI-isms", "clean up AI writing", "make this sound less like AI" | Audit/rewrite text to strip AI writing patterns. Detect, rewrite, and edit-in-place modes; optional voice profiles; bundled deterministic `detector/patterns.js` |
+| `/skill:wait-what` | You stopped following a reply. **User-invoked only** — type it | Re-pitch the last message: add the skipped premise, flatten the structure, keep every path/command/number verbatim. Simpler, not shorter |
 | `/skill:writing-for-agents` | Creating or editing a skill, or modifying `AGENTS.md` | The counterpart for prose *agents* read: context pointers, the two loads, progressive disclosure, leading words, the no-op hunt. `SKILL-MECHANICS.md` covers skill frontmatter and the model- vs user-invoked choice |
 
 ### Code Quality
@@ -230,6 +231,18 @@ to be worth a decision.
 | Frontend Design, UI/UX Pro Max, Vercel React/design rules, theme-factory | 90k+ | Not applicable. No frontend work in this repo |
 | Claude Mem, Context7, Supermemory, Skill Seekers | various | Skipped. Memory/doc-fetching infrastructure, not discipline. `mu` task notes already survive compaction |
 | `agent-browser`, `playwright-skill`, `webapp-testing` | 14k+ | Skipped. Nothing to browser-test here |
+
+### The "say it simpler" genre
+
+Surveyed when `wait-what` was written. Two upstreams were worth reading, neither
+worth vendoring — the result is the distilled local `wait-what` above (zen #5).
+
+| Skill | Verdict |
+|-------|---------|
+| [`luchasarie/bro-skill`](https://github.com/luchasarie/bro-skill) (MIT) @ `01e51f8` | **Partly taken.** Its two real contributions — *facts survive verbatim* and *simpler, not shorter* — are rules in local `wait-what`. Skipped: the "light bro flavor" rule (noise), the same-language rule (default behaviour on an English-only host), the PT-BR examples, and a four-tool `install.sh` that `dotfiles-sync` replaces |
+| `mattpocock/skills` `wait-what` | **Partly taken.** The *mechanism* is right and is the one kept: name the **listener's** state, not the output. "Be concise" makes the model clip words and lose you; "wait, you lost me" makes it back up. Also its stay-tiny discipline — a 400-line concision skill still leaves the model verbose, because the model reads the volume, not the plea. Skipped: `CONTEXT.md` (not a convention here — retargeted to `AGENTS.md`) and ASD-STE100 Simplified Technical English, a controlled-language spec the model only half-knows. Its doc's "how far back to go" note was promoted into the skill body, where it's load-bearing |
+| [`DreambigOu/ELI5`](https://github.com/dreambigou/eli5) | Skipped. Retargets an explanation at a chosen audience (kid, manager, engineer) — capability, not discipline (zen #1), and re-aiming is *re-answering*, which is the one thing this genre must not do |
+| `/eli5`, `/tldr`, `/no-fluff`, `/talk-normal` as prompt macros | Skipped, and they are the anti-pattern. All name the **output**, so the model over-corrects into a caveman register: shorter and no clearer. `caveman` already owns deliberate compression |
 
 ### ponytail — the sibling skills
 
