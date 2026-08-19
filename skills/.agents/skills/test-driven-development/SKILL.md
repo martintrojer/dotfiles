@@ -1,6 +1,6 @@
 ---
 name: test-driven-development
-description: Use when implementing any feature or bugfix, before writing implementation code
+description: Use when the user explicitly asks for TDD, a failing test, or a regression test, or when fixing a bug with an obvious cheap local test target. Once selected, require a real red-green cycle before production changes. Skip a new automated test when the path is unclear, expensive, integration-heavy, or weaker than direct executable verification.
 ---
 
 # Test-Driven Development (TDD)
@@ -13,30 +13,34 @@ Write the test first. Watch it fail. Write minimal code to pass.
 
 **Violating the letter of the rules is violating the spirit of the rules.**
 
-## When to Use
+<!-- local addition: selection gate adapted from pstack `tdd` (MIT) @ 60c641e -->
 
-**Always:**
-- New features
-- Bug fixes
-- Refactoring
-- Behavior changes
+## Select TDD First
 
-**Exceptions (ask the user):**
-- Throwaway prototypes
-- Generated code
-- Configuration files
+Use this workflow when:
 
-Thinking "skip TDD just this once"? Stop. That's rationalization.
+- The user explicitly asks for TDD, a failing test, or a regression test.
+- A bug has an obvious, cheap test target already used by the affected code.
+
+Do not force a new test when the path is unclear, expensive,
+integration-heavy, or mostly mocks; when it needs broad harness setup,
+production-only state, or unrelated fixture churn; or for generated code,
+configuration-only changes, and throwaway prototypes.
+
+When TDD does not fit, state why before editing production code and choose the
+closest executable check: a focused script, an existing integration check, a
+manual reproduction command, browser automation, a snapshot comparison, or a
+runtime assertion. Prefer no new test over a test that cannot catch the bug.
 
 ## The Iron Law
 
 ```
-NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
+ONCE TDD IS SELECTED, NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
 ```
 
 Write code before the test? Delete it. Start over.
 
-**No exceptions:**
+**No shortcuts inside a selected TDD cycle:**
 - Don't keep it as "reference"
 - Don't "adapt" it while writing tests
 - Don't look at it
@@ -53,13 +57,15 @@ A **seam** is the public boundary you test at: the interface where you can
 observe behavior without reaching inside. Tests live at seams, never against
 internals.
 
-**Test only at pre-agreed seams.** Before writing any test, name the seams under
-test and confirm them with the user. No test is written at an unconfirmed seam.
+**Test at an agreed seam.** Name the seam before writing the test. Prefer the
+public boundary and test shape the repository already uses. Ask the user only
+when choosing a seam would decide product or API direction; otherwise use the
+existing convention and proceed.
 
-You can't test everything. Agreeing the seams up front is how testing effort
+You can't test everything. Naming the seam up front is how testing effort
 lands on the critical paths and the complex logic instead of being spread evenly
-over every edge case. Ask: "what's the public interface, and which seams should
-we test?"
+over every edge case. Ask: "what's the public interface, and which seam would
+catch this behavior?"
 
 When the shape of that interface is itself the open question, that's a design
 question — `brainstorm` it before writing tests against a boundary you don't
@@ -245,6 +251,10 @@ When writing or changing any test, read [writing-good-tests.md](writing-good-tes
 
 ## Common Rationalizations
 
+These are rationalizations only after the TDD gate above has selected this
+workflow. They are not reasons to manufacture a weak test where no useful test
+path exists.
+
 | Excuse | Reality |
 |--------|---------|
 | "Too simple to test" | Simple code breaks. Test takes 30 seconds. |
@@ -320,7 +330,7 @@ Extract validation for multiple fields if needed.
 
 Before marking work complete:
 
-- [ ] Every new function/method has a test
+- [ ] Every behavior in the selected TDD cycle has a test
 - [ ] Watched each test fail before implementing
 - [ ] Each test failed for expected reason (feature missing, not typo)
 - [ ] Wrote minimal code to pass each test
@@ -342,18 +352,18 @@ Can't check all boxes? You skipped TDD. Start over.
 
 ## Debugging Integration
 
-Bug found? Write failing test reproducing it. Follow TDD cycle. Test proves fix and prevents regression.
-
-Never fix bugs without a test.
+When a bug has a cheap executable test path, write the failing reproduction and
+follow the TDD cycle. When it does not, record the reason and use the closest
+executable regression check.
 
 ## Final Rule
 
 ```
-Production code → test exists and failed first
-Otherwise → not TDD
+Selected TDD cycle → test exists and failed first
+Otherwise → use the declared executable verification path
 ```
 
-No exceptions without the user's permission.
+Do not claim TDD when the red step did not happen.
 
 ## Related
 

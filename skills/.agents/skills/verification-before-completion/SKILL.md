@@ -103,6 +103,21 @@ Skip any step = lying, not verifying
 ❌ Trust agent report
 ```
 
+### Prove the Safety Invariant
+
+<!-- local addition: distilled from pstack's blast-radius skill (MIT). -->
+
+For a risky change whose effects extend beyond the diff, name the one fact its
+safety depends on. Push that fact as far down this evidence ladder as practical:
+
+1. Point to the exact source or contract.
+2. Walk the failure path and show why it cannot reach.
+3. Run the real code in a focused script or test.
+4. Exercise the path in the running artifact.
+
+Report the rung reached. If the fact cannot be executed or observed, label it
+`unproven`; do not round a plausible explanation up to verification.
+
 ## When To Apply
 
 **ALWAYS before:**

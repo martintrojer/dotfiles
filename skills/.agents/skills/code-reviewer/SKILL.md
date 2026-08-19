@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Use this skill when reviewing production code for dead code, duplication, unnecessary complexity, and non-idiomatic patterns. Use after implementing a feature, after refactors, or whenever code quality feedback is requested.
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Code Reviewer
@@ -82,12 +82,31 @@ Two rules bind the baseline:
   Feature Envy"), never a hard violation — and, like any standard here, skip
   anything tooling already enforces.
 
+### 6. Design Shape and Enforcement
+
+<!-- local addition: distilled from pstack's design red flags,
+     minimize-reader-load, and encode-lessons-in-structure (MIT). -->
+
+- **Information leakage** — one representation, policy, protocol, or storage
+  detail is known by several modules. Keep it behind one boundary and expose the
+  domain concept instead.
+- **Temporal decomposition** — modules are split by execution order (`load`,
+  `validate`, `transform`, `save`) while repeating the same knowledge. Group
+  code by ownership of the data and its invariants.
+- **Reader-held state** — understanding a value requires tracing layers or
+  remembering mutable facts from elsewhere. Cut pass-through layers, shrink
+  mutable scope, and derive instead of synchronizing.
+- **Prose-only constraint** — a comment says `must`, `never`, `keep in sync`, or
+  `do not remove`, but nothing enforces it. Prefer a type, test, lint rule,
+  metadata flag, runtime check, or canonical helper. Keep prose when the rule
+  genuinely requires judgment.
+
 ## Review Process
 
 1. Scan for obvious issues (dead code, duplicate blocks)
 2. Evaluate architecture for unnecessary complexity
 3. Check language/framework idiomaticity
-4. Pass the smell baseline over the diff
+4. Pass the smell baseline and design-shape checks over the diff
 5. Propose simplifications with concrete alternatives
 6. Prioritize by impact
 

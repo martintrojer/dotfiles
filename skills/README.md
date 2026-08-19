@@ -124,22 +124,23 @@ until a later count sees real use.
 
 | Skill | Upstream | Notes |
 |-------|----------|-------|
-| `avoid-ai-writing` | [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing) (MIT) | v3.23.0 @ `f9fef0e`; `SKILL.md` plus the zero-dependency `detector/` engine. `validate.js` has a CLI (`node detector/validate.js <before> <after>`); `patterns.js` is a **library only** — call `analyzeText` via `node -e`, as `SKILL.md` shows. Upstream ships a `version:` field, so this one is the exception to the rule above |
+| `unslop` | [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing) (MIT) v3.23.0 @ `f9fef0e` + [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT) `unslop` @ `60c641e` | Local synthesis, not byte-comparable to either source. The compact `SKILL.md` is always on; the exhaustive catalog and zero-dependency detector/validator load only for explicit cleanup. The merged license retains both upstream notices. `patterns.js` remains a library called through `node -e` |
+| `technical-writing` | [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT) @ `60c641e` | Upstream `skills/technical-writing`. Local: dropped Cursor's `disable-model-invocation` field so generic agents can discover it, plus a marked `## Related` row routing agent-facing documents to `writing-for-agents` |
 | `caveman` | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) (MIT) | Synced @ `7066cc8`, byte-identical to upstream `skills/caveman/SKILL.md` |
 | `council` | [danielmiessler/LifeOS](https://github.com/danielmiessler/LifeOS) `install/skills/Council` | Upstream v1.1.20 @ `47df8ee`. **De-Clauded**: dropped the voice-notification curl, the `~/.claude/LIFEOS/` customization path, the execution-log JSONL, and the RedTeam cross-references; `name` lowercased to match the directory. Upstream's `subagent_type: general-purpose` calls became the harness-neutral *Running the members* section. Also fixed upstream's bare `CouncilMembers.md` / `SKILL.md` references inside `Workflows/` to `../` |
 | `ponytail` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT) | Synced @ `16f2980`. One local addition: a *Touch only what you must* section adapted from [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT) — upstream ponytail covers what you don't *write*, not what you don't *touch*. Upstream also ships five sibling skills (`-review`, `-audit`, `-debt`, `-gain`, `-help`), deliberately not vendored — see below |
 | `summarize` | [steipete/summarize](https://github.com/steipete/summarize) | Locally rewritten backend section: this host pins OpenCode (`big-pickle`) as the only provider. See `summarize/README.md` |
-| `writing-for-agents` | [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) `skills/productivity/writing-for-agents` @ `84fdeff` | Plus `SKILL-MECHANICS.md`. Local: dropped the `CLAUDE.md` mentions from the description and opening line, added a `## Related` table. Upstream's `agents/openai.yaml` is Codex-plugin metadata, not vendored |
+| `writing-for-agents` | [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) `skills/productivity/writing-for-agents` @ `84fdeff` | Plus `SKILL-MECHANICS.md`. Local: dropped the `CLAUDE.md` mentions, added the pstack enforcement ladder, and routes human-facing prose to `technical-writing` and cleanup to `unslop`. Upstream's `agents/openai.yaml` is Codex-plugin metadata, not vendored |
 | `receiving-code-review` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Local: "your human partner" → "the user"; two quoted-maxim attributions rewritten as standalone rules |
 | `systematic-debugging` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Plus `root-cause-tracing.md`, `defense-in-depth.md`, `condition-based-waiting.md` + example, `find-polluter.sh`. Local: retargeted two `superpowers:`-prefixed sub-skill references, fixed a mangled `## your human partner's Signals` heading |
-| `test-driven-development` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Plus `writing-good-tests.md` (the write-time counterpart to `test-reviewer`). Same "human partner" and `superpowers:` retargeting |
-| `verification-before-completion` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Verbatim |
+| `test-driven-development` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Plus `writing-good-tests.md` and earlier retargeting. Local selection gate adapted from pstack `tdd` @ `60c641e`: require red-first for requested TDD or cheap bug tests, otherwise use the closest meaningful executable check |
+| `verification-before-completion` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Local pstack @ `60c641e` backport: name and prove the safety invariant for risky indirect changes, or label it unproven |
 
 ### Planning & Execution
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `/skill:brainstorm` | "brainstorm", "design a feature", "think through" | One-question-at-a-time dialogue into an approved spec at `docs/specs/`. Hard gate: no code before the user approves a design |
+| `/skill:brainstorm` | "brainstorm", "design a feature", "think through" | Work a decision tree in dependency-ordered rounds, then write an approved spec at `docs/specs/`. Hard gate: no code before the user approves a design |
 | `/skill:write-plan` | "write a plan", "plan this feature" | Turn an approved spec into ordered, independently verifiable tasks at `docs/plans/`. TDD steps, exact paths, no placeholders |
 
 ### Version Control
@@ -152,20 +153,21 @@ until a later count sees real use.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `/skill:avoid-ai-writing` | "remove AI-isms", "clean up AI writing", "make this sound less like AI" | Audit/rewrite text to strip AI writing patterns. Detect, rewrite, and edit-in-place modes; optional voice profiles; bundled deterministic `detector/patterns.js` |
+| `/skill:unslop` | Every response and prose artifact; explicit cleanup on "unslop", "remove AI-isms", "audit", "rewrite", or "edit" | Always-on direct, specific prose discipline. Explicit requests unlock the detailed catalog, detect/rewrite/edit modes, and deterministic detector/validator; ambient use never runs them |
+| `/skill:technical-writing` | Writing or reviewing human-facing docs, RFCs, READMEs, PR descriptions, or commit messages | Diátaxis, Google developer style, Simplified Technical English, and Global English for tutorials, how-tos, reference, explanations, RFCs, READMEs, PR descriptions, and commit bodies |
 | `/skill:wait-what` | You stopped following a reply. **User-invoked only** — type it | Re-pitch the last message: add the skipped premise, flatten the structure, keep every path/command/number verbatim. Simpler, not shorter |
-| `/skill:writing-for-agents` | Creating or editing a skill, or modifying `AGENTS.md` | The counterpart for prose *agents* read: context pointers, the two loads, progressive disclosure, leading words, the no-op hunt. `SKILL-MECHANICS.md` covers skill frontmatter and the model- vs user-invoked choice |
+| `/skill:writing-for-agents` | Creating or editing a skill, or modifying `AGENTS.md` | Prose agents read: context pointers, progressive disclosure, completion criteria, the no-op hunt, and an enforcement ladder that moves recurring constraints out of prose when code can own them |
 
 ### Code Quality
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `/skill:code-reviewer` | "review this code", after refactors | Find dead code, duplication, unnecessary complexity, non-idiomatic patterns |
+| `/skill:code-reviewer` | "review this code", after refactors | Find dead code, duplication, unnecessary complexity, leakage, temporal decomposition, reader-held state, and prose constraints code should enforce |
 | `/skill:test-reviewer` | "review tests", after writing tests | Catch false confidence, excessive mocking, meaningless assertions |
-| `/skill:test-driven-development` | Implementing any feature or bugfix, before writing code | Red-green-refactor with the watch-it-fail step as the load-bearing part. `writing-good-tests.md` covers mocking depth, mirror assertions, the mutation check |
+| `/skill:test-driven-development` | Explicit TDD requests, or bugs with a cheap meaningful local test | Red-green-refactor when selected; otherwise state why a new test would be weak or expensive and use the closest executable verification |
 | `/skill:systematic-debugging` | Any bug, test failure, or unexpected behaviour | Four-phase root-cause discipline. No fixes before investigation; symptom patches are failures |
 | `/skill:receiving-code-review` | Getting review feedback, before acting on it | Verify before implementing. Kills performative agreement ("You're absolutely right!") and blind implementation |
-| `/skill:verification-before-completion` | About to claim something works | Evidence before claims. Run the command, read the output, then speak |
+| `/skill:verification-before-completion` | About to claim something works | Evidence before claims. For risky indirect changes, name and prove the safety invariant against real code or a running artifact, or call it unproven |
 
 ### Multi-Agent
 
@@ -220,6 +222,7 @@ to be worth a decision.
 
 | Skill | Stars | Verdict |
 |-------|-------|---------|
+| [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack) skills @ `60c641e` | — | **Partly taken.** Added `technical-writing`; merged compact `unslop` with the stronger existing cleanup machinery; backported caller-first design, the cheap-test TDD gate, design-shape review checks, blast-radius invariants, and the enforcement ladder. Skipped `poteto-mode`, `arena`, `swarm`, `interrogate`, `reflect`, setup/model routing, worktree/Graphite flows, and multi-model review because they rely on Cursor primitives or duplicate `mu`. Skipped `bro` because `wait-what` owns that decision. Skipped `how`, `why`, `teach`, `recall`, verification-skill generators, TypeScript guidance, and standalone principle skills because they add capability, environment-specific integration, or overlapping instructions rather than a distinct discipline |
 | [`andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) | ~175k | **Partly taken.** Four rules: *Think Before Coding* ≈ `brainstorm`, *Simplicity First* ≈ `ponytail`, *Goal-Driven Execution* ≈ `test-driven-development` + `verification-before-completion`. Only *Surgical Changes* had no home — adapted into `ponytail`. Also it's a `CLAUDE.md`, always-on by design, which is a worse fit than a triggered skill |
 | [`mattpocock/skills`](https://github.com/mattpocock/skills) `grill-me` / `grilling` | ~200k repo | **Partly taken**, twice. First pass took the recommended-answer-per-question and answer-from-the-repo refinements. Re-checked @ `84fdeff`: `grilling` had since become a **design tree** worked in **rounds** — ask the whole *frontier* (decisions whose prerequisites are settled) at once, recompute, repeat, done when the frontier is empty. That replaced `brainstorm`'s strict one-question-per-message rule, which was paying round-trips to re-derive an ordering the tree already encodes. `grill-me` and `grill-with-docs` are thin aliases into it |
 | `mattpocock/skills` `handoff` | — | Skipped. Pi ships a `handoff` **extension** (`examples/extensions/handoff.ts`) that forks a real session — strictly better than a skill that writes a markdown file |
