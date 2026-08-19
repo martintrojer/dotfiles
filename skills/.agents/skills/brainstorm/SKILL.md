@@ -1,7 +1,7 @@
 ---
 name: brainstorm
 description: Use before any non-trivial creative work — new features, new components, new behaviour, or reworking existing behaviour. Explores intent, constraints and design by working a decision tree in rounds of questions, then produces an approved spec. Triggers on "brainstorm", "design a feature", "think through an idea", "help me plan", or any vague concept that needs refining before code gets written.
-version: 0.3.0
+version: 0.4.0
 ---
 
 # Brainstorm — Design Phase
@@ -113,6 +113,12 @@ error handling, testing approach, and what's explicitly out of scope.
 each, communicating through defined interfaces. For each unit you should be able
 to say what it does, how it's used, and what it depends on. If you can't
 describe a unit without describing its internals, the boundary is wrong.
+
+**Write the caller's view first:** for an API or reusable component, show two or
+three realistic call sites before sketching its types or signatures. Derive the
+shape from what callers need to express. When the usage and the type sketch
+disagree, reconcile the sketch to the usage rather than making callers carry the
+implementation's private decisions.
 
 **In existing codebases:** follow the patterns already there. Where existing
 code genuinely obstructs the work — a file that's grown unwieldy, a tangled

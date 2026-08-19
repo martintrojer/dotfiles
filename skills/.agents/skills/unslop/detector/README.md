@@ -4,8 +4,9 @@
 zero-dependency, build-step-free detection engine that scores text for
 AI-writing tells. It runs identically in Node (`>=18`) and in the browser.
 
-The skill's `SKILL.md` is the human-readable catalog of rules; this engine is
-the deterministic, testable implementation of the regex-detectable subset, plus
+The skill's [`references/patterns.md`](../references/patterns.md) is the
+human-readable catalog of rules; this engine is the deterministic, testable
+implementation of the regex-detectable subset, plus
 stylometric and AI-tool-fingerprint detectors that don't make sense as prose.
 See [`CATEGORIES.md`](./CATEGORIES.md) for the rule ↔ category mapping that keeps
 the two in sync.
@@ -47,8 +48,8 @@ headers). Invalid modes fall back to `general` and set `stats.contextModeFallbac
 
 ## `validate(original, rewritten, options?)` → result
 
-`validate.js` checks that a rewrite kept its hands off the things `SKILL.md`
-says not to touch. Edit mode writes to files, so a violation there is silent
+`validate.js` checks that a rewrite kept its hands off the things the skill says
+not to touch. Edit mode writes to files, so a violation there is silent
 and destructive.
 
 ```js
@@ -76,14 +77,15 @@ fires on its own instructions: stripping AI tracking parameters from URLs
 an emoji. Indented code blocks are counted but not enforced, since four-space
 indentation is also how markdown continues a list item.
 
-## Scoring our own docs
+## Scoring the upstream docs
+
+These commands require the full upstream clone and are not available in this
+vendored bundle:
 
 ```bash
 npm run self-scan          # table
 npm run self-scan:check    # exits 1 if a document is over budget (runs in CI)
 ```
-
-Results and the findings it surfaced are in [`../PROOF.md`](../PROOF.md).
 
 ## Design notes
 

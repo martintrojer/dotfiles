@@ -1,27 +1,28 @@
-# Category map: SKILL.md ↔ detector
+# Category map: pattern catalog ↔ detector
 
 This table is the anti-drift contract between the human-readable rules in
-`../SKILL.md` and the executable engine in `patterns.js`. When you add a rule to
-the skill, decide here whether it's regex-detectable (give it a detector `type`)
-or LLM-only judgment (mark it so). When you add a detector `type`, point it back
-at the skill section it enforces.
+`../references/patterns.md` and the executable engine in `patterns.js`. When you
+add a rule to the catalog, decide here whether it's regex-detectable (give it a
+detector `type`) or LLM-only judgment (mark it so). When you add a detector
+`type`, point it back at the catalog section it enforces.
 
 The engine exposes 47 issue `type`s (see `TYPE_LABELS` in `patterns.js`). The
-skill has more `###` sections than that — the gap is **not** missing coverage,
+catalog has more `###` sections than that — the gap is **not** missing coverage,
 it's rules that are judgment calls a regex can't make. The three groups below
 account for every entry on both sides.
 
 Three counts coexist on purpose and should not be forced to match: the README's
-**pattern-category count** (the human-facing prose catalog, derived from SKILL.md
+**pattern-category count** (the human-facing prose catalog, derived from
+`references/patterns.md`
 and guarded in CI), the engine's **47 `type`s** (which split the vocabulary tiers
-and add stylometric signals), and SKILL.md's `###` sections (which also include
+and add stylometric signals), and the catalog's `###` sections (which also include
 writer-side tests with no detectable form). The
 `categories.test.js` enforces the engine ↔ this-file mapping, and checks every
 prose statement of the engine `type` total against `TYPE_LABELS`.
 
 ## A. Direct mapping (skill rule → detector `type`)
 
-| Detector `type` | Label | SKILL.md section |
+| Detector `type` | Label | Pattern catalog section |
 |---|---|---|
 | `tier1` / `tier2` / `tier3` | AI vocabulary / Word cluster / Overused word | Words and phrases to replace |
 | `tier1-clarity` | Wordiness | Words and phrases to replace (Tier 1B) |
@@ -65,7 +66,7 @@ prose statement of the engine `type` total against `TYPE_LABELS`.
 
 > **Partial map:** `smart-punct-signature` fires only when curly quotes co-occur
 > with an em-dash, an Oxford comma, and clean typing (≥80 words) — never on curly
-> punctuation alone. The SKILL.md Formatting rule treats curly quotes as a weak,
+> punctuation alone. The catalog's Formatting rule treats curly quotes as a weak,
 > corroborating signal in plain-text contexts and excludes apostrophes. The two
 > agree in spirit (curly punctuation is never conclusive on its own) but differ in
 > mechanism — so this is a partial map, not 1:1.
