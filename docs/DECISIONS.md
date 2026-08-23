@@ -8,6 +8,21 @@ Each entry: context, key points, what would justify revisiting. Pillars from [`R
 
 ## Rejected
 
+### A unified QuickShell desktop shell (rejected 2026-08-23)
+
+Considered replacing Waybar, Fuzzel, Mako, Swaylock, Swayidle, Swaybg, and related scripts with a raw QuickShell shell modeled on Omarchy Quattro.
+
+- No current interaction or reliability problem justifies replacing narrow Fedora-owned tools with one pre-1.0 process. Much of the existing ~4k-line Python surface is backend policy that a QML rewrite would retain or reimplement.
+- Omarchy is an architectural reference, not a Sway-compatible base: its ~39k-line shell assumes Omarchy services and config, and key surfaces use Hyprland APIs. Its unsandboxed plugins target that host contract.
+- Omarchy is also growing into a desktop platform. Quattro makes its own `omawrite`, `omacut`, and `omacalc` default applications, while `omasnap` explicitly targets Omarchy and Hyprland. This makes future plugins more likely to assume Omarchy packages and services.
+- If an Omarchy plugin has a useful idea, audit it and write the smallest clean implementation against standard Fedora and Sway APIs. Do not import the plugin or reproduce the Omarchy host contract.
+- DMS or Noctalia would make more sense than rebuilding a comparable shell locally. DMS is packaged in Fedora 44 and newer, so it avoids the COPR objection. Both still replace understood Sway-native pieces with an opinionated external framework, config and plugin layers, and another dependency and release stack.
+- Fedora 44 and Rawhide package a February 2026 QuickShell 0.2.1 snapshot while current Omarchy needs 0.3.1-era behavior. The upstream-recommended stable COPR supplies 0.3.1, but making it critical session infrastructure breaks the COPR-free baseline without solving the host and compositor mismatch.
+
+**Reconsider only if:** a recurring problem cannot be solved cleanly in the current tools, preferably after Fedora ships QuickShell 0.3.1 or newer. Trial one Sway-native surface, retain the Python backends, define rollback before any COPR use, and expand only if the trial provides unique interaction value or net deletion. Never target Omarchy plugin compatibility.
+
+---
+
 ### Splitting the four big scripts into their own repos (rejected 2026-08-01)
 
 A complexity heatmap flagged four files as "programs wearing dotfile clothing": `tms` (993), `agent-attention` (976), `wallpaper` (825), `optiscaler-sync` (938) — ~3.7k lines, 14% of the repo in four files. Considered extracting them.
