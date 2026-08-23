@@ -18,9 +18,8 @@ model:       cli/opencode/opencode/big-pickle
 cli.enabled: ["opencode"]
 ```
 
-Plain `summarize "$INPUT"` resolves with no flags. Free, no API keys, and no
-dependency on anything running locally — for a summarizer, always-available
-beats clever.
+Plain `summarize "$INPUT"` uses this route without extra flags. It needs no API
+key or local model service.
 
 ### Why not pi
 
@@ -33,10 +32,9 @@ this host, pi is then left with no usable model and every run dies on
 "pi": { "extraArgs": ["--extension", "~/.pi/agent/extensions/modelbridge.ts"] }
 ```
 
-but that binds summarize to `modelbridge` being up on `127.0.0.1:3000`, and
-costs real tokens per summary. OpenCode has neither problem. Recorded here so
-the next person doesn't rediscover the `--no-extensions` interaction from
-scratch.
+but summarize then depends on `modelbridge` at `127.0.0.1:3000` and uses paid
+tokens for each summary. OpenCode avoids both constraints without overriding
+`--no-extensions`.
 
 ## Overrides
 
@@ -54,5 +52,6 @@ Cap huge payloads with `--max-extract-characters <n>`, or write `--extract
 ## Notes
 
 - Keep the package minimal; the helper is intentionally config-driven.
-- `~/.summarize/config.json` is a symlink to this package — edit here, not in `$HOME`.
+- `~/.summarize/config.json` is a symlink to this package. Edit the package copy,
+  not the link in `$HOME`.
 - If the routing changes, update this README and the `summarize` skill together.

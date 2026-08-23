@@ -4,7 +4,7 @@ Shared Git defaults live in `.gitconfig.shared`.
 
 ## GitHub + Forgejo mirrors
 
-Repos are mirrored verbatim:
+Each repo has two remotes:
 
 - GitHub: SSH fetch/push via `origin`
 - Forgejo: SSH push via `bubba:3022`
@@ -13,7 +13,7 @@ Forgejo only works on home Wi-Fi/LAN.
 
 ### Configure a repo
 
-Git repo, for a repo named `REPO`:
+For a Git repo named `REPO`:
 
 ```bash
 git remote set-url origin git@github.com:martintrojer/REPO.git
@@ -23,7 +23,7 @@ git remote set-url --add --push origin ssh://git@bubba:3022/martintrojer/REPO.gi
 git remote add bubba ssh://git@bubba:3022/martintrojer/REPO.git
 ```
 
-jj repo:
+For a jj repo:
 
 ```bash
 jj git remote set-url --fetch git@github.com:martintrojer/REPO.git --push git@github.com:martintrojer/REPO.git origin
@@ -39,13 +39,13 @@ jj git remote list    # in jj repos
 
 ### Push current repo
 
-Git repos can fan out `origin.pushurl` with plain:
+Git can push to every configured `origin.pushurl` with:
 
 ```bash
 git push
 ```
 
-jj does not push to multiple `origin.pushurl` values, so push both remotes explicitly:
+jj does not support multiple `origin.pushurl` values. Push each remote:
 
 ```bash
 jj git push --remote origin --all
@@ -54,7 +54,8 @@ jj git push --remote bubba --all
 
 ### Audit Bubba mirror drift
 
-Use GitHub as the repo inventory and compare default-branch heads against Bubba:
+Use GitHub as the repo inventory, then compare each default-branch head with
+Bubba:
 
 ```bash
 python3 - <<'PY'

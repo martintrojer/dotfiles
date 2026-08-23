@@ -51,21 +51,21 @@ flatpak override --user --show sh.cider.Cider
 
 The output should show `session-bus` in `sockets=!session-bus` and
 `org.freedesktop.Flatpak=none` under session-bus policy. `PATH` should read
-`/app/bin:/usr/bin` — the runtime default — and there should be no read-only
+`/app/bin:/usr/bin`, the runtime default, and there should be no read-only
 `cider-shims` filesystem grant.
 
 That `PATH` line is set explicitly rather than unset. `--unset-env=PATH` does
 not restore the runtime default; it drops the variable and leaves the app with
 a host-style `PATH` containing no `/app/bin`, where Cider's own binaries live.
 
-Then perform the functional check that the structural override listing cannot
-cover: launch Cider, play a track, confirm the Waybar MPRIS module updates, and
-use the play/pause, previous, and next media keys. Also open an `itms://` or
-`music://` link and confirm that Cider receives it.
+The override listing cannot test behavior. Launch Cider and play a track. Check
+that the Waybar MPRIS module updates, then use the play/pause, previous, and next
+media keys. Open an `itms://` or `music://` link and check that Cider receives
+it.
 
 Verified working on 2026-07-31 after removing the shim and the unfiltered
 session bus, including across a reboot. `org.mpris.MediaPlayer2.cider` is owned
-by `xdg-dbus-proxy` rather than by Cider itself — the app reaches D-Bus only
+by `xdg-dbus-proxy` rather than by Cider itself. The app reaches D-Bus only
 through Flatpak's filtered proxy, which is the hardening working as intended.
 Check it with:
 

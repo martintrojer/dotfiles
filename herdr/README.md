@@ -1,26 +1,25 @@
 # Herdr
 
-[herdr](https://herdr.dev) is a terminal workspace manager built for coding
-agents: workspaces / tabs / panes like tmux, plus per-pane agent detection with
+[herdr](https://herdr.dev) is a terminal workspace manager for coding agents.
+It provides workspaces, tabs, and panes like tmux, plus per-pane detection with
 `idle / working / blocked / done` states, an agent-priority sidebar, and a
 socket API (`herdr agent`, `herdr pane`) for driving other agents.
 
-**This package is an evaluation, not a migration.** tmux is still the
-substrate ([`../docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state
-awareness). The point of running herdr with real dotfiles is to test that
-decision honestly instead of from the outside.
+**This package is an evaluation, not a migration.** tmux remains the terminal
+multiplexer ([`../docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state
+awareness). Running herdr with the working dotfiles tests it under normal use.
 
 **Verdict so far (2026-08-10): tried it for a day, went back to tmux.** The
-config stays here and stays working, because the interesting test has not
-been run yet — see [Eval Notes](#eval-notes). Re-entering costs `herdr`, not
-a rebuild.
+config remains available because the longer test has not run. See
+[Eval notes](#eval-notes). Starting another evaluation requires only the
+`herdr` command.
 
 This is a **common-scope package**: it links on both Linux and macOS, so
 nothing in it may depend on sway, fuzzel, mako, or Homebrew. On Fedora the
 binary comes from mise (`fedora/mise/.config/mise/config.toml`); on macOS
 install it yourself (`mise use -g herdr` or herdr's installer). Either way
-herdr's own updater is off in the config — two updaters fighting over one
-`$PATH` entry is worse than a slightly stale binary.
+herdr's updater is disabled so that it cannot conflict with the package manager
+that owns the `$PATH` entry.
 
 ## Config
 
@@ -34,7 +33,7 @@ repo, so this file carries no `THEME BEGIN/END` block and `make theme` skips
 it. If the built-in drifts from `docs/palette.toml`, override individual
 tokens under `[theme.custom]` rather than templating the file.
 
-## Muscle Memory
+## Muscle memory
 
 Same out of the box, nothing to configure: prefix `ctrl+b`, `prefix+c` new tab,
 `prefix+n`/`prefix+p` next/prev, `prefix+1..9`, `prefix+x` close pane,
@@ -68,7 +67,7 @@ The key parser accepts `%` and `"` directly, but has no name for `!` — and
 chord. It parses and then never fires, which `config check` cannot catch. So
 break-pane sits on `prefix+shift+b`.
 
-## Selecting Agents
+## Select agents
 
 Herdr has no agent picker surface, because the sidebar's **agent panel** is
 that view. So `prefix+a` selects *within the panel* rather than opening
@@ -88,16 +87,15 @@ meant in tmux.
 use 1..9`) and takes a *modifier*, not a leader, so `prefix+a+1..9` does not
 parse.
 
-## The Sidebar
+## The sidebar
 
 `prefix+b` toggles it. It starts collapsed to the narrow `compact` rail,
 expanded on demand.
 
-That is this repo's argument from `docs/DECISIONS.md` — a permanent column is
-too much rent for information you need a few times an hour — wired up as a
-default you can flip in one keystroke. If the always-open sidebar turns out to
-earn its width, set `ui.sidebar_start_collapsed = false` and say so in
-DECISIONS.md.
+The default follows `docs/DECISIONS.md`: information needed only a few times an
+hour does not keep a permanent column. If the sidebar proves useful enough to
+stay open, set `ui.sidebar_start_collapsed = false` and record the change in
+`DECISIONS.md`.
 
 Two open questions from living with it:
 
@@ -119,7 +117,7 @@ Two open questions from living with it:
 `agent_panel_sort = "priority"` orders the panel by attention rather than by
 space, matching what `prefix+a` does in the tmux setup.
 
-## Not Ported
+## Missing integrations
 
 - **`tmux-fingers-rs`** (`prefix+Tab` hint picking) — no equivalent, no
   workaround.

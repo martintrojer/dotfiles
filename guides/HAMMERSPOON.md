@@ -1,8 +1,9 @@
-# Hammerspoon Learning Guide
+# Hammerspoon learning guide
 
-Companion to [`hammerspoon/README.md`](../hammerspoon/README.md). One Hyper
-layer for window resizing, directional focus, app launch / cycle, and a couple
-of macOS-specific helpers — all driven by letter mnemonics.
+This guide covers the Hyper layer defined in
+[`hammerspoon/README.md`](../hammerspoon/README.md): window resizing,
+directional focus, app launch and cycling, and macOS helpers. The bindings use
+letter mnemonics.
 
 ## Mental model
 
@@ -44,9 +45,8 @@ why = "The helpers intentionally avoid unnecessary Space switches."
 
 ## Window layout keys
 
-The strongest part of the config is the repeatable window geometry system:
-left/center/right resize cluster, optional top/bottom cycles, and a three-state
-center/full cycle.
+The window layout keys form a repeatable geometry system: left, center, and
+right resizing; top and bottom cycles; and a three-state center/full cycle.
 
 - `Q` — left band cycles 1/3 → 1/2 → 2/3 width
 - `W` — right band cycles 1/3 → 1/2 → 2/3 width
@@ -79,9 +79,8 @@ why = "`W` is the right-side width cycle in the main resize cluster."
 
 ## Directional focus and desktops
 
-Beyond reshaping windows, the layer mainly uses `H`/`J`/`K`/`L` directional
-focus. Earlier attempts at Hyper-driven desktop jumps were dropped as too
-unreliable on macOS.
+The layer uses `H`/`J`/`K`/`L` for directional focus. The config does not bind
+desktop jumps because synthetic Mission Control events were unreliable.
 
 - `Hyper`+`H`/`J`/`K`/`L` — focus the nearest window left/down/up/right
 - Uses Hammerspoon's directional window search, not tiling state

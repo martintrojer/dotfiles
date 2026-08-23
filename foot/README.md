@@ -1,8 +1,8 @@
 # foot
 
 [foot](https://codeberg.org/dnkl/foot) is the Wayland terminal for the Sway
-setup. Run as a server (`sway-foot-server.service`); `footclient` spawns
-near-instant windows that share one process.
+setup. The `sway-foot-server.service` unit runs the server, and `footclient`
+opens windows that share its process.
 
 ## Package layout
 
@@ -25,6 +25,7 @@ Foot reloads its config automatically on file change.
 
 ## Sway integration
 
-`set $term footclient` in `sway/.config/sway/config`; waybar and fuzzel both
-launch `footclient` directly. There is no `foot` (no -client) fallback —
-fix the systemd unit if it's not running.
+The `set $term footclient` line in `sway/.config/sway/config` selects the
+client. Waybar and fuzzel also launch `footclient` directly. If the server is
+not running, fix the systemd unit. The configuration does not fall back to
+`foot`.

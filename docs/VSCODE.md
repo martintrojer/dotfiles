@@ -1,10 +1,9 @@
 # VS Code / Cursor / Code OSS notes
 
-VS Code is no longer a package in this repo. The settings were small,
-manual, and not worth a dedicated top-level pseudo-package.
+VS Code is no longer a package in this repo. The few manual settings do not
+justify a top-level package.
 
-Apply these by hand in your editor's user settings if you still care about
-them:
+Add them to the editor's user settings if needed:
 
 ```json
 {

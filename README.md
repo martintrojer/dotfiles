@@ -1,30 +1,30 @@
 # Dotfiles
 
-Personal dotfiles, deployed by a repo-specific sync tool (`dotfiles-sync`, implemented under [`_dotfiles_sync/`](./_dotfiles_sync)). Each top-level package mirrors `$HOME`, and the planner symlinks it there; there is no external dependency.
+Personal dotfiles deployed by `dotfiles-sync`, the repo-specific sync tool under [`_dotfiles_sync/`](./_dotfiles_sync). Each top-level package mirrors `$HOME`, and the planner symlinks it into `$HOME` without an external dependency.
 
 ## Zen Of This Setup
 
-The pillars below govern every package in this repo. They exist so future-me can resist the urge to chase the next shiny compositor release, plugin framework, or distro flavor and instead keep editing actual files.
+These rules govern every package in the repo. They keep the setup focused on useful configuration instead of new compositor releases, plugin frameworks, or distro variants.
 
 When tempted, re-read this section before touching anything.
 
-1. **Boring infra is good infra.** None of the tools here are exciting in 2026. That is the point. The desktop is the substrate, not the hobby.
+1. **Boring infra is good infra.** None of the tools here are exciting in 2026. That is the point. The desktop supports the work; maintaining it is not the hobby.
 2. **Builtins first, plugins last.** A plugin or external tool only lands when a builtin cannot do the job.
 3. **Every line is understood.** No framework magic, no hidden keymaps, no "distro" config layers. If a line is here, future-me can explain why; if not, it gets deleted.
 4. **Each piece earns its place.** Every plugin, package, script, and service answers a one-line "why not builtin?" question. Inertia is not an answer.
-5. **Local scripts over upstream plugins.** A small Python script in this repo beats a third-party dependency. Easier to read, easier to fix, doesn't break on upgrade.
-6. **Recreate, do not restore.** No session snapshots. No magic state restoration. Disposable sessions force the setup to stay cheap to spin up.
-7. **Thin wrappers around shared lists.** Decisions live in data, not in scripts. `dotfiles-sync`, `setup-*.sh`, the package lists — all wrappers around plain data.
-8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway with foot as the terminal. macOS is Hammerspoon with Ghostty as the terminal. The shared layer is the CLI/editor baseline; the desktop stack is allowed to diverge per platform, and once chosen, lean into each OS's native primitives (Spaces and Mission Control on macOS, sway IPC and Wayland layer-shell on Linux; foot's server/client and Ghostty's app-bundle launch model on their respective sides) rather than faking another OS's idioms on top. Each OS is allowed to bloom in its own direction.
+5. **Borrow ideas, not ecosystems.** Treat a good plugin or desktop stack as a reference. Reimplement only the useful part with local scripts and native APIs. A small Python script in this repo is easier to read, fix, and keep stable across upgrades than a third-party framework.
+6. **Recreate, do not restore.** No session snapshots or hidden state restoration. Disposable sessions force the setup to remain cheap to start.
+7. **Thin wrappers around shared lists.** Decisions live in data, not scripts. `dotfiles-sync` and `setup-*.sh` are wrappers around plain package lists.
+8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway with foot as the terminal. macOS is Hammerspoon with Ghostty as the terminal. The shared layer is the CLI/editor baseline. Each desktop uses its OS's native primitives: Spaces and Mission Control on macOS; sway IPC and Wayland layer-shell on Linux; foot's server/client and Ghostty's app-bundle launch model on their respective systems.
 9. **One palette, one layout language.** Catppuccin Mocha is the color system;
    blocky/tmux geometry is the interaction grammar. Blocks are affordances, not
    decoration: use them for navigation, focus, modal state, or problems that
    need a response, and keep ambient context quieter. See [`docs/THEME.md`](./docs/THEME.md)
    and [`docs/LAYOUT.md`](./docs/LAYOUT.md).
 10. **Config lives next to the thing it configures.** Tool-specific docs go in the package folder. This root README only describes the repo shape and the rules above.
-11. **Human-made, human-owned, heavily tested.** The corollary to #1: "boring" is about *provenance*, not just release cadence. Prefer infrastructure a person designed, maintains, and is accountable for, with a real test suite and a track record — tmux, zsh, sway, sqlite. Be suspicious of infra that is generated rather than written, or built for agents by agents; a tool whose own substrate is disposable output does not get to hold this setup up. This repo delegates plenty of *work* to agents, but the ground they stand on stays human. The asymmetry is the point: a bad line in a script is a bug, a bad line in the substrate is a rebuild.
+11. **Human-made, human-owned, heavily tested.** As in rule 1, "boring" describes provenance as well as release cadence. Prefer infrastructure with accountable maintainers, a test suite, and a track record, such as tmux, zsh, sway, and sqlite. Do not put generated or agent-built infrastructure beneath the setup. This repo delegates work to agents, but its foundations stay human-owned: a bad script line is a bug, while a bad foundation can force a rebuild.
 
-If a new toy violates more than one of these, it does not belong here — no matter how cool the blur effect is.
+If a new tool violates more than one rule, it does not belong here.
 
 ## Quick start
 
@@ -35,7 +35,7 @@ cd ~/dotfiles
 # Then follow the manual step it prints (Codex notify hook).
 ```
 
-Full install steps, the update flow, recipes for testing changes without clobbering your real `$HOME`, and cleanup steps for machines running an older version of this repo all live in [`docs/SETUP.md`](./docs/SETUP.md).
+[`docs/SETUP.md`](./docs/SETUP.md) covers installation, updates, isolated tests, and cleanup on machines that run an older version of the repo.
 
 ## Repository shape
 
@@ -66,4 +66,4 @@ See [`docs/SETUP.md`](./docs/SETUP.md) for the install + update flow.
 
 ## Decisions and rejected alternatives
 
-Past audits — chezmoi, oh-my-zsh, niri→sway, the recurring TPM vendoring temptation, the centralized `docs/` folder — live in [`docs/DECISIONS.md`](./docs/DECISIONS.md). Read before relitigating.
+[`docs/DECISIONS.md`](./docs/DECISIONS.md) records past audits of chezmoi, oh-my-zsh, niri→sway, TPM vendoring, and the centralized `docs/` folder. Read it before reopening those decisions.

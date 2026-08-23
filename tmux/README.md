@@ -20,13 +20,16 @@ This setup uses a local Python session launcher (`$HOME/.local/bin/tms`) for the
 
 `tms` lives in the [`local-bin/`](../local-bin) package rather than beside the other tmux scripts because the [`herdr/`](../herdr) package drives the same picker against herdr workspaces. It picks a backend from the environment (`$TMUX` wins over `$HERDR_ENV`) and reads the same `~/.config/tmux/tms.toml` either way; see [`herdr/README.md`](../herdr/README.md#sessions-tms). Nothing about the tmux behavior changed.
 
-## Interactive Guide
+## Interactive guide
 
-For a browser-friendly walkthrough with quizzes, see [`../guides/TMUX.md`](../guides/TMUX.md) and run `make serve-guides` from the repo root.
+For a walkthrough with quizzes, see
+[`../guides/TMUX.md`](../guides/TMUX.md). Run `make serve-guides` from the repo
+root to open it in a browser.
 
-## Plugin Inventory
+## Plugin inventory
 
-This config uses TPM plus a mix of quality-of-life, persistence, navigation, and status-line plugins.
+This configuration uses TPM to manage navigation, clipboard, picker, and
+status-line plugins.
 
 - `tmux-plugins/tpm`: tmux plugin manager. It installs, updates, and loads the rest of the plugins from `.tmux.conf`.
 - `tmux-plugins/tmux-yank`: copies from tmux into the system clipboard. Most useful in copy mode and for pushing text out of tmux into the desktop clipboard.
@@ -35,7 +38,7 @@ This config uses TPM plus a mix of quality-of-life, persistence, navigation, and
 - `sainnhe/tmux-fzf`: fzf-powered tmux management for sessions, windows, panes, bindings, clipboard history, and process actions.
 - `christoomey/vim-tmux-navigator`: moves between Neovim splits and tmux panes with the same control-key motions, no prefix.
 
-## What You Actually Use Here
+## Active integrations
 
 From your current `tmux/.tmux.conf`:
 
@@ -47,9 +50,17 @@ From your current `tmux/.tmux.conf`:
 - The `agent-attention` integration is not a plugin. It is a local script in this repo that tracks per-window agent state (`working / done / blocked / crashed`) via push events from the pi extension, with a pid-liveness reaper for crash detection. See [`docs/DECISIONS.md` § Agent state awareness](../docs/DECISIONS.md).
 - Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
 - Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `codex`, `π - ...`, or a cwd basename.
-- The agent segment is rendered by `$HOME/.config/tmux/scripts/status-ai`, which sets the `@ai_status` tmux option to a robot icon (`nf-md-robot`) followed by one glyph per running agent, grouped into colored runs by state (most urgent first). A run of more than three agents in one state rolls up to `<N><glyph>` — `!! 8▶ 5·` — so a large fleet stays narrow without any state being summarised away; at three or fewer the run is the literal glyphs. There is no longer an `AI` label or a count — the icon says what the segment is and the run says how many agents are in what shape. `.tmux.conf` reads it via `#{E:@ai_status}` and supplies only the box background; the script owns the foregrounds, since a color that changes within one value is not expressible as a format conditional.
+- `$HOME/.config/tmux/scripts/status-ai` renders the agent segment and sets the
+  `@ai_status` option. It starts with the `nf-md-robot` icon, followed by agents
+  grouped into color-coded state runs in urgency order. For up to three agents,
+  the run shows one glyph per agent. Larger runs use `<N><glyph>`, such as
+  `8▶ 5·` (for example, `!! 8▶ 5·` with higher-priority states first). The
+  robot icon replaces a separate `AI` label. `.tmux.conf` reads the value
+  through `#{E:@ai_status}` and supplies the box background. The script controls
+  the foreground colors because a tmux format conditional cannot change color
+  within one value.
 
-## Status Bar Layout
+## Status bar layout
 
 The current bar keeps the same useful information as before, but without the pill-style Catppuccin theme chrome. It follows the shared language in [`docs/LAYOUT.md`](../docs/LAYOUT.md): filled cells are affordances for place, focus, modal state, or attention.
 
@@ -58,7 +69,7 @@ The current bar keeps the same useful information as before, but without the pil
 - Pane, window, and session switches trigger an immediate `refresh-client -S`, so label changes show up right away instead of waiting for the status timer.
 - Right: a boxed `PREFIX` segment and a boxed agent segment (robot icon + one glyph per agent, urgency-ordered runs, `<N><glyph>` past three in a state), followed by flatter glyph-based `CPU`, `RAM`, `host`, and `uptime` segments. The agent segment disappears entirely when no agents are running.
 
-## Built-in Tmux UI
+## Built-in tmux UI
 
 Native tmux pickers and overlays use the same palette as the status bar instead of the default yellow-accent tmux theme.
 
@@ -86,7 +97,7 @@ Mental model for pane moving:
 - `prefix` + `M`: pick destination in tmux tree, then insert current pane there as a split. Source window loses that pane.
 - In short: `!` means "pull this pane out"; `M` means "move this pane into there".
 
-## Session Persistence
+## Session persistence
 
 This config does not save or restore tmux state across reboots. The workflow is intentionally on-the-fly:
 

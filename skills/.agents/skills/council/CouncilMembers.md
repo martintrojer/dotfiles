@@ -1,6 +1,6 @@
 # Council Members
 
-Council members are custom personas you write inline. There is no composition tool and no trait matrix — you write each member's brief directly, tailored to the topic. A capable model writes a sharper, more topic-specific persona than any generic trait lookup, so this is both simpler and better.
+Council members are custom personas you write inline. There is no composition tool or trait matrix. Write each member's brief for the topic; a generic trait lookup produces weaker roles.
 
 ## Why inline briefs, not generic personas
 
@@ -10,7 +10,7 @@ A persona-less agent has no stake in the topic and produces bland agreement. Cou
 
 ### Step 1: Analyze the Topic
 
-Decide what perspectives would create the most productive friction for THIS specific debate. Design the roles around the topic, not from a generic list.
+Decide which perspectives would create useful disagreement for this debate. Design the roles around the topic, not from a generic list.
 
 **Example — "Should we use WebSockets or SSE?"**
 - Real-time systems architect who defends push-first bidirectional transport
@@ -26,7 +26,7 @@ Decide what perspectives would create the most productive friction for THIS spec
 
 ### Step 2: Write Each Member's Brief
 
-For each member, write 2–4 sentences: a name, their role/expertise, the stance they hold, and what they'll push on and attack. That paragraph IS the persona.
+For each member, write 2–4 sentences with a name, role, expertise, stance, and claims to challenge. Use that paragraph as the persona.
 
 Example brief:
 > **Mara — real-time systems architect.** Believes push-first. Will defend WebSocket bidirectionality and attack SSE's connection-count limits and reconnection story. Speaks precisely, cites protocol behavior.

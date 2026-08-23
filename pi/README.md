@@ -4,7 +4,13 @@ Extensions for [Pi coding agent](https://buildwithpi.ai/).
 
 ## Install
 
-This is a package: the extensions live at `.pi/agent/extensions/*.ts` so the in-package path mirrors `$HOME`. `./dotfiles-sync --apply` links each `*.ts` into `~/.pi/agent/extensions/`. Pi auto-discovers extensions there (with `/reload` support) — no `pi install`, no `package.json` manifest. Edits propagate live. Helper modules should also be top-level `*.ts` files with a safe no-op default export (for example `_lib.ts`), because pi/pi-meta may auto-load every top-level file while other extensions import it.
+Extensions live at `.pi/agent/extensions/*.ts`, which mirrors their path under
+`$HOME`. `./dotfiles-sync --apply` links each `*.ts` file into
+`~/.pi/agent/extensions/`. Pi discovers the extensions there and supports
+`/reload`, so the package needs no `pi install` step or `package.json` manifest.
+Edits propagate through the links. Keep top-level `*.ts` helper files with a
+safe no-op default export, such as `_lib.ts`, because pi or pi-meta
+may load every top-level file while other extensions import it.
 
 Skills (the repo-root `skills/` package) are similarly linked into `~/.agents/skills/` and read by pi from there.
 
@@ -14,7 +20,8 @@ Some extensions originated from [mitsuhiko/agent-stuff](https://github.com/mitsu
 
 ### `agent-attention` — tmux status signaling
 
-Reflects the agent's run state into the surrounding tmux window so a glance at the status bar shows which panes need attention.
+Writes the agent's run state to the surrounding tmux window. The status bar can
+then show which panes need attention.
 
 - On `agent_start`: marks the window `working` (records the pid via `~/.config/tmux/scripts/agent-attention` for crash reaping).
 - On `agent_end`: clears the state if the pane is focused, otherwise marks it `blocked` (waiting on you).
@@ -24,7 +31,8 @@ No-op when not running inside tmux.
 
 ### `/loop` — recurring prompt scheduler
 
-Clone of Claude Code's `/loop`. Re-sends a prompt on an interval within the current session, as if you typed it each time.
+This command repeats a prompt on an interval within the current session. It is
+based on Claude Code's `/loop`.
 
 - `/loop 5m check if the deploy on staging finished` — run every 5 minutes
 - `/loop 30s /some-command` — the prompt can be another slash command
@@ -36,7 +44,11 @@ Intervals accept `s`/`m`/`h` suffixes (bare numbers are minutes), with a 5s floo
 
 ### `/goal` — autonomous work toward a verifiable condition
 
-Clone of Claude Code's `/goal`. You state a verifiable end condition; pi keeps taking turns toward it without you prompting each step. After every turn, a small/fast checker model checks the recent transcript and answers one yes/no: is the condition met? "no" feeds the checker's reason (including checker model name) back as the next instruction; "yes" clears the goal and returns control to you.
+This command works toward a verifiable end condition without requiring a new
+prompt for each turn. It is based on Claude Code's `/goal`. After every turn,
+a small, fast model checks the recent transcript and returns yes or no. A no
+answer and its reason become the next instruction. A yes answer clears the goal
+and returns control to you.
 
 - `/goal until \`npm test\` exits 0 and tsc --noEmit is clean, max 20 turns`
 - `/goal` — show the active goal, turns spent, and the last checker reason

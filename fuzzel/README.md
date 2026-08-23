@@ -20,7 +20,7 @@
 
 `hotkeys` parses `~/.config/sway/config` for `bindsym` lines, presents them in fuzzel, and dispatches the chosen action with `swaymsg --` so it behaves identically to pressing the actual key. Pass `--no-exec` to print the action instead of running it.
 
-## Script Pattern
+## Script pattern
 
 All fuzzel scripts are Python 3 (`#!/usr/bin/env python3`) and follow this convention:
 
@@ -53,7 +53,7 @@ to stderr, and exits 1. Anything else propagates so unexpected bugs aren't
 hidden behind a user-facing error message. Raise `ScriptError("...")` for
 expected user-facing failures (missing dep, no matching window, etc.).
 
-### Common Parameters
+### Common parameters
 
 - `--dmenu` - Enable dmenu mode (read from stdin)
 - `--prompt "Text  "` - Set prompt with styling
@@ -63,12 +63,12 @@ expected user-facing failures (missing dep, no matching window, etc.).
 ### Conventions
 
 - Use `notify-send` for user-facing error messages
-- Use `clipf -` (from `local-bin/`) for clipboard writes — it is the single clipboard policy (macOS/Wayland/X11)
+- Use `clipf -` from `local-bin/` for clipboard writes on macOS, Wayland, and X11
 - Use stdlib modules like `argparse`, `json`, `urllib`, `subprocess`
 - Share common helpers from `fuzzel/.config/fuzzel/scripts/_common.py`
 - Most-used sorting uses fuzzel `--cache` per picker in `~/.cache/fuzzel/pickers/*.cache` (or `$XDG_CACHE_HOME/fuzzel/pickers/*.cache`)
 
-## Quality Checks
+## Quality checks
 
 Python scripts in this package should pass:
 
@@ -79,7 +79,7 @@ Python scripts in this package should pass:
 `.config/fuzzel/scripts/tests/` holds a focused regression suite for the picker
 helpers whose failure mode is a silent wrong answer (row selection, the sway
 tree walk feeding it, XDG cache resolution). Run it with `make
-check-desktop-tests`. It is not a general suite for this package — see
+check-desktop-tests`. It is not a general suite for this package. See
 [`docs/DECISIONS.md`](../docs/DECISIONS.md), "No unit tests for the
 control-plane and helper scripts".
 

@@ -1,14 +1,17 @@
 # Neovim Config
 
-Minimal Neovim 0.12 config. No framework, no plugin manager plugin — just `vim.pack`, 0.12 builtins, and mini.nvim.
+This is a small Neovim 0.12 configuration built on `vim.pack`, Neovim
+built-ins, and mini.nvim. It uses no framework or separate plugin manager.
 
 ## Philosophy
 
-- **0.12 builtins first** — LSP, completion, commenting, formatting, snippets, node selection, URL open all use native nvim features
-- **fzf-lua as the centre piece** — all file finding, grepping, LSP actions (definitions, references, code actions), buffer switching, and `vim.ui.select` go through fzf-lua. One consistent fuzzy interface for everything
-- **mini.nvim as the plugin suite** — one repo, 17 modules, consistent API, zero external deps
-- **vim.pack for plugin management** — builtin, lockfile, no bootstrap
-- **Every line is understood** — no framework magic, no hidden keymaps, no surprise plugins
+- Neovim 0.12 built-ins provide LSP, completion, commenting, formatting,
+  snippets, node selection, and URL opening.
+- fzf-lua handles file search, grep, LSP actions, buffer switching, and
+  `vim.ui.select`.
+- One mini.nvim repository provides 18 modules through a consistent API.
+- `vim.pack` manages plugins with a lockfile and no bootstrap script.
+- The configuration defines its keymaps and plugins explicitly.
 
 ## Structure
 
@@ -69,7 +72,7 @@ after/ftplugin/
 | mini.tabline | Buffer tab bar |
 | mini.trailspace | Highlight trailing whitespace |
 
-### Other plugins (each earns its place)
+### Other plugins
 
 | Plugin | Purpose | Why not builtin? |
 |--------|---------|-----------------|

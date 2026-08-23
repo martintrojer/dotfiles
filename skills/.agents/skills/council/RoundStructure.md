@@ -10,17 +10,17 @@ All council members are custom personas you write inline as briefs. See `Council
 
 ### Round 1 - Initial Positions
 
-Each member gives their take from their specialized perspective. No interaction yet - just establishing positions.
+Each member gives an initial position without responding to other members.
 
 **Goal:** Surface diverse viewpoints before interaction.
 
 ### Round 2 - Responses & Challenges
 
-Each agent reads Round 1 transcript and responds to specific points:
+Each agent reads the Round 1 transcript and responds to specific points:
 - "I disagree with [Agent Name]'s point about X because..."
 - "Building on [Agent Name]'s concern about Y..."
 
-**Goal:** Genuine intellectual friction through direct engagement.
+**Goal:** Challenge specific claims from Round 1.
 
 ### Round 3 - Synthesis & Convergence
 
@@ -31,9 +31,9 @@ Each agent identifies:
 
 **Goal:** Surface convergence and remaining tensions honestly.
 
-## The Value Is In Interaction
+## Members challenge each other's claims
 
-Not just collecting opinions - genuine challenges where members with domain-specific knowledge push back on each other's actual points with informed perspectives.
+Members use domain knowledge to challenge specific claims from earlier rounds.
 
 ## Timing
 
