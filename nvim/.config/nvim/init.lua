@@ -56,7 +56,7 @@ require("starter")
 
 require("fzf-lua").setup({
 	"default-title",
-	ui_select = true,
+	ui_select = {},
 	-- tmux grabs <C-q> globally (bind -n C-q clear-history), so move
 	-- fzf-lua's send-to-quickfix action off ctrl-q onto alt-q.
 	-- `[1] = true` keeps fzf-lua's default file/buffer binds (notably the
