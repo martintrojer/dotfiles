@@ -158,4 +158,4 @@ In-context: one long response per round, no wall-clock estimate.
 
 ## Done
 
-Debate complete. The transcript shows the full intellectual journey from initial positions through challenges to synthesis.
+Debate is complete when the transcript includes the initial positions, challenges, and synthesis.

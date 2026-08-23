@@ -13,15 +13,15 @@ description: "Multi-agent collaborative debate producing visible round-by-round 
 
 ## What It Does
 
-Runs a multi-agent debate. Custom-composed agents discuss a topic over rounds, respond to each other's actual points, and surface insights through real intellectual friction. You get a visible round-by-round transcript plus a synthesis. DEBATE runs three rounds; QUICK runs one for a fast perspective check.
+Runs a multi-agent debate. Custom-composed agents discuss a topic over rounds, respond to each other's points, and expose weak arguments through substantive disagreement. You get a visible round-by-round transcript plus a synthesis. DEBATE runs three rounds; QUICK runs one for a fast perspective check.
 
 ## The Problem
 
-When you ask one model for an opinion, you get one frame and one set of blind spots. Asking for "pros and cons" gives you a flat list with no one actually pushing back. Real deliberation needs distinct experts who disagree on the merits and argue it out, so the weak parts of an idea get exposed before you commit. Generic built-in agents all sound the same and produce bland agreement; this skill composes topic-specific agents that create genuine friction.
+When you ask one model for an opinion, you get one frame and one set of blind spots. Asking for "pros and cons" gives you a flat list with no one pushing back. Deliberation needs distinct experts who disagree on the merits, so weak arguments surface before you commit. Generic built-in agents tend to produce bland agreement; this skill composes topic-specific agents with conflicting positions.
 
 ## How It Works
 
-Custom-composed agents discuss topics in rounds, respond to each other's points, and surface insights through intellectual friction.
+Members discuss the topic in rounds and respond to specific claims from earlier rounds.
 
 ## Members Are Custom Briefs
 
@@ -76,7 +76,7 @@ bending a debate into a teardown.
 
 ## Core Philosophy
 
-**Origin:** Best decisions emerge from diverse perspectives challenging each other. Not just collecting opinions - genuine intellectual friction where domain-specific experts respond to each other's actual points.
+**Origin:** Council compares informed positions through direct challenges. Domain-specific members respond to each other's claims instead of listing independent opinions.
 
 **Agents:** Every council member is a custom brief you write for the topic. This gives each member a distinct role, stance, and domain expertise. Generic agents produce generic debate; topic-specific briefs produce sharp, informed debate.
 
@@ -104,7 +104,7 @@ bending a debate into a teardown.
 - **`brainstorm`** - Council to pick between approaches, then brainstorm the winner into a spec
 - **`mu`** - When you want the members as long-lived tmux panes you can interrogate
 
-## Best Practices
+## Practices
 
 1. Use QUICK for sanity checks, DEBATE for important decisions
 2. Write each member's brief around the specific topic, not a generic role
@@ -113,6 +113,6 @@ bending a debate into a teardown.
 ## Gotchas
 
 - **Council members are inline briefs.** There is no composition tool. Write four different topic-specific briefs; a bare persona-less agent produces bland agreement.
-- **Debates need genuine disagreement to be valuable.** If all members agree, the topic may not warrant Council.
+- **Debates need substantive disagreement.** If all members agree, the topic may not warrant Council.
 - **More agents ≠ better debate.** 4-6 well-briefed members outperform 12 generic ones.
 - **In-context mode is self-debate.** You are simulating disagreement, not sampling it. Worth doing, worth not overtrusting — a convergence you reached alone is weaker evidence than four independent agents landing in the same place.

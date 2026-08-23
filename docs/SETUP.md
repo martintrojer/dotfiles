@@ -1,6 +1,7 @@
 # Setup
 
-Everything about getting this repo onto a machine — fresh installs, upgrading machines that are running an older version, day-to-day updates, and recipes for testing changes without clobbering your real `$HOME`.
+This guide covers fresh installs, upgrades, routine updates, and isolated tests
+that do not modify your real `$HOME`.
 
 Pick the section that matches your starting state:
 
@@ -19,7 +20,7 @@ cd ~/dotfiles
 #   - Codex notify hook (one TOML line in ~/.codex/config.toml)
 ```
 
-That covers the happy path on a fresh machine. The sections below expand each piece.
+The sections below cover each step and the available upgrade paths.
 
 ## Fresh install
 
@@ -27,18 +28,18 @@ That covers the happy path on a fresh machine. The sections below expand each pi
 
 - Links the dotfile packages that match the current OS and distro.
 - Clones the pinned zsh plugins into `~/.local/share/zsh-plugins/`.
-- Clones TPM (tmux plugin manager) into `~/.tmux/plugins/tpm/` at the pinned ref. Tmux plugins listed in `.tmux.conf` still need a one-time `prefix + I` inside tmux to install — TPM owns that step.
+- Clones TPM (tmux plugin manager) into `~/.tmux/plugins/tpm/` at the pinned ref. Install the tmux plugins listed in `.tmux.conf` once with `prefix + I` inside tmux.
 - Links `dotfiles/skills/.agents/skills/*` into `~/.agents/skills/` (the universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw). Each skill lands as one directory symlink.
 - Links `dotfiles/pi/.pi/agent/extensions/*.ts` into `~/.pi/agent/extensions/` (Pi auto-discovers these).
 - Prunes stale links when you remove a skill or Pi extension from the repo.
 
-After `--apply` completes it prints one manual follow-up, which `--apply` deliberately does **not** automate:
+After `--apply` completes, it prints one manual follow-up:
 
-1. **Codex notify hook** — add the single `notify = [...]` line the closing hint prints into `~/.codex/config.toml`. Editing the user's TOML in-place would mean parsing/rewriting their schema; not worth it for one line.
+1. Add the printed `notify = [...]` line to `~/.codex/config.toml`. `--apply` does not rewrite the user's TOML for one line.
 
 ## Upgrading from an older setup
 
-For machines that have been running an older version of this repo (the OMZ-based zsh, the per-agent skill copies, the manually-cloned TPM, etc.). The doc is organized as **detect → action** per item. Run the detection commands; only do the action if the detection finds something. Items are independent — a partial-upgrade machine can run only the relevant sections.
+Use this section on machines that ran the OMZ-based zsh setup, stored per-agent skill copies, or cloned TPM manually. Each item has a detection command followed by an action. Run the action only when detection finds the old state. The items are independent.
 
 ### Step 0: pull the latest, run apply
 
@@ -51,7 +52,7 @@ git pull
 # already live after --apply.)
 ```
 
-`--apply` is idempotent and handles most of the common cases automatically (links the new packages including skills + Pi extensions, clones zsh-plugins + TPM). The cleanup steps below cover the things `--apply` deliberately doesn't touch — vestigial files left by the old layout that aren't actively harmful but waste disk and confuse future-you.
+`--apply` is idempotent. It links new packages, including skills and Pi extensions, and clones the zsh plugins and TPM. The cleanup steps remove files from old layouts that `--apply` does not touch.
 
 ### 1. oh-my-zsh leftovers
 

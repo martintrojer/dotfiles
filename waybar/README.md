@@ -1,7 +1,7 @@
 # Waybar
 
-Calm, exception-only status bar for Sway. The visual language follows
-[`docs/LAYOUT.md`](../docs/LAYOUT.md): blocks are affordances, not decoration.
+This package configures an exception-only Sway status bar. It follows the block
+rules in [`docs/LAYOUT.md`](../docs/LAYOUT.md).
 
 ## Shape
 
@@ -15,7 +15,7 @@ There is intentionally no tray and no window title. App/system controls live in
 keybindings and issue click actions; focused-window context belongs to the app,
 tmux, or the window switcher rather than the desktop bar.
 
-Power-user telemetry is intentionally not always visible. It is aggregated by
+System telemetry is not always visible. It is aggregated by
 `~/.config/waybar/scripts/issues` and appears only when something crosses a
 threshold. Healthy state emits an empty module with the `ok` class.
 

@@ -1,17 +1,17 @@
 # Fedora Gaming Layer
 
-The main rig's gaming/streaming/RGB stack, quarantined in its own namespace so
-the [Fedora baseline](../README.md) stays a clean, COPR-free Sway setup.
+The main rig's gaming, streaming, and RGB stack lives in a separate namespace
+so the [Fedora baseline](../README.md) remains a COPR-free Sway setup.
 
-**Opt-out module.** Active by default on Fedora hosts; suppress it with
-`./dotfiles-sync --apply --skip-gaming` on work/laptop machines that want a pure
-Sway baseline with zero gaming footprint. The main rig needs no flag. See the
+The module is active by default on Fedora hosts. Suppress it with
+`./dotfiles-sync --apply --skip-gaming` on work or laptop machines. The main rig
+needs no flag. See the
 partitioning rationale in [`../../docs/DECISIONS.md`](../../docs/DECISIONS.md).
 
-This is a **deliberate, scoped break** from the baseline's COPR-free /
-minimal-overlay rules: it layers RPM Fusion, a COPR (Sunshine), and graphical
-packages that don't fit the minimal baseline. The break is intentional — the
-history is in [`docs/DECISIONS.md`](./docs/DECISIONS.md) here.
+This layer is the scoped exception to the baseline's COPR-free and minimal
+overlay rules. It adds RPM Fusion, the Sunshine COPR, and graphical packages
+that do not belong in the baseline. [`docs/DECISIONS.md`](./docs/DECISIONS.md)
+records the history.
 
 ## Layout
 
@@ -48,7 +48,7 @@ suspends), `setup-steam-pause.sh` (pause games across suspend),
 `setup-wake-usb.sh` (only the power button wakes the tower), `setup-sunshine.sh`
 (open Sunshine ports to the configured wired LAN only), `setup-bt-firmware.sh`
 (fix Xbox controller BT
-drops — see "Bluetooth Controller" below).
+drops; see "Bluetooth Controller" below).
 
 ## Package List
 
@@ -56,7 +56,7 @@ drops — see "Bluetooth Controller" below).
 gated behind RPM Fusion + the Sunshine COPR. `os/setup-steam.sh` is a thin
 wrapper that sources the array and calls `rpm-ostree install`.
 
-`gamemode` and `7zip` are **deliberately not listed** even though this stack
+`gamemode` and `7zip` are not listed even though this stack
 uses both: the Sericea base image already ships them, and naming a base-image
 package makes `rpm-ostree install` fail with "already provided by" and layer
 _none_ of the array. `tests/test_steam_packages.py` asserts they stay out. If a
@@ -109,8 +109,8 @@ Gaming modes:
 - `config/setup-wake-usb.sh` installs a udev rule
   (`config/wake-usb/99-disable-usb-wakeup.rules`) pinning `power/wakeup=disabled`
   for the desktop keyboard/mouse (and BT dongle) by USB vendor:product ID, so
-  only the power button wakes the tower — a bumped mouse won't. Matched by ID
-  so it survives reboots and re-plugging; add devices by editing the rule.
+  only the power button wakes the tower. A bumped mouse will not. The IDs remain
+  stable across reboots and reconnections; add devices by editing the rule.
 
 OptiScaler sync:
 
@@ -160,7 +160,7 @@ Config: `home/.config/gamemode.ini` → `~/.config/gamemode.ini`.
 - Use directly with `gamemoderun %command%`, or `optirun %command%` for the
   OptiScaler/FSR4/GameMode bundle.
 
-**Local policy.** Enabled in `gamemode.ini`:
+The local policy in `gamemode.ini` enables:
 
 - `renice=10` — game process nice `-10`.
 - `ioprio=0` — best-effort I/O priority 0.
@@ -207,14 +207,14 @@ sudo rm -rf /etc/firmware/rtl_bt` (then reboot).
 ## OpenRGB / RGB
 
 `openrgb` (from `os/steam-packages.sh`) controls motherboard / RAM / GPU RGB. To
-reach those over SMBus it needs i2c access, which is the common gotcha — without
+reach those over SMBus it needs i2c access. Without
 it the i2c nodes stay `root:root 0600` and OpenRGB sees no controllers.
 `config/setup-openrgb.sh` wires up everything (run it after layering `openrgb`):
 
-- `config/openrgb/i2c-dev.conf` → `/etc/modules-load.d/i2c-dev.conf` — load
+- `config/openrgb/i2c-dev.conf` → `/etc/modules-load.d/i2c-dev.conf`: load
   `i2c-dev` at boot so `/dev/i2c-*` nodes exist.
 - creates the `i2c` system group and adds the invoking user to it.
-- `config/openrgb/99-i2c.rules` → `/etc/udev/rules.d/99-i2c.rules` — give the
+- `config/openrgb/99-i2c.rules` → `/etc/udev/rules.d/99-i2c.rules`: give the
   `i2c` group `rw` on the i2c-dev nodes.
 
 ```bash
@@ -225,7 +225,7 @@ getent group i2c && ls -l /dev/i2c-*   # expect: root i2c, crw-rw----
 
 **Turning lighting off (no boot service).** OpenRGB persists the lighting
 *mode* into the GPU/board firmware, so a single command sticks across full
-power cycles — no `rgb.service` needed. This box shipped with the GPU stuck in
+power cycles, so no `rgb.service` is needed. This box shipped with the GPU stuck in
 a rainbow cycle; setting it to direct/off once fixed it permanently:
 
 ```bash

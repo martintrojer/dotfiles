@@ -2,11 +2,11 @@
 
 Repo-specific control plane behind [`../dotfiles-sync`](../dotfiles-sync).
 
-Intentionally **not** a generic dotfiles framework. It exists so the repo bootstrap reads like real software without pretending the logic is reusable across arbitrary repos. Why this shape (split modules, plain Python, no DSL) is recorded in [`../docs/DECISIONS.md`](../docs/DECISIONS.md) — see "Split the repo control plane into `dotfiles-sync` + `_dotfiles_sync/`" and "Keep `_dotfiles_sync/` split across small modules."
+This is a repo-specific tool, not a generic dotfiles framework. It keeps the `dotfiles-sync` bootstrap logic in plain Python modules under `_dotfiles_sync/` without claiming that the code applies to arbitrary repos. [`../docs/DECISIONS.md`](../docs/DECISIONS.md) explains why `_dotfiles_sync/` uses this module split and avoids a DSL.
 
 ## Scope
 
-Owns:
+The control plane owns:
 
 - Symlink planning, apply and check
 - OS/distro scope selection
@@ -15,25 +15,25 @@ Owns:
 - Per-package link mode (`skills/` links each skill as one bundle; everything else per-leaf)
 - Post-apply hints for the manual Codex notify step
 
-Does **not** own:
+It does not own:
 
-- Top-level packages (`zsh/`, `nvim/`, `tmux/`, `skills/`, `pi/`, ...)
+- Top-level packages such as `zsh/`, `nvim/`, `tmux/`, `skills/`, and `pi/`
 - The `fedora/` namespace, which stays a special-case package subtree plus setup wrappers
 
 ## Module map
 
-- `cli.py` — argument parsing, top-level flow, task dispatch, post-apply hints
-- `config.py` — shared constants plus check/apply task policy
-- `inventory.py` — package inventory, package grouping, selection logic
-- `pins.py` — pinned clone refs and destinations
-- `system.py` — OS/distro detection and active scope selection
-- `link.py` — the symlink planner: link states, per-leaf vs bundle walk, apply
-- `ignore.py` — the one rule set for paths that never link into `$HOME`
-- `sync.py` — check/apply policy over the planner: conflicts, `--ignore`, backups
-- `repo_checks.py` — package coverage, private-env guardrails, ignore-driven cleanup, backlink checks, systemd unit-target resolution
-- `integration_checks.py` — external drift checks (zsh plugins, TPM, Codex notify)
-- `external.py` — pinned third-party clone management (zsh plugins, TPM)
-- `model.py` — typed dataclasses and shared aliases
+- `cli.py`: argument parsing, top-level flow, task dispatch, and post-apply hints
+- `config.py`: shared constants and check/apply task policy
+- `inventory.py`: package inventory, grouping, and selection
+- `pins.py`: pinned clone refs and destinations
+- `system.py`: OS and distro detection, plus active scope selection
+- `link.py`: link states, per-leaf and bundle walks, and apply logic
+- `ignore.py`: the shared rules for paths that never link into `$HOME`
+- `sync.py`: conflict, `--ignore`, backup, check, and apply policy
+- `repo_checks.py`: package coverage, private-environment checks, cleanup, backlink checks, and systemd unit-target resolution
+- `integration_checks.py`: external drift checks for zsh plugins, TPM, and Codex notify
+- `external.py`: pinned third-party clone management for zsh plugins and TPM
+- `model.py`: typed dataclasses and shared aliases
 
 ## Design rules
 
@@ -56,4 +56,4 @@ From the repo root:
 
 ## Quality bar
 
-From the repo root, `make check-python` runs `ruff` + `ty` + `py_compile` on every Python file in the repo (not just this module). Run it before sending any change here. Versions are pinned in the Makefile and fetched through `uv`, so you don't need them installed — see *Pinned toolchain* in [`../docs/SETUP.md`](../docs/SETUP.md).
+From the repo root, `make check-python` runs `ruff`, `ty`, and `py_compile` on every Python file in the repo. Run it before sending a change. The Makefile pins the versions and fetches them through `uv`; see *Pinned toolchain* in [`../docs/SETUP.md`](../docs/SETUP.md).

@@ -1,8 +1,8 @@
-# Tmux Learning Guide
+# Tmux learning guide
 
-Companion to [`tmux/README.md`](../tmux/README.md). Repo conventions,
-bindings, and the local pickers / status helpers — all rendered by
-`tmux/.tmux.conf` and a few small scripts under `tmux/.config/tmux/scripts/`.
+This guide covers the conventions, bindings, pickers, and status helpers from
+[`tmux/README.md`](../tmux/README.md). `tmux/.tmux.conf` defines the interface,
+with supporting scripts in `tmux/.config/tmux/scripts/`.
 
 ## Core model
 
@@ -43,8 +43,7 @@ why = "Both `base-index` and `pane-base-index` are set to 1."
 
 ## Session and navigation bindings
 
-The highest-value binds are about getting into the right session quickly and
-switching context without opening extra menus by hand.
+These bindings open and switch sessions:
 
 - `prefix`+`s` — local popup-backed `tms` picker (pinned + live + zoxide + scan)
 - `prefix`+`S` — tmux's built-in session tree, sorted by name

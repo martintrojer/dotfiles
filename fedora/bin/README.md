@@ -1,7 +1,7 @@
 # Fedora Bin
 
-Small wrapper executables that should be available on `$PATH` even outside an
-interactive shell live here under `.local/bin/`.
+Small wrappers that must be available on `$PATH` outside interactive shells
+live under `.local/bin/`.
 
 These wrappers are on `$PATH` for the whole graphical session (not just
 interactive shells) via `fedora/systemd/.config/environment.d/10-local-bin.conf`,
@@ -15,9 +15,9 @@ quarantined gaming layer at
 
 ## tbx
 
-The toolbox-backed command wrappers use `tbx --prefer-host -c <toolbox>`, which
-first prefers a real host binary and otherwise falls back to the toolbox
-container named by the wrapper.
+Toolbox-backed wrappers use `tbx --prefer-host -c <toolbox>`. This command uses
+a host binary when available, then falls back to the toolbox named by the
+wrapper.
 
 For ad-hoc commands, use `tbx <command> [args...]` to run the command in the
 `dev` toolbox by default. Use `-c <toolbox>` for another toolbox, for example:

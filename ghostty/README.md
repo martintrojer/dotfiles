@@ -1,8 +1,7 @@
 # Ghostty
 
-Ghostty is the macOS terminal. The most macOS-native option available: native
-AppKit window controls, real app-bundle launch model, single-process tab/split
-model that aligns with Mission Control.
+Ghostty is the macOS terminal. Its AppKit window controls and app-bundle launch
+model work with Mission Control, while one process owns its tabs and splits.
 
 Policy:
 

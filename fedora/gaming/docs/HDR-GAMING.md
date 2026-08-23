@@ -7,12 +7,12 @@ Box: AMD RX 7800 XT + HDR LG 4K on `DP-1`.
 Use these environments:
 
 - **Sway desktop**: light SDR gaming. Launch games normally. No nested gamescope.
-- **Steam (gamescope) SDDM session**: real HDR. gamescope uses the DRM backend,
+- **Steam (gamescope) SDDM session**: HDR. gamescope uses the DRM backend,
   owns KMS/DP-1, starts Steam Big Picture, and draws MangoHud with `--mangoapp`.
 - **Steam (gamescope stream) SDDM session**: same launcher, 1080p SDR + Sunshine
   for handheld streaming. See [STREAMING.md](./STREAMING.md).
 
-Sway 1.11 lacks the color-management protocol needed for HDR. For real HDR, log
+Sway 1.11 lacks the color-management protocol needed for HDR. For HDR, log
 into the gamescope session instead of nesting gamescope inside Sway. Background:
 [gamescope#2008](https://github.com/ValveSoftware/gamescope/issues/2008),
 [ArchWiki HDR](https://wiki.archlinux.org/title/HDR_monitor_support).
@@ -34,10 +34,10 @@ gamescope --backend drm -W 3840 -H 2160 -r 60 --hdr-enabled -f --mangoapp -e -- 
 
 It owns/enforces:
 
-- `--backend drm` — direct KMS/display ownership.
-- `--hdr-enabled` — HDR10 output.
-- `DXVK_HDR=1 ENABLE_GAMESCOPE_WSI=1` — Vulkan/Proton HDR through gamescope WSI.
-- `--mangoapp` — session MangoHud overlay.
+- `--backend drm`: direct KMS/display ownership.
+- `--hdr-enabled`: HDR10 output.
+- `DXVK_HDR=1 ENABLE_GAMESCOPE_WSI=1`: Vulkan/Proton HDR through gamescope WSI.
+- `--mangoapp`: session MangoHud overlay.
 
 It does **not** inject GameMode, OptiScaler, FSR4, DLL overrides, or performance
 tweaks into Steam's CEF UI.

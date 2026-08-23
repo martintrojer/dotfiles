@@ -1,8 +1,8 @@
-# `guides/` — interactive learning guides
+# `guides/`: interactive learning guides
 
-Source for the per-tool learning guides that used to live as hand-written
-HTML in `docs/`. One Markdown file per tool, rendered to static HTML by
-`build.py` (stdlib-only, no third-party deps).
+This directory contains one Markdown guide per tool. `build.py` renders the
+guides as static HTML without third-party dependencies. These guides replace
+the handwritten HTML that used to live in `docs/`.
 
 ## Files
 
@@ -53,10 +53,9 @@ make serve-guides   # build then `python3 -m http.server` in guides/build
 ```
 
 `build.py --check` renders every source, validates every quiz block, and
-asserts the resulting HTML is well-formed (tags nest and close) without
-writing output. That last part is what makes it a real gate rather than a
-parse smoke test: an inline transform that interleaves tags, or a
-`render_block` regression that drops a `</ul>`, fails the check.
+asserts that the resulting HTML is well-formed without writing output. The
+check fails if an inline transform interleaves tags or `render_block` drops a
+`</ul>`.
 
 Renderer edge cases (code spans vs. emphasis, quiz validation messages,
 well-formedness) are covered by `guides/test_build.py`, which

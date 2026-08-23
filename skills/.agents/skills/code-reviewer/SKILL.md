@@ -8,7 +8,7 @@ version: 0.3.0
 
 ## Purpose
 
-Provide direct, actionable code-quality review focused on maintainability, simplicity, and idiomatic style.
+Provide direct, specific code-quality review focused on maintainability, simplicity, and idiomatic style.
 
 ## What to Look For
 
@@ -151,4 +151,4 @@ For each finding:
 - Simplicity beats cleverness
 - Abstractions must justify their cost
 - Idiomatic code is easier to maintain
-- Be specific and actionable
+- Be specific and propose a concrete next step

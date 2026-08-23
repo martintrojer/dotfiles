@@ -1,10 +1,13 @@
 # Zsh
 
-Slim, framework-free zsh config. No oh-my-zsh, no plugin manager. Native compinit, native keybindings, two third-party plugins sourced directly. Mirrors the philosophy of `nvim/` (no framework, every line understood).
+This is a small zsh configuration without oh-my-zsh or a plugin manager. It
+uses native completion and keybindings, then sources two third-party plugins
+directly. It follows the same explicit-configuration approach as `nvim/`.
 
-## Interactive Guide
+## Interactive guide
 
-For a browser-friendly walkthrough with quizzes, see [`../guides/ZSH.md`](../guides/ZSH.md) and run `make serve-guides` from the repo root.
+For a walkthrough with quizzes, see [`../guides/ZSH.md`](../guides/ZSH.md).
+Run `make serve-guides` from the repo root to open it in a browser.
 
 ## Setup
 
@@ -96,7 +99,7 @@ Selection criterion: ≥5 hits in `~/.zsh_history`. Everything else from the OMZ
 
 In `functions.zsh`. Runs `$HOME/.config/tmux/scripts/tms pick-and-connect` — the picker shows the selection UI; on `<Enter>` `tms` attaches or creates the tmux session in one step.
 
-## Plugin update story
+## Update plugins
 
 Bump the version string in `_dotfiles_sync/pins.py`'s `ZSH_PLUGINS` constant, then run `./dotfiles-sync --apply`. The script:
 

@@ -1,9 +1,7 @@
 # Sway
 
-This package provides the main Wayland compositor setup. The emphasis is on a
-small, mainstream stack (sway + waybar + fuzzel + kanshi + mako + swayidle +
-swaylock) that stays close to upstream defaults so it can be reasoned about
-without surprises.
+This package configures the Wayland desktop with sway, waybar, fuzzel, kanshi,
+mako, swayidle, and swaylock. It keeps each tool close to its upstream defaults.
 
 > **New to sway?** [Sway School](https://martintrojer.github.io/sway-school/) is
 > a tree-first tutorial that explains the i3/sway layout model from the ground
@@ -23,9 +21,9 @@ The hotkey overlay (`mod+F1`) lives under `fuzzel/` because it's a fuzzel
 picker, not a sway script — see `fuzzel/README.md`. `F1` mirrors
 hammerspoon's `Hyper+F1` so help is the same key on both OSes.
 
-## Mental Map
+## Mental map
 
-The keybindings are intentionally aligned with `tmux/.tmux.conf` so the same
+The keybindings align with `tmux/.tmux.conf` so the same
 verb does the same thing whether you're inside tmux or on the bare desktop.
 
 | Verb                          | Sway              | Tmux            |

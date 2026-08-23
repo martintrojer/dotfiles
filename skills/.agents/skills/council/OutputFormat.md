@@ -81,7 +81,7 @@ Use the name and role you gave each member in its brief. Keep those names consis
 ## Output Requirements
 
 - **Length:** 100-150 words per agent per round (debate), 30-50 words (quick)
-- **Tone:** Professional but direct; genuine challenges
+- **Tone:** Professional and direct; substantive challenges
 - **Must Include:** Specific references to other agents' points in Round 2+
 - **Must Avoid:** Generic opinions, restating initial position without engagement
 - **Member Names:** Use the names from each member's brief, consistently across rounds

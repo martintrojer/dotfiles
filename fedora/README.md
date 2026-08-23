@@ -1,18 +1,16 @@
 # Fedora Setup
 
-Fedora-specific bootstrap scripts plus `bin/`, `gtk-3.0/`, and `systemd/`
-packages. Targets **Fedora Sway Atomic (Sericea)** — the rpm-ostree Sway
-spin. Other Fedora variants are not supported.
+Fedora-specific bootstrap scripts and the `bin/`, `gtk-3.0/`, and `systemd/`
+packages. They target **Fedora Sway Atomic (Sericea)**, the rpm-ostree Sway
+spin. Other Fedora variants are unsupported.
 
-The **gaming layer lives in its own quarantined namespace**,
-[`gaming/`](./gaming/README.md). It is active by default on the main rig and
-suppressed with `./dotfiles-sync --apply --skip-gaming` on work/laptop hosts, so
-those get a pure Sway baseline with zero gaming footprint. Everything in *this*
-README is baseline — installable on any Fedora Sway host, COPR-free.
+The gaming layer lives under [`gaming/`](./gaming/README.md). It is active by
+default on the main rig. Run `./dotfiles-sync --apply --skip-gaming` on work or
+laptop hosts to install only the COPR-free Sway baseline documented here.
 
 ## Setup Flow
 
-Scripts split into two buckets by what they do:
+The scripts and manifest have separate roles:
 
 - **`os/`** — package layering (`rpm-ostree`/`dnf`). Re-run these on a cadence:
   after a major-version rebase or when rebuilding the system clean. They need a
@@ -92,11 +90,11 @@ installed by `config/setup-zram.sh`. Two files, two jobs:
 
 The size knobs are the pair that trips people up:
 
-- `zram-size = ram` is the **virtual** (uncompressed) capacity — how much swap
+- `zram-size = ram` is the **virtual** (uncompressed) capacity: how much swap
   `swapon --show` reports. It costs nothing until used; it is an address-space
   ceiling, not an allocation. Stock `zram-generator-defaults` ships
   `min(ram, 8192)`, sized for small machines.
-- `zram-resident-limit = ram / 2` is the **actual RAM cost** ceiling: the
+- `zram-resident-limit = ram / 2` is the **resident RAM cost** ceiling: the
   compressed footprint (`/sys/block/zram0/mem_limit`). This is the one that
   bounds memory. Without it, an incompressible workload could grow zram until
   nothing is left to reclaim into. With zstd's ~3:1 on a desktop working set, a
@@ -124,15 +122,15 @@ back in RAM first. Verify with `zramctl`, `swapon --show`, and
 ## GTK Theme
 
 `gtk-3.0/.config/gtk-3.0/settings.ini` ships an `Adwaita-dark` default for GTK3
-apps (Sway doesn't push a GTK theme). GTK4 apps instead follow
-`gsettings set org.gnome.desktop.interface color-scheme prefer-dark` — run once
-per machine if GTK4 apps disagree with GTK3; it's per-user state, not linked.
+apps because Sway does not set a GTK theme. If GTK4 apps disagree with GTK3,
+run `gsettings set org.gnome.desktop.interface color-scheme prefer-dark` once
+per machine. The setting is per-user state and is not linked.
 
 ## Packages
 
 Baseline Fedora packages: `bin`, `gtk-3.0`, `mise`, `systemd`. From the repo
 root, `./dotfiles-sync --apply` handles the Fedora-only logic; scope it to one
-package with `./dotfiles-sync --apply bin`. There is no manual equivalent —
+package with `./dotfiles-sync --apply bin`. There is no manual equivalent;
 the planner owns the symlinks (see `_dotfiles_sync/link.py`).
 
 The gaming layer adds one more package (`gaming/home`), linked by default and

@@ -3,22 +3,22 @@
 Box: AMD RX 7800 XT + LG HDR 4K on `DP-1`. Stream Steam games to a SteamOS
 handheld over the LAN via the `Steam (gamescope stream)` SDDM session.
 
-Handheld-as-thin-client is strictly better than local play here, which is the
-whole point:
+The handheld works better as a thin client than as the gaming host in this
+setup:
 
 - **Native 1080p, no upscaling.** The 7800XT drives a fixed 1080p SDR target at
-  native res with headroom -- no FSR/OptiScaler/DLSS, none of the `optirun`
-  apparatus the 4K HDR panel needs. 1080p is pixel-perfect on a ~7" screen.
+  native resolution with headroom. It needs no FSR, OptiScaler, DLSS, or
+  `optirun` configuration. 1080p is pixel-perfect on a ~7" screen.
 - **Handheld TDP to ~3W.** It only decodes AV1/HEVC and sends input, so battery
-  goes from ~2h local AAA to 6-8h+, near-silent and cool. The desk GPU does the
-  heavy lifting on wall power.
+  extends battery life from about 2 hours of local AAA play to 6-8 hours or
+  more. The desk GPU runs the game on wall power.
 
 ## Transport: Sunshine, not Remote Play
 
 Steam Remote Play was tried first (built into `steam`, native res negotiation,
 proper frame pacing) and proved unreliable here. Sunshine (KMS capture of the
 gamescope DRM scanout) is the adopted transport. Flatpak Sunshine can't do KMS
-capture (sandbox can't hold `CAP_SYS_ADMIN`) -- must be the COPR rpm.
+capture because the sandbox cannot hold `CAP_SYS_ADMIN`, so use the COPR rpm.
 
 ## Resolution: 1080p, not 1920x1200
 
@@ -39,7 +39,7 @@ GS_OUT_W=1920 GS_OUT_H=1080 GS_HDR=0 GS_SUNSHINE=1 /usr/local/bin/steam-session
 Fixed resolution at launch (not per-client) avoids the gamescope-restart
 segfault dynamic-resolution approaches hit. `GS_SUNSHINE=1` makes
 `steam-session` start the rpm's user unit before gamescope and stop it on exit.
-The unit is never `enable`d, so Sunshine runs only in this session -- not on the
+The unit is never `enable`d, so Sunshine runs only in this session, not on the
 Sway desktop or HDR session.
 
 A tracked systemd drop-in (`app-dev.lizardbyte.app.Sunshine.service.d/`) forces
@@ -53,9 +53,9 @@ the right path.
 ## Install
 
 `Sunshine` is an `os/steam-packages.sh` entry layered by `os/setup-steam.sh`:
-drop the COPR repo file at `/etc/yum.repos.d/sunshine.repo` (group COPR
-`lizardbyte/beta` -- stable lags the newest Fedora, #4395), then `rpm-ostree
-install` + reboot.
+drop the COPR repo file at `/etc/yum.repos.d/sunshine.repo`, using the
+`lizardbyte/beta` group COPR because stable lags the newest Fedora (#4395).
+Then run `rpm-ostree install` and reboot.
 
 The current rpm is Atomic-correct (older guides describe a workaround for stale
 versions): `%post` skips its setcap/uinput steps under rpm-ostree; the caps ship
@@ -125,7 +125,7 @@ handheld locally. Cause: Moonlight's VAAPI renderer **hardcodes BT.601**
 (`vaapi.cpp: getDecoderColorspace() return COLORSPACE_REC_601`, citing a 2019
 Mesa bug that's long-fixed on Mesa 26). Moonlight requests 601 via
 `encoderCscMode`; Sunshine's colorspace is **100% client-driven** (no host
-override -- `sunshine.conf color_range` is inert), so it encodes 601 and the
+override because `sunshine.conf color_range` is inert), so it encodes 601 and the
 colors shift. Confirmed in the host log: `Color coding: SDR (Rec. 601)`.
 
 Fix on the **handheld** (Moonlight is the Flatpak), force BT.709:
@@ -141,7 +141,7 @@ nothing.
 
 ## Test
 
-Verified butter-smooth with a Legion Go S paired: KMS capture, `hevc_vaapi`,
+Verified with a Legion Go S paired: KMS capture, `hevc_vaapi`,
 ~15 Mbps, 1080p. Host (in the stream session): web UI at https://localhost:47990;
 confirm VAAPI hardware encoder, host wired to ethernet.
 

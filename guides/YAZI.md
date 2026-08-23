@@ -1,8 +1,8 @@
-# Yazi Learning Guide
+# Yazi learning guide
 
-Companion to [`yazi/README.md`](../yazi/README.md). Vim-like keys, visual mode,
-tabs and tasks, fd / ripgrep / fzf / zoxide, bulk ops, and the repo's custom
-goto keys.
+This guide covers the Vim-like keys, visual mode, tabs, tasks, search tools,
+bulk operations, and custom goto keys described in
+[`yazi/README.md`](../yazi/README.md).
 
 ## Basic movement and help
 
@@ -45,8 +45,7 @@ why = "show_hidden defaults to true here, and `.` flips that visibility."
 
 ## Selection, visual mode, and bulk operations
 
-The power move in Yazi is to think about *selected files* first, then apply
-copy / cut / paste / delete / rename to the whole set.
+Select files first, then copy, cut, paste, delete, or rename the set.
 
 - `Space` — toggle the current file and move down one row
 - `Ctrl`+`a` — select all files
@@ -116,8 +115,8 @@ why = "The custom keymap uses the helper script to jump to the platform trash di
 
 ## Tabs and task manager
 
-Two often-missed Yazi features: tabs and asynchronous task management. They
-matter because copy / search / preview work continues in the background.
+Tabs preserve separate locations. The task manager shows copies, searches, and
+previews that continue in the background.
 
 - `t` — create a new tab at the current working directory
 - `1` … `9` — switch to a specific tab
@@ -126,8 +125,8 @@ matter because copy / search / preview work continues in the background.
 - `w` — open the task manager
 - inside tasks: `j` / `k` move; `Enter` inspects; `x` cancels; `Esc`, `w`, or `Ctrl`+`c` closes
 
-Yazi is built around async I/O and background workers — file copies, previews,
-searches, and uploads/downloads all keep progressing while you keep navigating.
+Yazi runs file copies, previews, searches, uploads, and downloads in background
+workers while you continue navigating.
 
 ```quiz
 [[questions]]
@@ -186,23 +185,15 @@ answer = 1
 why = "The custom binding invokes the shared `m` command as a pager-backed preview action."
 ```
 
-## Why this setup earns its place
+## How Yazi and Neovim divide file work
 
-Yazi is worth a guide here because it is both shortcut-heavy and
-system-integrated: async workers, multi-tab state, a virtual filesystem
-(including SFTP), and shell / tool integrations all reinforce each other.
+This repo keeps Yazi close to its defaults. It adds the Catppuccin Mocha
+flavor, shows hidden files, defines a few keymaps, and names VFS services for
+`bubba` and `pizero2`.
 
-What this repo customizes is small: Catppuccin Mocha flavor, hidden files
-shown by default, a few custom keymaps rather than a totally rewritten
-experience, and named VFS services for `bubba` and `pizero2`.
-
-Mental model: Yazi is a fast async file-control plane. Navigate, select a set,
-run an operation, let it continue in the background, and keep moving.
-
-It also fills a deliberate gap in Neovim. There is *no* file tree plugin in
-nvim here — Yazi is the general-purpose file tree for the whole setup, and
-`oil.nvim` is the in-buffer file editor for the cases where Yazi's modal flow
-gets in the way. They complement each other rather than overlap:
+Yazi handles navigation and asynchronous file operations. Neovim has no file
+tree plugin; `oil.nvim` handles directory edits inside a buffer. The two tools
+divide the work as follows:
 
 - **Yazi for navigation.** Tree-style browsing, jumping by zoxide (`z`), fzf
   jump (`Z`), fd / ripgrep search (`s` / `S`), tabs, previews, and async copy /
@@ -219,8 +210,8 @@ gets in the way. They complement each other rather than overlap:
   by frecency"), two surfaces depending on whether you want a full file
   manager or an editable directory buffer.
 
-Rule of thumb: *navigate, preview, and run shell-y bulk ops in Yazi; rename
-or restructure by editing text in oil.*
+Use Yazi to navigate, preview, and run bulk file operations. Use oil to rename
+or restructure files by editing text.
 
 ```quiz
 [[questions]]
