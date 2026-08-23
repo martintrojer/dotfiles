@@ -1446,6 +1446,20 @@ def run_split_pane_focus_tests(env: dict[str, str]) -> None:
             conn.execute("DELETE FROM events WHERE window_id = ?", (wid,))
 
 
+def agent_probe_env(env: dict[str, str]) -> dict[str, str]:
+    """Return an environment with a long-running process named ``codex``.
+
+    Keep the system binary in place: macOS kills copied platform binaries,
+    while invoking it through a symlink still gives ``ps`` the probe basename.
+    """
+    agent_bin = Path(env["XDG_STATE_HOME"]).parent / "probe-bin"
+    agent_bin.mkdir(parents=True, exist_ok=True)
+    agent = agent_bin / "codex"
+    agent.unlink(missing_ok=True)
+    agent.symlink_to("/bin/sleep")
+    return {**env, "PATH": f"{agent_bin}:{env['PATH']}"}
+
+
 def run_split_pane_label_tests(env: dict[str, str]) -> None:
     """An agent in a non-active pane is invisible to the label path.
 
@@ -1464,12 +1478,9 @@ def run_split_pane_label_tests(env: dict[str, str]) -> None:
     """
     print("\n[agent-attention: split-pane agent visibility]")
 
-    agent_bin = Path(env["XDG_STATE_HOME"]).parent / "probe-bin"
-    agent_bin.mkdir(parents=True, exist_ok=True)
     # A real process named after a real agent: ProcessSnapshot matches on
     # the command basename, so the name is the whole fixture.
-    shutil.copy("/bin/sleep", agent_bin / "codex")
-    sub_env = {**env, "PATH": f"{agent_bin}:{env['PATH']}"}
+    sub_env = agent_probe_env(env)
 
     tmux(sub_env, ["new-window", "-d", "-t", "s1:", "-n", "splitlbl"])
     tmux(sub_env, ["split-window", "-h", "-d", "-t", "s1:splitlbl", "codex 400"])
@@ -1536,10 +1547,7 @@ def run_last_pane_visibility_tests(env: dict[str, str]) -> None:
     """
     print("\n[agent-attention: last pane on the server]")
 
-    agent_bin = Path(env["XDG_STATE_HOME"]).parent / "probe-bin"
-    agent_bin.mkdir(parents=True, exist_ok=True)
-    shutil.copy("/bin/sleep", agent_bin / "codex")
-    sub_env = {**env, "PATH": f"{agent_bin}:{env['PATH']}"}
+    sub_env = agent_probe_env(env)
 
     tmux(sub_env, ["new-window", "-d", "-t", "s1:", "-n", "lastpane", "codex 400"])
     wid = tmux(sub_env, ["display-message", "-p", "-t", "s1:lastpane", "#{window_id}"])
