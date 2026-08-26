@@ -202,6 +202,36 @@ Reboot, then verify: `dmesg | grep 'RTL: fw version'` shows `0x09a98a6b`.
 Revert: `sudo rpm-ostree kargs --delete=firmware_class.path=/etc/firmware &&
 sudo rm -rf /etc/firmware/rtl_bt` (then reboot).
 
+### Input latency: don't bother with the BLE connection interval
+
+Investigated 2026-08, **not fixed, don't retry.** The widely copied [xpadneo
+workaround](https://github.com/atar-axis/xpadneo/blob/master/docs/TROUBLESHOOTING.md)
+(`MinConnectionInterval=7`/`MaxConnectionInterval=9`/`ConnectionLatency=0` under
+`[LE]`) does not hold, nor does the per-device `[ConnectionParameters]` block in
+`/var/lib/bluetooth/*/*/info`. Both apply for ~220 ms, then BlueZ reads the pad's
+Peripheral Preferred Connection Parameters (`0x2A04` → `06 00 0c 00 00 00 2c 01`
+= min 6, **max 12 = 15 ms**) and issues an `LE Connection Update` back to 15 ms.
+15 ms is the pad's own request; BlueZ has no option to ignore PPCP, so
+`main.conf` is the wrong attachment point.
+
+Two upstream claims that failed to reproduce here: the pad *does* advertise
+preferred parameters, and it runs ~33 Hz, not 100 Hz (median inter-arrival
+**30.00 ms** across 372 ACL packets — it uses every second connection event, so
+a tighter interval caps latency without raising the report rate).
+
+Ceiling is ~3.75 ms against a pad that talks every 30 ms. Only remaining lever
+is `hcitool lecup --handle <h> --min 7 --max 9 --latency 0` after PPCP lands, per
+connect, needing `bluez-deprecated` layered. Not worth it — a USB-C cable is
+1–4 ms for free. Reproduce (pad **off** first or the setup is missed):
+
+```bash
+sudo btmon -P -M -K -w /tmp/bt.snoop   # power on the pad, ~15s, Ctrl-C
+btmon -P -r /tmp/bt.snoop | grep -iB3 -A18 'Create Connection'
+```
+
+Not tried: **xpadneo**. In-kernel `hid-microsoft` works; xpadneo adds trigger
+rumble and `qos_requirement` but is DKMS, real maintenance on rpm-ostree.
+
 ## OpenRGB / RGB
 
 `openrgb` (from `os/steam-packages.sh`) controls motherboard / RAM / GPU RGB. To
