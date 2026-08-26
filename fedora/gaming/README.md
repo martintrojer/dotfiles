@@ -1,16 +1,16 @@
 # Fedora Gaming Layer
 
 The main rig's gaming, streaming, and RGB stack lives in a separate namespace
-so the [Fedora baseline](../README.md) remains a COPR-free Sway setup.
+so the [Fedora baseline](../README.md) remains a minimal Sway setup.
 
 The module is active by default on Fedora hosts. Suppress it with
 `./dotfiles-sync --apply --skip-gaming` on work or laptop machines. The main rig
 needs no flag. See the
 partitioning rationale in [`../../docs/DECISIONS.md`](../../docs/DECISIONS.md).
 
-This layer is the scoped exception to the baseline's COPR-free and minimal
-overlay rules. It adds RPM Fusion, the Sunshine COPR, and graphical packages
-that do not belong in the baseline. [`docs/DECISIONS.md`](./docs/DECISIONS.md)
+This layer is the scoped exception to the baseline's minimal-overlay rule. It
+adds RPM Fusion and graphical packages that do not belong in the baseline, and
+**no COPRs** — the baseline's no-COPR rule holds here too. [`docs/DECISIONS.md`](./docs/DECISIONS.md)
 records the history.
 
 ## Layout
@@ -21,20 +21,19 @@ records the history.
   a clean install; they don't layer packages and rarely need re-running.
 - **`data/`** — tracked tool policy read at runtime:
   `data/optiscaler-overrides.json` contains reviewed AppID target overrides.
-- **`docs/`** — [gamescope session](./docs/GAMESCOPE-SESSION.md),
-  [HDR gaming](./docs/HDR-GAMING.md), and [streaming](./docs/STREAMING.md)
-  procedures.
+- **`docs/`** — [gamescope session](./docs/GAMESCOPE-SESSION.md) and
+  [HDR gaming](./docs/HDR-GAMING.md) procedures.
 - **`home/`** — the single package. Everything gaming that lands in `$HOME`
-  (bin helpers, GameMode config, the Sunshine unit override). Linked
-  by default, skipped with `--skip-gaming`.
+  (bin helpers, GameMode config). Linked by default, skipped with
+  `--skip-gaming`.
 
 ## Setup Flow
 
 Order for a fresh install (after the baseline `os/` + `setup-mise.sh`):
 
-1. Enable **RPM Fusion** (free + nonfree) and the **Sunshine COPR** — see the
-   header of [`os/steam-packages.sh`](./os/steam-packages.sh) for the exact
-   repo-setup commands.
+1. Enable **RPM Fusion** (free + nonfree) — see the header of
+   [`os/steam-packages.sh`](./os/steam-packages.sh) for the exact repo-setup
+   commands.
 2. `os/setup-steam.sh` — layer gaming/Steam packages.
 3. `config/setup-gamescope-session.sh` — install the "Steam (gamescope)"
    embedded session selectable at SDDM (see
@@ -45,16 +44,14 @@ Order for a fresh install (after the baseline `os/` + `setup-mise.sh`):
 
 Other `config/` installers, run as needed: `setup-power-key.sh` (power button
 suspends), `setup-steam-pause.sh` (pause games across suspend),
-`setup-wake-usb.sh` (only the power button wakes the tower), `setup-sunshine.sh`
-(open Sunshine ports to the configured wired LAN only), `setup-bt-firmware.sh`
-(fix Xbox controller BT
-drops; see "Bluetooth Controller" below).
+`setup-wake-usb.sh` (only the power button wakes the tower),
+`setup-bt-firmware.sh` (fix Xbox controller BT drops; see "Bluetooth
+Controller" below).
 
 ## Package List
 
 `os/steam-packages.sh` — gaming/Steam packages (single `steam_packages` array),
-gated behind RPM Fusion + the Sunshine COPR. `os/setup-steam.sh` is a thin
-wrapper that sources the array and calls `rpm-ostree install`.
+gated behind RPM Fusion. `os/setup-steam.sh` is a thin wrapper that sources the array and calls `rpm-ostree install`.
 
 `gamemode` and `7zip` are not listed even though this stack
 uses both: the Sericea base image already ships them, and naming a base-image
@@ -78,9 +75,10 @@ Gaming modes:
 - **Steam (gamescope) SDDM session**: HDR gaming. `steam-session` owns the
   display via gamescope DRM, enables HDR, shows the `--mangoapp` overlay, and
   exports only HDR WSI env: `DXVK_HDR=1 ENABLE_GAMESCOPE_WSI=1`.
-- **Steam (gamescope stream) SDDM session**: same launcher with
-  `GS_OUT_W=1920 GS_OUT_H=1080 GS_HDR=0 GS_SUNSHINE=1` for streaming to a
-  handheld via Sunshine. See [docs/STREAMING.md](./docs/STREAMING.md).
+- **Streaming to a handheld**: Steam Remote Play, from whichever environment is
+  running. Steam renegotiates the PipeWire capture down to the client's
+  resolution limit before the encoder sees a frame, so the host's mode does not
+  set the stream's. Quality is set on the handheld.
 - **Per-game OptiScaler/FSR4/GameMode**: use `optirun %command%`. It sets
   `WINEDLLOVERRIDES=dxgi=n,b` and `PROTON_FSR4_UPGRADE=1`, then runs the game
   via `gamemoderun` when available.

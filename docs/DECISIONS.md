@@ -313,9 +313,9 @@ Removed the Claude Code integration surface (`.claude-plugin/`, `hooks/`, the ma
 
 ### Quarantine the Fedora gaming layer into `fedora/gaming/` as an opt-out scope (accepted 2026-07-12)
 
-The main rig's gaming/streaming/RGB stack (Steam, gamescope, Sunshine,
+The main rig's gaming/streaming/RGB stack (Steam, gamescope,
 OptiScaler, MangoHud, GameMode, OpenRGB, controller-firmware) is a deliberate
-break from the baseline's COPR-free/minimal rules — that break was already
+break from the baseline's minimal-overlay rules — that break was already
 accepted (why it earns its place is in
 [`fedora/gaming/docs/DECISIONS.md`](../fedora/gaming/docs/DECISIONS.md)). The
 problem was that it had *sprawled* across `fedora/os/`, `config/`, `bin/`,
@@ -327,7 +327,7 @@ The fix:
 
 - **Physical quarantine.** All gaming material moved under one namespace,
   `fedora/gaming/` (`os/`, `config/`, `data/`, `docs/`, plus a single `home/`
-  stow package for what lands in `$HOME`). `fedora/` is now a clean COPR-free
+  stow package for what lands in `$HOME`). `fedora/` is now a clean minimal
   Sway baseline; `fedora/gaming/` is deletable as a unit. `gamemode`/`mangohud`
   configs folded in from repo-root (they were pure-gaming, a leak).
 - **Opt-out scope.** `dotfiles-sync` gained a `gaming` scope, default-on for

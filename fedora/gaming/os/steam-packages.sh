@@ -2,22 +2,13 @@
 
 # Gaming/Steam packages layered on top of Fedora Sway Atomic (Sericea).
 #
-# These require extra repos that are NOT part of the COPR-free host baseline,
-# so they must be enabled before running os/setup-steam.sh:
+# These require an extra repo that is NOT part of the COPR-free host baseline,
+# so it must be enabled before running os/setup-steam.sh:
 #
-# 1. RPM Fusion (free + nonfree) for steam, gamescope, mangohud, gamemode:
+# RPM Fusion (free + nonfree) for steam, gamescope, mangohud, gamemode:
 #      rpm-ostree install \
 #        https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
 #        https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-#
-# 2. Sunshine COPR (beta) for Moonlight game streaming (Sunshine):
-#      https://copr.fedorainfracloud.org/coprs/g/lizardbyte/beta/
-#      -> drop the repo file at /etc/yum.repos.d/sunshine.repo
-#      beta not stable: stable often lags the newest Fedora. The rpm is
-#      Atomic-correct (caps ship as file capabilities, %post skips under
-#      rpm-ostree, ships its own udev rule + user unit). The user unit is
-#      started on demand by the gamescope stream session, NOT enabled. See
-#      fedora/gaming/docs/STREAMING.md.
 #
 # Not listed, because the Sericea base image already ships them: gamemode
 # (used by gamemoderun/optirun) and 7zip (used by optiscaler-sync). Listing a
@@ -37,13 +28,26 @@ steam_packages=(
   mangohud
   # RGB lighting control (so it can run system-wide, e.g. turn off at boot).
   openrgb
-  # Moonlight game-stream host for the gamescope stream session; needs the
-  # Sunshine COPR. Started on demand by steam-session (GS_SUNSHINE=1). Run
-  # config/setup-sunshine.sh afterwards to open the firewall ports.
-  Sunshine
   # AMD VAAPI hardware video encoders (H264/HEVC/AV1), stripped from stock mesa
-  # for patent reasons. Without this, Sunshine falls back to software x264 --
-  # unusable at 4K. From RPM Fusion free; installs to /usr/lib64/dri-freeworld/
-  # (no conflict with base mesa, so a plain layer, not an override).
-  mesa-va-drivers-freeworld
+  # for patent reasons. Without these, Steam Remote Play falls back to software
+  # x264. From RPM Fusion free; installs to /usr/lib{,64}/dri-freeworld/ (no
+  # conflict with base mesa, so a plain layer, not an override).
+  #
+  # Both arches are required. Steam's host encoder looks up VAAPI drivers in the
+  # 32-bit /usr/lib/dri-freeworld/; with x86_64 alone that dir is empty, libva
+  # falls through to the patent-stripped mesa-dri-drivers.i686, and the encoder
+  # dies with "Function not implemented". Verify in
+  # ~/.local/share/Steam/logs/streaming_log.txt: `>>> Capture method set to`
+  # must name VAAPI, not libx264.
+  #
+  # Both names are arch-qualified because a bare `mesa-va-drivers-freeworld`
+  # plus the `.i686` makes rpm-ostree treat the pair as one package and replace
+  # the x86_64 with the i686, silently losing 64-bit VAAPI. It reports that as
+  # "Downgraded: 26.1.8-1.fc44 -> 26.1.8-1.fc44", which is an arch swap, not a
+  # version change. After layering, expect both arches in:
+  #   rpm-ostree db list <commit> | grep freeworld
+  # Keep them at the same version; a skew is a known way to break mesa on
+  # rpm-ostree (rpm-ostree#4592).
+  mesa-va-drivers-freeworld.x86_64
+  mesa-va-drivers-freeworld.i686
 )

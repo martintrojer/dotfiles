@@ -9,8 +9,9 @@ Use these environments:
 - **Sway desktop**: light SDR gaming. Launch games normally. No nested gamescope.
 - **Steam (gamescope) SDDM session**: HDR. gamescope uses the DRM backend,
   owns KMS/DP-1, starts Steam Big Picture, and draws MangoHud with `--mangoapp`.
-- **Steam (gamescope stream) SDDM session**: same launcher, 1080p SDR + Sunshine
-  for handheld streaming. See [STREAMING.md](./STREAMING.md).
+- **Streaming to a handheld**: Steam Remote Play, from either environment. It
+  negotiates the capture down to the client's resolution limit, so the host's
+  mode does not affect the stream.
 
 Sway 1.11 lacks the color-management protocol needed for HDR. For HDR, log
 into the gamescope session instead of nesting gamescope inside Sway. Background:
@@ -71,6 +72,6 @@ optirun %command%
 | Goal | How |
 | --- | --- |
 | HDR session | Steam (gamescope) in SDDM |
-| Stream to handheld (1080p SDR, Sunshine) | Steam (gamescope stream) in SDDM |
+| Stream to handheld | Steam Remote Play from any session |
 | SDR desktop gaming | Sway; launch normally |
 | OptiScaler/FSR4/GameMode for one game | `optirun %command%` |

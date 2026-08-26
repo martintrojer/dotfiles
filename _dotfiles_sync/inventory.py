@@ -68,9 +68,9 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
     # Gaming layer: the main rig's opt-out module. Active by default on Fedora,
     # suppressed with `--skip-gaming` on work/laptop hosts so they get a pure
     # Sway baseline with zero gaming footprint. The single "home" stow package
-    # holds every gaming dotfile (bin helpers, MangoHud/GameMode configs, the
-    # Sunshine unit override); the rest of fedora/gaming/ is non-stow setup
-    # scripts, data, and docs. See fedora/gaming/README.md.
+    # holds every gaming dotfile (bin helpers, MangoHud/GameMode configs); the
+    # rest of fedora/gaming/ is non-stow setup scripts, data, and docs. See
+    # fedora/gaming/README.md.
     (
         "gaming",
         ROOT / "fedora" / "gaming",

@@ -1,8 +1,7 @@
 # Gamescope SDDM session
 
 This SDDM session runs Steam's gamepad UI under gamescope on the DRM backend. It
-provides HDR ([HDR-GAMING.md](./HDR-GAMING.md)) and handheld streaming
-([STREAMING.md](./STREAMING.md)).
+provides HDR ([HDR-GAMING.md](./HDR-GAMING.md)).
 
 ## Install
 
@@ -14,13 +13,12 @@ which SDDM already searches):
 - `/usr/local/bin/steam-session` → linked `~/.local/bin/steam-session`
 - `/usr/local/bin/steamos-session-select` → linked exit shim
 - `/usr/local/share/wayland-sessions/steam.desktop` (couch HDR)
-- `/usr/local/share/wayland-sessions/steam-stream.desktop` (1080p SDR streaming)
 
 ## Enter
 
-Pick **Steam (gamescope)** (or **Steam (gamescope stream)**) at the SDDM login
-screen. `steam-session` refuses to run inside an existing graphical session, so
-it's SDDM-only, not launchable from Sway.
+Pick **Steam (gamescope)** at the SDDM login screen. `steam-session` refuses to
+run inside an existing graphical session, so it's SDDM-only, not launchable from
+Sway.
 
 ## Exit — "Desktop Mode"
 

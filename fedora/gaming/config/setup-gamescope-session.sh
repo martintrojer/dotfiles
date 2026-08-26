@@ -1,22 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install the SteamOS-style gamescope sessions so they can be picked from the
-# SDDM login screen. Both are embedded/DRM gamescope sessions that exec the same
-# linked launcher; only env knobs differ. See fedora/gaming/docs/GAMESCOPE-SESSION.md.
-#
-#   steam.desktop         4K HDR for couch PC gaming (launcher defaults)
-#   steam-stream.desktop  1080p SDR + Sunshine for streaming to a handheld
-#                         (GS_OUT_W=1920 GS_OUT_H=1080 GS_HDR=0 GS_SUNSHINE=1)
+# Install the SteamOS-style gamescope session (steam.desktop: 4K HDR couch PC
+# gaming, launcher defaults) so it can be picked from the SDDM login screen. An
+# embedded/DRM gamescope session that execs the linked launcher. See
+# fedora/gaming/docs/GAMESCOPE-SESSION.md.
 #
 # It wires system paths (writable + persistent on Atomic via the
 # /usr/local -> /var/usrlocal symlink), which SDDM already searches
 # (SessionDir=/usr/local/share/wayland-sessions,...):
 #
-#   /usr/local/bin/steam-session                        -> the linked launcher
-#   /usr/local/bin/steamos-session-select               -> the linked exit shim
-#   /usr/local/share/wayland-sessions/steam.desktop        couch HDR entry
-#   /usr/local/share/wayland-sessions/steam-stream.desktop streaming entry
+#   /usr/local/bin/steam-session           -> the linked launcher
+#   /usr/local/bin/steamos-session-select  -> the linked exit shim
+#   /usr/local/share/wayland-sessions/steam.desktop   couch HDR entry
 #
 # The exit shim goes in /usr/local/bin (always on PATH) rather than relying on
 # ~/.local/bin being inherited: the gamepad UI's "Desktop Mode" runs
@@ -31,10 +27,7 @@ script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 launcher="$HOME/.local/bin/steam-session"
 session_select="$HOME/.local/bin/steamos-session-select"
-desktop_srcs=(
-  "$script_dir/gamescope-session/steam.desktop"
-  "$script_dir/gamescope-session/steam-stream.desktop"
-)
+desktop_src="$script_dir/gamescope-session/steam.desktop"
 
 for f in "$launcher" "$session_select"; do
   if [[ ! -x "$f" ]]; then
@@ -44,21 +37,17 @@ for f in "$launcher" "$session_select"; do
   fi
 done
 
-for desktop_src in "${desktop_srcs[@]}"; do
-  if [[ ! -f "$desktop_src" ]]; then
-    echo "error: $desktop_src not found." >&2
-    exit 1
-  fi
-done
+if [[ ! -f "$desktop_src" ]]; then
+  echo "error: $desktop_src not found." >&2
+  exit 1
+fi
 
 sudo install -d -m 0755 /usr/local/bin /usr/local/share/wayland-sessions
 sudo ln -sf "$launcher" /usr/local/bin/steam-session
 sudo ln -sf "$session_select" /usr/local/bin/steamos-session-select
-for desktop_src in "${desktop_srcs[@]}"; do
-  sudo install -m 0644 "$desktop_src" \
-    "/usr/local/share/wayland-sessions/$(basename "$desktop_src")"
-done
+sudo install -m 0644 "$desktop_src" \
+  "/usr/local/share/wayland-sessions/$(basename "$desktop_src")"
 
-echo "Installed 'Steam (gamescope)' and 'Steam (gamescope stream)' sessions."
+echo "Installed the 'Steam (gamescope)' session."
 echo "Installed exit shim at /usr/local/bin/steamos-session-select."
 echo "Pick a session at the SDDM login screen; use gamepad UI 'Desktop Mode' to return to SDDM."

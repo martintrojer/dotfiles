@@ -6,7 +6,7 @@ spin. Other Fedora variants are unsupported.
 
 The gaming layer lives under [`gaming/`](./gaming/README.md). It is active by
 default on the main rig. Run `./dotfiles-sync --apply --skip-gaming` on work or
-laptop hosts to install only the COPR-free Sway baseline documented here.
+laptop hosts to install only the Sway baseline documented here.
 
 ## Setup Flow
 
@@ -47,10 +47,18 @@ call `rpm-ostree install`:
 
 ## Decisions
 
-- The **baseline** (base + sway + mise) stays COPR-free and prefers stock Fedora
-  repos. `google-chrome-stable` is the one exception (assumes Google's Chrome
-  repo is enabled).
-- The **gaming layer is a deliberate, scoped break** quarantined in
+- **No COPRs.** A COPR is a single-maintainer build with no distro QA, so it
+  needs a reason no stock or RPM Fusion package can give; "upstream is newer
+  there" is not one. Past attempts and why they were dropped are in
+  [`gaming/docs/DECISIONS.md`](./gaming/docs/DECISIONS.md). Sericea's own
+  `fedora-workstation-repositories` ships an enabled PyCharm COPR file in
+  `/etc/yum.repos.d/`; nothing here installs from it, and it is not ours to
+  remove.
+- **Third-party repos in use:** Google's Chrome repo in the baseline (for
+  `google-chrome-stable`) and RPM Fusion free + nonfree for the gaming layer
+  only. No COPRs does not mean stock Fedora only.
+- The **gaming layer is a deliberate, scoped break** of the minimal-overlay
+  rule — RPM Fusion plus graphical packages — quarantined in
   [`gaming/`](./gaming/README.md); see
   [`docs/DECISIONS.md`](../docs/DECISIONS.md) for the partitioning rationale.
 - `mise` is core bootstrap, so the base keeps a small build toolchain
