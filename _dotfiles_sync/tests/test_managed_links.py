@@ -136,6 +136,54 @@ class ScanScopeTests(ManagedLinkLayout):
         stray_link.symlink_to(self.repo / "pkg" / ".config" / "app" / "conf")
         self.assertEqual(self.walk(), [])
 
+    def test_link_in_a_deleted_mirrored_subdir_is_found(self) -> None:
+        # Deleting a whole mirrored *directory* leaves no repo dir to derive a
+        # scan root from, so its contents were invisible: the parent root is
+        # read one level deep and the link sits two. A removed Sunshine unit
+        # drop-in dangled in $HOME with --check reporting a clean tree.
+        self.repo_file(".config/systemd/user/keep.service")
+        gone = self.repo / "pkg" / ".config/systemd/user/gone.service.d/override.conf"
+        dest = self.link(".config/systemd/user/gone.service.d/override.conf", gone)
+        self.assertEqual(self.walk(), [(dest, gone.resolve())])
+
+    def test_link_in_a_deeply_deleted_mirrored_subdir_is_found(self) -> None:
+        # Same failure, more nesting: descent must follow the managed links
+        # down to MAX_ORPHAN_DEPTH.
+        self.repo_file(".config/app/conf")
+        gone = self.repo / "pkg" / ".config/app/a/b/leaf"
+        dest = self.link(".config/app/a/b/leaf", gone)
+        self.assertEqual(self.walk(), [(dest, gone.resolve())])
+
+    def test_descent_into_unmirrored_dirs_is_depth_bounded(self) -> None:
+        # The bound is what keeps this walk off ~/.local/share and ~/.var/app,
+        # whose sizes are nothing to do with the repo. Losing it would restore
+        # the 450k-entry walk collect_scan_roots exists to avoid, so the limit
+        # is asserted rather than left to the stop-on-real-file heuristic.
+        self.repo_file(".config/app/conf")
+        depth = repo_checks.MAX_ORPHAN_DEPTH
+        too_deep = self.repo / "pkg" / ".config/app" / Path(*"x" * (depth + 1)) / "leaf"
+        self.link(str(too_deep.relative_to(self.repo / "pkg")), too_deep)
+        self.assertEqual(self.walk(), [])
+
+    def test_live_link_in_an_unmirrored_dir_is_left_to_its_owner(self) -> None:
+        # A resolvable link in a dir the repo doesn't mirror was never put
+        # there by the planner. Yielding it would offer somebody else's link
+        # to the prune step.
+        src = self.repo_file(".config/app/conf")
+        stray = self.target / ".config" / "app" / "vendor"
+        stray.mkdir(parents=True)
+        (stray / "conf").symlink_to(src)
+        self.assertEqual(self.walk(), [])
+
+    def test_descent_stops_at_a_directory_holding_real_files(self) -> None:
+        self.repo_file(".config/app/conf")
+        owned = self.target / ".config" / "app" / "vendor"
+        owned.mkdir(parents=True)
+        (owned / "real.db").write_text("x", encoding="utf-8")
+        gone = self.repo / "pkg" / ".config/app/vendor/override"
+        (owned / "override").symlink_to(gone)
+        self.assertEqual(self.walk(), [])
+
     def test_bundle_dir_contents_are_not_scanned(self) -> None:
         # A bundle links as one directory symlink, so scanning inside it walks
         # back into the repo. Any symlink a vendored tree happens to contain
@@ -193,6 +241,17 @@ class PruneStaleManagedLinksTests(ManagedLinkLayout):
         self.prune()
         self.assertTrue(dest.is_symlink())
         self.assertEqual(dest.resolve(), src.resolve())
+
+    def test_dangling_link_in_a_deleted_mirrored_subdir_is_removed(self) -> None:
+        # The end-to-end bug: --apply left this behind and --check called the
+        # tree clean, so no run could ever resolve it.
+        self.repo_file(".config/systemd/user/keep.service")
+        missing = (
+            self.repo / "pkg" / ".config/systemd/user/gone.service.d/override.conf"
+        )
+        dest = self.link(".config/systemd/user/gone.service.d/override.conf", missing)
+        self.prune()
+        self.assertFalse(dest.is_symlink())
 
     def test_dangling_link_outside_the_repo_is_left_alone(self) -> None:
         # Not ours to clean up, however broken it looks.

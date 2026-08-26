@@ -8,6 +8,7 @@ import subprocess
 from collections.abc import Iterable, Iterator
 from itertools import chain
 from pathlib import Path
+from typing import Final
 from urllib.parse import urlparse
 
 from .config import SCRIPT_DIR, lazy_header
@@ -453,6 +454,60 @@ def managed_link_target(path: Path, source_root: Path) -> Path | None:
     return resolved
 
 
+# How far below a mirrored directory the orphan scan will descend. The repo's
+# own deleted shapes are shallow (a systemd `*.service.d/` drop-in is one
+# level), and this is the only thing making the scan's cost independent of
+# what happens to sit under a mirrored path -- see iter_orphaned_managed_links.
+MAX_ORPHAN_DEPTH: Final[int] = 3
+
+
+def iter_orphaned_managed_links(
+    scan_root: Path, mirrored: set[Path], script_real: Path, depth: int = 1
+) -> Iterator[tuple[Path, Path]]:
+    """Yield dangling managed links in subdirs the repo no longer mirrors.
+
+    collect_scan_roots only knows what the repo mirrors *now*, and each root is
+    read one level deep, so deleting a whole mirrored directory hid everything
+    inside it: no repo dir was left to derive a scan root from, and its links
+    sat a level too deep for the parent's scan. `--check` then called the tree
+    clean while `--apply` had nothing to prune, which is how a removed Sunshine
+    unit drop-in stayed symlinked into `$HOME` across runs.
+
+    Only *dangling* links are yielded, which is exactly the formerly-mirrored
+    case: a path the repo no longer mirrors cannot have a live link. A link
+    that still resolves in such a directory was not put there by the planner,
+    so it stays somebody else's business (the stray-link case).
+
+    Two bounds keep this off the 450k-entry trees that made collect_scan_roots
+    stop walking recursively in the first place. Descent stops at any directory
+    holding a real file, because a leftover of a deleted mirrored directory
+    holds only our links and more such directories. That signal alone is too
+    weak to rely on -- `~/.local/share` is spared by two stray files at its top
+    and `~/.var/app` has none -- so MAX_ORPHAN_DEPTH is the actual guarantee.
+    """
+    if depth > MAX_ORPHAN_DEPTH:
+        return
+    try:
+        entries = sorted(scan_root.iterdir())
+    except OSError:
+        return
+
+    if any(not item.is_symlink() and not item.is_dir() for item in entries):
+        return
+
+    for item in entries:
+        if item.is_symlink():
+            if item.exists():
+                continue
+            repo_target = managed_link_target(item, script_real)
+            if repo_target is not None:
+                yield item, repo_target
+        elif item.is_dir() and item not in mirrored:
+            yield from iter_orphaned_managed_links(
+                item, mirrored, script_real, depth + 1
+            )
+
+
 def iter_managed_links(
     target: Path, specs: dict[str, PackageSpec], active_names: set[str]
 ) -> Iterator[tuple[Path, Path]]:
@@ -469,16 +524,25 @@ def iter_managed_links(
     so the prune step's parent walk still sees containers before contents.
     """
     script_real = SCRIPT_DIR.resolve()
+    scan_roots = collect_scan_roots(specs, target, active_names)
+    mirrored = set(scan_roots)
     seen: set[Path] = set()
-    for scan_root in collect_scan_roots(specs, target, active_names):
+    orphan_roots: list[Path] = []
+    for scan_root in scan_roots:
         if scan_root.is_symlink():
             candidates: Iterable[Path] = (scan_root,)
         else:
             try:
-                candidates = chain((scan_root,), sorted(scan_root.iterdir()))
+                entries = sorted(scan_root.iterdir())
             except OSError:
                 # Not yet linked, or unreadable. Nothing to audit either way.
                 continue
+            candidates = chain((scan_root,), entries)
+            orphan_roots.extend(
+                item
+                for item in entries
+                if item.is_dir() and not item.is_symlink() and item not in mirrored
+            )
 
         for path in candidates:
             if path in seen or not path.is_symlink():
@@ -487,6 +551,17 @@ def iter_managed_links(
             repo_target = managed_link_target(path, script_real)
             if repo_target is not None:
                 yield path, repo_target
+
+    # Directories the repo used to mirror, walked after the mirrored set so
+    # containers are still seen before their contents.
+    for orphan_root in orphan_roots:
+        for path, repo_target in iter_orphaned_managed_links(
+            orphan_root, mirrored, script_real
+        ):
+            if path in seen:
+                continue
+            seen.add(path)
+            yield path, repo_target
 
 
 def prune_stale_managed_links(
