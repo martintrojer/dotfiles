@@ -132,7 +132,7 @@ Pickers (all under `fuzzel/.config/fuzzel/scripts/`):
   so `mod+Tab Enter` toggles back to the previous window in two keystrokes
   (Alt-Tab style). Each row starts with `·` (other windows) or `•` (the
   currently focused window, which is pushed to the bottom).
-- `mod+v` — `clipboard`, clipman history.
+- `mod+v` — `clipboard`, cliphist text and image history (100 entries, 50 MiB per item).
 - `mod+e` — `emoji`, bemoji-backed.
 - `mod+\` — `calc`, qalc/bc-backed.
 - `mod+s` — `ssh`, ssh-config host picker.
@@ -173,7 +173,8 @@ gets started exactly once when the session comes up:
 
 | Unit                              | Daemon                              |
 | --------------------------------- | ----------------------------------- |
-| `sway-clipman-watcher.service`    | `wl-paste --watch clipman store`    |
+| `sway-cliphist-watcher@text.service`  | `wl-paste --type text --watch cliphist store`   |
+| `sway-cliphist-watcher@image.service` | `wl-paste --type image --watch cliphist store`  |
 | `sway-kanshi.service`             | `kanshi` (output profiles)          |
 | `sway-mako.service`               | `mako` (notifications)              |
 | `sway-waybar.service`             | `waybar` (status bar)               |
@@ -277,6 +278,12 @@ The `sixel-WxH` siblings are per-pane-size thumbnails for the fzf
 picker preview pane (see `wallpaper preview`): first paint pays the
 full ImageMagick cost, subsequent cursor moves over the same entry
 at the same pane size are a bytes-to-stdout pass.
+
+## File-content clipboard
+
+Thunar keeps normal `Ctrl+C` for copying files between directories. Its **Copy
+image contents** context action sends one selected image through `clipf`, which
+offers raster images as PNG on Wayland for browser paste compatibility.
 
 ## Screenshots
 

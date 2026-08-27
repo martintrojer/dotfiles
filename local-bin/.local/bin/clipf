@@ -7,7 +7,8 @@ Usage: clipf <path>
        clipf -        # copy stdin as text/plain
 
 Copy a file's contents to the system clipboard.
-Preserves MIME type for images/PDFs where supported.
+Offers raster images as PNG on Wayland for browser compatibility.
+Preserves other MIME types where supported.
 EOF
 }
 
@@ -44,7 +45,11 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     pbcopy < "$path"
   fi
 elif [[ "${XDG_SESSION_TYPE:-}" == "wayland" ]]; then
-  wl-copy -t "$mime" < "$path"
+  if [[ "$mime" == image/* && "$mime" != "image/png" ]]; then
+    magick "$path" png:- | wl-copy -t image/png
+  else
+    wl-copy -t "$mime" < "$path"
+  fi
 else
   xclip -selection clipboard -t "$mime" -i "$path"
 fi

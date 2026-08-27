@@ -147,11 +147,24 @@ the planner owns the symlinks (see `_dotfiles_sync/link.py`).
 The gaming layer adds one more package (`gaming/home`), linked by default and
 skipped with `--skip-gaming`; see [`gaming/README.md`](./gaming/README.md).
 
+## Migrate clipboard history
+
+Fresh installs receive `cliphist` from `os/sway-packages.sh`. On a system that
+already has `clipman` layered, create a replacement deployment and reboot:
+
+```bash
+sudo rpm-ostree uninstall clipman --install cliphist
+systemctl reboot
+```
+
+After login, `sway-session.target` starts separate text and image watchers.
+
 ## User Services
 
 `systemd/.config/systemd/user/` contains `sway-session.target` and the
-`lmstudio-server`, `sway-clipman-watcher`, `sway-foot-server`, `sway-kanshi`,
-`sway-mako`, `sway-waybar`, `swaybg`, and `swayidle` services.
+`lmstudio-server`, `sway-cliphist-watcher@image`,
+`sway-cliphist-watcher@text`, `sway-foot-server`, `sway-kanshi`, `sway-mako`,
+`sway-waybar`, `swaybg`, and `swayidle` services.
 
 Flow: link → reload → enable units:
 

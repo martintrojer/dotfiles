@@ -162,8 +162,10 @@ copying, remote navigation, markdown preview, and Trash access.
 - `g` `t` — go to Trash via `trash path`
 - `g` `T` — empty Trash via `trash empty`
 
-`clipf` preserves MIME type. On macOS it uses `pbcopy` for text and special
-handling for images / PDFs; on Wayland it uses `wl-copy`.
+`clipf` preserves text and PDF MIME types. On Wayland it offers raster images
+as PNG so browsers such as Google Chrome can paste them; native PNG bytes pass
+through unchanged. On macOS it uses `pbcopy` for text and special handling for
+images and PDFs.
 
 ```quiz
 [[questions]]
