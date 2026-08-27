@@ -22,8 +22,8 @@ sway_packages=(
   google-chrome-stable
 
   # Picker and Waybar backends.
-  # Clipboard history backend used by the fuzzel picker and startup watcher.
-  clipman
+  # Clipboard history backend used by the fuzzel picker and startup watchers.
+  cliphist
   # Terminal UI for managing NetworkManager connections.
   NetworkManager-tui
   # Calculator backend for launcher workflows.

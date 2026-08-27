@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Clipboard history picker using clipman + fuzzel."""
+"""Clipboard history picker using cliphist + fuzzel."""
 
 from __future__ import annotations
 
 import argparse
-import shlex
+import subprocess
 
-from _common import cli_main, require_commands, run
+from _common import ScriptError, cli_main, require_commands
 
 
 def parse_args() -> argparse.Namespace:
@@ -18,19 +18,40 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    require_commands(["clipman", "fuzzel"])
+    require_commands(["cliphist", "fuzzel", "wl-copy"])
 
-    picker_parts = [
-        "fuzzel",
-        "--dmenu",
-        "--prompt",
-        args.prompt,
-        "--width",
-        str(args.width),
-    ]
-    picker = " ".join(shlex.quote(part) for part in picker_parts)
+    history = subprocess.run(["cliphist", "list"], capture_output=True, check=False)
+    if history.returncode != 0:
+        raise ScriptError("Could not read clipboard history")
+    if not history.stdout:
+        return 0
 
-    run(["clipman", "pick", "-t", "CUSTOM", "-T", picker], check=False)
+    selected = subprocess.run(
+        [
+            "fuzzel",
+            "--dmenu",
+            "--with-nth",
+            "2",
+            "--prompt",
+            args.prompt,
+            "--width",
+            str(args.width),
+        ],
+        input=history.stdout,
+        capture_output=True,
+        check=False,
+    )
+    if selected.returncode != 0 or not selected.stdout:
+        return 0
+
+    decoded = subprocess.run(
+        ["cliphist", "decode"], input=selected.stdout, capture_output=True, check=False
+    )
+    if decoded.returncode != 0:
+        raise ScriptError("Could not decode clipboard entry")
+    copied = subprocess.run(["wl-copy"], input=decoded.stdout, check=False)
+    if copied.returncode != 0:
+        raise ScriptError("Could not restore clipboard entry")
     return 0
 
 

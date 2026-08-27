@@ -45,7 +45,7 @@ PRETTIER_FILES := $(shell $(RG) -g '*.ts' -g '*.json' -g '*.jsonc' -g '*.css' -g
 TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
 FEDORA_TEST_DIRS := fedora/tests fedora/gaming/tests
 TS_TEST_GLOB := pi/.pi/agent/extensions/tests/*.test.ts
-DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests sway/.config/sway/scripts/tests waybar/.config/waybar/scripts/tests
+DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests local-bin/.local/bin/tests sway/.config/sway/scripts/tests waybar/.config/waybar/scripts/tests
 
 .PHONY: \
 	help \
