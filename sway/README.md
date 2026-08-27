@@ -132,7 +132,7 @@ Pickers (all under `fuzzel/.config/fuzzel/scripts/`):
   so `mod+Tab Enter` toggles back to the previous window in two keystrokes
   (Alt-Tab style). Each row starts with `·` (other windows) or `•` (the
   currently focused window, which is pushed to the bottom).
-- `mod+v` — `clipboard`, cliphist text and image history (100 entries, 50 MiB per item).
+- `mod+v` — `clipboard`, clipman history.
 - `mod+e` — `emoji`, bemoji-backed.
 - `mod+\` — `calc`, qalc/bc-backed.
 - `mod+s` — `ssh`, ssh-config host picker.
@@ -173,8 +173,7 @@ gets started exactly once when the session comes up:
 
 | Unit                              | Daemon                              |
 | --------------------------------- | ----------------------------------- |
-| `sway-cliphist-watcher@text.service`  | `wl-paste --type text --watch cliphist store`   |
-| `sway-cliphist-watcher@image.service` | `wl-paste --type image --watch cliphist store`  |
+| `sway-clipman-watcher.service`    | `wl-paste --watch clipman store`    |
 | `sway-kanshi.service`             | `kanshi` (output profiles)          |
 | `sway-mako.service`               | `mako` (notifications)              |
 | `sway-waybar.service`             | `waybar` (status bar)               |
@@ -255,19 +254,30 @@ which is why `session-swayidle` can keep calling `lock-screen --daemonize`.
 
 ### Lock image rendering (lives in `wallpaper`)
 
-The rendering recipe (downscaled blurred wallpaper) lives in
-`fedora/bin/.local/bin/wallpaper`. It runs:
+The rendering recipes live in `fedora/bin/.local/bin/wallpaper`. `wallpaper
+set <url-or-file>` keeps the original archive image, while `wallpaper use`
+always opens the archive picker. Both commands render for the focused output's
+physical resolution before restarting swaybg.
 
-- as part of `wallpaper set <url-or-file>` and `wallpaper use [archive-file]`,
-  so the next lock after a wallpaper change is instant; or
-- via `wallpaper rebuild-cache` to force a fresh render (used after
-  editing the render constants in `wallpaper`).
+The renderer trims transparent outer padding before measuring the image. Images
+close to the display aspect ratio use a centered fill crop when it loses no more
+than 10% of either visible source dimension. Portrait and square art scans keep
+the complete visible image over a blurred, darkened copy that fills the screen.
+`#08090c` fills any transparent holes left in the background. Output discovery
+falls back to 2560×1440.
+`wallpaper current` returns this display render when available.
+
+The lock-screen image is a downscaled, blurred copy of the composed desktop
+render, so both use the same framing. Run `wallpaper rebuild-cache` to force
+fresh display and lock images after changing either recipe.
 
 The blur (sigma 8) and lock render cap (2560×1440) are constants at
 the top of the script. Change them and bump `RENDER_VERSION` next to
 the constants — that invalidates all cached entries automatically.
 
-Results are cached under `$XDG_CACHE_HOME/wallpaper/<sha1(path+mtime+RENDER_VERSION)>.{png,sixel-WxH}`.
+Results are cached under `$XDG_CACHE_HOME/wallpaper/<sha>.<kind>-vN[-WxH].*`.
+The lock, display, and preview recipes have separate versions, so changing one
+does not invalidate the others.
 The warm path (cache hit during `wallpaper status`) is essentially
 instant. Cold render is ~3–6 s depending on wallpaper size. Cache
 entries are kept for the lifetime of the source archive entry — when
@@ -278,12 +288,6 @@ The `sixel-WxH` siblings are per-pane-size thumbnails for the fzf
 picker preview pane (see `wallpaper preview`): first paint pays the
 full ImageMagick cost, subsequent cursor moves over the same entry
 at the same pane size are a bytes-to-stdout pass.
-
-## File-content clipboard
-
-Thunar keeps normal `Ctrl+C` for copying files between directories. Its **Copy
-image contents** context action sends one selected image through `clipf`, which
-offers raster images as PNG on Wayland for browser paste compatibility.
 
 ## Screenshots
 
