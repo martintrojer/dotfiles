@@ -38,17 +38,24 @@ CACHE_DIR = XDG_CACHE_HOME / "wallpaper"
 # ----------------------------------------------------------------------
 
 BLUR_SIGMA = 8.0
-# Bump when changing anything that affects a cached artifact (blur
-# recipe, render size, sixel encoding). The cache key folds this in, so
-# changes invalidate every <key>.* entry in one go — lock PNG and
-# per-pane-size sixels alike.
-RENDER_VERSION = 18
+# Bump only the version for the artifact whose recipe changed. Keeping these
+# separate prevents display tuning from making lock-screen fall back to the raw
+# source until its cache is rebuilt.
+LOCK_RENDER_VERSION = 19
+DISPLAY_RENDER_VERSION = 1
+PREVIEW_RENDER_VERSION = 18
 # Lock images are display artifacts, not archival copies. Downscale very
 # large wallpapers before blur rendering so cache rebuilds stay fast and
 # do not hit subprocess timeouts on 5K/8K sources.
 LOCK_MAX_WIDTH = 2560
 LOCK_MAX_HEIGHT = 1440
 LOCK_RENDER_TIMEOUT = 20
+DISPLAY_FALLBACK_WIDTH = 2560
+DISPLAY_FALLBACK_HEIGHT = 1440
+DISPLAY_FALLBACK_COLOR = "#08090c"
+DISPLAY_CROP_LIMIT = 0.10
+DISPLAY_BLUR_SIGMA = 20
+DISPLAY_RENDER_TIMEOUT = 90
 # Catppuccin Mocha base — sixel preview canvas fill. The fixed canvas
 # matters because fzf/foot don't reliably clear old sixel pixels when
 # consecutive previews have different intrinsic sizes.
@@ -146,11 +153,11 @@ def restart_swaybg() -> None:
 
 
 # ----------------------------------------------------------------------
-# Cache: lock image + per-pane-size sixel previews
+# Cache: display, lock-screen, and per-pane-size sixel renders
 #
-# Files live at $XDG_CACHE_HOME/wallpaper/<sha>.{png,sixel-WxH}.
-# Key is wallpaper path + mtime + RENDER_VERSION; bumping the version
-# (or editing the source wallpaper) invalidates the entry automatically.
+# Files live at $XDG_CACHE_HOME/wallpaper/<sha>.<kind>-vN[-WxH].*.
+# The shared key identifies the source; each artifact carries its own recipe
+# version so changing one recipe does not invalidate unrelated caches.
 # Entries are removed when the source archive entry is deleted; there
 # is no time-based pruning, so a wallpaper kept around for years keeps
 # its warm lock-screen cache for years.
@@ -163,13 +170,13 @@ def restart_swaybg() -> None:
 
 
 def _cache_key(wallpaper: Path) -> str | None:
-    """Stable key derived from canonical path + mtime + RENDER_VERSION."""
+    """Stable key derived from canonical path and mtime."""
     try:
         source = wallpaper.resolve(strict=True)
         mtime = source.stat().st_mtime_ns
     except OSError:
         return None
-    raw = f"{source}\0{mtime}\0v={RENDER_VERSION}".encode()
+    raw = f"{source}\0{mtime}".encode()
     return hashlib.sha1(raw).hexdigest()[:16]
 
 
@@ -177,13 +184,21 @@ def _cache_path(wallpaper: Path) -> Path | None:
     key = _cache_key(wallpaper)
     if key is None:
         return None
-    return CACHE_DIR / f"{key}.png"
+    return CACHE_DIR / f"{key}.lock-v{LOCK_RENDER_VERSION}.png"
+
+
+def _display_cache_path(wallpaper: Path, width: int, height: int) -> Path | None:
+    """Cache path for a display-sized wallpaper render."""
+    key = _cache_key(wallpaper)
+    if key is None:
+        return None
+    return CACHE_DIR / (f"{key}.display-v{DISPLAY_RENDER_VERSION}-{width}x{height}.png")
 
 
 def _sixel_cache_path(wallpaper: Path, cols: int, lines: int) -> Path | None:
     """Cache path for a (wallpaper, cols x lines) sixel render.
 
-    Shares the wallpaper's `_cache_key` with the lock PNG so
+    Shares the wallpaper's `_cache_key` with other renders so
     `cmd__delete_archive` can glob `<key>.*` and clean every artifact
     derived from one archive entry in a single pass. Returns None if
     the wallpaper's mtime can't be stat'd.
@@ -191,7 +206,7 @@ def _sixel_cache_path(wallpaper: Path, cols: int, lines: int) -> Path | None:
     key = _cache_key(wallpaper)
     if key is None:
         return None
-    return CACHE_DIR / f"{key}.sixel-{cols}x{lines}"
+    return CACHE_DIR / f"{key}.sixel-v{PREVIEW_RENDER_VERSION}-{cols}x{lines}"
 
 
 def _file_identity(path: Path) -> tuple[int, int, int, int] | None:
@@ -234,6 +249,69 @@ def _atomic_write(path: Path, data: bytes) -> None:
             tmp_path.unlink()
 
 
+def _crop_loss(
+    source_width: int, source_height: int, target_width: int, target_height: int
+) -> float:
+    """Fraction lost from the cropped source dimension when filling a target."""
+    source_ratio = source_width / source_height
+    target_ratio = target_width / target_height
+    if source_ratio > target_ratio:
+        return 1 - target_ratio / source_ratio
+    return 1 - source_ratio / target_ratio
+
+
+def _active_output_size() -> tuple[int, int]:
+    """Return the focused output's physical mode, or a stable fallback."""
+    try:
+        result = subprocess.run(
+            ["swaymsg", "-t", "get_outputs", "-r"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        outputs = json.loads(result.stdout) if result.returncode == 0 else []
+        active = [output for output in outputs if output.get("active")]
+        output = next(
+            (candidate for candidate in active if candidate.get("focused")),
+            active[0] if active else None,
+        )
+        mode = output.get("current_mode") if output else None
+        width = mode.get("width") if mode else None
+        height = mode.get("height") if mode else None
+        if (
+            isinstance(width, int)
+            and width > 0
+            and isinstance(height, int)
+            and height > 0
+        ):
+            return width, height
+    except (OSError, json.JSONDecodeError, TypeError):
+        pass
+    return DISPLAY_FALLBACK_WIDTH, DISPLAY_FALLBACK_HEIGHT
+
+
+def _image_geometry(src: Path) -> tuple[int, int, bool] | None:
+    """Return visible size and whether transparent outer padding needs trimming."""
+    try:
+        result = subprocess.run(
+            ["magick", "identify", "-format", "%w %h %[opaque] %@", f"{src}[0]"],
+            capture_output=True,
+            text=True,
+            timeout=DISPLAY_RENDER_TIMEOUT,
+            check=False,
+        )
+        width_text, height_text, opaque, bounds = result.stdout.split()
+        trim = opaque == "False"
+        if trim:
+            width_text, height_text = bounds.split("+", 1)[0].split("x")
+        width, height = int(width_text), int(height_text)
+        if result.returncode == 0 and width > 0 and height > 0:
+            return width, height, trim
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass
+    return None
+
+
 def _summarize_stderr(stderr: bytes) -> str:
     text = stderr.decode(errors="ignore").strip()
     if not text:
@@ -241,11 +319,12 @@ def _summarize_stderr(stderr: bytes) -> str:
     return " ".join(text.split())[:240]
 
 
-def _build_lock_image(src: Path, dst: Path) -> tuple[bool, str | None]:
-    """Render a downscaled blurred wallpaper to dst."""
+def _run_image_render(
+    command: list[str], dst: Path, timeout: int
+) -> tuple[bool, str | None]:
+    """Run ImageMagick into an atomic cache file."""
     if not shutil.which("magick"):
         return False, "magick not found on PATH"
-
     try:
         dst.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp_str = tempfile.mkstemp(
@@ -253,70 +332,153 @@ def _build_lock_image(src: Path, dst: Path) -> tuple[bool, str | None]:
         )
         os.close(fd)
     except OSError as exc:
-        return (
-            False,
-            f"failed to create temporary render file under {dst.parent}: {exc}",
-        )
+        return False, f"failed to create render file under {dst.parent}: {exc}"
     tmp_path = Path(tmp_str)
 
     try:
-        res = subprocess.run(
-            [
-                "magick",
-                str(src),
-                "-sample",
-                f"{LOCK_MAX_WIDTH}x{LOCK_MAX_HEIGHT}>",
-                "-blur",
-                f"0x{BLUR_SIGMA}",
-                "-alpha",
-                "remove",
-                "-strip",
-                "-define",
-                "png:compression-level=1",
-                str(tmp_path),
-            ],
+        result = subprocess.run(
+            [*command, str(tmp_path)],
             capture_output=True,
-            timeout=LOCK_RENDER_TIMEOUT,
+            timeout=timeout,
             check=False,
         )
-    except subprocess.TimeoutExpired:
-        with contextlib.suppress(OSError):
-            tmp_path.unlink()
-        return False, f"timed out rendering lock image after {LOCK_RENDER_TIMEOUT}s"
-    except (OSError, subprocess.SubprocessError) as exc:
-        with contextlib.suppress(OSError):
-            tmp_path.unlink()
-        return False, f"failed to run ImageMagick: {exc}"
-
-    if res.returncode != 0:
-        with contextlib.suppress(OSError):
-            tmp_path.unlink()
-        return (
-            False,
-            f"ImageMagick exited {res.returncode}: {_summarize_stderr(res.stderr)}",
-        )
-
-    if not tmp_path.is_file():
-        with contextlib.suppress(OSError):
-            tmp_path.unlink()
-        return False, "renderer produced no output file"
-    if tmp_path.stat().st_size <= 0:
-        with contextlib.suppress(OSError):
-            tmp_path.unlink()
-        return False, "renderer produced an empty output file"
-    try:
+        if result.returncode != 0:
+            return (
+                False,
+                f"ImageMagick exited {result.returncode}: "
+                f"{_summarize_stderr(result.stderr)}",
+            )
+        if not tmp_path.is_file() or tmp_path.stat().st_size <= 0:
+            return False, "renderer produced no output file"
         os.replace(tmp_path, dst)
-    except OSError as exc:
+        return True, None
+    except subprocess.TimeoutExpired:
+        return False, f"timed out rendering image after {timeout}s"
+    except (OSError, subprocess.SubprocessError) as exc:
+        return False, f"failed to render image: {exc}"
+    finally:
         with contextlib.suppress(OSError):
             tmp_path.unlink()
-        return False, f"failed to publish cache image: {exc}"
-    return True, None
+
+
+def _build_lock_image(src: Path, dst: Path) -> tuple[bool, str | None]:
+    """Render a downscaled blurred wallpaper to dst."""
+    return _run_image_render(
+        [
+            "magick",
+            str(src),
+            "-sample",
+            f"{LOCK_MAX_WIDTH}x{LOCK_MAX_HEIGHT}>",
+            "-blur",
+            f"0x{BLUR_SIGMA}",
+            "-alpha",
+            "remove",
+            "-strip",
+            "-define",
+            "png:compression-level=1",
+        ],
+        dst,
+        LOCK_RENDER_TIMEOUT,
+    )
+
+
+def _build_display_image(
+    src: Path, dst: Path, width: int, height: int
+) -> tuple[bool, str | None]:
+    """Render an adaptive, display-sized wallpaper to dst."""
+    geometry = _image_geometry(src)
+    if geometry is None:
+        return False, "could not read wallpaper dimensions"
+    source_width, source_height, trim = geometry
+    source = [f"{src}[0]", "-auto-orient"]
+    if trim:
+        source.extend(["-trim", "+repage"])
+
+    common = ["-strip", "-define", "png:compression-level=1"]
+    if _crop_loss(source_width, source_height, width, height) <= DISPLAY_CROP_LIMIT:
+        command = [
+            "magick",
+            *source,
+            "-background",
+            DISPLAY_FALLBACK_COLOR,
+            "-alpha",
+            "remove",
+            "-resize",
+            f"{width}x{height}^",
+            "-gravity",
+            "center",
+            "-extent",
+            f"{width}x{height}",
+            *common,
+        ]
+    else:
+        command = [
+            "magick",
+            "(",
+            *source,
+            "-background",
+            DISPLAY_FALLBACK_COLOR,
+            "-alpha",
+            "remove",
+            "-resize",
+            f"{width}x{height}^",
+            "-gravity",
+            "center",
+            "-extent",
+            f"{width}x{height}",
+            "-blur",
+            f"0x{DISPLAY_BLUR_SIGMA}",
+            "-brightness-contrast",
+            "-20x0",
+            ")",
+            "(",
+            *source,
+            "-resize",
+            f"{width}x{height}",
+            ")",
+            "-gravity",
+            "center",
+            "-compose",
+            "over",
+            "-composite",
+            *common,
+        ]
+
+    return _run_image_render(command, dst, DISPLAY_RENDER_TIMEOUT)
+
+
+def build_display_cache(
+    wallpaper: Path,
+    width: int,
+    height: int,
+    *,
+    force: bool = False,
+    verbose: bool = False,
+) -> tuple[Path | None, str | None]:
+    """Render the display image for wallpaper if missing or forced."""
+    image_path = _display_cache_path(wallpaper, width, height)
+    if image_path is None:
+        return None, "wallpaper path could not be stat'd"
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_hit = not force and image_path.is_file() and image_path.stat().st_size > 0
+    if verbose and not cache_hit:
+        print("Generating display image... ", end="", flush=True)
+    if cache_hit:
+        return image_path, None
+    ok, error = _build_display_image(wallpaper, image_path, width, height)
+    if verbose:
+        print("done" if ok else f"failed: {error or 'unknown error'}", flush=True)
+    return (image_path, None) if ok else (None, error)
 
 
 def build_lock_cache(
-    wallpaper: Path, *, force: bool = False, verbose: bool = False
+    wallpaper: Path,
+    *,
+    render_source: Path | None = None,
+    force: bool = False,
+    verbose: bool = False,
 ) -> tuple[Path | None, str | None]:
-    """Render the lock image for `wallpaper` if missing or forced."""
+    """Render the lock image from the display composition when available."""
     img_path = _cache_path(wallpaper)
     if img_path is None:
         return None, "wallpaper path could not be stat'd"
@@ -334,7 +496,7 @@ def build_lock_cache(
         # Never unlink the existing cache first: _build_lock_image renders to a
         # temp file and os.replace()s it, so a failed rebuild leaves the last
         # good lock image in place instead of leaving the lock screen bare.
-        ok, error = _build_lock_image(wallpaper, img_path)
+        ok, error = _build_lock_image(render_source or wallpaper, img_path)
         if ok:
             image = img_path
 
@@ -391,11 +553,15 @@ def activate(archive_path: Path) -> None:
     if CURRENT_LINK.exists() or CURRENT_LINK.is_symlink():
         CURRENT_LINK.unlink()
     CURRENT_LINK.symlink_to(archive_path)
+    width, height = _active_output_size()
+    # Both renders are best-effort. A display-render failure falls back to the
+    # source; a lock-render failure falls back through lock-screen's chain.
+    display, _ = build_display_cache(archive_path, width, height, verbose=True)
     restart_swaybg()
     # Pre-render the lock image so the next lock is instant. Best-effort
     # — a render failure here doesn't fail the activate; lock-screen
     # falls back to a solid-color lock when the cache is missing.
-    build_lock_cache(archive_path, verbose=True)
+    build_lock_cache(archive_path, render_source=display, verbose=True)
 
 
 # ----------------------------------------------------------------------
@@ -440,22 +606,11 @@ def cmd_set(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_use(args: argparse.Namespace) -> int:
+def cmd_use(_args: argparse.Namespace) -> int:
     ensure_dirs()
-    archive_path: Path
-    if args.archive_file is None:
-        picked = pick_with_fzf()
-        if picked is None:
-            return 0  # user aborted
-        archive_path = picked
-    else:
-        candidate = Path(args.archive_file)
-        if candidate.is_file():
-            archive_path = candidate
-        elif (ARCHIVE_DIR / args.archive_file).is_file():
-            archive_path = ARCHIVE_DIR / args.archive_file
-        else:
-            die(f"archive file not found: {args.archive_file}")
+    archive_path = pick_with_fzf()
+    if archive_path is None:
+        return 0  # user aborted
 
     activate(archive_path)
     print(f"Using wallpaper {archive_path}")
@@ -466,7 +621,9 @@ def cmd_current(_args: argparse.Namespace) -> int:
     path = _resolve_current()
     if path is None:
         return 1
-    print(path)
+    width, height = _active_output_size()
+    display = _display_cache_path(path, width, height)
+    print(display if display is not None and display.is_file() else path)
     return 0
 
 
@@ -509,18 +666,23 @@ def cmd_status(_args: argparse.Namespace) -> int:
 
 
 def cmd_rebuild_cache(_args: argparse.Namespace) -> int:
-    """Force-rebuild the lock image for the current wallpaper."""
+    """Force-rebuild the display and lock images for the current wallpaper."""
     path = _resolve_current()
     if path is None:
         die("no current wallpaper to rebuild cache for")
-    image, error = build_lock_cache(path, force=True)
-    if image is None:
-        die(f"lock image rebuild failed: {error or 'unknown error'}")
+    width, height = _active_output_size()
+    display, display_error = build_display_cache(path, width, height, force=True)
+    if display is None:
+        die(f"display image rebuild failed: {display_error or 'unknown error'}")
+    lock, lock_error = build_lock_cache(path, render_source=display, force=True)
+    if lock is None:
+        die(f"lock image rebuild failed: {lock_error or 'unknown error'}")
     print(
         json.dumps(
             {
                 "path": str(path),
-                "lock_image": str(image),
+                "display_image": str(display),
+                "lock_image": str(lock),
             }
         )
     )
@@ -769,15 +931,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_set.add_argument("source", help="URL or local file path")
     p_set.set_defaults(func=cmd_set)
 
-    p_use = sub.add_parser(
-        "use", help="activate an existing archive entry (fzf if no arg)"
-    )
-    p_use.add_argument(
-        "archive_file",
-        nargs="?",
-        default=None,
-        help="archive entry (basename or path); fzf picker if omitted",
-    )
+    p_use = sub.add_parser("use", help="pick and activate an archived wallpaper")
     p_use.set_defaults(func=cmd_use)
 
     p_current = sub.add_parser("current", help="print the active wallpaper path")
@@ -791,7 +945,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_rebuild = sub.add_parser(
         "rebuild-cache",
-        help="force-rebuild the lock image for the current wallpaper",
+        help="force-rebuild display and lock images for the current wallpaper",
     )
     p_rebuild.set_defaults(func=cmd_rebuild_cache)
 

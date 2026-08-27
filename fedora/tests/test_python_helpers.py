@@ -191,6 +191,26 @@ class FedoraPythonHelperTests(unittest.TestCase):
                 {"path": str(image), "lock_image": str(cache)},
             )
 
+    def test_lock_cache_uses_display_render_when_supplied(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            root = Path(raw_tmp)
+            wallpaper = self.wallpaper_env(root)
+            original = wallpaper.ARCHIVE_DIR / "original.jpg"
+            display = root / "display.png"
+            original.write_bytes(b"original")
+            display.write_bytes(b"composed")
+
+            with mock.patch.object(
+                wallpaper, "_build_lock_image", return_value=(True, None)
+            ) as build:
+                cached, error = wallpaper.build_lock_cache(
+                    original, render_source=display
+                )
+
+            self.assertIsNone(error)
+            self.assertEqual(cached, wallpaper._cache_path(original))
+            build.assert_called_once_with(display, cached)
+
     def test_failed_rebuild_keeps_the_previous_lock_image(self) -> None:
         """A forced rebuild that fails must not destroy the working cache --
         that would leave the next lock screen bare until magick works again.
@@ -212,24 +232,189 @@ class FedoraPythonHelperTests(unittest.TestCase):
             self.assertEqual(error, "magick exploded")
             self.assertEqual(cached.read_bytes(), b"previous good render")
 
-    def test_cache_key_tracks_render_version_and_source_mtime(self) -> None:
-        """Stale keys mean a lock screen showing a wallpaper you replaced."""
+    def test_crop_loss_selects_only_small_crops(self) -> None:
+        wallpaper = cast(Any, load_script("wallpaper_test", WALLPAPER))
+        self.assertLessEqual(wallpaper._crop_loss(1687, 884, 3840, 2160), 0.10)
+        self.assertGreater(wallpaper._crop_loss(1200, 1600, 3840, 2160), 0.10)
+
+    def test_image_size_keeps_opaque_borders(self) -> None:
+        wallpaper = cast(Any, load_script("wallpaper_test", WALLPAPER))
+        result = subprocess.CompletedProcess(
+            [], 0, "1687 1322 True 1600x1200+40+60", ""
+        )
+        with mock.patch.object(wallpaper.subprocess, "run", return_value=result):
+            self.assertEqual(
+                wallpaper._image_geometry(Path("framed.jpg")), (1687, 1322, False)
+            )
+
+    def test_image_size_ignores_transparent_outer_padding(self) -> None:
+        wallpaper = cast(Any, load_script("wallpaper_test", WALLPAPER))
+        result = subprocess.CompletedProcess(
+            [], 0, "1687 1322 False 1687x884+0+219", ""
+        )
+        with mock.patch.object(wallpaper.subprocess, "run", return_value=result):
+            self.assertEqual(
+                wallpaper._image_geometry(Path("padded.png")), (1687, 884, True)
+            )
+
+    def test_active_output_size_uses_focused_physical_mode(self) -> None:
+        wallpaper = cast(Any, load_script("wallpaper_test", WALLPAPER))
+        outputs = [
+            {
+                "active": True,
+                "focused": True,
+                "current_mode": {"width": 3840, "height": 2160},
+            }
+        ]
+        result = subprocess.CompletedProcess([], 0, json.dumps(outputs), "")
+        with mock.patch.object(wallpaper.subprocess, "run", return_value=result):
+            self.assertEqual(wallpaper._active_output_size(), (3840, 2160))
+
+    def test_active_output_size_falls_back_when_sway_is_unavailable(self) -> None:
+        wallpaper = cast(Any, load_script("wallpaper_test", WALLPAPER))
+        result = subprocess.CompletedProcess([], 1, "", "sway unavailable")
+        with mock.patch.object(wallpaper.subprocess, "run", return_value=result):
+            self.assertEqual(wallpaper._active_output_size(), (2560, 1440))
+
+    def test_display_render_uses_crop_recipe_for_near_match(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            root = Path(raw_tmp)
+            wallpaper = self.wallpaper_env(root)
+            source = wallpaper.ARCHIVE_DIR / "wide.png"
+            source.write_bytes(b"source")
+            destination = root / "display.png"
+
+            def run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
+                if command[1] == "identify":
+                    return subprocess.CompletedProcess(
+                        command, 0, "1920 1200 True 1920x1200+0+0", ""
+                    )
+                Path(command[-1]).write_bytes(b"rendered")
+                self.assertIn("3840x2160^", command)
+                self.assertNotIn("-blur", command)
+                return subprocess.CompletedProcess(command, 0, b"", b"")
+
+            with mock.patch.object(wallpaper.subprocess, "run", side_effect=run):
+                self.assertEqual(
+                    wallpaper._build_display_image(source, destination, 3840, 2160),
+                    (True, None),
+                )
+            self.assertEqual(destination.read_bytes(), b"rendered")
+
+    def test_display_render_uses_backdrop_recipe_for_art_scan(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            root = Path(raw_tmp)
+            wallpaper = self.wallpaper_env(root)
+            source = wallpaper.ARCHIVE_DIR / "scan.jpg"
+            source.write_bytes(b"source")
+            destination = root / "display.png"
+
+            def run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
+                if command[1] == "identify":
+                    return subprocess.CompletedProcess(
+                        command, 0, "1200 1600 False 1200x1600+0+0", ""
+                    )
+                Path(command[-1]).write_bytes(b"rendered")
+                self.assertIn("-blur", command)
+                self.assertIn("3840x2160", command)
+                self.assertIn("-composite", command)
+                self.assertGreaterEqual(command.count("-trim"), 2)
+                self.assertIn("#08090c", command)
+                return subprocess.CompletedProcess(command, 0, b"", b"")
+
+            with mock.patch.object(wallpaper.subprocess, "run", side_effect=run):
+                self.assertEqual(
+                    wallpaper._build_display_image(source, destination, 3840, 2160),
+                    (True, None),
+                )
+            self.assertEqual(destination.read_bytes(), b"rendered")
+
+    @unittest.skipUnless(shutil.which("magick"), "ImageMagick is required")
+    def test_display_render_trims_transparent_padding_and_has_no_solid_bars(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            root = Path(raw_tmp)
+            wallpaper = self.wallpaper_env(root)
+            source = root / "transparent.png"
+            destination = root / "display.png"
+            subprocess.run(
+                [
+                    "magick",
+                    "-size",
+                    "120x160",
+                    "xc:none",
+                    "-fill",
+                    "#304080",
+                    "-draw",
+                    "rectangle 20,20 99,139",
+                    str(source),
+                ],
+                check=True,
+            )
+
+            self.assertEqual(wallpaper._image_geometry(source), (80, 120, True))
+            self.assertEqual(
+                wallpaper._build_display_image(source, destination, 160, 90),
+                (True, None),
+            )
+            properties = subprocess.check_output(
+                [
+                    "magick",
+                    "identify",
+                    "-format",
+                    "%w %h %[opaque] %[pixel:p{0,45}]",
+                    str(destination),
+                ],
+                text=True,
+            )
+            self.assertEqual(properties.split()[:3], ["160", "90", "True"])
+            self.assertNotIn("srgb(8,9,12)", properties)
+
+    def test_display_cache_path_includes_target_dimensions(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:
             root = Path(raw_tmp)
             wallpaper = self.wallpaper_env(root)
             image = wallpaper.ARCHIVE_DIR / "pic.png"
             image.write_bytes(b"source")
 
-            key = wallpaper._cache_key(image)
-            self.assertEqual(key, wallpaper._cache_key(image))
+            first = wallpaper._display_cache_path(image, 2560, 1440)
+            second = wallpaper._display_cache_path(image, 3840, 2160)
+
+            self.assertNotEqual(first, second)
+            self.assertTrue(first.name.endswith(".display-v1-2560x1440.png"))
+            self.assertTrue(second.name.endswith(".display-v1-3840x2160.png"))
+
+    def test_use_rejects_an_archive_argument(self) -> None:
+        wallpaper = cast(Any, load_script("wallpaper_test", WALLPAPER))
+        with (
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            wallpaper.build_parser().parse_args(["use", "archive.png"])
+        self.assertEqual(raised.exception.code, 2)
+
+    def test_cache_paths_version_artifacts_independently(self) -> None:
+        """A display recipe change must not invalidate the lock image."""
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            root = Path(raw_tmp)
+            wallpaper = self.wallpaper_env(root)
+            image = wallpaper.ARCHIVE_DIR / "pic.png"
+            image.write_bytes(b"source")
+
+            lock = wallpaper._cache_path(image)
+            display = wallpaper._display_cache_path(image, 3840, 2160)
+            preview = wallpaper._sixel_cache_path(image, 80, 24)
+
+            wallpaper.DISPLAY_RENDER_VERSION += 1
+            self.assertEqual(wallpaper._cache_path(image), lock)
+            self.assertNotEqual(
+                wallpaper._display_cache_path(image, 3840, 2160), display
+            )
+            self.assertEqual(wallpaper._sixel_cache_path(image, 80, 24), preview)
 
             os.utime(image, ns=(0, 1234567890))
-            touched = wallpaper._cache_key(image)
-            self.assertNotEqual(touched, key)
-
-            wallpaper.RENDER_VERSION += 1
-            self.assertNotEqual(wallpaper._cache_key(image), touched)
-
+            self.assertNotEqual(wallpaper._cache_path(image), lock)
             self.assertIsNone(wallpaper._cache_key(wallpaper.ARCHIVE_DIR / "gone.png"))
 
     def test_delete_archive_clears_cache_but_spares_the_active_wallpaper(self) -> None:
@@ -245,7 +430,12 @@ class FedoraPythonHelperTests(unittest.TestCase):
             active_cache = wallpaper._cache_path(active)
             active_cache.write_bytes(b"png")
             key = wallpaper._cache_key(stale)
-            for name in (f"{key}.png", f"{key}.sixel-80x24", f"{key}.sixel-120x40"):
+            for name in (
+                f"{key}.lock-v18.png",
+                f"{key}.display-v1-3840x2160.png",
+                f"{key}.sixel-v18-80x24",
+                f"{key}.sixel-v18-120x40",
+            ):
                 (wallpaper.CACHE_DIR / name).write_bytes(b"artifact")
             unrelated = wallpaper.CACHE_DIR / "deadbeef.png"
             unrelated.write_bytes(b"someone else's")

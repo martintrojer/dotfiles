@@ -69,8 +69,16 @@ find) and selects native Wayland. Installed and updated by
 
 ## Wallpaper helpers
 
-- `wallpaper set <url-or-file>` stores the wallpaper under `~/.local/share/wallpapers/archive/`, updates `~/.local/share/wallpapers/current`, and restarts `swaybg.service`
-- `wallpaper use [archive-file]` switches to an archived wallpaper; without an argument it opens an `fzf` picker with sixel previews rendered by ImageMagick (foot renders sixel natively)
-- `wallpaper current` prints the active wallpaper path if one is installed
+- `wallpaper set <url-or-file>` keeps the original under `~/.local/share/wallpapers/archive/`, renders it for the active display, updates `~/.local/share/wallpapers/current`, and restarts `swaybg.service`
+- `wallpaper use` opens an `fzf` archive picker with sixel previews and activates the selected wallpaper; it does not accept a filename
+- `wallpaper current` prints the display-sized render when available and the original archive path as a fallback
+- `wallpaper rebuild-cache` rebuilds the display render, then creates the blurred lock-screen image from that same composition
 - `wallpaper restart` restarts `swaybg.service` to re-apply the current wallpaper
-- `wallpaper preview <archive-file>` renders a wallpaper as sixel (`magick … sixel:-`) into the `fzf` preview pane (used internally by `wallpaper use`); falls back to printing the path if `magick` is missing
+- `wallpaper preview <archive-file>` renders a wallpaper as sixel (`magick … sixel:-`) into the fzf preview pane; this is an internal picker command
+
+The display render uses the focused output's physical resolution, or 2560×1440
+when Sway output discovery fails. It trims transparent outer padding before
+measuring the image. A centered crop fills the display when it would discard no
+more than 10% of a visible source dimension. Larger aspect-ratio differences
+place the complete visible image over a blurred, darkened copy that fills the
+screen. `#08090c` fills any transparent holes left in the background.
