@@ -202,76 +202,70 @@ Notes:
 
 ## AI Agent Attention
 
-This package includes `$HOME/.config/tmux/scripts/agent-attention`, a lightweight event collector and tmux UI integration for agent harnesses.
+Agent state is owned by [murmur](https://github.com/martintrojer/murmur), an
+installed tool rather than a script in this package. It replaced the local
+`agent-attention` script, which was single-machine by construction: window ids
+are machine-local, so it could never answer "is anything blocked on me right
+now" across more than one box.
 
-What it does:
+What this package still owns is appearance and keys:
 
-- marks each window with its agent state glyph (`✗` crashed, `!` blocked, `✓` done, `▶` working, `·` idle agent)
-- shows one glyph per running agent in `status-right`, in urgency-ordered colored runs behind a robot icon
-- opens a picker (`prefix + a`) listing agent windows most urgent first, with an event-history preview and state filters, then jumps to the selected one
-- clears attention automatically when you focus the agent's pane (window-level visit alone is not enough, so vertical splits behave correctly)
-- when a notify event fires, attention is only suppressed if the user is *already* focused on the agent's pane; same-window-but-different-pane still queues it
-- sends desktop notifications on macOS/Linux only when opted in with `TMUX_AGENT_ATTENTION_ENABLE_SYSTEM_NOTIFY=1`
-- emits OSC 777 terminal notifications to the controlling TTY (for terminals that support it)
+- window glyphs (`✗` crashed, `!` blocked, `✓` done, `▶` working, `·` idle) via
+  `@agent_glyphs`, themed from `docs/palette.toml`
+- `status-ai`, which renders one glyph per agent in `status-right` as
+  urgency-ordered colored runs behind a robot icon, rolling up past three per
+  state so a large fleet stays narrow
+- the `prefix + a` bind, and the three focus-clear hooks
 
-Picker keys (`prefix + a`), a filter axis kept separate from the text query so narrowing to blocked does not also match a window merely *named* "blocked":
+What murmur owns is behaviour: the event log, the fold, crash detection, and
+the picker. The boundary is *tool owns behaviour, dotfiles own appearance and
+keys*.
 
-| key      | shows   |
-| -------- | ------- |
-| `ctrl-a` | all     |
-| `ctrl-b` | blocked |
-| `ctrl-w` | working |
-| `ctrl-d` | done    |
-| `ctrl-x` | crashed |
+`@agent_state` is the seam, and it has a second consumer: the `tms` session
+picker colours its rows from it via `_tmux_common.scan_agent_states`, so a
+badge murmur writes shows up as a glyph next to the session name in
+`prefix + s` as well as in the status bar. That is also why `murmur clear`
+clears the tmux option even for a pane murmur has no event for — a badge left
+by anything else would otherwise sit in the picker forever.
 
-Each of these except `ctrl-x` shadows an fzf default; the query here is a word or two, so home/left/bspace still cover the editing jobs. The popup is 80%×60% to leave room for the preview pane.
+Because murmur aggregates across machines, the status bar now paints the whole
+fleet. A blocked agent on another host shows up here.
 
-Runtime state is stored in:
+| command | what it does |
+| --- | --- |
+| `murmur status` | `<state>\t<count>` lines, most urgent first. What `status-ai` parses |
+| `murmur pick` | the `prefix + a` popup: filter, glance at the pane, jump local or remote |
+| `murmur clear --pane <id>` | clears attention for one pane. What the focus hooks call |
 
-- `$XDG_STATE_HOME/tmux-agent-attention/events.db` (default `~/.local/state/tmux-agent-attention/events.db`)
+Runtime state lives in murmur's own state dir, not
+`~/.local/state/tmux-agent-attention/`.
 
-## Hook Setup
+### Harness support
 
-Each agent harness calls `agent-attention notify --source <name>` when it needs attention. The script resolves the current tmux target from `--pane`, then `TMUX_PANE`, then the controlling TTY, which makes hook subprocesses more reliable.
+**pi only.** murmur's extension runs in-process and pushes state directly, so
+`working`, `done` and `cleared` are real events rather than inferences. A pid
+carried on the `working` event is what makes crash detection possible.
 
-The `source`/`message` fields may also arrive as a JSON object piped on stdin (`{"source":…,"type":…,"title":…,"message":…}`), which is what the opencode plugin does. Flags win when both are present; unparseable stdin is ignored.
+codex and opencode are **not supported**. They had no way to report from inside
+themselves, so the old script gave them a `notify` verb that set `blocked` from
+outside; murmur has no equivalent and their hooks have been removed. Adding
+them back means giving murmur a `notify` path for harnesses that cannot report
+their own state.
 
-### Harness Capability
+mu-managed pi panes (`MU_MANAGED_AGENT=1`) clear on `agent_end` rather than
+showing `done`, and murmur records them as `driver = orchestrated` so the
+picker can hide the crew by default. mu consumes those completions itself, so a
+sticky "finished, unseen" badge is noise nobody is expected to acknowledge.
 
-Not every harness can express every state. What each one can actually reach:
+### Setup
 
-| state     | pi  | opencode | codex | how                                       |
-| --------- | --- | -------- | ----- | ----------------------------------------- |
-| `working` | yes | no       | no    | `agent_start` — only pi knows a turn began |
-| `done`    | yes | no       | no    | `agent_end` while the pane is unfocused    |
-| `blocked` | no  | yes      | yes   | legacy `notify` path                       |
-| `crashed` | yes | yes      | yes   | pid reaper, not the harness                |
-
-So a codex or opencode window never shows `working` or `done`, and a pi window never shows `blocked`. Pi has no permission *event* — approval is a `ctx.ui.confirm()` call inside the process, invisible to an extension — so its unfocused `agent_end` arm writes `done`, and `blocked` is now exclusively the notify path. Going the other way is worse: opencode's `session.idle` is ambiguous (it fires both for "finished" and for "stopped, waiting on you") and codex's `notify` carries no state at all, so inferring `done` from them would mean guessing or scraping the terminal — both out of scope under the push-only rule ([`docs/DECISIONS.md`](../docs/DECISIONS.md)).
-
-One extra wrinkle: mu-managed pi panes (`MU_MANAGED_AGENT=1`) clear on `agent_end` unconditionally and never show `done`. mu consumes the completion itself, so a sticky "finished, unseen" badge would be noise nobody is expected to acknowledge.
-
-### Codex CLI (manual — `$HOME/.codex/config.toml`)
-
-Add to the top level:
-
-```toml
-notify = ["/bin/sh", "-lc", "python3 \"$HOME/.config/tmux/scripts/agent-attention\" notify --source codex --event-type notify --title Codex"]
+```bash
+murmur init      # once per machine
+murmur link pi   # installs the extension into ~/.pi/agent/extensions/
 ```
 
-The `/bin/sh -lc` wrapper is important here because Codex's TOML array form does not expand `$HOME` by itself. Codex has no plugin marketplace yet, so this stays manual.
-
-### OpenCode (auto — `./dotfiles-sync --apply`)
-
-Lives in the [`opencode/`](../opencode) package. `dotfiles-sync --apply` symlinks `opencode/.config/opencode/plugin/notify.ts` to `~/.config/opencode/plugin/notify.ts`.
-
-Subscribes to `session.idle` and `permission.asked` events.
-
-### Pi Agent (auto — `./dotfiles-sync --apply`)
-
-Lives in [`pi/.pi/agent/extensions/agent-attention.ts`](../pi/.pi/agent/extensions/agent-attention.ts). `dotfiles-sync --apply` symlinks it into `~/.pi/agent/extensions/agent-attention.ts`, where pi auto-discovers it.
-
-Subscribes to Pi's `agent_end` event so attention only fires once the prompt is actually finished.
+`dotfiles-sync --apply` does not install murmur; it is an npm package, not a
+symlink.
 
 ## Cheatsheet
 

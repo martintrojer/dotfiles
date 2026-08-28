@@ -214,17 +214,16 @@ and uptime.
 - **Left:** filled session block
 - **Center:** merged window labels derived from the active pane
 - **Right:** boxed `PREFIX` and `AI` segments, then CPU, RAM, host, uptime
-- agent-attention marks windows with pending attention as `[!]`
+- murmur marks windows with pending attention as `[!]`
 - shows a boxed `AI <count>` segment in the status bar
 - `prefix`+`a` opens a picker listing flagged windows
 - attention clears when you focus the actual agent pane
-- pending attention lives in `$XDG_STATE_HOME/tmux-agent-attention/pending.jsonl`;
-  the script can fire desktop notifications and OSC 777 terminal notifications
-  when an agent finishes and needs attention
+- state lives in murmur's own append-only log, and covers agents on every
+  machine you have added as a peer, not just this one
 
 ```quiz
 [[questions]]
-q = "Which binding opens the agent-attention picker?"
+q = "Which binding opens the agent state picker?"
 options = ["`prefix`+`a`", "`prefix`+`A`", "`prefix`+`!`"]
 answer = 0
 why = "Lowercase `a` opens the list of flagged windows."
@@ -240,14 +239,14 @@ answer = 2
 why = "The marker means the window has queued agent attention."
 
 [[questions]]
-q = "Where is pending attention stored by default?"
+q = "Which tool owns agent state?"
 options = [
-  "`~/.tmux/pending.json`",
-  "`~/.local/state/tmux-agent-attention/pending.jsonl`",
-  "`~/.cache/tmux/attention.log`",
+  "a script in the tmux package",
+  "murmur, installed separately",
+  "tmux itself, via a built-in option",
 ]
 answer = 1
-why = "The runtime queue is a JSONL file under XDG state."
+why = "murmur owns behaviour and aggregates across machines; this repo keeps only the glyphs, the bind and the hooks."
 ```
 
 ## Persistence, tms config, and TPM

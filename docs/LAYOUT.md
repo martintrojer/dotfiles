@@ -122,7 +122,7 @@ chrome.
 
 - session/current window are strong blocks: they define place
 - inactive windows are flatter: they remain switch targets without shouting
-- `PREFIX`/agent-attention are blocks because they are modal/action states
+- `PREFIX`/agent state are blocks because they are modal/action states
 - CPU/RAM/host/uptime are quieter unless thresholds make them important
 - popups, choose-tree, menus, and prompts are bordered rectangular surfaces
 

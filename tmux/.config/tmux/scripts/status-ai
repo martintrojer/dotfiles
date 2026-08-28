@@ -26,12 +26,16 @@ hex is generated: see the THEME region below and ``docs/THEME.md``.
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
 
 from _status_common import EXPECTED_ERRORS, log_error
 from _tmux_common import STATE_GLYPH, AgentState, tmux_cmd
 
-SCRIPT = Path(__file__).with_name("agent-attention")
+# murmur, not a sibling script: it aggregates agents across every machine, so
+# this segment now paints the whole fleet rather than this host. Same contract
+# ("<state>\t<count>" lines, most urgent first, no output means no agents), so
+# everything below is unchanged. Resolved on PATH because murmur is installed,
+# not symlinked into the config directory.
+STATUS_COMMAND = ("murmur", "status")
 
 # nf-md-robot.  Written as a wide escape on purpose: "\uf06a9" is NOT this
 # character, it is U+F06A followed by the digit 9.
@@ -153,10 +157,10 @@ def render(raw: str) -> str:
 def main() -> None:
     try:
         raw = subprocess.check_output(
-            [str(SCRIPT), "status"], text=True, stderr=subprocess.DEVNULL
+            STATUS_COMMAND, text=True, stderr=subprocess.DEVNULL
         ).strip()
     except EXPECTED_ERRORS as exc:
-        log_error("status-ai", f"agent-attention status failed: {exc}")
+        log_error("status-ai", f"murmur status failed: {exc}")
         raw = ""
 
     tmux_cmd("set-option", "-gq", "@ai_status", render(raw), check=False)
