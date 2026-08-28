@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import shutil
 from pathlib import Path
 
 from .config import lazy_header
@@ -76,32 +78,68 @@ def check_tmux_tpm(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     return False
 
 
-def check_agent_notify(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
-    issue_id = "agent-notify:codex"
+def _murmur_state_dir(target: Path) -> Path:
+    """Mirror murmur's own resolution order: explicit, then XDG, then default."""
+    explicit = os.environ.get("MURMUR_STATE_DIR")
+    if explicit:
+        return Path(explicit)
+    xdg = os.environ.get("XDG_STATE_HOME")
+    if xdg:
+        return Path(xdg) / "murmur"
+    return target / ".local" / "state" / "murmur"
+
+
+def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    """Verify murmur is installed, initialised, and linked into pi.
+
+    The tmux package hard-depends on it: `status-ai` shells out to `murmur
+    status`, `prefix + a` runs `murmur pick`, and three focus hooks call
+    `murmur clear`. Those all fail quietly -- a missing binary means an empty
+    status segment and a popup that flashes and closes, which reads as "no
+    agents running" rather than "the tool is gone".
+
+    murmur is an npm package, not a symlink, so `--apply` cannot install it and
+    this check cannot repair anything. It only tells you which of the three
+    steps is missing.
+    """
+    issue_id = "murmur"
     if issue_id in ignore:
         return False
-    path = target / ".codex" / "config.toml"
-    print_header = lazy_header("agent-notify")
-    if not path.is_file():
+    print_header = lazy_header("murmur")
+
+    if shutil.which("murmur") is None:
         print_header()
         LOGGER.warning(
-            f"MISSING: codex config not found at {path} (--ignore {issue_id})"
+            f"MISSING: murmur is not on PATH; tmux agent state is dead "
+            f"(npm i -g @martintrojer/murmur, then murmur init) (--ignore {issue_id})"
         )
         return True
-    try:
-        content = path.read_text()
-    except OSError as exc:
+
+    found_issue = False
+
+    # Identity is per machine and lives outside the repo by design, so a fresh
+    # box has the binary but no node id, and every command no-ops.
+    state_dir = _murmur_state_dir(target)
+    if not (state_dir / "identity.json").is_file():
         print_header()
         LOGGER.warning(
-            f"UNREADABLE: codex config at {path}: {exc} (--ignore {issue_id})"
+            f"UNINITIALISED: no identity at {state_dir}/identity.json "
+            f"(murmur init) (--ignore {issue_id})"
         )
-        return True
-    if "agent-attention" not in content:
+        found_issue = True
+
+    # `murmur link pi` writes a real file rather than a symlink, and pins an
+    # absolute store path into it, so a moved or reinstalled murmur needs a
+    # re-link. A stale copy silently stops recording.
+    extension = target / ".pi" / "agent" / "extensions" / "murmur.ts"
+    if not extension.is_file():
         print_header()
         LOGGER.warning(
-            f"NO-NOTIFY: codex config at {path} doesn't mention `agent-attention` (--ignore {issue_id})"
+            f"UNLINKED: no pi extension at {extension} "
+            f"(murmur link pi) (--ignore {issue_id})"
         )
-        return True
-    if verbose:
-        LOGGER.debug(f"OK: codex notify hook present in {path}")
-    return False
+        found_issue = True
+
+    if not found_issue and verbose:
+        LOGGER.debug("OK: murmur installed, initialised, linked into pi")
+    return found_issue

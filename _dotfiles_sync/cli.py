@@ -15,7 +15,7 @@ from .external import (
 )
 from .fedora_systemd import apply_fedora_systemd_masks, check_fedora_systemd_masks
 from .integration_checks import (
-    check_agent_notify,
+    check_murmur,
     check_tmux_tpm,
     check_zsh_plugins,
 )
@@ -165,9 +165,11 @@ def run_check_tasks(
             TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
             lambda: check_tmux_tpm(target, verbose=verbose, ignore=ignore),
         ),
+        # Both packages depend on it: tmux shells out to murmur for the status
+        # segment, the picker and the focus hooks; pi hosts its extension.
         (
-            TaskPolicy("agent-notify", full_run_only=True),
-            lambda: check_agent_notify(target, verbose=verbose, ignore=ignore),
+            TaskPolicy("murmur", packages=frozenset({"tmux", "pi"})),
+            lambda: check_murmur(target, verbose=verbose, ignore=ignore),
         ),
         (
             TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
@@ -330,13 +332,5 @@ def print_post_apply_hints() -> None:
     print(
         "Codex / OpenCode / Pi / Cursor / OpenClaw / etc. read those "
         "paths automatically."
-    )
-    print()
-    print("One manual step remains:")
-    print()
-    print("  # Codex notify hook — add this line to ~/.codex/config.toml:")
-    print(
-        '  notify = ["/bin/sh", "-lc", "python3 \\"$HOME/.config/tmux/scripts/'
-        'agent-attention\\" notify --source codex --event-type notify --title Codex"]'
     )
     print()

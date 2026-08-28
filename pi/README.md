@@ -18,16 +18,26 @@ Some extensions originated from [mitsuhiko/agent-stuff](https://github.com/mitsu
 
 ## Extensions
 
-### `agent-attention` — tmux status signaling
+### `murmur` — agent state, installed not linked
 
-Writes the agent's run state to the surrounding tmux window. The status bar can
-then show which panes need attention.
+Agent state signalling moved to [murmur](https://github.com/martintrojer/murmur),
+which aggregates across machines rather than just this one. Its extension is
+**not** in this package: `murmur link pi` writes it to
+`~/.pi/agent/extensions/murmur.ts`, pinning an absolute store path as it goes,
+so `dotfiles-sync` cannot symlink it and only checks that it is there.
 
-- On `agent_start`: marks the window `working` (records the pid via `~/.config/tmux/scripts/agent-attention` for crash reaping).
-- On `agent_end`: clears the state if the pane is focused, otherwise marks it `blocked` (waiting on you).
-- Under `mu` (`MU_MANAGED_AGENT=1`) it uses lightweight direct tmux calls that survive container reaping.
+- On `agent_start`: marks the window `working` and records the pid, which is
+  what makes crash detection possible.
+- On `agent_end`: clears if the pane is focused, otherwise `done`.
+- On `session_shutdown`: clears, awaited — without it the last stored row is a
+  `working` row whose pid is about to die, and a clean exit reads as a crash.
+- Under `mu` (`MU_MANAGED_AGENT=1`) it always clears, and records the agent as
+  `driver = orchestrated` so surfaces can hide the crew by default.
 
-No-op when not running inside tmux.
+Sets the tmux option first and appends to the log second, so the status bar
+never waits on a fold. No-ops when murmur is absent or uninitialised.
+
+See [`tmux/README.md` § AI Agent Attention](../tmux/README.md#ai-agent-attention).
 
 ### `/loop` — recurring prompt scheduler
 

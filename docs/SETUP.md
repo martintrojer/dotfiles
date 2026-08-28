@@ -173,9 +173,11 @@ cd ~/.tmux/plugins/tpm && git describe --tags --exact-match HEAD
 
 The `~/.tmux/plugins/<other-plugins>/` directories (the actual @plugin entries listed in `.tmux.conf`) are still owned by TPM and updated via `prefix + U` inside tmux. Don't touch those.
 
-### 6. Codex notify hook
+### 6. Codex notify hook (removed)
 
-`~/.codex/config.toml` should contain the top-level `notify = [...]` line that `./dotfiles-sync --apply` prints in its closing hint (same line as the Codex example in [`tmux/README.md` § Hook Setup](../tmux/README.md#hook-setup)). What matters is that the line is present and still invokes `agent-attention`.
+The hook invoked `agent-attention`, which no longer exists — murmur replaced it
+and speaks only to pi. If `~/.codex/config.toml` still carries the line, it now
+shells out to a missing script on every notify.
 
 Detect:
 
@@ -185,11 +187,9 @@ grep -n 'notify = .*agent-attention' ~/.codex/config.toml 2>/dev/null
 
 Action:
 
-If nothing prints, or the line differs from the closing hint, replace it with:
-
-```toml
-notify = ["/bin/sh", "-lc", "python3 \"$HOME/.config/tmux/scripts/agent-attention\" notify --source codex --event-type notify --title Codex"]
-```
+If it prints, delete that `notify = [...]` line. Codex loses tmux attention
+notifications; nothing else changes. Re-adding support means giving murmur a
+`notify` verb for non-pi harnesses.
 
 ### 7. Wallpaper cache (Linux only)
 

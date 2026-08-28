@@ -8,7 +8,7 @@ test to an isolated tmux server) is honored consistently.
 Sibling to ``_status_common.py``: that one owns the silent-renderer
 error policy + throttled log used by ``status-*`` scripts; this one
 owns the IPC plumbing used by status renderers *and* interactive
-scripts (``tms``, ``cheatsheet``, ``agent-attention``).
+scripts (``tms``, ``cheatsheet``).
 
 The leading underscore matches the rest of the repo's convention for
 library files colocated with executables (don't ``exec _tmux_common``).
@@ -120,9 +120,8 @@ def tmux_cmd(
 
     Defaults match the typical script idiom: text mode, capture
     stdout/stderr, raise on non-zero exit. Pass ``check=False`` for
-    callers that want to inspect ``returncode`` themselves (e.g. the
-    ``tmux display-message`` lookups in ``agent-attention``, which
-    tolerate "no such target" without raising).
+    callers that want to inspect ``returncode`` themselves (target
+    lookups that tolerate "no such target" without raising).
     """
     return subprocess.run(
         ["tmux", *tmux_socket_args(), *args],
@@ -140,8 +139,7 @@ class ProcessSnapshot:
 
     Captures the full process table once; callers can then do multiple
     ``detect_agent`` lookups against different root pids without
-    re-forking.  Used by ``status-window-label`` (per-window) and
-    ``agent-attention`` (picker idle scan).
+    re-forking.  Used by ``status-window-label`` (per-window).
     """
 
     def __init__(self) -> None:
