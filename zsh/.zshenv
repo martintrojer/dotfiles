@@ -26,3 +26,14 @@ if [ -d "$HOME/.local/bin" ]; then
     *) export PATH="$HOME/.local/bin:$PATH" ;;
   esac
 fi
+
+# Homebrew. On macOS the interactive PATH comes from `brew shellenv` in .zshrc,
+# so a non-interactive `ssh host murmur ...` finds neither the murmur symlink
+# in /opt/homebrew/bin nor the node it execs. Add it here rather than
+# symlinking individual binaries into ~/.local/bin.
+if [ -d "/opt/homebrew/bin" ]; then
+  case ":$PATH:" in
+    *":/opt/homebrew/bin:"*) ;;
+    *) export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH" ;;
+  esac
+fi
