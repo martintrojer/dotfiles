@@ -7,8 +7,7 @@
  * by a globally installed host.
  *
  * Scope: only the side-effect-free helpers. The scheduler, the model picker and
- * the fast-model state file all touch timers, the network or $HOME; the
- * end-to-end tmux contract is covered by tmux/.config/tmux/scripts/test-status-tools.
+ * the fast-model state file all touch timers, the network or $HOME.
  */
 
 import { test } from "node:test";

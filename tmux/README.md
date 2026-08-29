@@ -47,7 +47,7 @@ From your current `tmux/.tmux.conf`:
 - Vim split to tmux pane movement comes from `christoomey/vim-tmux-navigator`.
 - The right side CPU segment comes from `tmux-cpu`.
 - Cross-platform RAM usage is provided by `$HOME/.config/tmux/scripts/status-ram`.
-- The `agent-attention` integration is not a plugin. It is a local script in this repo that tracks per-window agent state (`working / done / blocked / crashed`) via push events from the pi extension, with a pid-liveness reaper for crash detection. See [`docs/DECISIONS.md` § Agent state awareness](../docs/DECISIONS.md).
+- The agent-state integration is not a plugin. Per-window agent state (`working / done / blocked / crashed`) is owned by [murmur](https://github.com/martintrojer/murmur), an installed tool; this package renders it. See [AI Agent Attention](#ai-agent-attention).
 - Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
 - Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `codex`, `π - ...`, or a cwd basename.
 - `$HOME/.config/tmux/scripts/status-ai` renders the agent segment and sets the
@@ -86,7 +86,7 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `!`: break the current pane out into a new window
 - `prefix` + `M`: move the current pane into the selected window or pane as a split
 - `prefix` + `w`: built-in tmux session-window tree picker
-- `prefix` + `a`: agent state picker — `◆` marks the current window, the right pane previews event history, `ctrl-a/b/w/d/x` filter by state (see [AI Agent Attention](#ai-agent-attention))
+- `prefix` + `a`: agent state picker (`murmur pick`) — filter, preview the pane, and jump to it on this machine or another (see [AI Agent Attention](#ai-agent-attention))
 - `prefix` + `Ctrl-g`: cheatsheet popup
 - mouse click on the left status session block: opens the tmux session picker
 - built-in menus, prompts, and popups use Mocha background/foreground colors with a sky selection highlight
@@ -138,7 +138,7 @@ Notes:
 - `find_max_depth` and `preview_command` are required.
 - `blacklist`, `noisy_basenames`, and `sessions` default to empty when omitted.
 - `sessions` are shown first in the picker with a `★` marker.
-- sessions with pending `agent-attention` are highlighted with the same subtle yellow-on-surface treatment used elsewhere in the tmux UI.
+- sessions with an agent wanting attention are highlighted with the same subtle yellow-on-surface treatment used elsewhere in the tmux UI. The state is read from the `@agent_state` window option murmur writes, via `_tmux_common.scan_agent_states`.
 - per-session `split` is optional.
 - valid `split` values are `vertical` and `horizontal`.
 - if `split` is omitted, that session starts with a single pane.

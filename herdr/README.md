@@ -127,10 +127,11 @@ space, matching what `prefix+a` does in the tmux setup.
 - **Status bar scripts** (`status-ai`, `status-ram`, `status-uptime`,
   `status-hostname`, `status-window-label`) — herdr's sidebar covers agent
   state natively and there is no status line to render the rest into.
-- **`agent-attention`** — this is the thing herdr replaces. Both are live at
-  once right now: our `pi/.pi/agent/extensions/agent-attention.ts` and herdr's
-  own `herdr-agent-state.ts` (installed by `herdr integration install pi`).
-  Different filenames, no collision, but see below.
+- **Agent state** — this is the thing herdr replaces. Both are live at once
+  right now: [murmur](https://github.com/martintrojer/murmur)'s pi extension
+  (installed by `murmur link pi`) and herdr's own `herdr-agent-state.ts`
+  (installed by `herdr integration install pi`). Different filenames, no
+  collision, but see below.
 - **`prefix+v` clipboard history** — the desktop already owns a clipboard
   shortcut on both platforms, and the picker behind it is OS-specific
   (`clipman`+fuzzel on sway, something else entirely on macOS). A
@@ -188,8 +189,8 @@ config dir — herdr owns those paths, `dotfiles-sync` does not:
 | opencode | `~/.config/opencode/plugins/herdr-agent-state.js` |
 
 `herdr integration status` lists all supported agents and flags outdated
-hooks. These run alongside this repo's own tmux `agent-attention` hooks; each
-no-ops when its multiplexer is absent.
+hooks. These run alongside murmur's tmux-facing hooks; each no-ops when its
+multiplexer is absent.
 
 ## Eval Notes
 
@@ -213,7 +214,7 @@ Things to decide if the experiment resumes:
   `experimental.allow_nested = false` means it cannot run a tmux inside a herdr
   pane. The real comparison is *mu-on-tmux* vs *`herdr agent start/prompt/wait`*,
   not multiplexer vs multiplexer.
-- **Two agent-state systems.** Confirm `agent-attention.ts` no-ops cleanly
+- **Two agent-state systems.** Confirm murmur's pi extension no-ops cleanly
   outside tmux before crediting or blaming herdr's sidebar for anything.
 - **v0.x, one maintainer, AGPL, active churn.** The caveat from DECISIONS.md
   has not expired. This eval spanned a release, and pre-1.0 protocol bumps
