@@ -41,6 +41,8 @@ rust-analyzer = "latest"
 shellcheck = "latest"
 stylua = "latest"
 sqlite = "latest"
+# Terminal multiplexer with repo-managed config.
+tmux = "latest"
 tokei = "latest"
 tree-sitter = "latest"
 uv = "latest"

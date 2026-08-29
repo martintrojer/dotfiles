@@ -65,7 +65,7 @@ call `rpm-ostree install`:
   [`gaming/`](./gaming/README.md); see
   [`docs/DECISIONS.md`](../docs/DECISIONS.md) for the partitioning rationale.
 - `mise` is core bootstrap, so the base keeps a small build toolchain
-  (`binutils`, `gcc`, `gcc-c++`, `make`). `git`, `git-lfs`, `tmux`, `zsh`
+  (`binutils`, `gcc`, `gcc-c++`, `make`). `git`, `git-lfs`, `zsh`
   are baseline; comfort CLIs that don't need host-layering live in the tracked
   mise manifest. The manifest tracks which tools belong on a host while
   `latest` lets setup install current releases without version-maintenance
