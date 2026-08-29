@@ -14,8 +14,6 @@ base_packages=(
   git-lfs
   # Build driver used by source installs and Make-based projects.
   make
-  # Terminal multiplexer with repo-managed config.
-  tmux
   # Preferred interactive shell.
   zsh
 )
