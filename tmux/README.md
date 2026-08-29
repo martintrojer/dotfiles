@@ -240,6 +240,12 @@ fleet. A blocked agent on another host shows up here.
 Runtime state lives in murmur's own state dir, not
 `~/.local/state/tmux-agent-attention/`.
 
+All three commands resolve on PATH — the *tmux server's* PATH, which is frozen
+at the moment the server started. Install murmur while a server is running and
+nothing picks it up until `tmux kill-server` (or `tmux setenv -g PATH "$PATH"`),
+even though it works fine in your shell. `dotfiles-sync` checks both PATHs and
+reports that gap as `UNREACHABLE`.
+
 ### Harness support
 
 **pi only.** murmur's extension runs in-process and pushes state directly, so

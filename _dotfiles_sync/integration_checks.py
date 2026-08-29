@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 from .config import lazy_header
@@ -89,6 +90,33 @@ def _murmur_state_dir(target: Path) -> Path:
     return target / ".local" / "state" / "murmur"
 
 
+def _tmux_server_path() -> str | None:
+    """The PATH the running tmux server hands to its own `run-shell` children.
+
+    A tmux server inherits PATH from whatever shell started it and keeps it for
+    its whole life, so it can lag behind the interactive PATH by a login: a
+    freshly `npm i -g`'d murmur resolves in your terminal while `status-ai` and
+    the `prefix + a` popup still see nothing. Returns None when there is no
+    server to ask, in which case the caller's PATH is the only answer available.
+    """
+    tmux = shutil.which("tmux")
+    if tmux is None:
+        return None
+    result = subprocess.run(
+        [tmux, "show-environment", "-g", "PATH"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    line = result.stdout.strip()
+    # `-PATH` means "unset in the global environment", not "empty".
+    if not line.startswith("PATH="):
+        return None
+    return line.removeprefix("PATH=") or None
+
+
 def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     """Verify murmur is installed, initialised, and linked into pi.
 
@@ -99,15 +127,30 @@ def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     agents running" rather than "the tool is gone".
 
     murmur is an npm package, not a symlink, so `--apply` cannot install it and
-    this check cannot repair anything. It only tells you which of the three
-    steps is missing.
+    this check cannot repair anything. It only tells you which of the steps is
+    missing.
+
+    PATH is checked twice on purpose. This process and the tmux server can
+    disagree, and it is the server's view that decides whether the hooks work.
     """
     issue_id = "murmur"
     if issue_id in ignore:
         return False
     print_header = lazy_header("murmur")
 
-    if shutil.which("murmur") is None:
+    # The consumers are tmux hooks, not this process, and a tmux server keeps
+    # the PATH it was started with for its whole life -- so it can lag a login
+    # behind the interactive PATH. "On my PATH" is not the question that
+    # matters; "on the server's PATH" is.
+    tmux_path = _tmux_server_path()
+    on_own_path = shutil.which("murmur") is not None
+    reachable_from_tmux = (
+        shutil.which("murmur", path=tmux_path) is not None
+        if tmux_path is not None
+        else on_own_path
+    )
+
+    if not on_own_path and not reachable_from_tmux:
         print_header()
         LOGGER.warning(
             f"MISSING: murmur is not on PATH; tmux agent state is dead "
@@ -116,6 +159,16 @@ def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
         return True
 
     found_issue = False
+
+    if not reachable_from_tmux:
+        print_header()
+        LOGGER.warning(
+            f"UNREACHABLE: murmur is on your PATH but not the tmux server's; "
+            f"status, picker and focus hooks all no-op "
+            f'(tmux kill-server, or tmux setenv -g PATH "$PATH") '
+            f"(--ignore {issue_id})"
+        )
+        found_issue = True
 
     # Identity is per machine and lives outside the repo by design, so a fresh
     # box has the binary but no node id, and every command no-ops.
@@ -141,5 +194,7 @@ def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
         found_issue = True
 
     if not found_issue and verbose:
-        LOGGER.debug("OK: murmur installed, initialised, linked into pi")
+        LOGGER.debug(
+            "OK: murmur installed, initialised, linked into pi, visible to tmux"
+        )
     return found_issue
