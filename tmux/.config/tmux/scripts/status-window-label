@@ -217,8 +217,8 @@ def main(argv: list[str]) -> int:
     # Set @pane_agent on the window so tmux format conditionals can
     # show an idle marker when no @agent_state is active.
     #
-    # Set-only, never unset: @pane_agent is sticky by contract (see
-    # set_state in agent-attention). This renderer runs on every status
+    # Set-only, never unset: @pane_agent is sticky by contract (murmur
+    # owns the push path that sets it). This renderer runs on every status
     # redraw and often can't see the agent -- it runs in a container, the
     # pane has a meaningful title, or the shell branch returns a cwd
     # basename -- so clearing here would wipe the marker the push path

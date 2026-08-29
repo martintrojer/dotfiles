@@ -130,4 +130,4 @@ Then ask for web/current information normally; the model can call `brave_search`
 
 No runner dependency and no `package.json`: node strips the TS types itself, so `node --test` runs the files directly. The `tests/` directory is never linked into `$HOME` — `tests` is in `NAME_PATTERNS` (`_dotfiles_sync/ignore.py`), so pi never sees it as an extension.
 
-The tmux status contract is covered separately, end-to-end, by `tmux/.config/tmux/scripts/test-status-tools`.
+Agent state is murmur's, so the tmux side of it is tested there, not here. `tmux/.config/tmux/scripts/test-status-tools` keeps only what this repo still owns: the window label, the `status-ai` render, and the tmux-facing CLIs.

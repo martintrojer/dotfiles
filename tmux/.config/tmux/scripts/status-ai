@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the tmux agent-state status segment: one glyph per running agent.
 
-Reads the reconciled output from ``agent-attention status``, which emits one
+Reads the folded output from ``murmur status``, which emits one
 ``<state>\t<count>`` line per non-zero state, most urgent first (crashed /
 blocked / done / working / idle).  No output at all means no agents.
 
@@ -81,7 +81,7 @@ ROLLUP_THRESHOLD = 3
 MAX_COUNT = 999
 
 # Shown when upstream said something but none of it parsed.  Deliberately
-# style-free: this is the path a hostile ``agent-attention`` reaches, and
+# style-free: this is the path a hostile ``murmur status`` reaches, and
 # the fewer constructs it can emit the smaller the sink (see
 # ``run_status_ai_injection_tests``).
 INERT = " ? "
@@ -121,7 +121,7 @@ def render_segment(
 
 
 def parse_counts(raw: str) -> dict[AgentState, int]:
-    """Parse the ``agent-attention status`` contract into per-state counts.
+    """Parse the ``murmur status`` contract into per-state counts.
 
     ``.tmux.conf`` reads @ai_status through ``#{E:...}``, which re-expands the
     full tmux format language — a ``#(...)`` sequence in the value is executed
@@ -145,7 +145,7 @@ def parse_counts(raw: str) -> dict[AgentState, int]:
 
 
 def render(raw: str) -> str:
-    """Full segment body for the raw ``agent-attention status`` output."""
+    """Full segment body for the raw ``murmur status`` output."""
     segment = render_segment(parse_counts(raw))
     if not segment:
         # Distinguish "nothing at all" (hide the segment) from "upstream said

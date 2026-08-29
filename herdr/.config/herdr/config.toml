@@ -59,7 +59,7 @@ close_tab = "prefix+ampersand"
 split_vertical = ["prefix+%", "prefix+v"]
 split_horizontal = ["prefix+\"", "prefix+minus"]
 
-# tmux prefix+a opens the agent-attention picker. herdr has no agent picker
+# tmux prefix+a opens the murmur agent picker. herdr has no agent picker
 # surface -- the sidebar's agent panel *is* that view -- so selection is
 # indexed and cyclic rather than modal:
 #   prefix+a          cycle forward through the agent panel
