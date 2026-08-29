@@ -294,7 +294,10 @@ class FedoraPythonHelperTests(unittest.TestCase):
                 self.assertNotIn("-blur", command)
                 return subprocess.CompletedProcess(command, 0, b"", b"")
 
-            with mock.patch.object(wallpaper.subprocess, "run", side_effect=run):
+            with (
+                mock.patch.object(wallpaper.subprocess, "run", side_effect=run),
+                mock.patch.object(wallpaper.shutil, "which", return_value="/magick"),
+            ):
                 self.assertEqual(
                     wallpaper._build_display_image(source, destination, 3840, 2160),
                     (True, None),
@@ -322,7 +325,10 @@ class FedoraPythonHelperTests(unittest.TestCase):
                 self.assertIn("#08090c", command)
                 return subprocess.CompletedProcess(command, 0, b"", b"")
 
-            with mock.patch.object(wallpaper.subprocess, "run", side_effect=run):
+            with (
+                mock.patch.object(wallpaper.subprocess, "run", side_effect=run),
+                mock.patch.object(wallpaper.shutil, "which", return_value="/magick"),
+            ):
                 self.assertEqual(
                     wallpaper._build_display_image(source, destination, 3840, 2160),
                     (True, None),
