@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,14 @@ from pathlib import Path
 CLIPF = Path(__file__).parents[1] / "clipf"
 
 
+# clipf branches on $OSTYPE before it looks at $XDG_SESSION_TYPE, so on a
+# darwin host every case below takes the pbcopy/osascript path and the
+# Wayland policy under test is unreachable. Faking OSTYPE in the child env
+# would test a string, not the branch bash actually picks, so the honest
+# move is to skip: this policy only ships on Linux.
+@unittest.skipUnless(
+    sys.platform.startswith("linux"), "clipf's Wayland branch is Linux-only"
+)
 class ClipfWaylandTests(unittest.TestCase):
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory()

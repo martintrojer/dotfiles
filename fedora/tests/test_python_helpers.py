@@ -123,7 +123,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
     def test_wallpaper_archives_symlink_target_without_moving_source(self) -> None:
         wallpaper = cast(Any, load_script("wallpaper_test", WALLPAPER))
         with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp)
+            root = Path(raw_tmp).resolve()
             source = root / "outside/source image.png"
             source.parent.mkdir()
             source.write_bytes(b"wallpaper")
@@ -157,7 +157,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
         regression here degrades locking silently.
         """
         with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp)
+            root = Path(raw_tmp).resolve()
             wallpaper = self.wallpaper_env(root)
             args = argparse.Namespace()
 
@@ -193,7 +193,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
 
     def test_lock_cache_uses_display_render_when_supplied(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp)
+            root = Path(raw_tmp).resolve()
             wallpaper = self.wallpaper_env(root)
             original = wallpaper.ARCHIVE_DIR / "original.jpg"
             display = root / "display.png"
@@ -216,7 +216,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
         that would leave the next lock screen bare until magick works again.
         """
         with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp)
+            root = Path(raw_tmp).resolve()
             wallpaper = self.wallpaper_env(root)
             image = wallpaper.ARCHIVE_DIR / "pic.png"
             image.write_bytes(b"source")
@@ -278,7 +278,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
 
     def test_display_render_uses_crop_recipe_for_near_match(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp)
+            root = Path(raw_tmp).resolve()
             wallpaper = self.wallpaper_env(root)
             source = wallpaper.ARCHIVE_DIR / "wide.png"
             source.write_bytes(b"source")
@@ -303,7 +303,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
 
     def test_display_render_uses_backdrop_recipe_for_art_scan(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp)
+            root = Path(raw_tmp).resolve()
             wallpaper = self.wallpaper_env(root)
             source = wallpaper.ARCHIVE_DIR / "scan.jpg"
             source.write_bytes(b"source")
@@ -334,7 +334,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp)
+            root = Path(raw_tmp).resolve()
             wallpaper = self.wallpaper_env(root)
             source = root / "transparent.png"
             destination = root / "display.png"
@@ -373,7 +373,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
 
     def test_display_cache_path_includes_target_dimensions(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp)
+            root = Path(raw_tmp).resolve()
             wallpaper = self.wallpaper_env(root)
             image = wallpaper.ARCHIVE_DIR / "pic.png"
             image.write_bytes(b"source")
@@ -397,7 +397,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
     def test_cache_paths_version_artifacts_independently(self) -> None:
         """A display recipe change must not invalidate the lock image."""
         with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp)
+            root = Path(raw_tmp).resolve()
             wallpaper = self.wallpaper_env(root)
             image = wallpaper.ARCHIVE_DIR / "pic.png"
             image.write_bytes(b"source")
@@ -419,7 +419,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
 
     def test_delete_archive_clears_cache_but_spares_the_active_wallpaper(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp)
+            root = Path(raw_tmp).resolve()
             wallpaper = self.wallpaper_env(root)
             active = wallpaper.ARCHIVE_DIR / "active.png"
             stale = wallpaper.ARCHIVE_DIR / "stale.png"
@@ -463,7 +463,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
 
     def test_tbx_host_lookup_skips_its_wrapper_directory(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp)
+            root = Path(raw_tmp).resolve()
             wrappers = root / "wrappers"
             real_bin = root / "real-bin"
             wrappers.mkdir()
