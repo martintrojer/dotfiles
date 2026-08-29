@@ -26,7 +26,8 @@ Order for a fresh install:
 2. `os/setup-sway.sh` — layer extra Sway session packages.
 3. `setup-mise.sh` — install userland tools with `mise`.
 4. `config/setup-zram.sh` — install the zram swap + VM tuning.
-5. `os/setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
+5. `config/setup-resolved.sh` — allow single-label LAN hostname lookups.
+6. `os/setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
 
 For gaming, streaming, RGB, and controller/hardware fixes, see
 [`gaming/README.md`](./gaming/README.md).
@@ -129,6 +130,28 @@ sysctls apply immediately; the device is only re-created at boot, because
 resizing a live zram swap means `swapoff` and the swapped-out pages have to fit
 back in RAM first. Verify with `zramctl`, `swapon --show`, and
 `sysctl vm.swappiness vm.page-cluster`.
+
+## LAN Hostnames (systemd-resolved)
+
+Bare LAN names (`bubba`, `pizero2`) fail to resolve out of the box while macOS
+and Android on the same network resolve them fine. Nothing is wrong with the
+DNS server: `dig @192.168.0.100 bubba` answers, but `getent hosts bubba` does
+not. systemd-resolved refuses to forward **single-label** A/AAAA queries to
+classic DNS (`ResolveUnicastSingleLabel=false`), on the grounds that a bare
+name is ambiguous and could be hijacked by a hostile upstream. The query never
+leaves the stub resolver, so the Pi-hole is never asked.
+
+`config/resolved/90-single-label.conf` flips that knob, installed by
+`config/setup-resolved.sh` to
+`/etc/systemd/resolved.conf.d/90-single-label.conf`. The Pi-hole is
+authoritative for bare hostnames on this network, so the ambiguity the default
+guards against does not exist here.
+
+The alternative — a search domain (`nmcli con mod <con> ipv4.dns-search lan`),
+which turns `bubba` into the two-label `bubba.lan` — needs the DNS server to
+serve those FQDNs. Pi-hole here only holds the bare names, so it would answer
+nothing. Verify with `resolvectl query bubba` (`Data from: network` means it
+reached upstream).
 
 ## GTK Theme
 
