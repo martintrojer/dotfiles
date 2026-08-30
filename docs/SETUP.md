@@ -173,11 +173,11 @@ cd ~/.tmux/plugins/tpm && git describe --tags --exact-match HEAD
 
 The `~/.tmux/plugins/<other-plugins>/` directories (the actual @plugin entries listed in `.tmux.conf`) are still owned by TPM and updated via `prefix + U` inside tmux. Don't touch those.
 
-### 6. Codex notify hook (removed)
+### 6. Codex notify hook (repoint at murmur)
 
-The hook invoked `agent-attention`, which no longer exists — murmur replaced it
-and speaks only to pi. If `~/.codex/config.toml` still carries the line, it now
-shells out to a missing script on every notify.
+The hook invoked `agent-attention`, which no longer exists. murmur now has the
+`notify` verb this section used to say was missing, so the line is repaired
+rather than deleted: codex keeps its tmux attention.
 
 Detect:
 
@@ -187,9 +187,29 @@ grep -n 'notify = .*agent-attention' ~/.codex/config.toml 2>/dev/null
 
 Action:
 
-If it prints, delete that `notify = [...]` line. Codex loses tmux attention
-notifications; nothing else changes. Re-adding support means giving murmur a
-`notify` verb for non-pi harnesses.
+If it prints, replace that line with:
+
+```toml
+notify = ["/bin/sh", "-lc", "murmur notify --source codex --event-type notify --title Codex"]
+```
+
+Verify it from inside a tmux pane, because a silent failure here is the whole
+hazard — a notify hook's output goes nowhere:
+
+```bash
+/bin/sh -lc "murmur notify --source codex --event-type notify --title Codex"
+murmur status                      # expect a blocked row for this pane
+murmur clear --pane "$TMUX_PANE"   # then take it back
+```
+
+If that reports `murmur: not found`, the hook cannot find it either. `-l` does
+not save you: `/bin/sh` is not zsh and never reads `.zprofile`, so the line works
+only because it inherits the PATH of the terminal that launched codex. A codex
+started by a launcher, daemon or GUI gets the default `sh` PATH, which has no
+`/opt/homebrew`. Use the absolute path from `command -v murmur` in that case.
+
+The opencode plugin at `opencode/.config/opencode/plugin/notify.ts` pipes the
+same JSON payload to `murmur notify` and needs no separate setup.
 
 ### 7. Wallpaper cache (Linux only)
 
