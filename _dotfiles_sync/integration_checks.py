@@ -198,3 +198,70 @@ def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
             "OK: murmur installed, initialised, linked into pi, visible to tmux"
         )
     return found_issue
+
+
+def check_codex_notify(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    """Verify the codex notify hook points at something that exists.
+
+    This check existed once, was deleted in b1d77f4 when `agent-attention` went
+    away, and the README kept advertising it for two commits. It is back because
+    the failure it catches is invisible by construction: a notify hook's stdout
+    and stderr go nowhere, so a hook that shells out to a deleted script fails
+    silently on every single notification. That is exactly what happened -- the
+    line survived pointing at `agent-attention` long after the script was gone,
+    and nothing said so.
+
+    Deliberately NOT asserting that codex is configured at all. A machine
+    without codex is fine, and a missing `notify` line only means no tmux
+    attention for codex, which is a choice. The one thing worth failing on is a
+    line that names a script that is not there.
+    """
+    issue_id = "codex-notify"
+    if issue_id in ignore:
+        return False
+
+    path = target / ".codex" / "config.toml"
+    if not path.is_file():
+        # No codex on this machine. Not a problem.
+        return False
+
+    try:
+        content = path.read_text()
+    except OSError as exc:
+        lazy_header("codex-notify")()
+        LOGGER.warning(
+            f"UNREADABLE: codex config at {path}: {exc} (--ignore {issue_id})"
+        )
+        return True
+
+    notify_lines = [
+        line for line in content.splitlines() if line.strip().startswith("notify")
+    ]
+    if not notify_lines:
+        # No hook configured, so nothing can break. Mentioned only when asked.
+        if verbose:
+            LOGGER.debug(f"OK: no codex notify hook configured in {path}")
+        return False
+
+    line = notify_lines[0]
+    if "agent-attention" in line:
+        lazy_header("codex-notify")()
+        LOGGER.warning(
+            f"STALE: codex notify at {path} still calls `agent-attention`, which was "
+            f"removed -- every notification fails silently. Replace it with "
+            f"`murmur notify --source codex --event-type notify --title Codex` "
+            f"(--ignore {issue_id})"
+        )
+        return True
+
+    if "murmur" not in line:
+        lazy_header("codex-notify")()
+        LOGGER.warning(
+            f"UNKNOWN: codex notify at {path} does not call murmur; if the command it "
+            f"names is missing, notifications fail with no output (--ignore {issue_id})"
+        )
+        return True
+
+    if verbose:
+        LOGGER.debug(f"OK: codex notify hook calls murmur in {path}")
+    return False

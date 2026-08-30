@@ -15,6 +15,7 @@ from .external import (
 )
 from .fedora_systemd import apply_fedora_systemd_masks, check_fedora_systemd_masks
 from .integration_checks import (
+    check_codex_notify,
     check_murmur,
     check_tmux_tpm,
     check_zsh_plugins,
@@ -170,6 +171,13 @@ def run_check_tasks(
         (
             TaskPolicy("murmur", packages=frozenset({"tmux", "pi"})),
             lambda: check_murmur(target, verbose=verbose, ignore=ignore),
+        ),
+        # Not tied to a stow package: ~/.codex/config.toml is codex's own file,
+        # not something this repo links, so this runs everywhere and returns
+        # clean on a machine with no codex.
+        (
+            TaskPolicy("codex-notify"),
+            lambda: check_codex_notify(target, verbose=verbose, ignore=ignore),
         ),
         (
             TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
