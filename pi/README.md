@@ -123,10 +123,53 @@ export BRAVE_SEARCH_API_KEY="your-brave-search-api-key"
 ```
 
 Then ask for web/current information normally; the model can call `brave_search` and cite returned URLs. Ask specifically for news, images, or videos when you want the model to use those specialized Brave tools.
+### `refusal` — bypassing a refused check gets nudged
+
+No command, no model. When a gate rejects a bash command and the next attempt at
+the **same action** carries a flag that disables that gate, this injects one
+fixed note before the following LLM call. It never blocks.
+
+```
+$ git commit -m fix          # pre-commit hook rejects
+$ git commit -m fix --no-verify
+  ⚠ Bypassing a refused check: git commit --no-verify
+```
+
+This lives in an extension rather than in the
+`verification-before-completion` skill because it has to fire whether or not
+the agent cooperates — the agent about to skip the check is the one who would
+otherwise have to remember the rule.
+
+Precision is the design, since a false positive teaches you to ignore it:
+
+- A **bare** `--force` is never flagged. Force-pushing your own branch after a
+  rebase is normal. Only a bypass flag that is *new since* a refusal of the same
+  action fires.
+- Flags split by how much context they need. `--no-verify`, `--skip-hooks` and
+  friends exist for nothing but skipping a check, so any prior failure of the
+  same action arms them — which is what catches a hook that is just `exit 1`
+  and prints nothing. `--force`, `-f` and `--ignore-working-copy` have real
+  everyday uses, so they need the earlier failure to have actually *read* like a
+  gate declining (`pre-commit hook`, `rejected`, `is immutable`, `would be
+  reformatted`).
+- Gate markers are phrases a gate **emits**, never words a gate is named by. pi
+  throws the tool's whole output as the error message, so a bare `hook` would
+  match `git help hooks` and arm state nothing refused.
+- pi's own `Command aborted` (Esc) and `Command timed out` arrive as errors too.
+  Both are ignored.
+- Actions are keyed on program + subcommand, so a refused `git push` does not
+  arm a nudge for `git commit --no-verify`.
+- One nudge per refusal, then the state is cleared — repeats stack and stop
+  being read.
+
+Deliberately no fast model in the path: the trigger is two observable facts, not
+a judgment. Muse Code routes the equivalent rule through an LLM judge and it
+failed open in production — a `git push` recorded `allow:policy` with no judge
+invocation at all.
 
 ## Tests
 
-`.pi/agent/extensions/tests/lib.test.ts` covers the pure helpers in `_lib.ts` (`parseInterval`, `formatInterval`, `blockText`, `conversationTranscript`, `expandProbe`). Run them with `make check-ts-tests`, which is part of `make check-all`.
+`.pi/agent/extensions/tests/lib.test.ts` covers the pure helpers in `_lib.ts` (`parseInterval`, `formatInterval`, `blockText`, `conversationTranscript`, `expandProbe`). `tests/refusal.test.ts` covers `refusal.ts`'s four matchers, weighted toward the negative cases — a legitimate `--force`, `find -name`, and a plain `command not found` must all stay silent. Run them with `make check-ts-tests`, which is part of `make check-all`.
 
 No runner dependency and no `package.json`: node strips the TS types itself, so `node --test` runs the files directly. The `tests/` directory is never linked into `$HOME` — `tests` is in `NAME_PATTERNS` (`_dotfiles_sync/ignore.py`), so pi never sees it as an extension.
 
