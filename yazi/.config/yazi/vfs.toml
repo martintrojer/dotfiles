@@ -1,12 +1,16 @@
+# Authenticate with the key file directly instead of the ssh-agent: this
+# desktop session runs no local ssh-agent, and $SSH_AUTH_SOCK usually points
+# at a stale sshd-forwarded socket, which makes Yazi fail with
+# "Failed to connect to SFTP server: No such file or directory (os error 2)".
+
 [sftp.bubba]
 host = "bubba"
 user = "martintrojer"
 port = 22
-# Authenticate via the ssh-agent ($SSH_AUTH_SOCK); the RSA key loaded there
-# is what actually authorizes against bubba.
+key_file = "~/.ssh/id_ed25519"
 
 [sftp.pizero2]
 host = "pzero2"
 user = "martintrojer"
 port = 22
-# Authenticate via the ssh-agent ($SSH_AUTH_SOCK).
+key_file = "~/.ssh/id_ed25519"
