@@ -10,6 +10,20 @@ if [[ -z "$TMUX" ]] && ! infocmp "$TERM" &>/dev/null; then
   export TERM=xterm-256color
 fi
 
+# ssh carries the client's TERM across, so a local tmux session leaves us with
+# TERM=tmux-256color on a host running no tmux. ssh also doesn't forward
+# COLORTERM (see SendEnv in ~/.ssh/config), and the usual detection ladder
+# checks COLORTERM=truecolor first, then falls back to matching TERM against
+# /-256(color)?$/ -- which tmux-256color hits. So TUIs settle for 256 colors
+# and quantize their palettes, even though the terminal at the far end renders
+# truecolor fine. COLORTERM is what actually restores it; retitling TERM keeps
+# it honest, since tmux-256color describes capabilities tmux is not here to
+# provide.
+if [[ -n "$SSH_CONNECTION" && -z "$TMUX" && "$TERM" == (tmux|screen)* ]]; then
+  export TERM=xterm-256color
+  export COLORTERM=truecolor
+fi
+
 # Toolbox containers often lack the host's terminfo entry (foot,
 # tmux-256color, ...). Force a known-good value inside toolbox.
 if [[ -f /run/.toolboxenv ]]; then
