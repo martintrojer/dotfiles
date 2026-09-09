@@ -1,14 +1,15 @@
 ---
 name: write-plan
-description: Use when you have an approved spec or clear requirements for a multi-step change, before touching code. Turns a design into an ordered set of self-contained, independently verifiable tasks. Triggers on "write a plan", "create an implementation plan", "plan this feature".
-version: 0.2.0
+description: Use when you have an approved spec or clear requirements for a multi-step change, before touching code. Turns a design into a `mu` task DAG of self-contained, independently verifiable tasks (a markdown file only when the user asks for one). Triggers on "write a plan", "create an implementation plan", "plan this feature".
+version: 0.3.0
 ---
 
 # Write Plan — Planning Phase
 
-Write the plan for an engineer who is competent but has zero context for this
+Write each task for an engineer who is competent but has zero context for this
 codebase: they don't know the toolset, the domain, or where anything lives.
-Everything they need is in the plan or they can't do the task.
+Everything they need is in the task or they can't do it — and under `mu` that is
+literal, since a worker sees only its own task.
 
 That reader is also the realistic case for *you*, a week or a context-compaction
 later.
@@ -19,10 +20,18 @@ An approved spec or clear requirements. If the requirements are still fuzzy, sto
 and use `brainstorm` first — planning a design nobody agreed to wastes both
 passes.
 
-## Where plans live
+## Where the plan goes
 
-`docs/plans/YYYY-MM-DD-<feature-name>.md` (user preference overrides). Create the
-directory if it doesn't exist.
+**A `mu` task DAG, not a file.** Each plan task becomes a mu task whose notes
+carry the full content — files, steps, code, verification. That is the artifact;
+there is no markdown to keep in sync with it.
+
+Write `docs/plans/YYYY-MM-DD-<feature-name>.md` **only when the user explicitly
+asks for a file** ("write it to a file", "save the plan", "give me a markdown
+plan"). Then do the file *instead of* the DAG unless they want both.
+
+Everything below — structure, task sizing, no placeholders — applies either way.
+A task's note is the plan section for that task, verbatim.
 
 ## Scope check
 
@@ -58,6 +67,9 @@ Steps within a task are one action each, 2–5 minutes: "write the failing test"
 
 ## Plan header
 
+The header is shared context every task needs. In the DAG it goes on a root
+task that all others are blocked by; in a file it goes at the top.
+
 ```markdown
 # <Feature Name> Implementation Plan
 
@@ -78,6 +90,10 @@ spec. Every task implicitly includes these.>
 ```
 
 ## Task structure
+
+This is the content every task carries, whichever artifact you produce. Shown as
+markdown; in the DAG the same content becomes the task's note (see *Building the
+DAG*).
 
 ````markdown
 ### Task N: <Component Name>
@@ -147,8 +163,10 @@ failures, not shorthand:
 
 ## Self-review
 
-After the plan is written, check it against the spec with fresh eyes. This is
-your own checklist, not a review request.
+After the tasks are written — before creating them in mu — check them against the
+spec with fresh eyes. This is your own checklist, not a review request. Doing it
+first is cheaper: a note is created once, and fixing a bad one means another
+note explaining why the first was wrong.
 
 1. **Spec coverage** — walk each spec requirement. Can you name the task that
    implements it? List gaps, then close them.
@@ -161,7 +179,10 @@ Fix inline and move on.
 
 ## Progress tracker
 
-End the plan with:
+In the DAG this is free: `mu state -w <ws>` and `mu task tree` are the tracker,
+task notes are the mid-flight record. Don't build a second one.
+
+In a file, end with:
 
 ```markdown
 ## Progress
@@ -174,16 +195,95 @@ End the plan with:
 you.>
 ```
 
+## Building the DAG
+
+**Read the `mu` skill in full first** (once per session) — it owns the task and
+edge semantics this section relies on, and `mu --help` / `mu task add --help`
+override both if they disagree. Don't guess flag names from the example below.
+
+Two things to create: **tasks** (`mu task add`, one per plan task) and **edges**
+(the `blocks` relation — the only edge type there is).
+
+The note is the task section written out in full — a worker with no other
+context must be able to work from `mu task notes <id>` alone. Use a quoted
+heredoc so code blocks and `$VAR` survive.
+
+```bash
+mu workstream init <feature-name>
+
+mu task add task_0 -w <ws> -t '<Feature>: constraints and architecture' \
+  -i 80 -e 0.1 --note "$(cat <<'EOF'
+GOAL: <one sentence>
+ARCHITECTURE: <2-3 sentences>
+CONSTRAINTS:
+- <verbatim from spec>
+EOF
+)"
+
+mu task add task_1 -w <ws> -t 'Task 1: <component>' -i <1-100> -e <days> \
+  -b task_0 --note "$(cat <<'EOF'
+FILES:
+- Create: exact/path/to/file.py
+- Test: tests/exact/path/to/test.py
+INTERFACES:
+- Consumes: <exact signatures>
+- Produces: <exact names, param and return types>
+STEPS:
+1. Write failing test:
+   <the actual test code>
+2. Run `pytest tests/... -v` — expect FAIL "function not defined"
+3. Implement:
+   <the actual implementation>
+4. Run `pytest tests/... -v` — expect PASS
+5. Commit: <conventional commit message>
+VERIFY: pytest tests/... -v
+EOF
+)"
+```
+
+### Edges
+
+`-b/--blocked-by` at creation time is the normal path: the blocker already
+exists, because you create tasks in dependency order. It takes several ids
+(`-b task_1,task_2` or `-b task_1 -b task_2`).
+
+For an edge you can't express at creation — a blocker created later, or one you
+realise during self-review — add it after the fact:
+
+```bash
+mu task block task_5 -w <ws> --by task_3      # task_3 blocks task_5
+mu task unblock task_5 -w <ws> --by task_3    # wrong edge, remove it
+mu task tree -w <ws>                          # read the graph back
+```
+
+Direction trips people up: the **first** id is the one that's blocked, `--by`
+names the blocker. `mu task block A --by B` means A waits for B.
+
+- **Dependencies, not sequence.** Add an edge only where Task N *consumes* what
+  Task M *produces*. Plan order is presentation; over-linking serialises tracks
+  mu could have run in parallel, which is the whole reason to use the DAG.
+- Verify with `mu task tree` before handing off. A missing edge means a worker
+  starts on a foundation that doesn't exist yet; a spurious one idles an agent.
+
+### Sizing and gates
+
+- `effort_days` from step count, `impact` from what breaks without it. Guess
+  honestly rather than defaulting everything to 50/1.
+- Review gates: the reviewer is its own task blocked by the work it reviews, and
+  the fix task is blocked by the review.
+- Task 0 exists so constraints live in one place. Block real work on it and
+  close it immediately — it's a note carrier, not work.
+- One note per task at creation. Follow-ups go in later notes; don't rewrite
+  history, append to it.
+
 ## Handoff
 
-Summarise the plan, confirm where it's saved, and hand back. Execution is a
-separate pass with fresh context — work through the tasks in order, tick the
-boxes as they land, and stop rather than guess when a task turns out to be
-wrong. A plan that survives contact unchanged is rare; when reality disagrees
-with the plan, the plan is what updates.
+Run `mu state -w <ws>`, report the workstream name and the parallel tracks, and
+hand back. Execution is a separate pass with fresh context — spawning workers is
+not this pass's job.
 
-For a plan with independent tracks, or one you want review-gated per task,
-hand it to `mu` rather than grinding through it in one context.
+When reality disagrees with the plan, the plan is what updates: a task note, not
+a silent improvisation. A plan that survives contact unchanged is rare.
 
 ## Related
 
@@ -192,4 +292,4 @@ hand it to `mu` rather than grinding through it in one context.
 | `brainstorm` | Upstream — produces the spec this plan consumes. Go back if requirements are still fuzzy |
 | `test-driven-development` | Writing the per-task red/green steps |
 | `ponytail` | Sizing tasks. A task nobody asked for still gets built, reviewed, and maintained |
-| `mu` | Executing a multi-track or review-gated plan across agents |
+| `mu` | Loading the plan into a task DAG, then executing it across agents |
