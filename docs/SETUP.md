@@ -211,7 +211,29 @@ started by a launcher, daemon or GUI gets the default `sh` PATH, which has no
 The opencode plugin at `opencode/.config/opencode/plugin/notify.ts` pipes the
 same JSON payload to `murmur notify` and needs no separate setup.
 
-### 7. Wallpaper cache (Linux only)
+### 7. Cursor CLI stop hook
+
+The `cursor` package links `~/.cursor/hooks.json` so interactive `agent`
+sessions notify murmur on turn end. After `--apply`:
+
+```bash
+ls -la ~/.cursor/hooks.json
+# expect a symlink into ~/dotfiles/cursor/.cursor/hooks.json
+```
+
+Verify from a tmux pane (hooks inherit that PATH and `$TMUX_PANE`):
+
+```bash
+echo '{"hook_event_name":"stop","status":"completed"}' | murmur notify --source cursor
+murmur status
+murmur clear --pane "$TMUX_PANE"
+```
+
+If you already had a real `~/.cursor/hooks.json`, `--apply` will report a
+conflict — merge the `stop` entry from the package into yours, or move yours
+aside and re-apply.
+
+### 8. Wallpaper cache (Linux only)
 
 The lock-screen rendering moved from `~/.cache/lock-screen/` into the wallpaper helper at `~/.cache/wallpaper/`. The old cache is orphaned but harmless.
 
@@ -230,7 +252,7 @@ rm -rf ~/.cache/lock-screen
 # `wallpaper set/use` runs or on next `lock-screen` invocation.
 ```
 
-### 8. niri → sway (Linux only)
+### 9. niri → sway (Linux only)
 
 If a Linux machine was running niri, this is a desktop-stack switch, not a config update — see [`DECISIONS.md` § niri](./DECISIONS.md) for the rationale and [Sway School](https://martintrojer.github.io/sway-school/) for a tree-first sway tutorial.
 
@@ -253,9 +275,9 @@ Old niri config under `~/.config/niri/` is harmless to leave in place — sway d
 rm -rf ~/.config/niri
 ```
 
-### 9. macOS-specific cleanup
+### 10. macOS-specific cleanup
 
-macOS machines should run items 1 through 6 above as relevant. Only the wallpaper/niri items are Linux-only no-ops on macOS.
+macOS machines should run items 1 through 7 above as relevant. Only the wallpaper/niri items are Linux-only no-ops on macOS.
 
 Terminal policy on macOS is: **Ghostty only**, no fallback. `dotfiles-sync --apply` links the `ghostty` config on Darwin. Hammerspoon's terminal binds (`Hyper+T`, `Hyper+Return`, `Hyper+PadEnter`) all use `open -na "Ghostty"` for current-Space window creation. See [`DECISIONS.md`](./DECISIONS.md#each-os-gets-its-native-terminal-foot-on-linux-ghostty-on-macos-accepted-2026-05-15).
 

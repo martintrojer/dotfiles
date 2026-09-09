@@ -248,15 +248,17 @@ reports that gap as `UNREACHABLE`.
 
 ### Harness support
 
-**pi only.** murmur's extension runs in-process and pushes state directly, so
-`working`, `done` and `cleared` are real events rather than inferences. A pid
-carried on the `working` event is what makes crash detection possible.
+**pi** is first-class: murmur's extension runs in-process and pushes activity,
+so `running`, `done`, and crash detection are real rather than inferred.
 
-codex and opencode are **not supported**. They had no way to report from inside
-themselves, so the old script gave them a `notify` verb that set `blocked` from
-outside; murmur has no equivalent and their hooks have been removed. Adding
-them back means giving murmur a `notify` path for harnesses that cannot report
-their own state.
+**codex, opencode, and Cursor CLI** use `murmur notify` (attention only — no
+ownership or crash detection). This repo wires:
+
+| Harness | Where |
+| --- | --- |
+| codex | `notify = [...]` in `~/.codex/config.toml` (manual; see [`docs/SETUP.md`](../docs/SETUP.md)) |
+| opencode | `opencode/.config/opencode/plugin/notify.ts` |
+| Cursor CLI | `cursor/.cursor/hooks.json` → `stop` → `murmur notify --source cursor` |
 
 mu-managed pi panes (`MU_MANAGED_AGENT=1`) clear on `agent_end` rather than
 showing `done`, and murmur records them as `driver = orchestrated` so the
