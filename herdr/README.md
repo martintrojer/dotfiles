@@ -28,50 +28,36 @@ defaults. Run `herdr --default-config` for the full annotated set, and
 `herdr config check` to validate an edit — it reports unknown keys and
 unparseable keybindings by name and exits non-zero.
 
-Theming is herdr's own: `[theme] name = "catppuccin"` matches the rest of the
-repo, so this file carries no `THEME BEGIN/END` block and `make theme` skips
-it. If the built-in drifts from `docs/palette.toml`, override individual
-tokens under `[theme.custom]` rather than templating the file.
+What stays here, and why: updater disabled (mise owns the binary), sidebar
+starts collapsed, agent panel sorted by priority, agent labels on pane
+borders, no pane gaps/scrollbars, toasts on / sound off, and the three
+additive agent-focus keys below. Everything else — including theme
+(`catppuccin` is already stock) — is left at upstream default so the eval
+tests herdr's own model rather than a tmux dialect.
 
-## Muscle memory
+If the built-in catppuccin drifts from `docs/palette.toml`, override tokens
+under `[theme.custom]` rather than templating the file. There is no
+`THEME BEGIN/END` block; `make theme` skips this package.
 
-Same out of the box, nothing to configure: prefix `ctrl+b`, `prefix+c` new tab,
-`prefix+n`/`prefix+p` next/prev, `prefix+1..9`, `prefix+x` close pane,
-`prefix+z` zoom, `prefix+r` resize mode, `prefix+shift+r` reload config,
-`prefix+b` toggle sidebar.
+## Keys
 
-Rebound to match [`../tmux/.tmux.conf`](../tmux/.tmux.conf):
+Stock herdr, learned with `prefix+?`. The deltas that bite a tmux hand:
 
-| tmux | herdr default | here |
-| ---- | ------------- | ---- |
-| `prefix+d` detach | `prefix+q` | `prefix+d` |
-| `prefix+%` split right | `prefix+v` | `prefix+%` (and `prefix+v`) |
-| `prefix+"` split down | `prefix+minus` | `prefix+"` (and `prefix+minus`) |
-| `prefix+,` rename window | `prefix+shift+t` | `prefix+,` |
-| `prefix+&` kill window | `prefix+shift+x` | `prefix+&` |
-| `prefix+s` session picker | `settings` | `tms` picker (settings → `prefix+shift+s`) |
-| `prefix+a` agent picker | — | `next_agent` (see below) |
-| `prefix+arrows` focus pane | `prefix+h/j/k/l` | arrows (hjkl still works in navigate mode) |
-| `prefix+!` break pane out | — | `prefix+shift+b` |
+| Action | Stock herdr | tmux habit |
+| ------ | ----------- | ---------- |
+| Detach | `prefix+q` | `prefix+d` |
+| Split right / down | `prefix+v` / `prefix+minus` | `prefix+%` / `prefix+"` |
+| Focus panes | `prefix+h/j/k/l` | `prefix+arrows` |
+| Rename / close tab | `prefix+shift+t` / `prefix+shift+x` | `prefix+,` / `prefix+&` |
+| Goto / workspace picker | `prefix+g` / `prefix+w` | (tms / choose-tree) |
 
-Two naming traps worth knowing before editing `[keys]`:
-
-- `split_vertical` puts the new pane **to the right** and `split_horizontal`
-  puts it **below**. The names describe the divider, not the motion — the
-  opposite of the tmux mnemonic. Verified with `herdr pane split --direction`.
-- Keys take a string *or* an array, which is how `%` and `v` both reach the
-  same action.
-
-The key parser accepts `%` and `"` directly, but has no name for `!` — and
-`prefix+shift+1` is not a substitute, because terminals send `!` for that
-chord. It parses and then never fires, which `config check` cannot catch. So
-break-pane sits on `prefix+shift+b`.
+`split_vertical` puts the new pane **to the right** and `split_horizontal`
+puts it **below** — the names describe the divider, not the motion.
 
 ## Select agents
 
-Herdr has no agent picker surface, because the sidebar's **agent panel** is
-that view. So `prefix+a` selects *within the panel* rather than opening
-anything:
+The only deliberate key additions. Stock leaves these unset; the sidebar's
+**agent panel** is the picker surface:
 
 | key | does |
 | --- | ---- |
@@ -80,8 +66,7 @@ anything:
 | `prefix+alt+1..9` | jump straight to agent row 1–9 |
 
 `agent_panel_sort = "priority"` makes row 1 the most urgent agent, so
-`prefix+alt+1` is "go to whatever most wants me" — which is what `prefix+a`
-meant in tmux.
+`prefix+alt+1` is "go to whatever most wants me."
 
 `focus_agent` is indexed-only. It rejects a bare key (`indexed keybinding must
 use 1..9`) and takes a *modifier*, not a leader, so `prefix+a+1..9` does not
@@ -115,7 +100,7 @@ Two open questions from living with it:
   choose whether to pay it.
 
 `agent_panel_sort = "priority"` orders the panel by attention rather than by
-space, matching what `prefix+a` does in the tmux setup.
+space.
 
 ## Missing integrations
 
@@ -132,25 +117,20 @@ space, matching what `prefix+a` does in the tmux setup.
   (installed by `murmur link pi`) and herdr's own `herdr-agent-state.ts`
   (installed by `herdr integration install pi`). Different filenames, no
   collision, but see below.
-- **`prefix+v` clipboard history** — the desktop already owns a clipboard
-  shortcut on both platforms, and the picker behind it is OS-specific
-  (`clipman`+fuzzel on sway, something else entirely on macOS). A
-  common-scope config cannot bind one command for both.
-- **Notification sound** — same reason: it would need a per-OS audio backend
-  to behave identically. Toasts only (`ui.toast.delivery = "herdr"`).
+- **Clipboard history / notification sound** — OS-specific backends; this
+  package is common scope. Toasts only (`ui.toast.delivery = "herdr"`).
 
 ## Sessions (`tms`)
 
-`prefix+s` opens the same picker as tmux, backed by the same
-`~/.config/tmux/tms.toml`: pinned sessions with `startup` and `split`, live
-sessions, zoxide, and the `fd` fallback, with the same `^a/^c/^t/^x/^f` mode
-keys.
+`tms` still understands herdr (a tms "session" is a herdr **workspace** under
+`$HERDR_ENV`), but it is **not** bound in this config — stock `prefix+s` is
+settings and `prefix+g` is goto. Drive it from the shell
+(`tms pick-and-connect`, `TMS_BACKEND=herdr` to force) if the eval needs
+pinned recipes; otherwise use herdr's own workspace picker (`prefix+w`) and
+goto (`prefix+g`).
 
-The script is one file at `local-bin/.local/bin/tms` (common scope, on
-`$PATH`) with a backend seam: a tms "session" is a tmux session under `$TMUX`
-and a herdr **workspace** under `$HERDR_ENV`. `$TMUX` is checked first, so a
-tmux running inside a herdr pane still means tmux. `TMS_BACKEND=tmux|herdr`
-forces it.
+The script lives at `local-bin/.local/bin/tms`. `$TMUX` is checked before
+`$HERDR_ENV`, so a tmux nested somehow still means tmux.
 
 | tms | tmux | herdr |
 | --- | ---- | ----- |
@@ -161,21 +141,9 @@ forces it.
 | switch | `switch-client` | `workspace focus` |
 | preview | `capture-pane` | `pane read` |
 
-Bindings: `prefix+s` picker, `prefix+g` last session, `prefix+shift+t` session
-at the current pane's cwd — the same three as `.tmux.conf`.
-
-Two deliberate differences under herdr:
-
-- **No agent glyphs in picker rows.** Those come from tmux `@agent_state`
-  window options; herdr's sidebar owns that signal instead. The scan is
-  skipped rather than stapling one multiplexer's state onto the other's rows.
-- **`prefix+g` has only one pointer.** tmux offers `client_last_session`;
-  herdr has no equivalent, so `last` relies solely on the `LAST_FILE` that
-  `tms` writes on every switch.
-
-herdr's own workspace picker is still there on `prefix+shift+w`, and `goto`
-moves to `prefix+w` (its `prefix+g` default collides with `tms last`, a
-collision `config check` does not report).
+Under herdr there are no agent glyphs in picker rows (sidebar owns that
+signal), and `tms last` relies only on the `LAST_FILE` tms writes — herdr has
+no `client_last_session` equivalent.
 
 ## Agent Integrations
 
