@@ -31,7 +31,7 @@ It does not own:
 - `ignore.py`: the shared rules for paths that never link into `$HOME`
 - `sync.py`: conflict, `--ignore`, backup, check, and apply policy
 - `repo_checks.py`: package coverage, private-environment checks, cleanup, backlink checks, and systemd unit-target resolution
-- `integration_checks.py`: external drift checks for zsh plugins, TPM, and Codex notify
+- `integration_checks.py`: external drift checks for zsh plugins, TPM, Codex notify, and Cursor notify
 - `external.py`: pinned third-party clone management for zsh plugins and TPM
 - `model.py`: typed dataclasses and shared aliases
 

@@ -16,6 +16,7 @@ from .external import (
 from .fedora_systemd import apply_fedora_systemd_masks, check_fedora_systemd_masks
 from .integration_checks import (
     check_codex_notify,
+    check_cursor_notify,
     check_murmur,
     check_tmux_tpm,
     check_zsh_plugins,
@@ -178,6 +179,12 @@ def run_check_tasks(
         (
             TaskPolicy("codex-notify"),
             lambda: check_codex_notify(target, verbose=verbose, ignore=ignore),
+        ),
+        # hooks.json may be linked by the cursor package, or hand-written. Either
+        # way a stop hook that does not call murmur fails silently on every turn.
+        (
+            TaskPolicy("cursor-notify"),
+            lambda: check_cursor_notify(target, verbose=verbose, ignore=ignore),
         ),
         (
             TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),

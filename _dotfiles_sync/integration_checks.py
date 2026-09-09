@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
@@ -265,3 +266,66 @@ def check_codex_notify(target: Path, *, verbose: bool, ignore: set[str]) -> bool
     if verbose:
         LOGGER.debug(f"OK: codex notify hook calls murmur in {path}")
     return False
+
+
+def check_cursor_notify(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    """Verify Cursor's stop hook points at murmur when hooks.json exists.
+
+    Same silent-failure shape as codex: a hooks.json that names a missing
+    command fails with nowhere for stdout to go. Deliberately NOT requiring
+    hooks.json — a machine without Cursor, or one that opts out of murmur for
+    it, is fine. The failure worth catching is a stop hook that does not call
+    murmur once someone has configured Cursor hooks at all.
+    """
+    issue_id = "cursor-notify"
+    if issue_id in ignore:
+        return False
+
+    path = target / ".cursor" / "hooks.json"
+    if not path.is_file():
+        if verbose:
+            LOGGER.debug(f"OK: no Cursor hooks.json at {path}")
+        return False
+
+    try:
+        raw = path.read_text()
+    except OSError as exc:
+        lazy_header("cursor-notify")()
+        LOGGER.warning(
+            f"UNREADABLE: Cursor hooks at {path}: {exc} (--ignore {issue_id})"
+        )
+        return True
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        lazy_header("cursor-notify")()
+        LOGGER.warning(
+            f"INVALID: Cursor hooks at {path} are not JSON: {exc} (--ignore {issue_id})"
+        )
+        return True
+
+    hooks = data.get("hooks") if isinstance(data, dict) else None
+    stop = hooks.get("stop") if isinstance(hooks, dict) else None
+    if not isinstance(stop, list) or not stop:
+        if verbose:
+            LOGGER.debug(f"OK: Cursor hooks at {path} define no stop hook")
+        return False
+
+    commands = [
+        entry.get("command", "")
+        for entry in stop
+        if isinstance(entry, dict) and isinstance(entry.get("command"), str)
+    ]
+    if any("murmur" in command for command in commands):
+        if verbose:
+            LOGGER.debug(f"OK: Cursor stop hook calls murmur in {path}")
+        return False
+
+    lazy_header("cursor-notify")()
+    LOGGER.warning(
+        f"UNKNOWN: Cursor stop hooks at {path} do not call murmur; a finished "
+        f"`agent` turn will not appear in the picker. Use "
+        f"`murmur notify --source cursor` (--ignore {issue_id})"
+    )
+    return True
