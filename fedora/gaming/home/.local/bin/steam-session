@@ -79,8 +79,7 @@ args=(--backend drm
 #
 # We deliberately do NOT pass `-steamdeck`: that's the handheld hardware profile
 # (battery UI, deck controller/OSK, LCD/OLED/fan assumptions), wrong for this
-# couch "Steam Machine". If Desktop Mode still no-ops without `-steamdeck`, add
-# it back — but `-steamos3` alone should gate the game-mode exec path.
+# couch "Steam Machine". `-steamos3` alone gates the game-mode exec path.
 steam_args=(-steamos3 -gamepadui)
 if [[ "${GS_HDR:-1}" != "0" ]]; then
   cmd=(gamescope "${args[@]}" -- env DXVK_HDR=1 ENABLE_GAMESCOPE_WSI=1 steam "${steam_args[@]}")

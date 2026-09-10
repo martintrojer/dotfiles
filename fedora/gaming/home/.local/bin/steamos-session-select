@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Shim for Steam's gamepad UI "Desktop Mode" button. In SteamOS game mode
-# (steam -steamdeck -steamos3, set by steam-session) the button runs
+# (steam -steamos3, set by steam-session) the button runs
 #   steam-runtime-launch-client --alongside-steam -- steamos-session-select <target>
 # and BLOCKS until it returns. We have no desktop-in-gamescope target, so we
 # tear the session down and return to SDDM. (This is the fallback path, taken

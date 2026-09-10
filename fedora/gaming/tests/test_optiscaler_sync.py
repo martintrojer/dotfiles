@@ -108,9 +108,7 @@ class OptiscalerSyncTests(unittest.TestCase):
 
     def test_detection_uses_one_candidate_override_and_manifest_authority(self) -> None:
         app = self.app()
-        no_upscaler, reason = self.sync.detect_target(
-            app, {"100": {"target": ".", "proxy": "dxgi.dll"}}
-        )
+        no_upscaler, reason = self.sync.detect_target(app, {"100": {"target": "."}})
         self.assertIsNone(no_upscaler)
         self.assertEqual(reason, "no recognized upscaler DLL")
         first = app.path / "A"
@@ -123,9 +121,7 @@ class OptiscalerSyncTests(unittest.TestCase):
         self.assertIsNone(target)
         self.assertEqual(reason, "multiple candidate directories")
 
-        target, reason = self.sync.detect_target(
-            app, {"100": {"target": "B", "proxy": "dxgi.dll"}}
-        )
+        target, reason = self.sync.detect_target(app, {"100": {"target": "B"}})
         self.assertIsNone(reason)
         self.assertEqual(target.directory, second)
         self.assertEqual(target.proxy, "dxgi.dll")
@@ -145,9 +141,7 @@ class OptiscalerSyncTests(unittest.TestCase):
                 }
             )
         )
-        target, reason = self.sync.detect_target(
-            app, {"100": {"target": "B", "proxy": "dxgi.dll"}}
-        )
+        target, reason = self.sync.detect_target(app, {"100": {"target": "B"}})
         self.assertIsNone(reason)
         self.assertEqual(target.directory, first)
         self.assertEqual(target.proxy, "version.dll")
@@ -623,7 +617,7 @@ class OptiscalerSyncTests(unittest.TestCase):
             Path(__file__).parents[1] / "data/optiscaler-overrides.json",
         )
         overrides = self.sync.load_overrides()
-        self.assertEqual(overrides["2677660"]["target"], ".")
+        self.assertEqual(overrides["2677660"], {"target": "."})
         self.assertEqual(
             overrides["835960"]["skip"],
             "The Talos Principle 2: target remains ambiguous",
@@ -637,14 +631,10 @@ class OptiscalerSyncTests(unittest.TestCase):
             "tracked skip: The Talos Principle 2: target remains ambiguous",
         )
 
-    def test_override_rejects_unsupported_proxy(self) -> None:
+    def test_override_rejects_proxy_field(self) -> None:
         path = self.root / "overrides.json"
-        path.write_text(json.dumps({"100": {"target": ".", "proxy": "../winmm.dll"}}))
-        with self.assertRaisesRegex(ValueError, "unsupported proxy"):
-            self.sync.load_overrides(path)
-
-        path.write_text(json.dumps({"100": {"target": ".", "proxy": "winmm.dll"}}))
-        with self.assertRaisesRegex(ValueError, "unsupported proxy"):
+        path.write_text(json.dumps({"100": {"target": ".", "proxy": "dxgi.dll"}}))
+        with self.assertRaisesRegex(ValueError, "invalid override"):
             self.sync.load_overrides(path)
 
     def test_vdf_edit_is_scoped_and_reports_missing_app(self) -> None:

@@ -44,22 +44,11 @@ def usage(prog: str) -> str:
             f"Run <command> inside a toolbox. Defaults to {DEFAULT_TBX_TOOLBOX!r}.",
             "",
             "Options:",
-            "  -c, --container, --toolbox NAME  Toolbox/container name",
-            "  --prefer-host, --host-first      Prefer a real host binary, then toolbox",
-            "  -h, --help                       Show this help",
+            "  -c NAME       Toolbox name",
+            "  --prefer-host Prefer a real host binary, then toolbox",
+            "  -h, --help    Show this help",
         ]
     )
-
-
-def _skip_path_dirs() -> set[Path]:
-    dirs = {
-        Path(sys.argv[0]).absolute().parent,
-        Path.home() / ".local" / "bin",
-    }
-    for raw_dir in os.environ.get("TBX_SKIP_PATH_DIRS", "").split(os.pathsep):
-        if raw_dir:
-            dirs.add(Path(raw_dir).expanduser().absolute())
-    return dirs
 
 
 def path_without_wrapper_dirs(raw_path: str) -> str:
@@ -71,7 +60,10 @@ def path_without_wrapper_dirs(raw_path: str) -> str:
     command lookup must not fall back to the same wrappers when the real command
     is missing inside the container.
     """
-    skip_dirs = _skip_path_dirs()
+    skip_dirs = {
+        Path(sys.argv[0]).absolute().parent,
+        Path.home() / ".local" / "bin",
+    }
     resolved_skip_dirs = set()
     for path in skip_dirs:
         with suppress(OSError):
@@ -98,18 +90,6 @@ def find_outside_wrapper_dirs(command: str) -> str | None:
     )
 
 
-def consume_option_value(argv: list[str], index: int, option: str) -> tuple[str, int]:
-    if "=" in option:
-        _, value = option.split("=", 1)
-        if value:
-            return value, index + 1
-    if index + 1 >= len(argv):
-        raise UsageError(
-            f"Missing value for {option}\n\n{usage(Path(sys.argv[0]).name)}"
-        )
-    return argv[index + 1], index + 2
-
-
 def parse_args(argv: list[str]) -> Options:
     prog = Path(sys.argv[0]).name
     prefer_host = False
@@ -120,14 +100,15 @@ def parse_args(argv: list[str]) -> Options:
         arg = argv[index]
         if arg in ("-h", "--help"):
             raise UsageError(usage(prog))
-        if arg in ("--prefer-host", "--host-first"):
+        if arg == "--prefer-host":
             prefer_host = True
             index += 1
             continue
-        if arg in ("-c", "--container", "--toolbox") or arg.startswith(
-            ("--container=", "--toolbox=")
-        ):
-            explicit_toolbox, index = consume_option_value(argv, index, arg)
+        if arg == "-c":
+            if index + 1 >= len(argv):
+                raise UsageError(f"Missing value for -c\n\n{usage(prog)}")
+            explicit_toolbox = argv[index + 1]
+            index += 2
             continue
         if arg == "--":
             index += 1

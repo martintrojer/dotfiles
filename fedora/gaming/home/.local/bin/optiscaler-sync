@@ -120,17 +120,10 @@ def load_overrides(path: Path = OVERRIDES_FILE) -> dict[str, dict[str, str]]:
             checked[appid] = {"skip": reason}
             continue
         target = value.get("target")
-        proxy = value.get("proxy")
-        if (
-            set(value) != {"target", "proxy"}
-            or not isinstance(target, str)
-            or not isinstance(proxy, str)
-        ):
+        if set(value) != {"target"} or not isinstance(target, str):
             raise ValueError(f"invalid override for AppID {appid}")
         safe_relative(target)
-        if proxy != "dxgi.dll":
-            raise ValueError(f"unsupported proxy for AppID {appid}: {proxy}")
-        checked[appid] = {"target": target, "proxy": proxy}
+        checked[appid] = {"target": target}
     return checked
 
 
@@ -298,7 +291,7 @@ def detect_target(
             app.path.resolve()
         ):
             return None, f"override target missing or unsafe: {override['target']}"
-        return Target(app, directory, override["proxy"]), None
+        return Target(app, directory, "dxgi.dll"), None
     if len(candidates) > 1:
         return None, "multiple candidate directories"
     return Target(app, candidates[0], "dxgi.dll"), None
@@ -691,16 +684,13 @@ def install_game(
                 backups[key] = backup_path.relative_to(state).as_posix()
                 backup_hashes[key] = sha256(backup_path)
             destination.parent.mkdir(parents=True, exist_ok=True)
-            if relative.name.lower() == "optiscaler.ini" and destination.is_file():
+            is_ini = relative.name.lower() == "optiscaler.ini"
+            if not (is_ini and destination.is_file()):
+                shutil.copy2(source, destination)
+            if is_ini:
                 atomic_write(
                     destination, patch_ini(destination.read_text(errors="replace"))
                 )
-            else:
-                shutil.copy2(source, destination)
-                if relative.name.lower() == "optiscaler.ini":
-                    atomic_write(
-                        destination, patch_ini(destination.read_text(errors="replace"))
-                    )
             files[key] = sha256(destination)
 
         payload_names = {path.as_posix() for path in payload}
