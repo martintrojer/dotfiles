@@ -26,6 +26,7 @@ fpath=(
 # ----------------------------------------------------------------------
 [[ "$OSTYPE" == darwin* ]] && [[ -f "$HOME/.zsh/homebrew.zsh" ]] && source "$HOME/.zsh/homebrew.zsh"
 [[ "$OSTYPE" == darwin* ]] && [[ -f "$HOME/.zsh/os-darwin.zsh" ]] && source "$HOME/.zsh/os-darwin.zsh"
+[[ "$OSTYPE" == linux* ]] && [[ -f "$HOME/.zsh/os-linux.zsh" ]] && source "$HOME/.zsh/os-linux.zsh"
 
 # ----------------------------------------------------------------------
 # History
@@ -116,7 +117,7 @@ bindkey '^[[B' down-line-or-beginning-search
 # ----------------------------------------------------------------------
 for file in "$HOME"/.zsh/*.zsh; do
   case "${file:t}" in
-    homebrew.zsh|os-darwin.zsh) continue ;;
+    homebrew.zsh|os-darwin.zsh|os-linux.zsh) continue ;;
   esac
   source "$file"
 done

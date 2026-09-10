@@ -45,6 +45,7 @@ Do not add these local files to `.gitignore`; the point is that they live outsid
   functions.zsh        — zknew, nv, mvln, y, rmhist, tm
   homebrew.zsh         — macOS Homebrew PATH bootstrap (sourced first on Darwin)
   os-darwin.zsh        — macOS-only shell tweaks
+  os-linux.zsh         — Linux-only tweaks (toolbox TERM, Electron Ozone, toolbox prompt)
 ```
 
 ## Highlights
@@ -113,4 +114,6 @@ Same model as Neovim's `vim.pack` setup in
 
 ## Boundary
 
-Cross-platform behavior in shared files. OS checks for narrow differences (`os-darwin.zsh`, `homebrew.zsh`). Larger Linux-specific behavior would live in `os-linux.zsh` (deleted as unused 2026-04-25; revive if needed).
+Cross-platform behavior in shared files. OS checks for narrow differences
+(`os-darwin.zsh`, `os-linux.zsh`, `homebrew.zsh`), sourced early from `.zshrc`
+and skipped in the modular `~/.zsh/*.zsh` loop.

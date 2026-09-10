@@ -24,11 +24,6 @@ if [[ -n "$SSH_CONNECTION" && -z "$TMUX" && "$TERM" == (tmux|screen)* ]]; then
   export COLORTERM=truecolor
 fi
 
-# Toolbox containers often lack the host's terminfo entry (foot,
-# tmux-256color, ...). Force a known-good value inside toolbox.
-if [[ -f /run/.toolboxenv ]]; then
-  export TERM=xterm-256color
-fi
 export CLICOLOR=1
 
 # Editor configuration
@@ -42,9 +37,6 @@ export HISTSIZE=1048576
 
 # GPG configuration
 [[ -n "${TTY:-}" ]] && export GPG_TTY="$TTY"
-
-# Application-specific exports
-export ELECTRON_OZONE_PLATFORM_HINT=auto
 
 # mu: per-machine append-only op segments live here. Point every machine
 # at the same synced folder (Syncthing, rsync, ...) to sync workstreams.
