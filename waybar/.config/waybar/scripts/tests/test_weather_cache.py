@@ -171,6 +171,7 @@ class WeatherRendering(unittest.TestCase):
         self.assertEqual(payload["class"], ["ambient"])
         self.assertEqual(payload["text"], "Snow 2°")
         self.assertIn("Oslo", payload["tooltip"])
+        self.assertIn("Light snow", payload["tooltip"])
 
 
 class GuardedRender(unittest.TestCase):

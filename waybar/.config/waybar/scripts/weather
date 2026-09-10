@@ -296,7 +296,8 @@ def render(cache: Weather | None) -> int:
         return 0
 
     updated = datetime.fromtimestamp(cache.fetched_at).strftime("%H:%M")
-    details = [f"{cache.place} · {cache.condition} {cache.temp_c}°"]
+    headline = cache.summary.strip() or cache.condition
+    details = [f"{cache.place} · {headline} {cache.temp_c}°"]
     if cache.min_temp_c is not None and cache.max_temp_c is not None:
         details.append(f"Today {cache.min_temp_c}°-{cache.max_temp_c}°")
     comfort = []

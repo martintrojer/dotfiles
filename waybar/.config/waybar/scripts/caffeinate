@@ -3,8 +3,9 @@
 
 Quiet by default, like ``issues``: inactive renders empty text plus a class
 the stylesheet collapses, so the bar shows nothing at all in the normal case.
-The flag is owned by the fuzzel powermenu and read by
-``sway/.config/sway/scripts/session-swayidle``; this script only reports it.
+This script owns the flag (``toggle``) and reports it (``render``).
+``sway/.config/sway/scripts/session-swayidle`` reads the same path; the fuzzel
+powermenu calls ``toggle`` rather than flipping the flag itself.
 """
 
 from __future__ import annotations
