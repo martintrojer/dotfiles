@@ -141,7 +141,7 @@ format-prettier:
 # No package.json here: the TS is loaded by globally installed hosts, so the
 # type packages are symlinked into a scratch node_modules first (gitignored).
 check-ts:
-	$(PYTHON) _dotfiles_sync/link_ts_types.py
+	$(PYTHON) -m _dotfiles_sync.link_ts_types
 	$(TSC) -p $(TSCONFIG)
 
 # No runner dependency: node strips the TS types itself, so `node --test` runs
@@ -178,10 +178,10 @@ clean-guides:
 	rm -rf guides/build
 
 theme:
-	$(PYTHON) _dotfiles_sync/render_theme.py --write
+	$(PYTHON) -m _dotfiles_sync.render_theme --write
 
 check-theme:
-	$(PYTHON) _dotfiles_sync/render_theme.py --check
+	$(PYTHON) -m _dotfiles_sync.render_theme --check
 	$(PYTHON) -m unittest discover -s _dotfiles_sync/tests -p 'test_*.py'
 
 tool-versions:

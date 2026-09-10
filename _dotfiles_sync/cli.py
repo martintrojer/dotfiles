@@ -22,14 +22,16 @@ from .integration_checks import (
     check_zsh_plugins,
 )
 from .inventory import build_specs, group_active_packages, resolve_requested_packages
-from .model import Args, Overwrite, PackageSpec, TaskPolicy
-from .repo_checks import (
-    check_package_coverage,
-    check_private_env_mistakes,
+from .managed_links import (
     check_repo_backlinks,
-    check_systemd_unit_targets,
     prune_managed_ignored_artifact_links,
     prune_stale_managed_links,
+)
+from .model import Args, Overwrite, PackageSpec, TaskPolicy
+from .private_env import check_private_env_mistakes
+from .repo_checks import (
+    check_package_coverage,
+    check_systemd_unit_targets,
 )
 from .sync import run_apply_group, run_check_group
 from .system import active_scopes, detect_system
@@ -65,7 +67,7 @@ def parse_args() -> Args:
         action="store_true",
         help=(
             "Move conflicting target paths into a timestamped backup dir under "
-            "the target before stowing"
+            "the target before linking"
         ),
     )
     parser.add_argument(
@@ -77,7 +79,7 @@ def parse_args() -> Args:
         "-v",
         "--verbose",
         action="store_true",
-        help="Show verbose stow output and detailed custom checks",
+        help="Show per-link detail and extra check output",
     )
     parser.add_argument(
         "-t",
@@ -106,7 +108,7 @@ def parse_args() -> Args:
         nargs="*",
         metavar="PACKAGE",
         help=(
-            "Only process these stow packages (for example: ./dotfiles-sync "
+            "Only process these packages (for example: ./dotfiles-sync "
             "--apply nvim tmux)"
         ),
     )
@@ -152,52 +154,52 @@ def run_check_tasks(
     # list: the two cannot drift apart, so there is no lookup to fail.
     tasks: tuple[tuple[TaskPolicy, Callable[[], bool]], ...] = (
         (
-            TaskPolicy("package-coverage", full_run_only=True),
+            TaskPolicy(full_run_only=True),
             lambda: check_package_coverage(specs, ignore=ignore),
         ),
         (
-            TaskPolicy("private-env"),
+            TaskPolicy(),
             lambda: check_private_env_mistakes(ignore=ignore),
         ),
         (
-            TaskPolicy("zsh-plugins", packages=frozenset({"zsh"})),
+            TaskPolicy(packages=frozenset({"zsh"})),
             lambda: check_zsh_plugins(target, verbose=verbose, ignore=ignore),
         ),
         (
-            TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
+            TaskPolicy(packages=frozenset({"tmux"})),
             lambda: check_tmux_tpm(target, verbose=verbose, ignore=ignore),
         ),
         # Both packages depend on it: tmux shells out to murmur for the status
         # segment, the picker and the focus hooks; pi hosts its extension.
         (
-            TaskPolicy("murmur", packages=frozenset({"tmux", "pi"})),
+            TaskPolicy(packages=frozenset({"tmux", "pi"})),
             lambda: check_murmur(target, verbose=verbose, ignore=ignore),
         ),
-        # Not tied to a stow package: ~/.codex/config.toml is codex's own file,
+        # Not tied to a package: ~/.codex/config.toml is codex's own file,
         # not something this repo links, so this runs everywhere and returns
         # clean on a machine with no codex.
         (
-            TaskPolicy("codex-notify"),
+            TaskPolicy(),
             lambda: check_codex_notify(target, verbose=verbose, ignore=ignore),
         ),
         # hooks.json may be linked by the cursor package, or hand-written. Either
         # way a stop hook that does not call murmur fails silently on every turn.
         (
-            TaskPolicy("cursor-notify"),
+            TaskPolicy(),
             lambda: check_cursor_notify(target, verbose=verbose, ignore=ignore),
         ),
         (
-            TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
+            TaskPolicy(packages=frozenset({"systemd"})),
             lambda: check_fedora_systemd_masks(target, verbose=verbose, ignore=ignore),
         ),
-        # Static, filesystem-only: no systemd, no stowed target, so it runs
+        # Static, filesystem-only: no systemd, no $HOME target, so it runs
         # everywhere and on every run rather than only on Fedora.
         (
-            TaskPolicy("systemd-unit-targets"),
+            TaskPolicy(),
             lambda: check_systemd_unit_targets(specs, ignore=ignore),
         ),
         (
-            TaskPolicy("repo-backlinks", full_run_only=True),
+            TaskPolicy(full_run_only=True),
             _check_repo_backlinks,
         ),
     )
@@ -222,7 +224,7 @@ def run_apply_tasks(
     # earlier tasks had already cloned repos and written symlinks.
     tasks: tuple[tuple[TaskPolicy, Callable[[], None]], ...] = (
         (
-            TaskPolicy("ignored-artifacts"),
+            TaskPolicy(),
             lambda: prune_managed_ignored_artifact_links(
                 target,
                 specs,
@@ -234,19 +236,19 @@ def run_apply_tasks(
         # A package-scoped run scans just that package, so it cannot tell a
         # stale link from one belonging to a package it was not asked about.
         (
-            TaskPolicy("stale-symlinks", full_run_only=True),
+            TaskPolicy(full_run_only=True),
             lambda: prune_stale_managed_links(target, specs, active_names),
         ),
         (
-            TaskPolicy("fedora-systemd-masks", packages=frozenset({"systemd"})),
+            TaskPolicy(packages=frozenset({"systemd"})),
             lambda: apply_fedora_systemd_masks(target, verbose=verbose),
         ),
         (
-            TaskPolicy("zsh-plugins", packages=frozenset({"zsh"})),
+            TaskPolicy(packages=frozenset({"zsh"})),
             lambda: apply_zsh_plugins(target, verbose=verbose),
         ),
         (
-            TaskPolicy("tmux-tpm", packages=frozenset({"tmux"})),
+            TaskPolicy(packages=frozenset({"tmux"})),
             lambda: apply_tmux_tpm(target, verbose=verbose),
         ),
     )

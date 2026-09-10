@@ -18,7 +18,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from _dotfiles_sync import config, repo_checks
+from _dotfiles_sync import config, managed_links
 from _dotfiles_sync.model import PackageSpec
 
 
@@ -34,12 +34,12 @@ class ManagedLinkLayout(unittest.TestCase):
         (self.repo / "pkg" / ".config" / "app").mkdir(parents=True)
         self.target.mkdir()
 
-        patch = mock.patch.object(repo_checks, "SCRIPT_DIR", self.repo)
+        patch = mock.patch.object(managed_links, "REPO_ROOT", self.repo)
         patch.start()
         self.addCleanup(patch.stop)
 
         self.specs = {
-            "pkg": PackageSpec(name="pkg", stow_dir=self.repo, scope="common")
+            "pkg": PackageSpec(name="pkg", parent_dir=self.repo, scope="common")
         }
         self.active = {"pkg"}
 
@@ -57,7 +57,7 @@ class ManagedLinkLayout(unittest.TestCase):
 
     def walk(self) -> list[tuple[Path, Path]]:
         return list(
-            repo_checks.iter_managed_links(self.target, self.specs, self.active)
+            managed_links.iter_managed_links(self.target, self.specs, self.active)
         )
 
 
@@ -160,7 +160,7 @@ class ScanScopeTests(ManagedLinkLayout):
         # the 450k-entry walk collect_scan_roots exists to avoid, so the limit
         # is asserted rather than left to the stop-on-real-file heuristic.
         self.repo_file(".config/app/conf")
-        depth = repo_checks.MAX_ORPHAN_DEPTH
+        depth = managed_links.MAX_ORPHAN_DEPTH
         too_deep = self.repo / "pkg" / ".config/app" / Path(*"x" * (depth + 1)) / "leaf"
         self.link(str(too_deep.relative_to(self.repo / "pkg")), too_deep)
         self.assertEqual(self.walk(), [])
@@ -191,7 +191,7 @@ class ScanScopeTests(ManagedLinkLayout):
         # the prune step, whose unlink() would land on the repo's own file.
         self.specs["pkg"] = PackageSpec(
             name="pkg",
-            stow_dir=self.repo,
+            parent_dir=self.repo,
             scope="common",
             bundle_dirs=(Path(".agents/skills"),),
         )
@@ -208,7 +208,7 @@ class ScanScopeTests(ManagedLinkLayout):
         # unreachable by the prune step, forever.
         self.specs["pkg"] = PackageSpec(
             name="pkg",
-            stow_dir=self.repo,
+            parent_dir=self.repo,
             scope="common",
             bundle_dirs=(Path(".agents/skills"),),
         )
@@ -227,7 +227,7 @@ class PruneStaleManagedLinksTests(ManagedLinkLayout):
     """
 
     def prune(self) -> None:
-        repo_checks.prune_stale_managed_links(self.target, self.specs, self.active)
+        managed_links.prune_stale_managed_links(self.target, self.specs, self.active)
 
     def test_dangling_link_into_the_repo_is_removed(self) -> None:
         missing = self.repo / "pkg" / ".config" / "app" / "deleted"

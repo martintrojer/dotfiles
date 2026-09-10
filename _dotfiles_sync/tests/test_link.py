@@ -80,7 +80,7 @@ class PlanPackageTests(unittest.TestCase):
 
         The source still exists at its new location, so the planner sees it and
         can relink. A source deleted outright drops out of the plan entirely --
-        cleaning that up belongs to the backlink audit in repo_checks, which
+        cleaning that up belongs to the backlink audit in managed_links, which
         walks $HOME rather than the package.
         """
         self._write("old-name")

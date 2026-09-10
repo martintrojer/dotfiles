@@ -29,7 +29,7 @@ class ApplyPolicyTestCase(unittest.TestCase):
     """A miniature repo/target pair. Nothing here touches the real $HOME.
 
     plan_package classifies STALE relative to the repo root, which defaults to
-    the real checkout, so SCRIPT_DIR is pointed at the fake repo for the whole
+    the real checkout, so REPO_ROOT is pointed at the fake repo for the whole
     case -- otherwise a dangling link inside the fixture reads as CONFLICT.
     """
 
@@ -43,7 +43,7 @@ class ApplyPolicyTestCase(unittest.TestCase):
         self.repo.mkdir()
         self.target.mkdir()
 
-        patch = mock.patch.object(link_module, "SCRIPT_DIR", self.repo)
+        patch = mock.patch.object(link_module, "REPO_ROOT", self.repo)
         patch.start()
         self.addCleanup(patch.stop)
 
@@ -56,7 +56,7 @@ class ApplyPolicyTestCase(unittest.TestCase):
             path = package_dir / rel
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(body)
-        self.specs[name] = PackageSpec(name=name, stow_dir=self.repo, scope="common")
+        self.specs[name] = PackageSpec(name=name, parent_dir=self.repo, scope="common")
         return package_dir
 
     def apply(

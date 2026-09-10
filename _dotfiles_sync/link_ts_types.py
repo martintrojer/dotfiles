@@ -20,7 +20,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+from .config import REPO_ROOT
+
 NODE_MODULES = REPO_ROOT / "node_modules"
 PI_PKG = "@earendil-works/pi-coding-agent"
 # pi-ai / pi-tui / typebox are pi's own deps, not separate top-level installs.

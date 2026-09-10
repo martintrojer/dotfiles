@@ -41,7 +41,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+from .config import REPO_ROOT, REPO_WALK_SKIP_DIRS
+
 PALETTE_PATH = REPO_ROOT / "docs" / "palette.toml"
 TEMPLATES_DIR = Path(__file__).resolve().parent / "themes"
 
@@ -171,18 +172,6 @@ AUDIT_ALLOWLIST: dict[str, str] = {
         "values for a file we never hand-edit"
     ),
 }
-
-# Directories the audit never descends into.
-AUDIT_SKIP_DIRS = frozenset(
-    {
-        ".git",
-        ".jj",
-        ".ruff_cache",
-        "__pycache__",
-        "build",
-        "node_modules",
-    }
-)
 
 
 # ---------------------------------------------------------------------
@@ -404,7 +393,7 @@ def unmanaged_palette_hex(path: Path, known: set[str]) -> list[tuple[int, str]]:
 
 def iter_audit_files(root: Path = REPO_ROOT) -> Iterable[Path]:
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(d for d in dirnames if d not in AUDIT_SKIP_DIRS)
+        dirnames[:] = sorted(d for d in dirnames if d not in REPO_WALK_SKIP_DIRS)
         for name in sorted(filenames):
             path = Path(dirpath, name)
             if not path.is_symlink():

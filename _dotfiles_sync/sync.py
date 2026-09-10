@@ -36,10 +36,6 @@ def plan_group(
     return links
 
 
-def shlex_quote(path: Path) -> str:
-    return shlex.quote(str(path))
-
-
 def show_conflict_diffs(conflicts: list[Link]) -> None:
     found = False
     for link in conflicts:
@@ -55,7 +51,7 @@ def show_conflict_diffs(conflicts: list[Link]) -> None:
             )
         else:
             LOGGER.warning(
-                f"  diff -u {shlex_quote(link.target)} {shlex_quote(link.source)}"
+                f"  diff -u {shlex.quote(str(link.target))} {shlex.quote(str(link.source))}"
             )
 
 

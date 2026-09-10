@@ -1,7 +1,7 @@
 """Which repo paths never become symlinks.
 
 Previously this lived in two places: `.stowrc` (consumed by stow) and a
-hand-written reimplementation of stow's matching semantics in repo_checks, so
+hand-written reimplementation of stow's matching semantics in managed_links, so
 the backlink audit could agree with what stow had actually linked. Two
 implementations of one rule set, kept in sync by hand.
 

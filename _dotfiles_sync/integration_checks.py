@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 from .config import lazy_header
@@ -14,48 +15,15 @@ from .pins import TPM, TPM_DEST, ZSH_PLUGINS, ZSH_PLUGINS_DEST
 LOGGER = logging.getLogger("dotfiles-sync")
 
 
-def check_zsh_plugins(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
-    plugins_dir = target / ZSH_PLUGINS_DEST
-    print_header = lazy_header("zsh-plugins")
-    found_issue = False
-    for name, _url, ref in ZSH_PLUGINS:
-        issue_id = f"zsh-plugin:{name}"
-        if issue_id in ignore:
-            continue
-        dest = plugins_dir / name
-        if not dest.is_dir():
-            print_header()
-            LOGGER.warning(f"MISSING: {name} (--ignore {issue_id})")
-            found_issue = True
-            continue
-        target_sha = _pinned_clone_resolve(dest, ref)
-        current_sha = _pinned_clone_head(dest)
-        if target_sha is None:
-            print_header()
-            LOGGER.warning(
-                f"UNKNOWN-REF: {name} ({ref} not in local clone; --ignore {issue_id})"
-            )
-            found_issue = True
-            continue
-        if current_sha != target_sha:
-            print_header()
-            LOGGER.warning(
-                f"DRIFT: {name} HEAD={current_sha[:12] if current_sha else '?'} "
-                f"want={target_sha[:12]} (--ignore {issue_id})"
-            )
-            found_issue = True
-        elif verbose:
-            LOGGER.debug(f"OK: {name} @ {ref} ({target_sha[:12]})")
-    return found_issue
-
-
-def check_tmux_tpm(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
-    name, _url, ref = TPM
-    issue_id = f"tmux-tpm:{name}"
-    if issue_id in ignore:
-        return False
-    dest = target / TPM_DEST
-    print_header = lazy_header("tmux-tpm")
+def _check_pinned_clone(
+    dest: Path,
+    *,
+    name: str,
+    ref: str,
+    issue_id: str,
+    print_header: Callable[[], None],
+    verbose: bool,
+) -> bool:
     if not dest.is_dir():
         print_header()
         LOGGER.warning(f"MISSING: {name} (--ignore {issue_id})")
@@ -78,6 +46,40 @@ def check_tmux_tpm(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     if verbose:
         LOGGER.debug(f"OK: {name} @ {ref} ({target_sha[:12]})")
     return False
+
+
+def check_zsh_plugins(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    plugins_dir = target / ZSH_PLUGINS_DEST
+    print_header = lazy_header("zsh-plugins")
+    found_issue = False
+    for name, _url, ref in ZSH_PLUGINS:
+        issue_id = f"zsh-plugin:{name}"
+        if issue_id in ignore:
+            continue
+        found_issue |= _check_pinned_clone(
+            plugins_dir / name,
+            name=name,
+            ref=ref,
+            issue_id=issue_id,
+            print_header=print_header,
+            verbose=verbose,
+        )
+    return found_issue
+
+
+def check_tmux_tpm(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    name, _url, ref = TPM
+    issue_id = f"tmux-tpm:{name}"
+    if issue_id in ignore:
+        return False
+    return _check_pinned_clone(
+        target / TPM_DEST,
+        name=name,
+        ref=ref,
+        issue_id=issue_id,
+        print_header=lazy_header("tmux-tpm"),
+        verbose=verbose,
+    )
 
 
 def _murmur_state_dir(target: Path) -> Path:

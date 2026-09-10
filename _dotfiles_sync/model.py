@@ -6,7 +6,6 @@ from typing import Literal
 
 type Action = Literal["check", "apply"]
 type PackageScope = Literal["common", "darwin", "linux", "fedora", "gaming"]
-type Conflict = tuple[str, str]
 
 
 @dataclass(frozen=True)
@@ -24,7 +23,7 @@ class Args:
 @dataclass(frozen=True)
 class PackageSpec:
     name: str
-    stow_dir: Path
+    parent_dir: Path
     scope: PackageScope
     # Most packages link per-leaf: every file gets its own symlink and parent
     # directories are real, so two packages can contribute entries to one
@@ -39,7 +38,7 @@ class PackageSpec:
 
     @property
     def package_dir(self) -> Path:
-        return self.stow_dir / self.name
+        return self.parent_dir / self.name
 
 
 @dataclass(frozen=True)
@@ -65,6 +64,5 @@ class SystemInfo:
 
 @dataclass(frozen=True)
 class TaskPolicy:
-    name: str
     packages: frozenset[str] = frozenset()
     full_run_only: bool = False
