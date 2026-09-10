@@ -8,11 +8,11 @@ Floating: center50 → center90 → tallCenter, mirroring hammerspoon's Hyper+R
 The cycle index lives in $XDG_STATE_HOME/sway/, tracked separately per layer.
 """
 
-import json
 import os
-import subprocess
 import sys
 from pathlib import Path
+
+from _sway_ipc import get_tree, swaymsg
 
 # ── presets ──────────────────────────────────────────────────────────────────
 # Tiled: percentage-point widths (sway ppt).
@@ -28,28 +28,6 @@ FLOAT_PRESETS = [
 
 
 # ── sway tree ────────────────────────────────────────────────────────────────
-# swaymsg + get_tree are copied verbatim in window-back-and-forth, and ported
-# from fuzzel's _common.py (``_get_sway_tree``, the hardened original).
-# Copied on purpose: 17 stable lines across two scripts in one package is
-# under the bar docs/DECISIONS.md sets in "A shared pylib/ helper module", and
-# the walks below them differ anyway. Keep the three comparable.
-def swaymsg(*args: str) -> str:
-    return subprocess.check_output(["swaymsg", *args], text=True)
-
-
-def get_tree():
-    """Run ``swaymsg -t get_tree`` and return the parsed root, or ``None``."""
-    try:
-        raw = swaymsg("-t", "get_tree")
-    except (OSError, subprocess.CalledProcessError):
-        return None
-    try:
-        tree = json.loads(raw)
-    except json.JSONDecodeError:
-        return None
-    return tree if isinstance(tree, dict) else None
-
-
 def get_focused():
     """Return (output_rect, workspace_rect, focused_container) from the tree."""
     tree = get_tree()

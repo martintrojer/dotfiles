@@ -13,7 +13,8 @@ mako, swayidle, and swaylock. It keeps each tool close to its upstream defaults.
 - `~/.config/sway/config` — main config (Mod4, Catppuccin colors, app launchers,
   workspaces, layout primitives, media keys, screenshots).
 - `~/.config/sway/scripts/` — session, screenshot, lock, app launcher,
-  `preset-width`, and `window-back-and-forth` helpers.
+  `preset-width`, `window-back-and-forth`, and `_sway_ipc.py` (shared `swaymsg`
+  / `get_tree` for those two).
 - Windowing: tiling with splits, tabbed layouts, floating mode, scratchpad-ready
   primitives, and six numbered workspaces.
 
@@ -206,7 +207,8 @@ exists. Dim, lock, and display-off still fire on schedule, so caffeinate keeps
 a long job alive without leaving the screen unlocked.
 
 Toggle it from the fuzzel powermenu (`mod+Shift+e` → `Caffeinate`), which also
-reports the current state in its label, or by clicking the waybar glyph. While
+reports the current state in its label, or by clicking the waybar glyph. Both
+call `~/.config/waybar/scripts/caffeinate toggle`. While
 active, waybar shows `󰅶` in the centre; see
 [`waybar/README.md`](../waybar/README.md#caffeinate).
 

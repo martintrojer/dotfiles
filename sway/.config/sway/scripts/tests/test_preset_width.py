@@ -21,6 +21,7 @@ from pathlib import Path
 from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SCRIPTS))
 
 
 def load_script(name: str, path: Path) -> types.ModuleType:
@@ -34,6 +35,7 @@ def load_script(name: str, path: Path) -> types.ModuleType:
     return module
 
 
+_sway_ipc = load_script("_sway_ipc", SCRIPTS / "_sway_ipc.py")
 preset = load_script("preset_width_under_test", SCRIPTS / "preset-width")
 
 RECT = {"x": 0, "y": 0, "width": 2560, "height": 1440}
@@ -63,7 +65,7 @@ class GetFocused(unittest.TestCase):
                 raise subprocess.CalledProcessError(returncode, ["swaymsg", *args])
             return raw
 
-        with mock.patch.object(preset, "swaymsg", fake_swaymsg):
+        with mock.patch.object(_sway_ipc, "swaymsg", fake_swaymsg):
             return preset.get_focused()
 
     def tree(self, ws_nodes: list, *, ws_focused: bool = False) -> str:
@@ -146,7 +148,7 @@ class FocusedWindowAndWorkspace(unittest.TestCase):
     """
 
     def call(self, raw: str):
-        with mock.patch.object(preset, "swaymsg", lambda *a: raw):
+        with mock.patch.object(_sway_ipc, "swaymsg", lambda *a: raw):
             return preset.focused_window_and_workspace()
 
     def wrap(self, ws_extra: dict, nodes: list) -> str:

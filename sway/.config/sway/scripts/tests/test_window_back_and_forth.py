@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+import sys
 import types
 import unittest
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SCRIPTS))
 
 
 def load_script(name: str, path: Path) -> types.ModuleType:
