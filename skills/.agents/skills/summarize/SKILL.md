@@ -20,8 +20,8 @@ Use this skill immediately when the user asks any of:
 ## Quick start
 
 ```bash
-summarize "https://example.com" --model google/gemini-3-flash-preview
-summarize "/path/to/file.pdf" --model google/gemini-3-flash-preview
+summarize "https://example.com"
+summarize "/path/to/file.pdf"
 summarize "https://youtu.be/dQw4w9WgXcQ" --youtube auto
 ```
 
@@ -68,6 +68,7 @@ extracted Markdown to a temp file first.
 - `--json` (machine readable)
 - `--firecrawl auto|off|always` (fallback extraction)
 - `--youtube auto` (Apify fallback if `APIFY_API_TOKEN` set)
+- `--cli` / `--model` — only when the user asks for a specific backend
 
 ## Config
 

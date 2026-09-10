@@ -277,7 +277,6 @@ The 2026-08 skills audit had to decide, repeatedly, whether to vendor skills tha
 - **Orchestration skills assume a dispatch primitive.** They call `Task` / `subagent_type`, which pi doesn't have. `council` had been installed and broken for months for exactly this reason — every trigger word loaded 79 lines of SKILL.md that dead-ended at a nonexistent tool. Discovered only because the audit tried to run it.
 - **The four superpowers skills kept** (`test-driven-development`, `systematic-debugging`, `receiving-code-review`, `verification-before-completion`) share the property that makes them safe: they change one agent's behaviour in one context, need no dispatch, and therefore compose with `mu` — including inside a `mu` worker pane.
 - **`mu` stays a symlink, not a vendored copy.** It's a real program with its own repo and tests; `~/.agents/skills/mu` points at `~/hacking/mu/skills/mu`.
-- **Escape hatch for one-shot work:** `pi-subagents` for fire-and-return with no follow-up. Not currently installed; its agents set `inheritSkills: false`, so skills wouldn't reach its children anyway.
 
 The operational form of this, plus nine other rules extracted from the same audit, is *Zen Of These Skills* in [`skills/README.md`](../skills/README.md).
 

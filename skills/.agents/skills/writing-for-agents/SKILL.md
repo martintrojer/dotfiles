@@ -97,5 +97,5 @@ worse than one weak one.
 | Skill | When |
 |-------|------|
 | `unslop` | Any prose you author. Always-on cleanup beneath this skill's agent-facing structure |
-| `technical-writing` | The document is for a human reader: docs, RFCs, READMEs, PR descriptions, or commit bodies |
+| `technical-writing` | The document is for a human reader: docs, RFCs, READMEs, or PR descriptions |
 | `ponytail` | A document is code too — the no-op hunt is its ladder pointed at prose |

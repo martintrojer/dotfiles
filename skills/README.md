@@ -60,7 +60,6 @@ preference order:
 |------|-----|
 | Long-lived crew, multi-phase or review-gated work, parallel tracks, anything that must survive compaction | [`mu`](https://github.com/martintrojer/mu) — the default |
 | A helper you'll keep talking to, no DAG | `mu`'s reserved `scratch` workstream |
-| One-shot "fire and get a result back", no follow-up | `pi-subagents` (`pi install npm:pi-subagents`; not currently installed) |
 
 `mu` is symlinked into `~/.agents/skills/mu` from its own repo, not vendored
 here. **Skills that bundle their own orchestration are not vendored** — they
@@ -125,8 +124,8 @@ until a later count sees real use.
 | Skill | Upstream | Notes |
 |-------|----------|-------|
 | `unslop` | [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing) (MIT) v3.23.0 @ `f9fef0e` + [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT) `unslop` @ `60c641e` | Local synthesis, not byte-comparable to either source. The compact `SKILL.md` is always on; the exhaustive catalog and zero-dependency detector/validator load only for explicit cleanup. The merged license retains both upstream notices. `patterns.js` remains a library called through `node -e` |
-| `technical-writing` | [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT) @ `60c641e` | Upstream `skills/technical-writing`. Local: dropped Cursor's `disable-model-invocation` field so generic agents can discover it, plus a marked `## Related` row routing agent-facing documents to `writing-for-agents` |
-| `caveman` | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) (MIT) | Synced @ `7066cc8`, byte-identical to upstream `skills/caveman/SKILL.md` |
+| `technical-writing` | [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT) @ `60c641e` | Upstream `skills/technical-writing`. Local: dropped Cursor's `disable-model-invocation` field so generic agents can discover it; commit messages stay with `commit`; marked `## Related` rows route agent-facing documents to `writing-for-agents` and commits to `commit` |
+| `caveman` | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) (MIT) | Synced @ `7066cc8`. Local: description triggers only on explicit caveman invoke (`caveman mode` / `/caveman`); dropped `"be brief"`, `"less tokens"`, and the token-efficiency auto-trigger so it does not fight `wait-what` |
 | `council` | [danielmiessler/LifeOS](https://github.com/danielmiessler/LifeOS) `install/skills/Council` | Upstream v1.1.20 @ `47df8ee`. **De-Clauded**: dropped the voice-notification curl, the `~/.claude/LIFEOS/` customization path, the execution-log JSONL, and the RedTeam cross-references; `name` lowercased to match the directory. Upstream's `subagent_type: general-purpose` calls became the harness-neutral *Running the members* section. Also fixed upstream's bare `CouncilMembers.md` / `SKILL.md` references inside `Workflows/` to `../` |
 | `ponytail` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT) | Synced @ `16f2980`. One local addition: a *Touch only what you must* section adapted from [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT) — upstream ponytail covers what you don't *write*, not what you don't *touch*. Upstream also ships five sibling skills (`-review`, `-audit`, `-debt`, `-gain`, `-help`), deliberately not vendored — see below |
 | `summarize` | [steipete/summarize](https://github.com/steipete/summarize) | Locally rewritten backend section: this host pins OpenCode (`big-pickle`) as the only provider. See `summarize/README.md` |
@@ -140,7 +139,8 @@ until a later count sees real use.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `/skill:brainstorm` | "brainstorm", "design a feature", "think through" | Work a decision tree in dependency-ordered rounds, then write an approved spec at `docs/specs/`. Hard gate: no code before the user approves a design |
+| `/skill:brainstorm` | "brainstorm", "design a feature", "think through an idea" | Work a decision tree in dependency-ordered rounds, then write an approved spec at `docs/specs/`. Hard gate: no code before the user approves a design. Skip genuine one-liners with no design question |
+
 | `/skill:write-plan` | "write a plan", "plan this feature" | Turn an approved spec into ordered, independently verifiable tasks at `docs/plans/`. TDD steps, exact paths, no placeholders |
 
 ### Version Control
@@ -154,7 +154,7 @@ until a later count sees real use.
 | Skill | Trigger | Description |
 |-------|---------|-------------|
 | `/skill:unslop` | Every response and prose artifact; explicit cleanup on "unslop", "remove AI-isms", "audit", "rewrite", or "edit" | Always-on direct, specific prose discipline. Explicit requests unlock the detailed catalog, detect/rewrite/edit modes, and deterministic detector/validator; ambient use never runs them |
-| `/skill:technical-writing` | Writing or reviewing human-facing docs, RFCs, READMEs, PR descriptions, or commit messages | Diátaxis, Google developer style, Simplified Technical English, and Global English for tutorials, how-tos, reference, explanations, RFCs, READMEs, PR descriptions, and commit bodies |
+| `/skill:technical-writing` | Writing or reviewing human-facing docs, RFCs, READMEs, or PR descriptions | Diátaxis, Google developer style, Simplified Technical English, and Global English for tutorials, how-tos, reference, explanations, RFCs, READMEs, and PR descriptions |
 | `/skill:wait-what` | You stopped following a reply. **User-invoked only** — type it | Re-pitch the last message: add the skipped premise, flatten the structure, keep every path/command/number verbatim. Simpler, not shorter |
 | `/skill:writing-for-agents` | Creating or editing a skill, or modifying `AGENTS.md` | Prose agents read: context pointers, progressive disclosure, completion criteria, the no-op hunt, and an enforcement ladder that moves recurring constraints out of prose when code can own them |
 
@@ -179,7 +179,7 @@ until a later count sees real use.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `/skill:caveman` | "caveman mode", "be brief" | Ultra-compressed communication (~65% measured token savings). Levels: lite, full, ultra |
+| `/skill:caveman` | "caveman mode", "talk like caveman", `/caveman` | Ultra-compressed communication (~65% measured token savings). Levels: lite, full, ultra. Explicit invoke only |
 | `/skill:ponytail` | "ponytail", "be lazy", "yagni", "simplest solution" | Forces the laziest solution that works: YAGNI, stdlib/native first, shortest diff. Levels: lite, full, ultra |
 
 ### Tools & Integrations
@@ -200,7 +200,7 @@ orchestrator on this machine.**
 |---------|-----|
 | `subagent-driven-development` (503 lines) | Fresh-subagent-per-task with two-stage review gates. That is exactly `mu`'s `implement → review → address → ship` DAG, but expressed as prose the agent has to hand-execute rather than a tool with a real task graph, workspaces, and cherry-pick flow |
 | `dispatching-parallel-agents` | Parallel fanout over independent tasks — `mu`'s parallel tracks, with automatic diamond-merge |
-| `requesting-code-review` | A reviewer-subagent prompt template. `mu` spawns `reviewer-N` roles directly; for one-shot review with no follow-up, `pi-subagents` has a purpose-built `reviewer` agent |
+| `requesting-code-review` | A reviewer-subagent prompt template. `mu` spawns `reviewer-N` roles directly |
 | `executing-plans` | Superseded by `write-plan`'s inline handoff. Its own text says to prefer `subagent-driven-development` when subagents exist |
 | `using-git-worktrees` | `mu` manages per-agent workspaces itself; this repo is jj-first, and the skill is git-only |
 | `finishing-a-development-branch` | Git-branch-and-PR integration flow. Doesn't fit a jj working-copy model |
