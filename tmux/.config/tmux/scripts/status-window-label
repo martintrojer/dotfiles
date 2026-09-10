@@ -76,17 +76,6 @@ def has_meaningful_title(pane_title: str, host_name: str) -> bool:
     return not pane_title.startswith((":", "/", "~"))
 
 
-def detect_agent_in_tree(root_pid: str, agents: tuple[str, ...]) -> str | None:
-    """Walk the descendant process tree of ``root_pid``; return the
-    first descendant command matching ``agents`` (basename match), or
-    ``None``.
-
-    Delegates to ``ProcessSnapshot`` from ``_tmux_common``. Each call
-    within the same process reuses the cached snapshot.
-    """
-    return _ps_snapshot.detect_agent(root_pid, agents)
-
-
 _ps_snapshot = ProcessSnapshot()
 
 
@@ -173,7 +162,7 @@ def render(
         or pane_current_command in _AGENT_WRAPPERS
         or pane_current_command in AGENT_HELPERS
     ):
-        detected = detect_agent_in_tree(pane_pid, AGENTS)
+        detected = _ps_snapshot.detect_agent(pane_pid, AGENTS)
         if detected:
             return detected
         if meaningful:
