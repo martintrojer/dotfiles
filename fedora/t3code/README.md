@@ -12,9 +12,11 @@ an installer/updater, a desktop entry, and a launcher wrapper (in
 ## Install / update
 
 ```bash
-fedora/t3code/setup-t3code.sh          # install, or update if a newer release exists
-fedora/t3code/setup-t3code.sh --force  # reinstall the current version
+fedora/t3code/setup-t3code          # install, or update if a newer release exists
+fedora/t3code/setup-t3code --force  # reinstall the current version
 ```
+
+(`setup-t3code.sh` is a thin wrapper that execs the same installer.)
 
 The script queries the GitHub releases API, downloads the latest
 `*-x86_64.AppImage`, extracts it to `~/.local/opt/t3code/squashfs-root/`, and
@@ -37,7 +39,7 @@ data in `~/.config/t3code` is never touched.
   repos. In a container it would see the container's PATH, the container's
   auth state, and no working trees without bind mounts. It belongs on the host.
 - **Upstream's in-app updater does not work here** and will complain — it
-  cannot patch an extracted tree. `setup-t3code.sh` is the update path.
+  cannot patch an extracted tree. `setup-t3code` is the update path.
 - **The tracked desktop entry replaces the bundled one.** Upstream's
   `t3code.desktop` uses `Exec=AppRun --no-sandbox %U`, a bare relative name
   that only resolves inside a mounted AppImage. Ours calls the `t3code`
