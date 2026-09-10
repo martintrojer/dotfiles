@@ -1,0 +1,226 @@
+#!/usr/bin/env python3
+"""Install or update T3 Code from its upstream AppImage.
+
+Idempotent; safe to re-run as a normal user. See README.md.
+
+The AppImage is *extracted* rather than executed: Sway Atomic ships FUSE 3
+only (fusermount3, no libfuse.so.2), and layering fuse-libs with rpm-ostree
+would cost a reboot to gain nothing. Extraction needs no FUSE at all.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import NoReturn
+
+APP = "t3code"
+REPO = "pingdotgg/t3code"
+RELEASE_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
+USER_AGENT = "dotfiles-setup-t3code"
+
+PREFIX = Path.home() / ".local" / "opt" / APP
+ROOT = PREFIX / "squashfs-root"
+VERSION_FILE = PREFIX / ".version"
+DESKTOP_DIR = Path.home() / ".local" / "share" / "applications"
+ICON_DIR = Path.home() / ".local" / "share" / "icons" / "hicolor" / "512x512" / "apps"
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def die(msg: str, code: int = 1) -> NoReturn:
+    print(f"error: {msg}", file=sys.stderr)
+    raise SystemExit(code)
+
+
+def require(command: str) -> None:
+    if shutil.which(command) is None:
+        die(f"{command} is required but not installed.")
+
+
+def github_request(url: str) -> urllib.request.Request:
+    return urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": USER_AGENT,
+        },
+    )
+
+
+def latest_release() -> tuple[str, str]:
+    try:
+        with urllib.request.urlopen(github_request(RELEASE_URL), timeout=30) as resp:
+            data = json.load(resp)
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        die(f"could not fetch {REPO} latest release: {exc}")
+    if not isinstance(data, dict):
+        die("GitHub did not return a release object")
+    assets = data.get("assets", [])
+    if not isinstance(assets, list):
+        die("release has no asset list")
+    appimage = next(
+        (
+            a
+            for a in assets
+            if isinstance(a, dict)
+            and str(a.get("name", "")).endswith("x86_64.AppImage")
+        ),
+        None,
+    )
+    if appimage is None:
+        die("no x86_64 AppImage in the latest release")
+    tag = data.get("tag_name")
+    url = appimage.get("browser_download_url")
+    if not isinstance(tag, str) or not tag:
+        die("release has no tag")
+    if not isinstance(url, str) or not url:
+        die("release asset has no download URL")
+    return tag, url
+
+
+def installed_tag() -> str:
+    try:
+        return VERSION_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def t3code_is_running() -> bool:
+    return (
+        subprocess.run(
+            ["pgrep", "-f", str(ROOT / APP)],
+            check=False,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+
+
+def download(url: str, destination: Path) -> None:
+    try:
+        with (
+            urllib.request.urlopen(github_request(url), timeout=120) as resp,
+            destination.open("wb") as stream,
+        ):
+            shutil.copyfileobj(resp, stream)
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        die(f"download failed: {exc}")
+
+
+def extract_appimage(appimage: Path, dest_root: Path) -> None:
+    appimage.chmod(0o755)
+    result = subprocess.run(
+        [str(appimage), "--appimage-extract"],
+        cwd=appimage.parent,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        die(f"appimage extract failed{': ' + detail if detail else ''}")
+    extracted = appimage.parent / "squashfs-root"
+    if not extracted.is_dir():
+        die("appimage extract did not produce squashfs-root")
+    if dest_root.exists():
+        shutil.rmtree(dest_root)
+    # /tmp is often a different filesystem from $HOME; Path.rename() cannot
+    # cross devices, shutil.move() copies then unlinks.
+    shutil.move(str(extracted), str(dest_root))
+
+
+def install_desktop_files(tag: str) -> None:
+    ICON_DIR.mkdir(parents=True, exist_ok=True)
+    DESKTOP_DIR.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT / f"{APP}.png", ICON_DIR / f"{APP}.png")
+    shutil.copy2(SCRIPT_DIR / f"{APP}.desktop", DESKTOP_DIR / f"{APP}.desktop")
+    VERSION_FILE.write_text(f"{tag}\n", encoding="utf-8")
+    # T3 Code re-registers x-scheme-handler/t3code on every launch (Electron's
+    # setAsDefaultProtocolClient), writing t3code-url-handler.desktop that execs
+    # the binary directly. A cold URL launch through that entry gets neither the
+    # wrapper's PATH (no codex) nor the Wayland flags, so reclaim the default.
+    (DESKTOP_DIR / f"{APP}-url-handler.desktop").unlink(missing_ok=True)
+    subprocess.run(
+        ["update-desktop-database", str(DESKTOP_DIR)],
+        check=False,
+    )
+    if shutil.which("xdg-mime"):
+        subprocess.run(
+            ["xdg-mime", "default", f"{APP}.desktop", f"x-scheme-handler/{APP}"],
+            check=False,
+        )
+    if shutil.which("gtk-update-icon-cache"):
+        subprocess.run(
+            [
+                "gtk-update-icon-cache",
+                "-f",
+                "-t",
+                str(Path.home() / ".local" / "share" / "icons" / "hicolor"),
+            ],
+            check=False,
+            capture_output=True,
+        )
+
+
+def handler_desktop() -> str:
+    if shutil.which("xdg-mime") is None:
+        return "xdg-mime not found"
+    result = subprocess.run(
+        ["xdg-mime", "query", "default", f"x-scheme-handler/{APP}"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() or "(unset)"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="reinstall even when the installed tag already matches latest",
+    )
+    args = parser.parse_args()
+    require("update-desktop-database")
+
+    tag, url = latest_release()
+    installed = installed_tag()
+    if installed == tag and not args.force:
+        print(f"T3 Code {tag} already installed. Re-run with --force to reinstall.")
+        return 0
+
+    extra = f" (over {installed})" if installed else ""
+    print(f"Installing T3 Code {tag}{extra}")
+
+    # Upstream's in-app updater cannot patch an extracted tree, so the whole
+    # squashfs-root is replaced. User data lives in ~/.config/t3code and is
+    # untouched.
+    if t3code_is_running():
+        die("T3 Code is running. Quit it first.")
+
+    PREFIX.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as raw_workdir:
+        workdir = Path(raw_workdir)
+        appimage = workdir / f"{APP}.AppImage"
+        download(url, appimage)
+        extract_appimage(appimage, ROOT)
+
+    install_desktop_files(tag)
+    print(f"Installed T3 Code {tag} to {ROOT}")
+    print(
+        f"Launcher: ~/.local/bin/t3code   Desktop entry: {DESKTOP_DIR / f'{APP}.desktop'}"
+    )
+    print(f"URL scheme handler: {handler_desktop()}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Launcher for the extracted T3 Code AppImage. Installed by
-# fedora/t3code/setup-t3code.sh; see fedora/t3code/README.md.
+# fedora/t3code/setup-t3code; see fedora/t3code/README.md.
 set -euo pipefail
 
 root="$HOME/.local/opt/t3code/squashfs-root"
 
 if [[ ! -x $root/AppRun ]]; then
-  echo "error: T3 Code is not installed. Run fedora/t3code/setup-t3code.sh" >&2
+  echo "error: T3 Code is not installed. Run fedora/t3code/setup-t3code" >&2
   exit 1
 fi
 

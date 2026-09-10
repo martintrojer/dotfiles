@@ -65,7 +65,7 @@ Launcher for the extracted T3 Code AppImage at
 `~/.local/opt/t3code/squashfs-root/`. It puts mise's shims on `PATH` (T3 Code
 spawns `codex`/`claude`/`opencode`, which a GUI launch would not otherwise
 find) and selects native Wayland. Installed and updated by
-[`fedora/t3code/setup-t3code.sh`](../t3code/README.md).
+[`fedora/t3code/setup-t3code`](../t3code/README.md).
 
 ## Wallpaper helpers
 
