@@ -76,10 +76,10 @@ and nothing at all otherwise — same quiet-by-default rule as `custom/issues`,
 with the stylesheet collapsing the block in the `off` class so it costs no
 width. Left click toggles it off.
 
-The state is a flag file, owned by the fuzzel powermenu and consumed by
-`session-swayidle`; this module only reports it. Rationale for the flag's
-location and for guarding one timeout instead of using `systemd-inhibit` lives
-in [`sway/README.md`](../sway/README.md#caffeinate).
+The state is a flag file owned by this script (`caffeinate toggle`); the fuzzel
+powermenu and the bar click both call that, and `session-swayidle` reads the
+flag. Rationale for the flag's location and for guarding one timeout instead of
+using `systemd-inhibit` lives in [`sway/README.md`](../sway/README.md#caffeinate).
 
 Two details worth keeping if this is edited:
 

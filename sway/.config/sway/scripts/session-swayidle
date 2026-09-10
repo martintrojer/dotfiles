@@ -16,7 +16,7 @@ lock_screen="${HOME}/.config/sway/scripts/lock-screen"
 
 # Caffeinate flag: when present, the suspend timeout below is skipped and
 # nothing else changes -- dim, lock, and display-off still fire on schedule.
-# Toggled from the fuzzel powermenu, rendered by waybar's custom/caffeinate.
+# Toggled by waybar's caffeinate script (powermenu and bar click call it).
 #
 # It lives in $XDG_RUNTIME_DIR, not $XDG_STATE_HOME, because that is a
 # mode=700 tmpfs logind destroys when the last session for the user ends.

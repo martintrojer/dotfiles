@@ -7,7 +7,6 @@ import argparse
 from pathlib import Path
 
 from _common import (
-    caffeinate_flag,
     caffeinated,
     cli_main,
     fuzzel_dmenu,
@@ -76,21 +75,20 @@ def main() -> int:
 
 
 def toggle_caffeinate() -> int:
-    """Flip the flag, tell waybar, and say which way it went.
+    """Ask waybar's caffeinate script to flip the flag, then say which way it went.
 
     Only the idle *suspend* timeout consults this flag; dim, lock, and
     display-off are untouched. See session-swayidle.
     """
-    flag = caffeinate_flag()
-    if flag.exists():
-        flag.unlink(missing_ok=True)
-        notify("Caffeinate off", "Idle suspend re-enabled")
-    else:
-        flag.parent.mkdir(parents=True, exist_ok=True)
-        flag.touch()
+    script = Path.home() / ".config/waybar/scripts/caffeinate"
+    result = run([str(script), "toggle"], check=False)
+    if result.returncode != 0:
+        notify("Caffeinate", "Could not toggle idle-suspend flag")
+        return result.returncode
+    if caffeinated():
         notify("Caffeinate on", "Idle suspend disabled (screen still locks)")
-    # Nudge waybar so the glyph updates now instead of on its next poll.
-    run(["pkill", "-RTMIN+8", "waybar"], check=False)
+    else:
+        notify("Caffeinate off", "Idle suspend re-enabled")
     return 0
 
 
