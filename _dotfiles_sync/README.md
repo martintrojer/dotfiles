@@ -13,7 +13,7 @@ The control plane owns:
 - Conflict handling and backlink checks
 - Pinned third-party clones (zsh plugins, TPM)
 - Per-package link mode (`skills/` links each skill as one bundle; everything else per-leaf)
-- Post-apply hints for the manual Codex notify step
+- Post-apply hints for the manual Codex and Cursor murmur notify steps
 
 It does not own:
 

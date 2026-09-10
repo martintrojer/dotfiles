@@ -169,10 +169,13 @@ def picker() -> int:
         return 0
 
     rows = [notification_title(item) for item in history]
+    # --index: identify by row position, not truncated label (duplicate
+    # app/summary titles are common for agents and would otherwise collide).
     selected = run(
         [
             "fuzzel",
             "--dmenu",
+            "--index",
             "--prompt",
             "Pick to copy  ",
             "--width",
@@ -185,13 +188,13 @@ def picker() -> int:
         ],
         input_text="\n".join(rows),
     )
-    choice = selected.stdout.strip()
-    if selected.returncode != 0 or not choice:
+    if selected.returncode != 0:
         return 0
-
     try:
-        idx = rows.index(choice)
+        idx = int(selected.stdout.strip())
     except ValueError:
+        return 0
+    if idx < 0 or idx >= len(history):
         return 0
 
     copy_text(notification_details(history[idx]))
