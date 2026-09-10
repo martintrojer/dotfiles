@@ -85,10 +85,10 @@ def die(msg: str, code: int = 1) -> NoReturn:
 def sanitize_stem(name: str) -> tuple[str, str]:
     """Split a basename into (sanitized_stem, ext_with_dot).
 
-    Mirrors the bash version: keep ASCII letters, digits, dot, underscore,
-    hyphen; replace everything else with '-' and squash repeats; strip
-    leading/trailing '-'; fall back to 'wallpaper' if the result is empty.
-    A leading dot makes the whole thing a stem with no extension.
+    Keep ASCII letters, digits, dot, underscore, hyphen; replace everything
+    else with '-' and squash repeats; strip leading/trailing '-'; fall back
+    to 'wallpaper' if the result is empty. A leading dot makes the whole
+    thing a stem with no extension.
     """
     if "." in name and not name.startswith("."):
         stem, _, ext = name.rpartition(".")
@@ -515,10 +515,9 @@ def archive_existing_current() -> None:
     """Snapshot the current wallpaper into the archive, unless it already
     lives there.
 
-    Same dance as the bash version: if `current` is a symlink, copy the
-    target into the archive (preserving the source for whoever else might
-    point at it). If `current` is a plain file, move it. If `current` is
-    already inside ARCHIVE_DIR, no-op.
+    If `current` is a symlink, copy the target into the archive (preserving the
+    source for whoever else might point at it). If `current` is a plain file,
+    move it. If `current` is already inside ARCHIVE_DIR, no-op.
     """
     if not CURRENT_LINK.exists() and not CURRENT_LINK.is_symlink():
         return
