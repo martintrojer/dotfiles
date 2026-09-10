@@ -4,16 +4,16 @@ import logging
 from pathlib import Path
 from typing import Final
 
+from .config import REPO_ROOT
 from .model import PackageScope, PackageSpec
 
 LOGGER: Final[logging.Logger] = logging.getLogger("dotfiles-sync")
-ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
-# (scope, stow_dir, package_names)
+# (scope, parent_dir, package_names)
 PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = (
     (
         "common",
-        ROOT,
+        REPO_ROOT,
         (
             "bat",
             "btop",
@@ -40,12 +40,12 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
     ),
     (
         "darwin",
-        ROOT,
+        REPO_ROOT,
         ("ghostty", "hammerspoon"),
     ),
     (
         "linux",
-        ROOT,
+        REPO_ROOT,
         (
             "cliphist",
             "foot",
@@ -60,7 +60,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
     ),
     (
         "fedora",
-        ROOT / "fedora",
+        REPO_ROOT / "fedora",
         (
             "bin",
             "gtk-3.0",
@@ -76,7 +76,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
     # fedora/gaming/README.md.
     (
         "gaming",
-        ROOT / "fedora" / "gaming",
+        REPO_ROOT / "fedora" / "gaming",
         ("home",),
     ),
 )
@@ -106,11 +106,11 @@ def build_specs() -> dict[str, PackageSpec]:
     return {
         name: PackageSpec(
             name=name,
-            stow_dir=stow_dir,
+            parent_dir=parent_dir,
             scope=scope,
             bundle_dirs=BUNDLE_DIRS.get(name, ()),
         )
-        for scope, stow_dir, names in PACKAGE_GROUPS
+        for scope, parent_dir, names in PACKAGE_GROUPS
         for name in names
     }
 

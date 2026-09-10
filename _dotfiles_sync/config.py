@@ -7,10 +7,33 @@ from typing import Final
 
 from .model import TaskPolicy
 
-SCRIPT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
+REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 LOGGER: Final[logging.Logger] = logging.getLogger("dotfiles-sync")
 BACKUP_DIR_NAME: Final[str] = ".dotfiles-sync-backups"
+
+# Directories (and a few repo-relative paths) that repo walks never descend
+# into. Shared by the git-less fallback in repo_checks.iter_repo_files and
+# the palette-hex audit in render_theme. Prefer .gitignore for committable
+# scans; this list is the fallback, and the audit's only skip set.
+REPO_WALK_SKIP_DIRS: Final[frozenset[str]] = frozenset(
+    {
+        ".direnv",
+        ".git",
+        ".jj",
+        ".mypy_cache",
+        ".nox",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".tox",
+        ".venv",
+        "__pycache__",
+        "build",
+        "dist",
+        "guides/build",
+        "node_modules",
+    }
+)
 
 # The task tables live in cli.py, paired with their handlers. Keeping the
 # policy here and the callable there joined them by a name string that

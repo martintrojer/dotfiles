@@ -131,7 +131,7 @@ surrounding `#[bg=...]` into an `#{E:...}` re-expansion.
 
 `CONSUMERS` is hand-maintained, so forgetting a `Consumer()` entry used
 to be silent: the file just drifted. `make check-theme` now also runs
-`render_theme.py --audit`, which walks the repo for hex values matching
+`python -m _dotfiles_sync.render_theme --audit`, which walks the repo for hex values matching
 `docs/palette.toml` and fails on any hit outside a `THEME BEGIN..END`
 region. Only exact palette values count — a deliberately non-Catppuccin
 color (`guides/style.css` uses `#eef2ff` for headings) is not drift.

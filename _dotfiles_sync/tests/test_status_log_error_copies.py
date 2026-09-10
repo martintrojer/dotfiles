@@ -37,7 +37,7 @@ import ast
 import unittest
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from _dotfiles_sync.config import REPO_ROOT
 
 TMUX_COMMON = REPO_ROOT / "tmux/.config/tmux/scripts/_status_common.py"
 WAYBAR_STATE = REPO_ROOT / "waybar/.config/waybar/scripts/_state.py"

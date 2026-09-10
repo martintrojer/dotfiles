@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from .config import SCRIPT_DIR
+from .config import REPO_ROOT
 from .ignore import IgnoreRules
 
 LOGGER = logging.getLogger("dotfiles-sync")
@@ -122,7 +122,7 @@ def plan_package(
     `repo_root` bounds what counts as "a link of ours" for STALE detection;
     it defaults to the real repo and is overridden by tests.
     """
-    root = (repo_root or SCRIPT_DIR).resolve()
+    root = (repo_root or REPO_ROOT).resolve()
     ignore = IgnoreRules.load()
     links: list[Link] = []
     for source in _iter_sources(package_dir, bundle_dirs=bundle_dirs, ignore=ignore):

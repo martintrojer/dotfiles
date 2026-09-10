@@ -30,7 +30,9 @@ It does not own:
 - `link.py`: link states, per-leaf and bundle walks, and apply logic
 - `ignore.py`: the shared rules for paths that never link into `$HOME`
 - `sync.py`: conflict, `--ignore`, backup, check, and apply policy
-- `repo_checks.py`: package coverage, private-environment checks, cleanup, backlink checks, and systemd unit-target resolution
+- `repo_checks.py`: package coverage, repo file walk, and systemd unit-target resolution
+- `private_env.py`: accidental secrets and private-endpoint assignments in the repo
+- `managed_links.py`: `$HOME` symlink prune and backlink audit
 - `integration_checks.py`: external drift checks for zsh plugins, TPM, Codex notify, and Cursor notify
 - `external.py`: pinned third-party clone management for zsh plugins and TPM
 - `model.py`: typed dataclasses and shared aliases
