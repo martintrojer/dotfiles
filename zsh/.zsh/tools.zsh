@@ -28,9 +28,8 @@ prompt_context=""
 prompt_osc133_a=$'%{\e]133;A\a%}'
 PROMPT="${prompt_osc133_a}${prompt_dir_color}%3~${prompt_reset} ${prompt_accent_color}❯${prompt_reset} "
 # Right-aligned prompt: show a failure marker plus subtle environment context.
-if [[ -f /run/.toolboxenv && -r /run/.containerenv ]]; then
-  prompt_toolbox_name="$(grep -E '^name="' /run/.containerenv 2>/dev/null | cut -d '"' -f 2)"
-  prompt_context="${prompt_toolbox_color}${prompt_toolbox_name:-toolbox}${prompt_reset}"
+if typeset -f apply_linux_prompt_context >/dev/null; then
+  apply_linux_prompt_context
 fi
 
 if [[ -n "${SSH_CONNECTION:-}" ]]; then
