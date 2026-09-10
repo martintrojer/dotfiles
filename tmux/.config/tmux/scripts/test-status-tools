@@ -1144,7 +1144,7 @@ def run_tms_entry_tests(tms) -> None:
 
     originals = (
         tms.load_config,
-        tms.list_tmux_sessions,
+        tms.TmuxBackend.list_sessions,
         tms.scan_agent_states,
         tms.zoxide_paths,
         tms.backend,
@@ -1156,7 +1156,7 @@ def run_tms_entry_tests(tms) -> None:
     tms.backend = lambda: tms.TmuxBackend()
     tms.load_config = lambda: config
     # Deliberately unsorted, and overlapping the configured set.
-    tms.list_tmux_sessions = lambda: ["zed", "notes", "alpha"]
+    tms.TmuxBackend.list_sessions = lambda self: ["zed", "notes", "alpha"]
     tms.scan_agent_states = lambda: stats
     # `all` mode also merges zoxide; silence it so only the session merge
     # is under test (build_path_entries has its own coverage above).
@@ -1227,7 +1227,7 @@ def run_tms_entry_tests(tms) -> None:
     finally:
         (
             tms.load_config,
-            tms.list_tmux_sessions,
+            tms.TmuxBackend.list_sessions,
             tms.scan_agent_states,
             tms.zoxide_paths,
             tms.backend,

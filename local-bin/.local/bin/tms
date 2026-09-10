@@ -364,10 +364,6 @@ def display_name_for_path(path: str) -> str:
     return Path(path).expanduser().name or session_name_for_path(path)
 
 
-def list_tmux_sessions() -> list[str]:
-    return backend().list_sessions()
-
-
 def zoxide_paths() -> list[str]:
     result = run(["zoxide", "query", "--list"], check=False)
     if result.returncode != 0:
@@ -524,7 +520,7 @@ def effective_initial_mode(mode: str) -> str:
     threshold = load_config().live_session_threshold
     if threshold <= 0:
         return mode
-    if len(list_tmux_sessions()) >= threshold:
+    if len(backend().list_sessions()) >= threshold:
         return "tmux"
     return mode
 
@@ -564,7 +560,7 @@ def build_entries(mode: str) -> list[Entry]:
     configured_sessions = config.sessions
     sessions_by_name = {session.name: session for session in configured_sessions}
     configured_paths = {expand(session.path) for session in configured_sessions}
-    live_names = set(list_tmux_sessions())
+    live_names = set(backend().list_sessions())
     # Agent glyphs come from tmux window options (@agent_state), so they only
     # describe tmux sessions. Under the herdr backend the rows are workspaces
     # and a tmux scan would staple one multiplexer's agent states onto the
