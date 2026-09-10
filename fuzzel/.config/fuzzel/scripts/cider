@@ -73,18 +73,7 @@ def cider_players() -> list[str]:
 
 
 def show_cider() -> None:
-    run(
-        [
-            str(Path.home() / ".config/fuzzel/scripts/raise-window"),
-            "--app-id-regex",
-            "^cider$",
-            "--title-regex",
-            "Cider",
-            "--spawn-sh",
-            "flatpak run sh.cider.Cider",
-        ],
-        check=False,
-    )
+    run([str(Path.home() / ".config/sway/scripts/open-cider")], check=False)
 
 
 def main() -> int:

@@ -4,9 +4,8 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
 
-from _common import ScriptError, cli_main, require_commands
+from _common import ScriptError, cli_main, require_commands, run, run_bytes
 
 
 def parse_args() -> argparse.Namespace:
@@ -20,13 +19,13 @@ def main() -> int:
     args = parse_args()
     require_commands(["cliphist", "fuzzel", "wl-copy"])
 
-    history = subprocess.run(["cliphist", "list"], capture_output=True, check=False)
+    history = run(["cliphist", "list"], check=False)
     if history.returncode != 0:
         raise ScriptError("Could not read clipboard history")
     if not history.stdout:
         return 0
 
-    selected = subprocess.run(
+    selected = run(
         [
             "fuzzel",
             "--dmenu",
@@ -37,19 +36,27 @@ def main() -> int:
             "--width",
             str(args.width),
         ],
-        input=history.stdout,
-        capture_output=True,
+        input_text=history.stdout,
         check=False,
     )
     if selected.returncode != 0 or not selected.stdout:
         return 0
 
-    decoded = subprocess.run(
-        ["cliphist", "decode"], input=selected.stdout, capture_output=True, check=False
+    # Decode/restore as bytes: cliphist entries include images, so wl-copy
+    # (not clipf) and no UTF-8 round-trip.
+    decoded = run_bytes(
+        ["cliphist", "decode"],
+        input_bytes=selected.stdout.encode(),
+        check=False,
     )
     if decoded.returncode != 0:
         raise ScriptError("Could not decode clipboard entry")
-    copied = subprocess.run(["wl-copy"], input=decoded.stdout, check=False)
+    copied = run_bytes(
+        ["wl-copy"],
+        input_bytes=decoded.stdout,
+        check=False,
+        capture_output=False,
+    )
     if copied.returncode != 0:
         raise ScriptError("Could not restore clipboard entry")
     return 0

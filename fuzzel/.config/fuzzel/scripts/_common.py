@@ -74,6 +74,28 @@ def run(
         )
 
 
+def run_bytes(
+    cmd: Sequence[str],
+    *,
+    input_bytes: bytes,
+    check: bool = True,
+    capture_output: bool = True,
+) -> subprocess.CompletedProcess[bytes]:
+    """Like ``run``, but stdin/stdout are bytes (cliphist image payloads)."""
+    try:
+        return subprocess.run(
+            list(cmd),
+            input=input_bytes,
+            capture_output=capture_output,
+            text=False,
+            check=check,
+        )
+    except FileNotFoundError:
+        return subprocess.CompletedProcess(
+            list(cmd), 127, b"", f"command not found: {cmd[0]}".encode()
+        )
+
+
 def _dmenu_cmd(
     *,
     prompt: str,
@@ -322,9 +344,9 @@ def caffeinate_flag() -> Path:
     reboot, crash, and logout all clear the flag with no cleanup code and no
     way for a stale flag to leave suspend disabled. Kept in sync by hand with
     ``sway/.config/sway/scripts/session-swayidle`` (which reads it in shell)
-    and ``waybar/.config/waybar/scripts/caffeinate`` (which renders it) --
-    three packages, one path, and no importable helper between them (see
-    docs/DECISIONS.md, "A shared pylib/ helper module").
+    and ``waybar/.config/waybar/scripts/caffeinate`` (which owns toggle +
+    render) -- three packages, one path, and no importable helper between them
+    (see docs/DECISIONS.md, "A shared pylib/ helper module").
     """
     runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
     return Path(runtime) / "caffeinate"
