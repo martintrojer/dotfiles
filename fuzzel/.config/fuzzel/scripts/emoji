@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -95,7 +96,7 @@ def main() -> int:
     db_path = Path(args.db).expanduser() if args.db else default_db_path()
     try:
         ensure_db(db_path)
-    except Exception as exc:
+    except (OSError, urllib.error.URLError, TimeoutError) as exc:
         raise ScriptError(f"Could not prepare emoji database: {exc}") from exc
 
     entries = read_entries(db_path)
