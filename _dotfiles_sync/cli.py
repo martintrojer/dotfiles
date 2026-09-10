@@ -349,3 +349,18 @@ def print_post_apply_hints() -> None:
         "paths automatically."
     )
     print()
+    print("Two manual murmur notify steps remain (skip if already configured):")
+    print()
+    print("  # 1. Codex — add this line to ~/.codex/config.toml:")
+    print(
+        '  notify = ["/bin/sh", "-lc", "murmur notify --source codex '
+        '--event-type notify --title Codex"]'
+    )
+    print()
+    print(
+        "  # 2. Cursor CLI — ~/.cursor/hooks.json is linked by the cursor "
+        "package; if --apply reported a conflict, merge this stop command "
+        "into your existing file:"
+    )
+    print('  {"command": "murmur notify --source cursor"}')
+    print()

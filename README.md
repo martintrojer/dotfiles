@@ -32,7 +32,7 @@ If a new tool violates more than one rule, it does not belong here.
 git clone https://github.com/martintrojer/dotfiles ~/dotfiles
 cd ~/dotfiles
 ./dotfiles-sync --apply
-# Then follow the manual step it prints (Codex notify hook).
+# Then follow the manual steps it prints (Codex + Cursor murmur notify hooks).
 ```
 
 [`docs/SETUP.md`](./docs/SETUP.md) covers installation, updates, isolated tests, and cleanup on machines that run an older version of the repo.

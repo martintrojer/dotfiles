@@ -6,11 +6,9 @@ the backlink audit could agree with what stow had actually linked. Two
 implementations of one rule set, kept in sync by hand.
 
 Now there is one. The rules are declared here rather than in a dotfile because
-nothing external reads them any more, and being Python means the awkward part
-of stow's design goes away: stow matched each `--ignore` regex against a single
-path *component*, so a pattern containing "/" silently never fired. We match
-components for bare names and full relative paths for anything with a slash,
-which is what a reader expects.
+nothing external reads them any more. Matching is still per path *component*
+(same shape as stow's `--ignore`): a pattern only fires against a single
+name at any depth, never against a multi-segment relative path.
 """
 
 from __future__ import annotations

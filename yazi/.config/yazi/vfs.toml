@@ -10,7 +10,7 @@ port = 22
 key_file = "~/.ssh/id_ed25519"
 
 [sftp.pizero2]
-host = "pzero2"
+host = "pizero2"
 user = "martintrojer"
 port = 22
 key_file = "~/.ssh/id_ed25519"

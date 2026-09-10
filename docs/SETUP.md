@@ -16,8 +16,9 @@ Pick the section that matches your starting state:
 git clone https://github.com/martintrojer/dotfiles ~/dotfiles
 cd ~/dotfiles
 ./dotfiles-sync --apply
-# Then run the manual command the script prints:
+# Then run the manual steps the script prints:
 #   - Codex notify hook (one TOML line in ~/.codex/config.toml)
+#   - Cursor stop hook (linked hooks.json, or merge on conflict)
 ```
 
 The sections below cover each step and the available upgrade paths.
@@ -33,9 +34,10 @@ The sections below cover each step and the available upgrade paths.
 - Links `dotfiles/pi/.pi/agent/extensions/*.ts` into `~/.pi/agent/extensions/` (Pi auto-discovers these).
 - Prunes stale links when you remove a skill or Pi extension from the repo.
 
-After `--apply` completes, it prints one manual follow-up:
+After `--apply` completes, it prints two manual follow-ups:
 
 1. Add the printed `notify = [...]` line to `~/.codex/config.toml`. `--apply` does not rewrite the user's TOML for one line.
+2. Confirm `~/.cursor/hooks.json` is the linked Cursor stop hook (or merge the printed `murmur notify --source cursor` command if `--apply` reported a conflict).
 
 ## Upgrading from an older setup
 
