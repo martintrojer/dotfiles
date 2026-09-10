@@ -52,6 +52,31 @@ based on Claude Code's `/loop`.
 
 Intervals accept `s`/`m`/`h` suffixes (bare numbers are minutes), with a 5s floor. Ticks are skipped while the agent is busy or has queued work, so loops never stack up. Loops are session-scoped — they stop on session switch (`/new`, `/resume`, `/fork`) and on quit.
 
+### `/watch` — `/loop`, but only when a probe's output changes
+
+Same scheduler as `/loop` (interval, busy-skip, session scope, `list`/`stop`). The prompt fires only when a backtick-quoted probe's output changes. The first successful tick records a baseline and does not fire, so arming a watch never spuriously wakes the agent.
+
+- `/watch 3m \`gh-pr 1234\` address new CI failures`
+- `/watch 1m \`git-remote\` pull and summarize what landed`
+- `/watch 30s \`gh run list -L 5\` check the latest Actions run` — any shell command works; named probes are optional
+- `/watch summarize new errors` — no interval defaults to 10m (probe still required)
+- `/watch list` — show active watches
+- `/watch stop` — cancel all watches; `/watch stop 2` cancels watch #2
+
+Named probes expand to deterministic commands (no relative timestamps or color, which would churn on their own):
+
+| Name | Command | Meaning |
+| --- | --- | --- |
+| `gh-pr` | `gh pr checks` + optional args (`gh-pr 1234`) | CI checks on a PR (no arg = current branch's PR) |
+| `gh-ci` | `gh run list -L 5` | recent GitHub Actions workflow runs |
+| `git-remote` | `git ls-remote origin HEAD` | remote HEAD moved |
+| `git-status` | `git status --porcelain` | working tree / index changed |
+| `git-log` | `git log -1 --format=%H origin/HEAD` | upstream HEAD commit moved |
+
+Non-zero probe exits still count as output (`gh pr checks` is often 1 while CI is pending). Spawn failures and timeouts warn once and keep the watch alive. The injected message appends `--- watch probe output ---` plus the new stdout.
+
+**`/watch` vs `/loop`:** `/loop` re-sends a fixed prompt on every tick. `/watch` is change-driven — use it when the interesting event is "this command's output moved."
+
 ### `/goal` — autonomous work toward a verifiable condition
 
 This command works toward a verifiable end condition without requiring a new
@@ -66,7 +91,7 @@ and returns control to you.
 
 The checker has no tools, so it can only judge what the agent surfaced in the conversation — make conditions verifiable and have the agent print the evidence (test output, file counts, grep results). A trailing `max N turns` / `stop after N turns` is parsed out as a safety net (default 25). The checker prefers a small/fast model and falls back through ranked candidates (including the current session model). Goals are session-scoped.
 
-**`/goal` vs `/loop`:** `/loop` is timer-driven and re-sends a fixed prompt on an interval; `/goal` is turn-driven and continues until an evaluator confirms a condition. They're kept as separate commands, mirroring Claude Code.
+**`/goal` vs `/loop` vs `/watch`:** `/loop` is timer-driven and re-sends a fixed prompt on an interval; `/watch` is the same timer but only injects when a probe's output changes; `/goal` is turn-driven and continues until an evaluator confirms a condition. `/loop` and `/watch` are kept as separate commands, mirroring Claude Code's `/loop` plus a local change-detecting variant.
 
 ### `/btw` — quick side question, no history pollution
 

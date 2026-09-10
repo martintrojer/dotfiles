@@ -1,6 +1,6 @@
 ---
 name: technical-writing
-description: "Layered technical-writing standard: Diátaxis structure, Google developer style sentences, STE instruction rules, Global English syntax. Use for /technical-writing or when writing or reviewing docs, RFCs, readmes, PR descriptions, or commit messages."
+description: "Layered technical-writing standard: Diátaxis structure, Google developer style sentences, STE instruction rules, Global English syntax. Use for /technical-writing or when writing or reviewing docs, RFCs, readmes, or PR descriptions."
 ---
 
 # Technical writing
@@ -99,7 +99,7 @@ Source: Kohl, The Global English Style Guide (SAS Press). Guideline text fetched
 ## Voice and repo specifics
 
 - Apply the **unslop** skill to every doc this skill touches. That skill owns the slop-pattern catalog: AI vocabulary, filler, hedging, formatting tells.
-- PR descriptions and commit messages are writing too. Every layer except Diátaxis applies to them.
+- PR descriptions are writing too. Every layer except Diátaxis applies to them. Commit messages belong to `commit`.
 - Product UI strings are not documentation. Use your product's copy guidelines for those.
 - Indent code snippets with tabs. Write real paths and real symbols. Make every count or tree claim true at the commit that lands it, and include the command that regenerates it.
 
@@ -135,3 +135,4 @@ Apply to any prose this skill covers. Item 1 applies only to document sets:
 | Skill | When |
 |-------|------|
 | `writing-for-agents` | The document instructs an agent (`SKILL.md`, `AGENTS.md`, or a referenced agent guide). Different reader, different rules |
+| `commit` | Commit messages. Match the repo's `git log`, not STE/Google-style subjects |

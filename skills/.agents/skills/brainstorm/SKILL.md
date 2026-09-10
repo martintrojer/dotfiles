@@ -1,7 +1,12 @@
 ---
 name: brainstorm
-description: Use before any non-trivial creative work — new features, new components, new behaviour, or reworking existing behaviour. Explores intent, constraints and design by working a decision tree in rounds of questions, then produces an approved spec. Triggers on "brainstorm", "design a feature", "think through an idea", "help me plan", or any vague concept that needs refining before code gets written.
-version: 0.5.0
+description: >
+  Use before design/spec work — new features, new components, new behaviour, or
+  reworking existing behaviour. Explores intent, constraints and design by working
+  a decision tree in rounds of questions, then produces an approved spec.
+  Triggers on "brainstorm", "design a feature", "think through an idea". Skip a
+  genuine one-liner with no design question in it.
+version: 0.5.1
 ---
 
 # Brainstorm — Design Phase
@@ -12,20 +17,20 @@ here to ask the question that makes the answer obvious.
 
 <HARD-GATE>
 Do not write code, scaffold files, or start implementing until you have
-presented a design and the user has approved it. This holds regardless of how
-simple the task looks.
+presented a design and the user has approved it. A genuine one-liner with no
+design question in it is not this skill — implement it. If you're unsure which
+you have, you have a design question.
 </HARD-GATE>
 
 ## "This is too simple to need a design"
 
-No. Every non-trivial change goes through this, including one-file utilities and
-config changes. Simple-looking work is exactly where unexamined assumptions
-cost the most, because nobody thought to check. The design can be three
-sentences — but present it and get a yes before building.
+Non-trivial changes go through this, including one-file utilities and config
+changes that still have a design question. Simple-looking work is exactly where
+unexamined assumptions cost the most. The design can be three sentences — but
+present it and get a yes before building.
 
 The escape hatch is scope, not ceremony: a genuine one-liner with no design
-question in it doesn't need this skill at all. If you're unsure which you have,
-you have a design question.
+question in it doesn't need this skill at all.
 
 ## Process
 
