@@ -10,9 +10,9 @@ local util = require("util")
 
 -- Call a Zk command with an opts table, bypassing the Ex parser.
 --
--- The user-defined `:ZkNew {…}` command parses its args via
+-- The user-defined `:ZkNotes {…}` command parses its args via
 -- `loadstring("return " .. args)()`, so embedding user input
--- (e.g. a note title containing `'`) in the Ex form is unsafe.
+-- (e.g. a search query containing `'`) in the Ex form is unsafe.
 -- `commands.get(name)` returns the underlying callback that takes
 -- the table directly, sidestepping the eval entirely.
 local function zk_call(name, opts)
@@ -34,26 +34,6 @@ end
 -- Public API
 ----------------------------------------------------------------------
 return function(map)
-	map("n", "<leader>zn", function()
-		vim.ui.input({ prompt = "Title: " }, function(title)
-			if title and title ~= "" then
-				zk_call("ZkNew", { notebook_path = np(), title = title, group = "inbox" })
-			end
-		end)
-	end, { desc = "New Note" })
-
-	map("n", "<leader>zN", function()
-		vim.ui.input({ prompt = "Title: " }, function(title)
-			if title and title ~= "" then
-				zk_call("ZkNew", { notebook_path = np(), title = title })
-			end
-		end)
-	end, { desc = "New Permanent Note" })
-
-	map("n", "<leader>zw", function()
-		zk_call("ZkNew", { notebook_path = np(), group = "journal" })
-	end, { desc = "Weekly Journal" })
-
 	map("n", "<leader>zf", function()
 		zk_call("ZkNotes", { notebook_path = np(), sort = { "modified" } })
 	end, { desc = "Find Notes" })

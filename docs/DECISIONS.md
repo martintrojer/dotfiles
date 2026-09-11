@@ -397,16 +397,20 @@ The custom spacer modules were removed once 1px CSS margins between blocks provi
 
 A one-pixel seam under the bar on bright wallpapers appears to be a Sway/Wayland fractional-scale artifact (`scale 1.5`) rather than a Waybar border. CSS borders, padding, and negative Waybar margins did not fix it reliably. Keep the bar slightly translucent (`alpha(@base, 0.75)`) and avoid spending more time on the seam unless it becomes worse or an upstream fractional-scale fix lands.
 
-### nvim format-on-save uses a hand-rolled LSP → CLI fallback, not conform.nvim / none-ls (accepted 2026-05-15)
+### nvim format-on-save uses a hand-rolled LSP → CLI fallback, not conform.nvim / none-ls (accepted 2026-05-15, superseded 2026-09-11)
 
-Markdown table formatting was the trigger. The old autocmd called `vim.lsp.buf.format()` and stopped, so filetypes whose attached LSP doesn't format (markdown, lua, sh, raw json/yaml) silently weren't formatted. Obvious answer is `conform.nvim`; chosen answer is ~30 lines of glue in `nvim/.config/nvim/lua/format_on_save.lua`.
+**Superseded 2026-09-11** by the review-slim cut: nvim no longer formats on save. Trailing whitespace is highlighted (`mini.trailspace`) but not trimmed on `:w`. Repo markdown stays a Makefile/`make format-all` concern only for ts/json/css; nvim does not run prettier/stylua/shfmt.
+
+Historical context kept below.
+
+Markdown table formatting was the trigger. The old autocmd called `vim.lsp.buf.format()` and stopped, so filetypes whose attached LSP doesn't format (markdown, lua, sh, raw json/yaml) silently weren't formatted. Obvious answer is `conform.nvim`; chosen answer was ~30 lines of glue in `nvim/.config/nvim/lua/format_on_save.lua` (file deleted 2026-09-11).
 
 - **Flow:** on `BufWritePre`, try LSP first; if nothing formats, look filetype up in a small table (prettier for markdown/json/yaml/etc., stylua for lua, shfmt for sh/bash but not zsh); shell out via `vim.system({...}, { stdin = ... }):wait()`, replace lines only on real diff. Missing binaries are silent no-ops. Trailspace trim runs last.
 - **Why not conform/none-ls:** failed #4 (plugin wrapping shell-outs to formatters on `$PATH`), #2 (`vim.system` + a table is the builtin path), #5 (30 lines is the textbook local-script case). Conform's ordering/async/per-formatter-options features are real but unused here.
 - **Why not prettier-as-LSP via efm-langserver:** swaps a plugin for a daemon, doesn't reduce moving parts.
 - Latency: `prettier` over stdin is ~150–300ms; swap for `prettierd` if it ever bites.
 
-**Reconsider only if:** the formatter table grows past ~10 filetypes or needs per-formatter args / range formatting / async coordination.
+**Reconsider only if:** reviewing again becomes writing, and format-on-save for markdown/lua/sh is worth owning locally rather than leaving to agents and `make format-*`.
 
 ---
 

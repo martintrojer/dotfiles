@@ -1,7 +1,6 @@
 -- LSP server configs (0.12 vim.lsp.config)
 -- See README.md for install instructions
 local lua_globals = require("lua_globals")
-local util = require("util")
 
 ----------------------------------------------------------------------
 -- Server Configs
@@ -58,10 +57,6 @@ vim.lsp.config("ty", {
 			completions = {
 				autoImport = true,
 			},
-			inlayHints = {
-				variableTypes = true,
-				callArgumentNames = true,
-			},
 		},
 	},
 })
@@ -83,77 +78,23 @@ vim.lsp.config("ts_ls", {
 	cmd = { "typescript-language-server", "--stdio" },
 	filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
 	root_markers = { "tsconfig.json", "jsconfig.json", "package.json", ".git" },
-	init_options = {
-		preferences = {
-			includeInlayParameterNameHints = "all",
-			includeInlayParameterNameHintsWhenArgumentMatchesName = false,
-			includeInlayFunctionParameterTypeHints = true,
-			includeInlayVariableTypeHints = true,
-			includeInlayVariableTypeHintsWhenTypeMatchesName = false,
-			includeInlayPropertyDeclarationTypeHints = true,
-			includeInlayFunctionLikeReturnTypeHints = true,
-			includeInlayEnumMemberValueHints = true,
-		},
-	},
 })
 
 vim.lsp.config("gopls", {
 	cmd = { "gopls" },
 	filetypes = { "go", "gomod", "gowork", "gotmpl" },
 	root_markers = { "go.work", "go.mod", ".git" },
-	settings = {
-		gopls = {
-			hints = {
-				parameterNames = true,
-				assignVariableTypes = true,
-				rangeVariableTypes = true,
-				compositeLiteralFields = true,
-				compositeLiteralTypes = true,
-				constantValues = true,
-				functionTypeParameters = true,
-			},
-		},
-	},
 })
 
 vim.lsp.config("rust_analyzer", {
 	cmd = { "rust-analyzer" },
 	filetypes = { "rust" },
 	root_markers = { "Cargo.toml", "rust-project.json", ".git" },
-	settings = {
-		["rust-analyzer"] = {
-			inlayHints = {
-				bindingModeHints = {
-					enable = false,
-				},
-				closureReturnTypeHints = {
-					enable = "with_block",
-				},
-				discriminantHints = {
-					enable = "fieldless",
-				},
-				lifetimeElisionHints = {
-					enable = "skip_trivial",
-					useParameterNames = true,
-				},
-				typeHints = {
-					hideClosureInitialization = false,
-					hideNamedConstructor = false,
-				},
-			},
-		},
-	},
 })
 
 vim.lsp.config("typos_lsp", {
 	cmd = { "typos-lsp" },
 	root_markers = { ".git" },
-})
-
-vim.lsp.config("vale_ls", {
-	cmd = { "vale-ls" },
-	filetypes = { "markdown" },
-	root_markers = util.vcs_root_markers,
 })
 
 ----------------------------------------------------------------------
@@ -171,5 +112,4 @@ vim.lsp.enable({
 	"gopls",
 	"rust_analyzer",
 	"typos_lsp",
-	"vale_ls",
 })
