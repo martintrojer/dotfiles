@@ -33,8 +33,6 @@ vim.opt.cursorline = true
 vim.opt.mouse = "a"
 vim.opt.winborder = "rounded"
 vim.opt.pumborder = "rounded"
-vim.opt.autocomplete = true
-vim.opt.completeopt:append("nearest")
 vim.opt.exrc = true
 vim.opt.autoread = true
 
@@ -186,14 +184,6 @@ require("async_run")
 ----------------------------------------------------------------------
 -- Autocommands
 ----------------------------------------------------------------------
--- Disable completion in markdown buffers.
-vim.api.nvim_create_autocmd("FileType", {
-	pattern = "markdown",
-	callback = function()
-		vim.opt_local.autocomplete = false
-	end,
-})
-
 vim.api.nvim_create_autocmd("FileType", {
 	pattern = "nvim-undotree",
 	callback = function(ev)
@@ -210,17 +200,6 @@ vim.api.nvim_create_autocmd("BufEnter", {
 		vim.keymap.set("n", "q", function()
 			vim.api.nvim_win_close(0, true)
 		end, { buffer = ev.buf, desc = "Close" })
-	end,
-})
-
--- Enable inlay hints for servers that support them.
-vim.api.nvim_create_autocmd("LspAttach", {
-	callback = function(ev)
-		local client = vim.lsp.get_client_by_id(ev.data.client_id)
-		if not client or not client:supports_method("textDocument/inlayHint") then
-			return
-		end
-		vim.lsp.inlay_hint.enable(true, { bufnr = ev.buf })
 	end,
 })
 
@@ -259,5 +238,3 @@ vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter" }, {
 		vim.cmd("checktime")
 	end,
 })
-
-require("format_on_save").setup()

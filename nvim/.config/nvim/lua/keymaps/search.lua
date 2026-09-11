@@ -4,20 +4,6 @@
 local todos = require("todos")
 local util = require("util")
 
-local function quickfix_replace()
-	vim.ui.input({ prompt = "Replace: " }, function(old)
-		if not old or old == "" then
-			return
-		end
-		vim.ui.input({ prompt = "With: " }, function(new)
-			if not new then
-				return
-			end
-			vim.cmd("cfdo %s/" .. vim.fn.escape(old, "/") .. "/" .. vim.fn.escape(new, "/") .. "/gc")
-		end)
-	end)
-end
-
 ----------------------------------------------------------------------
 -- Public API
 ----------------------------------------------------------------------
@@ -43,10 +29,6 @@ return function(map)
 	map("n", "<leader>sT", function()
 		todos.grep({ cwd = util.vcs_dir() })
 	end, { desc = "TODOs/FIXes/IDEAs (repo root)" })
-	map("n", "<leader>sr", function()
-		util.fzf_with_cwd("live_grep", util.buf_dir, { prompt = "Search (Tab select → Enter → cfdo)> " })
-	end, { desc = "Search & replace (grep → quickfix)" })
-	map("n", "<leader>sR", quickfix_replace, { desc = "Replace in quickfix files" })
 
 	-- Call vecgrep.search() directly: the :Vecgrep Ex command splits its
 	-- args on `|` and `<bar>`, which breaks user input containing pipes or

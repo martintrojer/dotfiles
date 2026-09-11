@@ -57,9 +57,7 @@ bundled `nvim.difftool` into the statusline / signs so all three Git surfaces
 share the same colors and indicators.
 
 - `<leader>gg` — lazygit
-- `<leader>gf`, `<leader>gc`, `<leader>gh`, `<leader>gb`, `<leader>gB`,
-  `<leader>gS`, `<leader>gT` — Git pickers (files, commits, hunks, branches,
-  blame, stash, tags)
+- `<leader>gf`, `<leader>gc`, `<leader>gh`, `<leader>gb` — Git pickers (status, commits, buffer history, blame)
 - `<leader>gl` — repo log with stats
 - `<leader>gi` — on a commit opens the full diff; on a hunk jumps to the
   source line
@@ -104,7 +102,7 @@ directories. The leader namespace is split on purpose: `<leader>f` is for
 - `<leader>fd` / `<leader>fD` — document / workspace diagnostics
 - `<leader>fs` / `<leader>fS` — document / workspace LSP symbols
 - LSP via picker: `gd` definitions, `gr` references, `gi` implementations,
-  `gy` type definitions; `<leader>ca`, `<leader>ci`, `<leader>co`, `<leader>cF`
+  `gy` type definitions; `<leader>ci`, `<leader>co`, `<leader>cF`
 - inside a picker: `Ctrl`+`g` toggles fuzzy / regex matching
 
 ```quiz
@@ -122,7 +120,7 @@ options = [
   "They are aliases for the same commands",
 ]
 answer = 1
-why = "Pickers live under `<leader>f`; grep / search / replace flows live under `<leader>s`."
+why = "Pickers live under `<leader>f`; grep / search live under `<leader>s`."
 
 [[questions]]
 q = "Inside a picker, what toggles fuzzy vs regex matching?"
@@ -133,15 +131,13 @@ why = "`Ctrl`+`g` switches fuzzy and regex modes inside a picker."
 
 ## Search & grep (`<leader>s`)
 
-Grep, TODO scans, semantic search, and grep-driven search/replace all live
-under `<leader>s` so the picker namespace stays clean.
+Grep, TODO scans, and semantic search live under `<leader>s` so the picker
+namespace stays clean.
 
 - `<leader>sg` — live grep (rg); `<leader>s/` — resume live grep
 - `<leader>sG` — Git grep
 - `<leader>sw` — grep word under cursor
 - `<leader>st` / `<leader>sT` — TODO / FIX grep (buffer dir / repo root)
-- `<leader>sr` — grep → select with `Tab` → `Enter` → `cfdo` substitution
-- `<leader>sR` — replace across the current quickfix list
 - `<leader>sv` (n+v) / `<leader>sV` — vecgrep semantic search / live mode
 - `<leader>sX` — reindex vecgrep
 
@@ -159,14 +155,10 @@ answer = 1
 why = "Semantic search is `<leader>sv` (and works in visual mode for the selection)."
 
 [[questions]]
-q = "What does `<leader>sr` do?"
-options = [
-  "Resume the last picker",
-  "Live grep, then drive a `cfdo` substitution across the matched files",
-  "Reindex vecgrep",
-]
-answer = 1
-why = "`<leader>sr` is the grep → quickfix → `cfdo` search/replace flow; `<leader>sX` is the vecgrep reindex."
+q = "Which mapping reindexes vecgrep?"
+options = ["`<leader>sX`", "`<leader>sr`", "`<leader>s/`"]
+answer = 0
+why = "`<leader>sX` rebuilds the vecgrep index; `<leader>s/` resumes live grep."
 ```
 
 ## Oil, terminal, jj-fugitive, and sl-fugitive
@@ -236,13 +228,6 @@ behavior consistent.
   type `print` → `print(word)`), `t` = HTML/XML tag, `?` = prompt for
   arbitrary left/right strings.
 
-**Motion & editing**
-
-- `gS` — split or join arguments (`mini.splitjoin`)
-- `Alt`+`j` / `Alt`+`k` — move lines or visual selection (`mini.move`)
-- `Alt`+`h` / `Alt`+`l` — indent left / right (`mini.move`)
-- `mini.pairs` auto-closes brackets and quotes
-
 **Navigation — `mini.bracketed`**
 
 - `[b` / `]b` buffers, `[d` / `]d` diagnostics, `[q` / `]q` quickfix,
@@ -260,7 +245,7 @@ behavior consistent.
   keywords and `#rrggbb` hex colors inline
 - `mini.indentscope` draws a thin guide along the current indent block
 - `mini.cursorword` underlays the word under the cursor
-- `mini.trailspace` highlights trailing whitespace (and `:w` trims it)
+- `mini.trailspace` highlights trailing whitespace
 - `mini.notify` backs `vim.notify()`; `<leader>en` opens history
 - `mini.tabline` shows buffers as tabs; `mini.statusline` renders mode, git,
   diagnostics, LSP, file info, location
@@ -299,38 +284,29 @@ answer = 0
 why = "`mini.hipatterns` matches the keyword patterns and also colorizes `#rrggbb` hex values."
 
 [[questions]]
-q = "Which mapping toggles split/join formatting?"
-options = ["`gS`", "`gs`", "`sj`"]
-answer = 0
-why = "`gS` toggles split/join formatting for argument lists and similar structures."
-
-[[questions]]
 q = "Which mapping opens notification history?"
 options = ["`<leader>ee`", "`<leader>em`", "`<leader>en`"]
 answer = 2
 why = "Notification history is exposed on `<leader>en`."
 ```
 
-## Notes & writing (`<leader>z`, `<leader>p`, `<leader>t`)
+## Notes & reading (`<leader>z`, `<leader>p`)
 
-Notes go through `zk-nvim` against `~/notes` (`vim.g.notes_path`).
-`render-markdown.nvim` is **off by default** — markdown buffers stay raw and
-editable. `<leader>pr` toggles a glow-like read mode per window: it enables
+Notes go through `zk-nvim` against `~/notes` (`vim.g.notes_path`). zk is a
+finder here: new notes and journal entries are written by agents, not nvim
+maps. `render-markdown.nvim` is **off by default** — markdown buffers stay
+raw until `<leader>pr` toggles a glow-like read mode per window: it enables
 `render-markdown`, hides line numbers / signs, raises `conceallevel`, and
-makes the buffer read-only. The `<leader>p` and `<leader>t` namespaces are
-markdown-buffer-only (registered via `after/ftplugin/markdown.lua` and a
-buffer-local `mini.clue` group).
+makes the buffer read-only. The `<leader>p` namespace is markdown-buffer-only
+(registered via `after/ftplugin/markdown.lua` and a buffer-local `mini.clue`
+group).
 
 **zk-nvim — notes (`<leader>z`)**
 
-- `<leader>zn` — new note in the `inbox` group (prompts for title)
-- `<leader>zN` — new permanent note (prompts for title, no group)
-- `<leader>zw` — weekly journal entry (`journal` group)
 - `<leader>zf` — find notes, sorted by modified
 - `<leader>zs` — search notes (prompts for query, full-text via zk)
 - `<leader>zz` — browse by tag
 - `<leader>zl` / `<leader>zb` — outgoing links / backlinks for the current note
-- `[[` (insert mode, markdown only) — `:ZkInsertLink` to pick & link a note
 
 **Markdown preview (`<leader>p`, markdown only)**
 
@@ -344,37 +320,26 @@ buffer-local `mini.clue` group).
   stay visible), link concealment disabled (works around a wrap+conceal
   layout bug), and `anti_conceal` disabled so the cursor line stays pretty
 
-**Markdown tools (`<leader>t`, markdown only)**
-
-- `<leader>tt` — toggle a `- [ ]` / `- [x]` checkbox at the cursor
-- `<leader>td` — insert `## YYYY-MM-DD` at cursor
-- `<leader>ti` — insert elapsed time + counter since the timestamp timer started
-- `<leader>tr` — reset the timestamp timer and counter
-- `<leader>tc` — disable the timestamp counter (keep elapsed time only)
-- `<leader>tf` — insert a flash-card scaffold `PROMPT : RESPONSE 🧠 #tag`
-- `<leader>tv` / `<leader>tV` — edit repo-local Vale accept / reject vocab
-  (auto-creates `.vale.ini` and `Local` vocabulary files at the VCS root)
-
 ```quiz
 [[questions]]
-q = "Where do new notes from `<leader>zn` get created?"
+q = "Which mapping finds notes sorted by modified time?"
 options = [
-  "In the current buffer's directory",
-  "Under `~/notes` (the `vim.g.notes_path`) in the `inbox` group",
-  "In a temporary scratch buffer that you save manually",
+  "`<leader>zf`",
+  "`<leader>zn`",
+  "`<leader>fo`",
 ]
-answer = 1
-why = "`<leader>zn` calls `ZkNew` against `vim.g.notes_path` with `group = 'inbox'`; `<leader>zN` is the same without a group."
+answer = 0
+why = "`<leader>zf` calls `ZkNotes` against `vim.g.notes_path` sorted by modified. New notes are agent-written; nvim does not map `ZkNew`."
 
 [[questions]]
-q = "In a markdown buffer, what does `[[` in insert mode do?"
+q = "What does `<leader>pr` do in a markdown buffer?"
 options = [
-  "Inserts two literal brackets",
-  "Triggers `:ZkInsertLink` to pick another note and insert a wiki link",
-  "Opens the LaTeX preview",
+  "Prints the buffer",
+  "Toggles glow-like read mode via `render-markdown.nvim`",
+  "Creates a new zk note",
 ]
 answer = 1
-why = "`after/ftplugin/markdown.lua` maps `[[` to `:ZkInsertLink` so wiki-link insertion stays one keystroke."
+why = "`<leader>pr` toggles markdown read mode; `<leader>pp` is the nabla LaTeX popup."
 
 [[questions]]
 q = "What does `<leader>pp` do in a markdown buffer?"
@@ -389,26 +354,11 @@ why = "`nabla.nvim` renders math as ASCII art in a floating popup; `<leader>pr` 
 
 ## Workflow extras
 
-The glue: quickfix-based replace, format-on-save, undo history, repo-local
-Vale vocabulary, per-project config, and plugin maintenance.
+The glue: undo history, per-project config, and plugin maintenance.
 
-- `<leader>sr` — find matches; `Tab` multi-select; `Enter` send to quickfix
-- `<leader>sR` — `:cfdo %s/old/new/gc` across quickfix files
 - `<leader>u` — toggle the bundled `nvim.undotree` panel; `q` to close
 - `<leader>em` / `<leader>en` — messages history / `mini.notify` history; `q`
   in either buffer returns you to the previous one
-- format-on-save runs on every `:w` via `lua/format_on_save.lua`: LSP
-  formatter if any attached client supports it, else a CLI fallback
-  selected by filetype (`prettier` for markdown / json / jsonc / json5 /
-  yaml / html / css / scss / less / graphql / vue, `stylua` for lua,
-  `shfmt` for sh / bash — zsh deliberately not formatted, shfmt would
-  mangle it), then `MiniTrailspace` trims trailing whitespace and blank
-  lines. Missing CLI binaries are silent no-ops, so the same config
-  works across machines that don't have every formatter installed. No
-  `conform.nvim` / `none-ls` — ~30 lines of glue, no plugin
-- manual format on `<leader>cf`
-- inlay hints auto-enable on `LspAttach` for any server that supports them;
-  `<leader>ch` toggles them per-buffer
 - buffers `:checktime` themselves on `FocusGained` / `BufEnter` (combined
   with `autoread`) so external edits show up without manual `:e`
 - drop a `.nvim.lua` in the project root for trusted local overrides (`exrc`)
@@ -420,12 +370,6 @@ Vale vocabulary, per-project config, and plugin maintenance.
   scratch buffer with `q` to close)
 
 ```quiz
-[[questions]]
-q = "Which mapping opens repo-local Vale accepted words?"
-options = ["`<leader>tf`", "`<leader>tv`", "`<leader>tr`"]
-answer = 1
-why = "Accepted-word editing for the local Vale vocabulary is on `<leader>tv` (markdown buffers only)."
-
 [[questions]]
 q = "Which file enables per-project config overrides?"
 options = ["`.exrc.lua`", "`nvim.local.lua`", "`.nvim.lua`"]

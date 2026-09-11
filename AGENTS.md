@@ -17,7 +17,7 @@ Many important paths are hidden, so use hidden-aware search:
 
 - Keep tool-specific docs next to the tool (for example `tmux/README.md`), not in the root `README.md`.
 - Prefer the repo `Makefile` for validation/formatting: `make check-all`, `make check-python`, `make check-lua`, `make check-prettier`, `make format-all`, etc.
-- The repo Makefile runs Prettier on `*.ts`, `*.json`, `*.jsonc`, and `*.css` only. Markdown is not part of `make format-all`. The Neovim config (see `nvim/.config/nvim/lua/format_on_save.lua`) does run Prettier on Markdown on save — that's an editor-level convenience, not a repo-level convention. Keep Markdown source readable in raw form (compact tables, no over-wrapping) so glow and a plain `nvim` view both stay pleasant.
+- The repo Makefile runs Prettier on `*.ts`, `*.json`, `*.jsonc`, and `*.css` only. Markdown is not part of `make format-all`. Keep Markdown source readable in raw form (compact tables, no over-wrapping) so glow and a plain `nvim` view both stay pleasant.
 - Preserve path shapes that mirror `$HOME` (for example `.config/...`, `.ssh/...`); the planner maps them one-to-one.
 - Avoid adding secrets or private keys. `ssh/.ssh/config` must stay non-sensitive.
 - Keep changes minimal and consistent with existing file formats (Lua, Python, shell, TOML, JSON, INI). Lua should stay `stylua`-formatted and `luacheck`-clean.

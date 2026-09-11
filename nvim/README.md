@@ -5,11 +5,10 @@ built-ins, and mini.nvim. It uses no framework or separate plugin manager.
 
 ## Philosophy
 
-- Neovim 0.12 built-ins provide LSP, completion, commenting, formatting,
-  snippets, node selection, and URL opening.
-- fzf-lua handles file search, grep, LSP actions, buffer switching, and
+- Neovim 0.12 built-ins provide LSP, commenting, snippets, node selection, and URL opening.
+- fzf-lua handles file search, grep, LSP navigation, buffer switching, and
   `vim.ui.select`.
-- One mini.nvim repository provides 17 modules through a consistent API.
+- One mini.nvim repository provides 14 modules through a consistent API.
 - `vim.pack` manages plugins with a lockfile and no bootstrap script.
 - The configuration defines its keymaps and plugins explicitly.
 
@@ -19,35 +18,32 @@ built-ins, and mini.nvim. It uses no framework or separate plugin manager.
 init.lua                        — options, colorscheme, diagnostics, commands, autocommands
 lua/
   plugins.lua                   — vim.pack.add + build hooks
-  mini_setup.lua                — 17 mini modules + clue + statusline + notify
+  mini_setup.lua                — 14 mini modules + clue + statusline + notify
   starter.lua                   — start screen + logo + greeting
   keymaps/                      — keymaps split by domain
     init.lua                    — dispatcher: loads each submodule with shared `map` helper
     core.lua                    — editor, terminal, tmux nav, buffer mgmt
     find.lua                    — fzf-lua pickers
     git.lua                     — source control (lazygit, mini.git, jj-fugitive)
-    search.lua                  — grep, search & replace, vecgrep
-    notes.lua                   — zk + markdown helpers
-    lsp.lua                     — LSP actions (definitions, references, code actions)
+    search.lua                  — grep, vecgrep
+    notes.lua                   — zk find/search/links
+    lsp.lua                     — LSP navigation (definitions, references, calls)
   lsp.lua                       — LSP server configs + enable
   tabterm.lua                   — tab-based terminal helper (used by lazygit, tuicr)
   history.lua                   — message and notification history viewers
-  todos.lua                     — TODO grep + markdown todo toggle
-  timestamps.lua                — elapsed time utility (markdown notes)
-  markdown_read_mode.lua        — glow-like read mode (buffer-scoped, follows links)
+  todos.lua                     — TODO/FIX/IDEA grep
+  markdown_read_mode.lua        — glow-like reader: render-markdown + lock + chrome off
   async_run.lua                 — `:Sh` async shell with streaming output split
   git_diff.lua                  — side-by-side git diff helpers (used by `<leader>gD`)
-  format_on_save.lua            — LSP -> CLI fallback (prettier/stylua/shfmt) -> trim
-  markdown_read_mode.lua        — glow-like reader: render-markdown + lock + chrome off
   util.lua                      — shared helpers (VCS root detection, cwd helpers, etc.)
   lua_globals.lua               — lua-language-server globals list
 after/ftplugin/
-  markdown.lua                  — markdown-specific keymaps (nabla, zk link, cards, todos, read mode)
+  markdown.lua                  — wrap + nabla LaTeX popup + read mode
 ```
 
 ## Plugins (13 vim.pack entries)
 
-### mini.nvim (17 modules from one repo)
+### mini.nvim (14 modules from one repo)
 
 | Module | Purpose |
 |--------|---------|
@@ -59,10 +55,7 @@ after/ftplugin/
 | mini.hipatterns | Highlight TODO/FIX/HACK/NOTE and hex colors inline |
 | mini.icons | File/filetype icons |
 | mini.indentscope | Indent scope guide line |
-| mini.move | Move lines/selections with Alt-h/j/k/l |
 | mini.notify | Floating notifications |
-| mini.pairs | Auto-close brackets/quotes |
-| mini.splitjoin | Toggle single-line / multi-line args |
 | mini.starter | Start screen with recent files and actions |
 | mini.statusline | Statusline (mode, git, diagnostics, LSP, position) |
 | mini.surround | Add/delete/change surroundings |
@@ -74,7 +67,7 @@ after/ftplugin/
 | Plugin | Purpose | Why not builtin? |
 |--------|---------|-----------------|
 | catppuccin | Catppuccin Mocha theme | Unified theme across terminal, eza, bat, tmux, waybar |
-| fzf-lua | Fuzzy finder + LSP actions | No builtin picker. Uses fzf binary. Also handles `vim.ui.select` |
+| fzf-lua | Fuzzy finder + LSP navigation | No builtin picker. Uses fzf binary. Also handles `vim.ui.select` |
 | oil.nvim | File explorer as editable buffer | Nothing like it builtin — rename/move/delete by editing text |
 | vim-tmux-navigator | Tmux pane navigation | Requires matching tmux config. No builtin tmux awareness |
 | nvim-treesitter | Parser management | 0.12 ships treesitter runtime but needs this for parser install/update |
@@ -83,7 +76,7 @@ after/ftplugin/
 | redline.nvim | Inline review comments | Own plugin. Integrates with mini.git, `:DiffTool`, and jj-fugitive reviews |
 | render-markdown.nvim | In-buffer markdown rendering | Headings, code blocks, tables, checkboxes via treesitter. Off by default; toggled per-buffer by `<leader>pr` (read mode) |
 | nabla.nvim | LaTeX formula popup preview (Unicode, no deps) |
-| zk-nvim | Zettelkasten notes | Creates, finds, links, navigates notes via zk CLI. Core daily workflow |
+| zk-nvim | Zettelkasten notes | Own plugin. Finds, tags, searches, and follows links via zk CLI |
 | vecgrep.nvim | Semantic search | Own plugin. Local embeddings for meaning-based search, not just string matching |
 
 ## What 0.12 builtins handle
@@ -91,9 +84,7 @@ after/ftplugin/
 | Concern | How |
 |---------|-----|
 | LSP config | `vim.lsp.config()` + `vim.lsp.enable()` |
-| Completion | Built-in autocomplete (`vim.opt.autocomplete = true`) |
 | Commenting | Built-in `gc`/`gcc` |
-| Format on save | `format_on_save.lua`: LSP if it formats, else CLI by filetype (prettier / stylua / shfmt), then `MiniTrailspace.trim()`. No conform/null-ls — keeps the "every plugin earns its place" rule |
 | Snippets | Built-in snippet engine |
 | Node selection | `v_an` / `v_in` |
 | URL open | `gx` |
@@ -110,17 +101,15 @@ brew install fzf ripgrep fd tree-sitter-cli zoxide tmux lazygit
 brew install lua-language-server bash-language-server taplo uv
 brew install gopls
 brew install typescript-language-server vscode-langservers-extracted
-brew install typos-lsp vale rust-analyzer zk
-brew install prettier stylua shfmt   # format-on-save CLI fallbacks
+brew install typos-lsp rust-analyzer zk
 uv tool install ty ruff
-cargo install --git https://github.com/errata-ai/vale-ls
 ```
 
 ### Linux (mise)
 
 ```bash
 # Toolchain (mise provides node/npm and rust/cargo)
-mise use node@latest rust@latest fzf@latest ripgrep@latest fd@latest tree-sitter@latest vale@latest zoxide@latest
+mise use node@latest rust@latest fzf@latest ripgrep@latest fd@latest tree-sitter@latest zoxide@latest
 
 # LSP servers via mise
 mise use github:LuaLS/lua-language-server
@@ -135,12 +124,6 @@ npm i -g vscode-langservers-extracted
 
 # Python LSP servers
 uv tool install ty ruff
-
-# LSP servers via cargo (needs rust above)
-cargo install --git https://github.com/errata-ai/vale-ls
-
-# Format-on-save CLI fallbacks (prettier/stylua/shfmt — see lua/format_on_save.lua)
-mise use npm:prettier cargo:stylua aqua:mvdan/sh
 ```
 
 For treesitter parser installs, `nvim-treesitter` also needs the `tree-sitter` CLI in
@@ -175,9 +158,6 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `<leader>gc` | Commits — repo (fzf) |
 | `<leader>gh` | History — buffer commits (fzf) |
 | `<leader>gb` | Blame (fzf) |
-| `<leader>gB` | Branches (fzf) |
-| `<leader>gS` | Stash (fzf) |
-| `<leader>gT` | Tags (fzf) |
 | `<leader>gd` | Git diff |
 | `<leader>gU` | Git diff current file (unified) |
 | `<leader>gD` | Git diff current file (side by side) |
@@ -216,24 +196,15 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `<leader>sw` | Grep word under cursor |
 | `<leader>st` | Grep TODO/FIX (buffer dir) |
 | `<leader>sT` | Grep TODO/FIX (repo root) |
-| `<leader>sr` | Search & replace (grep → quickfix → `cfdo`) |
-| `<leader>sR` | Replace in quickfix files |
 | `<leader>sv` | Semantic search (vecgrep, normal+visual) |
 | `<leader>sV` | Live semantic search |
 | `<leader>sX` | Reindex vecgrep |
 | **Code (`<leader>c`)** | |
-| `<leader>ca` | Code actions |
-| `<leader>cr` | Rename |
-| `<leader>cf` | Format |
-| `<leader>ch` | Toggle inlay hints |
 | `<leader>ci` | Incoming calls |
 | `<leader>co` | Outgoing calls |
 | `<leader>cF` | Finder (defs+refs+impls) |
 | **Notes (`<leader>z`)** | |
 | `<leader>zf` | Find notes |
-| `<leader>zn` | New note |
-| `<leader>zN` | New permanent note |
-| `<leader>zw` | Weekly journal |
 | `<leader>zs` | Search notes |
 | `<leader>zz` | Find by tag |
 | `<leader>zl` | Linked notes |
@@ -246,16 +217,6 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | **Markdown Preview (`<leader>p`)** | |
 | `<leader>pp` | LaTeX popup (markdown only) |
 | `<leader>pr` | Toggle markdown read mode (markdown only) |
-| **Markdown Tools (`<leader>t`)** | |
-| `<leader>pr` | Toggle markdown read mode (markdown only) |
-| `<leader>tf` | Flash card (markdown only) |
-| `<leader>tt` | Toggle todo (markdown only) |
-| `<leader>td` | Insert current date (markdown only) |
-| `<leader>tr` | Reset timestamp timer (markdown only) |
-| `<leader>tv` | Edit Vale accepted words (markdown only) |
-| `<leader>tV` | Edit Vale rejected words (markdown only) |
-| `<leader>tc` | Disable timestamp counter (markdown only) |
-| `<leader>ti` | Insert elapsed timestamp (markdown only) |
 | **LSP** | |
 | `gd` | Go to definition |
 | `gD` | Declaration |
@@ -269,8 +230,6 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `ZX` | Save and close buffer |
 | `gc`/`gcc` | Comment (builtin) |
 | `sa`/`sd`/`sr` | Surround add/delete/replace |
-| `gS` | Split/join args |
-| `Alt-j`/`Alt-k` | Move lines |
 | `[d`/`]d` | Prev/next diagnostic |
 | `[b`/`]b` | Prev/next buffer |
 

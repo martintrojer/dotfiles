@@ -81,9 +81,6 @@ starter.setup({
 		action_item(notes_header, "Notes", function()
 			require("zk.commands").get("ZkNotes")({ notebook_path = util.notes_path(), sort = { "modified" } })
 		end),
-		action_item(notes_header, "Journal", function()
-			require("zk.commands").get("ZkNew")({ notebook_path = util.notes_path(), group = "journal" })
-		end),
 		action_item(notes_header, "TODOs", function()
 			require("todos").grep({ cwd = util.notes_path() })
 		end),
