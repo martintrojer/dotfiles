@@ -5,14 +5,18 @@ It provides workspaces, tabs, and panes like tmux, plus per-pane detection with
 `idle / working / blocked / done` states, an agent-priority sidebar, and a
 socket API (`herdr agent`, `herdr pane`) for driving other agents.
 
-**This package is an evaluation, not a migration.** tmux remains the terminal
-multiplexer ([`../docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state
-awareness). Running herdr with the working dotfiles tests it under normal use.
+**This package is an evaluation, not a migration.** tmux remains the daily
+multiplexer. The stack decision — tmux + murmur + mu + coop, and why not herdr
+or workmux — is in [`../docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state
+awareness (landed 2026-09-12). Running herdr with these dotfiles tests it under
+normal use; it is not the home driver.
 
-**Verdict so far (2026-08-10): tried it for a day, went back to tmux.** The
-config remains available because the longer test has not run. See
-[Eval notes](#eval-notes). Starting another evaluation requires only the
-`herdr` command.
+**Verdict (2026-09-12): still tmux.** A day-long trial in 2026-08-10 already
+came back for sidebar and provenance reasons. Since then herdr moved (Apache
+2.0, multi-machine closer) and mu can drive it — but the work remote's
+`MaxSessions 1` still makes durable herdr attachment starve murmur collects.
+That constraint is why coop exists. See [Eval notes](#eval-notes). Starting
+another evaluation requires only the `herdr` command.
 
 This is a **common-scope package**: it links on both Linux and macOS, so
 nothing in it may depend on sway, fuzzel, mako, or Homebrew. On Fedora the
@@ -162,38 +166,35 @@ multiplexer is absent.
 
 ## Eval Notes
 
-**Where it landed.** Back on tmux after a day. The sidebar is the reason, but
-not for the reason originally given: the compact rail is 4 columns, ~1.5% of
-width, so the cost is not the cells. It is that the panel is fixed to the left
-edge and cannot become a horizontal strip, while tmux's pills share a status
-row that was already being spent. Overhead you have already paid has zero
-marginal cost; a new column does not.
+**Where it landed.** Daily home is tmux + murmur + mu + coop. This package
+stays so re-testing is cheap. The 2026-08-10 day trial already bounced on the
+sidebar (fixed left column vs status-bar pills you have already paid for) and
+on pillar #11. The 2026-09-12 stack decision adds the hard environmental
+reason: **`MaxSessions 1` on the work remote.** Multi-machine herdr wants a
+durable attach that holds the only session channel; murmur then cannot collect.
+coop solves long remotes for mu without taking that channel; it does not make
+herdr-as-multiplexer free.
 
-**What has not been tested, and is the whole question.** Everything that
-justifies an always-present agent panel is a fleet feature — priority sort,
-cross-workspace blocked detection, `herdr agent prompt --wait`. At one or two
-agents it reports what you already know. The real trial is 4–6 agents across
-3+ workspaces, which is also the `mu`-on-tmux vs herdr-agent-CLI comparison.
-Until that runs, "unclear what it buys" is accurate, not premature.
+**What moved upstream (and still is not enough).** License is Apache 2.0.
+Multi-machine work advanced. mu can spawn on herdr. None of that clears the
+capped-host constraint or pillar #11 for *daily substrate*.
+
+**What has not been the deciding experiment.** Fleet features in the agent
+panel (priority sort, cross-workspace blocked, `herdr agent prompt --wait`)
+still matter most at 4–6 agents. That comparison is now *mu-on-tmux + murmur
+dash* vs *herdr agent CLI*, not "pick vs sidebar" alone — and it still has to
+survive a capped sshd.
 
 Things to decide if the experiment resumes:
 
-- **`mu` is tmux-native.** The orchestration skill spawns tmux panes, and
-  `experimental.allow_nested = false` means it cannot run a tmux inside a herdr
-  pane. The real comparison is *mu-on-tmux* vs *`herdr agent start/prompt/wait`*,
-  not multiplexer vs multiplexer.
-- **Two agent-state systems.** Confirm murmur's pi extension no-ops cleanly
-  outside tmux before crediting or blaming herdr's sidebar for anything.
-- **v0.x, one maintainer, AGPL, active churn.** The caveat from DECISIONS.md
-  has not expired. This eval spanned a release, and pre-1.0 protocol bumps
-  mean an old client cannot attach to a new server without restarting it.
-- **It fails pillar #11 (human-made, human-owned, heavily tested).** This is
-  the larger objection, and the one that took longer to name than the screen
-  real estate did. Every other tool this setup rests on — tmux, zsh, sway,
-  sqlite — is old, multi-maintainer, distro-packaged and exhaustively tested;
-  herdr is none of those yet. The pillar is about maturity and accountability,
-  not a claim about how the code was written. A 1.0 with a real test suite and
-  more than one maintainer would be a different proposition.
+- **Confirm murmur's pi extension no-ops cleanly outside tmux** before crediting
+  or blaming herdr's sidebar for anything.
+- **v0.x maturity / maintainer count / test surface** — pillar #11 has not
+  expired. Pre-1.0 protocol bumps still mean an old client cannot attach to a
+  new server without restarting it.
+- **Do not conflate with workmux.** workmux is a worktree-window product on
+  tmux; mu already owns worktrees for workers. Steal UI ideas into murmur dash
+  if useful; do not adopt workmux as a spine.
 
 ## Agent Skill
 

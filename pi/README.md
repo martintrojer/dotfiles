@@ -37,7 +37,9 @@ so `dotfiles-sync` cannot symlink it and only checks that it is there.
 Sets the tmux option first and appends to the log second, so the status bar
 never waits on a fold. No-ops when murmur is absent or uninitialised.
 
-See [`tmux/README.md` § AI Agent Attention](../tmux/README.md#ai-agent-attention).
+See [`tmux/README.md` § AI Agent Attention](../tmux/README.md#ai-agent-attention)
+and [`docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state awareness (tmux +
+murmur + mu + coop).
 
 ### `/loop` — recurring prompt scheduler
 

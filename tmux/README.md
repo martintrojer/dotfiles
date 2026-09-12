@@ -86,7 +86,9 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `!`: break the current pane out into a new window
 - `prefix` + `M`: move the current pane into the selected window or pane as a split
 - `prefix` + `w`: built-in tmux session-window tree picker
-- `prefix` + `a`: agent state picker (`murmur pick`) — filter, preview the pane, and jump to it on this machine or another (see [AI Agent Attention](#ai-agent-attention))
+- `prefix` + `a`: agent jump list (`murmur pick`) — type to narrow, enter jumps
+  local or remote; `ctrl-a` toggles crew. For a live fleet view run
+  `murmur dash` in a pane (see [AI Agent Attention](#ai-agent-attention))
 - `prefix` + `Ctrl-g`: cheatsheet popup
 - mouse click on the left status session block: opens the tmux session picker
 - built-in menus, prompts, and popups use Mocha background/foreground colors with a sky selection highlight
@@ -202,11 +204,11 @@ Notes:
 
 ## AI Agent Attention
 
-Agent state is owned by [murmur](https://github.com/martintrojer/murmur), an
-installed tool rather than a script in this package. It replaced the local
-`agent-attention` script, which was single-machine by construction: window ids
-are machine-local, so it could never answer "is anything blocked on me right
-now" across more than one box.
+Agent state is owned by [murmur](https://github.com/martintrojer/murmur)
+(0.3.x), an installed tool rather than a script in this package. It replaced
+the local `agent-attention` script, which was single-machine by construction:
+window ids are machine-local, so it could never answer "is anything blocked on
+me right now" across more than one box.
 
 What this package still owns is appearance and keys:
 
@@ -215,11 +217,12 @@ What this package still owns is appearance and keys:
 - `status-ai`, which renders one glyph per agent in `status-right` as
   urgency-ordered colored runs behind a robot icon, rolling up past three per
   state so a large fleet stays narrow
-- the `prefix + a` bind, and the three focus-clear hooks
+- the `prefix + a` bind → `murmur pick`, and the three focus-clear hooks
 
-What murmur owns is behaviour: the event log, the fold, crash detection, and
-the picker. The boundary is *tool owns behaviour, dotfiles own appearance and
-keys*.
+What murmur owns is behaviour: reported state, peer collect, crash detection,
+`status` / `pick` / `dash`. The boundary is *tool owns behaviour, dotfiles own
+appearance and keys*. Why tmux + murmur + mu + coop (and not herdr or workmux)
+is in [`docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state awareness.
 
 `@agent_state` is the seam, and it has a second consumer: the `tms` session
 picker colours its rows from it via `_tmux_common.scan_agent_states`, so a
@@ -228,20 +231,21 @@ badge murmur writes shows up as a glyph next to the session name in
 clears the tmux option even for a pane murmur has no event for — a badge left
 by anything else would otherwise sit in the picker forever.
 
-Because murmur aggregates across machines, the status bar now paints the whole
+Because murmur aggregates across machines, the status bar paints the whole
 fleet. A blocked agent on another host shows up here.
 
 | command | what it does |
 | --- | --- |
 | `murmur status` | `<state>\t<count>` lines, most urgent first. What `status-ai` parses |
-| `murmur pick` | the `prefix + a` popup: filter, glance at the pane, jump local or remote |
+| `murmur pick` | the `prefix + a` popup: type to narrow, enter jumps, `ctrl-a` toggles crew |
+| `murmur dash` | live cards + pane glance (run from a shell; not bound here yet) |
 | `murmur clear --pane <id>` | clears attention for one pane. What the focus hooks call |
 
 Runtime state lives in murmur's own state dir, not
 `~/.local/state/tmux-agent-attention/`.
 
-All three commands resolve on PATH — the *tmux server's* PATH, which is frozen
-at the moment the server started. Install murmur while a server is running and
+Those commands resolve on PATH — the *tmux server's* PATH, which is frozen at
+the moment the server started. Install murmur while a server is running and
 nothing picks it up until `tmux kill-server` (or `tmux setenv -g PATH "$PATH"`),
 even though it works fine in your shell. `dotfiles-sync` checks both PATHs and
 reports that gap as `UNREACHABLE`.
@@ -261,9 +265,10 @@ ownership or crash detection). This repo wires:
 | Cursor CLI | `cursor/.cursor/hooks.json` → `stop` → `murmur notify --source cursor` |
 
 mu-managed pi panes (`MU_MANAGED_AGENT=1`) clear on `agent_end` rather than
-showing `done`, and murmur records them as `driver = orchestrated` so the
-picker can hide the crew by default. mu consumes those completions itself, so a
-sticky "finished, unseen" badge is noise nobody is expected to acknowledge.
+showing `done`, and murmur records them as `driver = orchestrated` so pick and
+dash hide the crew by default (`ctrl-a` / `--all` reveals them). mu consumes
+those completions itself, so a sticky "finished, unseen" badge is noise nobody
+is expected to acknowledge.
 
 ### Setup
 
@@ -273,7 +278,9 @@ murmur link pi   # installs the extension into ~/.pi/agent/extensions/
 ```
 
 `dotfiles-sync --apply` does not install murmur; it is an npm package, not a
-symlink.
+symlink. Harness hooks, peers, and hard ssh cases:
+[murmur docs/setup.md](https://github.com/martintrojer/murmur/blob/main/docs/setup.md)
+and [SSH.md](https://github.com/martintrojer/murmur/blob/main/SSH.md).
 
 ## Cheatsheet
 

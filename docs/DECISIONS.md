@@ -602,6 +602,49 @@ Evaluated it against the existing tmux setup. Decision: stay on tmux, port the o
 
 **Reconsider if:** herdr ships multi-host in stable core *and* clears pillar #11 (1.0, real test suite, more than one maintainer) — that is a crisper trigger than the fleet experiment above, since it is a checkable event rather than an experiment yet to be run.
 
+**Landed 2026-09-12 — the stack is tmux + murmur + mu + coop.** Several of the reconsider triggers above moved (herdr is Apache 2.0 now, multi-machine work advanced, mu can drive herdr). None of that changes the daily spine. This extension records why, and where workmux fits (it does not).
+
+#### The jobs, one each
+
+| Tool | Job |
+| --- | --- |
+| **tmux** | Pane substrate. Sessions, status bar, plugins, jump target for murmur. |
+| **murmur** | Observe + jump across machines. Reported state, peer collect over ssh, `status` / `pick` / `dash`. |
+| **mu** | Orchestrate. Task DAG, crew, worktrees for workers. Places work; does not own fleet attention. |
+| **coop** | Long remotes under session-capped SSH. Own `ControlPath`, detached dispatch under a private tmux, so a build or test suite does not starve murmur's collect. |
+
+murmur observes, mu orchestrates, coop owns long holds on capped hosts. No merge planned. Design detail lives in each tool's repo; this entry is the seam for this setup.
+
+#### Why not herdr as the daily multiplexer (still)
+
+herdr moved: license Apache 2.0, multi-machine closer to the dream, mu grew a herdr backend. The blocker that matters here did not move.
+
+- **`MaxSessions 1` on the work remote.** herdr multi-machine wants durable remote attachment. On a host that caps one session channel per connection, that attachment *is* the starve: collect and jump compete for the same slot, and ssh's failure mode reads like auth. That is the environment that forced [coop](https://github.com/martintrojer/coop) for mu — not a preference about sidebars.
+- **Substrate cost is still total.** Switching the daily driver means losing `vim-tmux-navigator`, `tmux-fingers-rs`, the TPM surface, and seventeen years of muscle memory for a multiplexer that is still young on pillar #11. Steal ideas; keep tmux.
+- **The package stays.** [`herdr/`](../herdr) remains an eval config. Re-test is a command, not a rebuild. Daily home is tmux.
+
+#### Why not workmux
+
+[workmux](https://github.com/raine/workmux) (tracking clone under `~/hacking/workmux`) sells worktree windows + agent status + sidebar chrome on tmux.
+
+- **Wrong unit of work.** workmux's spine is *you create a worktree window*. mu's spine is *task DAG → spawn worker → workspace*. This setup already has the second. Adopting the first means two owners of worktrees, or demoting mu. Neither is clean.
+- **Status is not better *for this stack*.** Both murmur and workmux are mostly hook/push for pi, not herdr-style scrape. murmur already has in-process claim, activity, crash-via-pid, and multi-host collect. workmux's polish is single-machine tmux chrome bolted onto the worktree workflow — steal a layout idea if useful; do not adopt the product.
+- **It does not touch `MaxSessions 1`.** Fleet attention across capped remotes is murmur + coop's problem. workmux does not help.
+
+#### What murmur shipped after the migration
+
+- **0.3.0 — `murmur dash`.** Live cards + pane glance over the same view as `status` and `pick`. Floored collect while open; paint from cache. Nerd Font + Catppuccin Mocha. Layout ideas borrowed from herdr/workmux; no worktree lifecycle, no task graph, no permanent sidebar.
+- **`murmur pick` stayed jump-first.** Popup: enter jumps, typing narrows, `ctrl-a` / `--all` toggles crew. Richer browse lives in dash.
+- **Peers, doctor, jump overrides, harness notify** — see murmur's `docs/setup.md` and [SSH.md](https://github.com/martintrojer/murmur/blob/main/SSH.md). Dotfiles keep glyphs, `prefix+a` → `murmur pick`, focus-clear hooks, and `status-ai`.
+
+#### What this means for reconsider triggers above
+
+- "Fleet experiment vs herdr agent CLI" — mu-on-tmux is the daily path; coop is how long remotes coexist with murmur on capped hosts. herdr as multiplexer remains optional eval.
+- "herdr multi-host in stable core" — necessary but not sufficient while `MaxSessions 1` and pillar #11 still apply.
+- workmux is not on the reconsider list.
+
+**Reconsider the stack if:** a capped remote stops being part of daily work *and* herdr clears pillar #11 *and* mu's herdr path is the better daily driver end-to-end — or if murmur dies and the replacement still answers multi-host attention without owning the panes.
+
 ---
 
 ### Pane-controlled values never reach a tmux format shell line (accepted 2026-08-09)

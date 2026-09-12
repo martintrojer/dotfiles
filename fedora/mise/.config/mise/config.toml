@@ -18,7 +18,8 @@ gh = "latest"
 "github:zk-org/zk" = "latest"
 glow = "latest"
 go = "latest"
-# Under evaluation as a tmux alternative; see herdr/README.md.
+# Under evaluation as a tmux alternative; daily home is still tmux.
+# See herdr/README.md and docs/DECISIONS.md § Agent state awareness.
 herdr = "latest"
 imagemagick = "latest"
 jj = "latest"
