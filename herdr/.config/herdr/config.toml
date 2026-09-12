@@ -1,9 +1,10 @@
 # herdr — terminal workspace manager for coding agents.
 #
-# Under evaluation as a tmux alternative; see herdr/README.md and
-# docs/DECISIONS.md § Agent state awareness. Only settings that differ
-# from the herdr default are written here — run `herdr --default-config`
-# to see the full annotated set.
+# Evaluation package only. Daily multiplexer is tmux; stack decision in
+# docs/DECISIONS.md § Agent state awareness (tmux + murmur + mu + coop).
+# See herdr/README.md. Only settings that differ from the herdr default
+# are written here — run `herdr --default-config` to see the full annotated
+# set.
 #
 # Keybindings stay on stock herdr so the eval tests herdr's own model,
 # not a tmux dialect. Learn them with prefix+? inside herdr.

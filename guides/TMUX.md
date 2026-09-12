@@ -212,31 +212,33 @@ active-pane-derived window labels, prefix state, AI attention, CPU, RAM, host,
 and uptime.
 
 - **Left:** filled session block
-- **Center:** merged window labels derived from the active pane
-- **Right:** boxed `PREFIX` and `AI` segments, then CPU, RAM, host, uptime
-- murmur marks windows with pending attention as `[!]`
-- shows a boxed `AI <count>` segment in the status bar
-- `prefix`+`a` opens a picker listing flagged windows
-- attention clears when you focus the actual agent pane
-- state lives in murmur's own append-only log, and covers agents on every
-  machine you have added as a peer, not just this one
+- **Center:** merged window labels derived from the active pane, with inline
+  agent glyphs when a window wants attention
+- **Right:** boxed `PREFIX` and agent segment (robot + urgency-ordered glyphs),
+  then CPU, RAM, host, uptime
+- murmur owns agent state across every peered machine; this config only paints
+  and binds
+- `prefix`+`a` opens `murmur pick` (jump list; `ctrl-a` toggles crew)
+- `murmur dash` is the live cards + glance view (run from a shell)
+- attention clears when you focus the agent pane (focus hooks call
+  `murmur clear`)
 
 ```quiz
 [[questions]]
-q = "Which binding opens the agent state picker?"
+q = "Which binding opens the agent jump list?"
 options = ["`prefix`+`a`", "`prefix`+`A`", "`prefix`+`!`"]
 answer = 0
-why = "Lowercase `a` opens the list of flagged windows."
+why = "Lowercase `a` runs `murmur pick`."
 
 [[questions]]
-q = "What does a window marker of `[!]` mean?"
+q = "What does a window glyph of `!` mean?"
 options = [
   "The pane is zoomed",
   "TPM needs an update",
-  "An agent in that window needs attention",
+  "An agent in that window is blocked / needs attention",
 ]
 answer = 2
-why = "The marker means the window has queued agent attention."
+why = "Window glyphs come from murmur's rendered state on `@agent_state`."
 
 [[questions]]
 q = "Which tool owns agent state?"

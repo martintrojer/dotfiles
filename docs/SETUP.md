@@ -192,23 +192,27 @@ Action:
 If it prints, replace that line with:
 
 ```toml
-notify = ["/bin/sh", "-lc", "murmur notify --source codex --event-type notify --title Codex"]
+notify = ["murmur", "notify", "--source", "codex"]
 ```
+
+No bare `sh -lc` wrapper: Codex appends the event JSON as one more argument,
+and `sh -lc '<script>' <arg>` puts that argument in `$0` rather than `$1` —
+murmur never sees which event fired. Absolute path if `murmur` is not on the
+hook's PATH. Drop `--title Codex` if you still have it; the message falls back
+to the payload.
 
 Verify it from inside a tmux pane, because a silent failure here is the whole
 hazard — a notify hook's output goes nowhere:
 
 ```bash
-/bin/sh -lc "murmur notify --source codex --event-type notify --title Codex"
-murmur status                      # expect a blocked row for this pane
-murmur clear --pane "$TMUX_PANE"   # then take it back
+murmur notify --source probe --message reachable && murmur status
+murmur clear --pane "$TMUX_PANE"
 ```
 
-If that reports `murmur: not found`, the hook cannot find it either. `-l` does
-not save you: `/bin/sh` is not zsh and never reads `.zprofile`, so the line works
-only because it inherits the PATH of the terminal that launched codex. A codex
-started by a launcher, daemon or GUI gets the default `sh` PATH, which has no
-`/opt/homebrew`. Use the absolute path from `command -v murmur` in that case.
+If that reports `murmur: not found`, the hook cannot find it either. A notify
+hook inherits the PATH of whatever launched the harness — a terminal usually
+has your npm prefix; a launcher, daemon, or GUI often does not. Use the
+absolute path from `command -v murmur` in that case.
 
 The opencode plugin at `opencode/.config/opencode/plugin/notify.ts` pipes the
 same JSON payload to `murmur notify` and needs no separate setup.

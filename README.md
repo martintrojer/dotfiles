@@ -66,4 +66,6 @@ See [`docs/SETUP.md`](./docs/SETUP.md) for the install + update flow.
 
 ## Decisions and rejected alternatives
 
-[`docs/DECISIONS.md`](./docs/DECISIONS.md) records past audits of chezmoi, oh-my-zsh, niri→sway, TPM vendoring, and the centralized `docs/` folder. Read it before reopening those decisions.
+[`docs/DECISIONS.md`](./docs/DECISIONS.md) records past audits — chezmoi,
+oh-my-zsh, niri→sway, TPM vendoring, and the agent stack (tmux + murmur + mu +
+coop; why not herdr or workmux). Read it before reopening those decisions.
