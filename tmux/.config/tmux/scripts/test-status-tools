@@ -243,6 +243,7 @@ def teardown_server(env: dict[str, str]) -> None:
 
 def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     run_split_pane_label_tests(env)
+    run_managed_agent_label_tests(env)
 
     print("\n[status-window-label]")
 
@@ -376,6 +377,38 @@ def agent_probe_env(env: dict[str, str]) -> dict[str, str]:
     agent.unlink(missing_ok=True)
     agent.symlink_to("/bin/sleep")
     return {**env, "PATH": f"{agent_bin}:{env['PATH']}"}
+
+
+def run_managed_agent_label_tests(env: dict[str, str]) -> None:
+    """A mu-spawned pane must be marked as hosting an agent.
+
+    mu's shape -- window and title named after the agent, agent as the
+    pane command -- takes the meaningful-title branch, so the label is a
+    name no word list knows. Gating the sticky ``@pane_agent`` on it left
+    every managed agent unmarked, and an idle one has no ``@agent_state``
+    to fall back on: gone from both the picker and the status pill.
+    """
+    print("\n[status-window-label: mu-managed agent pane]")
+
+    sub_env = agent_probe_env(env)
+    tmux(sub_env, ["new-window", "-d", "-t", "s1:", "-n", "worker-9", "codex 400"])
+    wid = tmux(sub_env, ["display-message", "-p", "-t", "s1:worker-9", "#{window_id}"])
+    _wait_for(sub_env, wid, "#{pane_current_command}", lambda v: v == "codex")
+    tmux(sub_env, ["select-pane", "-t", wid, "-T", "worker-9 \u00b7"])
+
+    try:
+        expect(
+            "a managed pane's label is its title, which is in no word list",
+            label_for_window(sub_env, wid),
+            "worker-9 \u00b7",
+        )
+        expect(
+            "and the window is still marked as hosting an agent",
+            tmux(sub_env, ["display-message", "-p", "-t", wid, "#{@pane_agent}"]),
+            "1",
+        )
+    finally:
+        tmux(sub_env, ["kill-window", "-t", wid], check=False)
 
 
 def run_split_pane_label_tests(env: dict[str, str]) -> None:
