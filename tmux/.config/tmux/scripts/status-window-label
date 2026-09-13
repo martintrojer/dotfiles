@@ -212,7 +212,14 @@ def main(argv: list[str]) -> int:
     # pane has a meaningful title, or the shell branch returns a cwd
     # basename -- so clearing here would wipe the marker the push path
     # set and drop idle agents from the prefix+a picker and status pill.
-    if window_id and label in AGENTS:
+    #
+    # Asked of the PANE too, because `label` is a display choice: a
+    # mu-spawned pane runs `pi` titled `worker-9`, so the title branch
+    # wins and the label is in no word list. Gating on it alone left every
+    # managed agent unmarked, and an idle one has no @agent_state to fall
+    # back on. No extra `ps` -- this is the case the descendant walk never
+    # sees, where the active pane's own command is the agent.
+    if window_id and (label in AGENTS or fields["pane_current_command"] in AGENTS):
         tmux_cmd(
             "set-window-option",
             "-q",
