@@ -21,6 +21,12 @@ EMPTY_PAYLOAD: dict[str, object] = {
 MAX_LABEL = 140
 MAX_BODY = 400
 
+# Generated from docs/glyphs.toml -- edit there, run `make theme`.
+# THEME BEGIN: waybar-notification-glyphs
+ICON_BELL = "󰂚"
+ICON_BELL_OFF = "󰂛"
+# THEME END: waybar-notification-glyphs
+
 
 def demo_notifications() -> list[dict[str, Any]]:
     return [
@@ -120,9 +126,9 @@ def waybar() -> int:
     dnd = "do-not-disturb" in modes or demo_enabled()
 
     if dnd:
-        text = f"󰂛 {count}" if count else "󰂛"
+        text = f"{ICON_BELL_OFF} {count}" if count else ICON_BELL_OFF
     elif count or active:
-        text = f"󰂚 {count}" if count else "󰂚"
+        text = f"{ICON_BELL} {count}" if count else ICON_BELL
     else:
         text = ""
 

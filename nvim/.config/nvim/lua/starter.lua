@@ -5,7 +5,18 @@ local util = require("util")
 ----------------------------------------------------------------------
 -- Helpers
 ----------------------------------------------------------------------
-local cwd_glyph = " 󰉋"
+-- Glyphs are generated from docs/glyphs.toml -- edit there, run `make theme`.
+-- THEME BEGIN: nvim-starter-glyphs
+local GLYPH = {
+	folder = "󰉋",
+	night = "",
+	morning = "",
+	afternoon = "",
+	evening = "",
+}
+-- THEME END: nvim-starter-glyphs
+
+local cwd_glyph = " " .. GLYPH.folder
 
 local function action_item(section, name, action)
 	return { name = name, action = action, section = section }
@@ -37,13 +48,13 @@ local function starter_header()
 	local hour = tonumber(os.date("!%H")) -- UTC (UK)
 	local greeting
 	if hour < 6 then
-		greeting = "🌙 Good night"
+		greeting = GLYPH.night .. " Good night"
 	elseif hour < 12 then
-		greeting = "☀️ Good morning"
+		greeting = GLYPH.morning .. " Good morning"
 	elseif hour < 18 then
-		greeting = "🌤️ Good afternoon"
+		greeting = GLYPH.afternoon .. " Good afternoon"
 	else
-		greeting = "🌆 Good evening"
+		greeting = GLYPH.evening .. " Good evening"
 	end
 
 	local logo = {

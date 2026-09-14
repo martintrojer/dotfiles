@@ -209,7 +209,7 @@ a long job alive without leaving the screen unlocked.
 Toggle it from the fuzzel powermenu (`mod+Shift+e` → `Caffeinate`), which also
 reports the current state in its label, or by clicking the waybar glyph. Both
 call `~/.config/waybar/scripts/caffeinate toggle`. While
-active, waybar shows `󰅶` in the centre; see
+active, waybar shows the `caffeinate` glyph in the centre; see
 [`waybar/README.md`](../waybar/README.md#caffeinate).
 
 The flag is `$XDG_RUNTIME_DIR/caffeinate`, deliberately not under

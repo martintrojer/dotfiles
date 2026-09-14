@@ -44,6 +44,7 @@ from pathlib import Path
 from .config import REPO_ROOT, REPO_WALK_SKIP_DIRS
 
 PALETTE_PATH = REPO_ROOT / "docs" / "palette.toml"
+GLYPHS_PATH = REPO_ROOT / "docs" / "glyphs.toml"
 TEMPLATES_DIR = Path(__file__).resolve().parent / "themes"
 
 # Marker pattern. The `<comment-prefix>` is whatever the file uses
@@ -60,7 +61,7 @@ TEMPLATES_DIR = Path(__file__).resolve().parent / "themes"
 # explaining the mechanism) parses as a real marker. A file using an
 # exotic comment syntax must extend this pattern; it then fails loud
 # with a marker/registry mismatch rather than drifting silently.
-_MARKER_PREFIX = r"(?P<prefix>[ \t]*(?:\#|//|/\*)[ \t]*)"
+_MARKER_PREFIX = r"(?P<prefix>[ \t]*(?:\#|//|/\*|--)[ \t]*)"
 _MARKER_TAIL = r"\s*(?P<name>[A-Za-z0-9_\-]+)\s*(?P<suffix>.*)$"
 MARKER_BEGIN_RE = re.compile(rf"^{_MARKER_PREFIX}THEME BEGIN:{_MARKER_TAIL}")
 MARKER_END_RE = re.compile(rf"^{_MARKER_PREFIX}THEME END:{_MARKER_TAIL}")
@@ -113,7 +114,10 @@ CONSUMERS: tuple[Consumer, ...] = (
     Consumer(repo("mako/.config/mako/config"), ("mako-colors",)),
     Consumer(repo("swaylock/.config/swaylock/config"), ("swaylock-colors",)),
     Consumer(repo("tmux/.tmux.conf"), ("tmux-palette", "tmux-agent-glyphs")),
-    Consumer(repo("zsh/.zsh/tools.zsh"), ("zsh-prompt-colors",)),
+    Consumer(
+        repo("zsh/.zsh/tools.zsh"),
+        ("zsh-prompt-colors", "zsh-prompt-glyphs"),
+    ),
     Consumer(repo("foot/.config/foot/foot.ini"), ("foot-colors",)),
     Consumer(repo("fuzzel/.config/fuzzel/fuzzel.ini"), ("fuzzel-colors",)),
     Consumer(repo("btop/.config/btop/themes/current.theme"), ("btop-colors",)),
@@ -147,6 +151,42 @@ CONSUMERS: tuple[Consumer, ...] = (
         ("wallpaper-fallback-color",),
     ),
     Consumer(repo("guides/style.css"), ("guides-palette",)),
+    Consumer(
+        repo("tmux/.config/tmux/scripts/_tmux_common.py"),
+        ("tmux-state-glyphs",),
+    ),
+    Consumer(
+        repo("waybar/.config/waybar/scripts/caffeinate"),
+        ("waybar-caffeinate-glyph",),
+    ),
+    Consumer(
+        repo("waybar/.config/waybar/scripts/issues"),
+        ("waybar-issue-glyphs",),
+    ),
+    Consumer(
+        repo("waybar/.config/waybar/scripts/notifications"),
+        ("waybar-notification-glyphs",),
+    ),
+    Consumer(
+        repo("fuzzel/.config/fuzzel/scripts/powermenu"),
+        ("fuzzel-power-glyphs",),
+    ),
+    Consumer(
+        repo("fuzzel/.config/fuzzel/scripts/cider"),
+        ("fuzzel-media-glyphs",),
+    ),
+    Consumer(
+        repo("pi/.pi/agent/extensions/_lib.ts"),
+        ("pi-glyphs",),
+    ),
+    Consumer(
+        repo("nvim/.config/nvim/lua/starter.lua"),
+        ("nvim-starter-glyphs",),
+    ),
+    Consumer(
+        repo("local-bin/.local/bin/solo"),
+        ("solo-glyphs",),
+    ),
 )
 
 
@@ -163,6 +203,7 @@ CONSUMERS: tuple[Consumer, ...] = (
 
 AUDIT_ALLOWLIST: dict[str, str] = {
     "docs/palette.toml": "the palette itself",
+    "docs/glyphs.toml": "the glyph vocabulary itself",
     "docs/THEME.md": "human-readable gloss of the palette",
     "bat/.config/bat/themes/Catppuccin Mocha.tmTheme": "vendored upstream",
     "yazi/.config/yazi/flavors/catppuccin-mocha.yazi/flavor.toml": "vendored upstream",
@@ -179,37 +220,44 @@ AUDIT_ALLOWLIST: dict[str, str] = {
 # ---------------------------------------------------------------------
 
 
-def load_agent_glyphs() -> dict[str, str]:
-    """Read ``STATE_GLYPH`` out of the tmux helper library.
+def load_glyphs(path: Path = GLYPHS_PATH) -> dict[str, str]:
+    """Parse ``docs/glyphs.toml``: one ``[glyph]`` table of strings.
 
-    The agent-state glyphs are not colors and do not belong in
-    ``palette.toml``: their canonical home is ``STATE_GLYPH`` in
-    ``tmux/.config/tmux/scripts/_tmux_common.py``, which every Python
-    display surface already imports. Exposing them here as a ``glyph``
-    group lets ``.tmux.conf`` -- which cannot import Python -- render its
-    format strings from that same dict instead of re-spelling them, so
-    ``make check-theme`` fails on drift.
+    Glyphs are not colors, so they get their own file rather than a group
+    in ``palette.toml``, but they are managed the same way. Exposing the
+    table here as a ``glyph`` group lets surfaces that cannot read TOML
+    at runtime (``.tmux.conf``, CSS, INI) be generated from it, so
+    ``make check-theme`` fails on drift instead of a config quietly
+    keeping a stale shape.
 
-    Imported by path because the scripts directory is not a package and
-    the file is a private module beside extensionless executables.
+    The shape is validated strictly: a stray table or a non-string leaf
+    is a typo that would otherwise surface as a rendered ``{}`` in a
+    status bar.
     """
-    import importlib.util
-
-    src = REPO_ROOT / "tmux" / ".config" / "tmux" / "scripts" / "_tmux_common.py"
-    spec = importlib.util.spec_from_file_location("_tmux_common", src)
-    if spec is None or spec.loader is None:
-        raise SystemExit(f"render_theme: cannot import {src}")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return {state.name: glyph for state, glyph in mod.STATE_GLYPH.items()}
+    with path.open("rb") as fp:
+        raw = tomllib.load(fp)
+    extra = sorted(set(raw) - {"glyph"})
+    if extra:
+        raise SystemExit(
+            f"render_theme: {path} defines table(s) other than `glyph`: {extra}"
+        )
+    glyphs = raw.get("glyph")
+    if not isinstance(glyphs, dict):
+        raise SystemExit(f"render_theme: {path} has no `glyph` table")
+    bad = sorted(key for key, value in glyphs.items() if not isinstance(value, str))
+    if bad:
+        raise SystemExit(
+            f"render_theme: {path}: `glyph` values must be strings; not: {bad}"
+        )
+    return glyphs
 
 
 def load_palette(path: Path = PALETTE_PATH) -> dict[str, dict[str, str]]:
     """Parse the TOML palette. Returns a nested dict keyed by group then color.
 
-    The returned mapping also carries a synthetic ``glyph`` group (see
-    :func:`load_agent_glyphs`) so templates can reference non-color values
-    that are sourced from Python rather than from the TOML.
+    The returned mapping also carries a ``glyph`` group (see
+    :func:`load_glyphs`) so templates can reference the canonical glyph
+    vocabulary alongside colors.
     """
     with path.open("rb") as fp:
         raw = tomllib.load(fp)
@@ -218,9 +266,9 @@ def load_palette(path: Path = PALETTE_PATH) -> dict[str, dict[str, str]]:
     if "glyph" in raw:
         raise SystemExit(
             f"render_theme: {path} defines a `glyph` group, which is reserved "
-            "for STATE_GLYPH in tmux/.config/tmux/scripts/_tmux_common.py"
+            f"for {GLYPHS_PATH.name}"
         )
-    raw["glyph"] = load_agent_glyphs()
+    raw["glyph"] = load_glyphs()
     return raw
 
 

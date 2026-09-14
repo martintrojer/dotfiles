@@ -16,7 +16,8 @@ When tempted, re-read this section before touching anything.
 6. **Recreate, do not restore.** No session snapshots or hidden state restoration. Disposable sessions force the setup to remain cheap to start.
 7. **Thin wrappers around shared lists.** Decisions live in data, not scripts. `dotfiles-sync` and `setup-*.sh` are wrappers around plain package lists.
 8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway with foot as the terminal. macOS is Hammerspoon with Ghostty as the terminal. The shared layer is the CLI/editor baseline. Each desktop uses its OS's native primitives: Spaces and Mission Control on macOS; sway IPC and Wayland layer-shell on Linux; foot's server/client and Ghostty's app-bundle launch model on their respective systems.
-9. **One palette, one layout language.** Catppuccin Mocha is the color system;
+9. **One palette, one glyph vocabulary, one layout language.** Catppuccin Mocha
+   is the color system, `docs/glyphs.toml` is the semantic glyph vocabulary, and
    blocky/tmux geometry is the interaction grammar. Blocks are affordances, not
    decoration: use them for navigation, focus, modal state, or problems that
    need a response, and keep ambient context quieter. See [`docs/THEME.md`](./docs/THEME.md)

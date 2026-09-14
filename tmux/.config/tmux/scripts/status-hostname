@@ -33,9 +33,12 @@ COLORS = (
     "#eba0ac",  # maroon
 )
 CRUST = "#11111b"
+# The server glyph the pill leads with, and the fallback that must draw the
+# same one. Both from docs/glyphs.toml, in this region rather than one of
+# their own so the file keeps a single marker pair.
+ICON = "󰒋"
 FALLBACK_STYLE = "#[fg=#a6adc8]#[bg=#313244] 󰒋 ? #[default]"
 # THEME END: status-hostname-colors
-ICON = "󰒋"
 
 
 def short_hostname() -> str:

@@ -1,7 +1,11 @@
-# Theme Color Settings
+# Theme Settings
 
 All configs are unified around **Catppuccin Mocha**, propagated from
 a single source of truth at `docs/palette.toml`.
+
+Semantic UI glyphs work the same way from a second file,
+`docs/glyphs.toml` — see [the glyph vocabulary](#the-glyph-vocabulary).
+One renderer, one `make theme`, one `make check-theme` for both.
 
 ---
 
@@ -88,42 +92,81 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `mako/.config/mako/config` | `mako-colors` |
 | `swaylock/.config/swaylock/config` | `swaylock-colors` |
 | `tmux/.tmux.conf` | `tmux-palette`, `tmux-agent-glyphs` |
-| `zsh/.zsh/tools.zsh` | `zsh-prompt-colors` |
+| `zsh/.zsh/tools.zsh` | `zsh-prompt-colors`, `zsh-prompt-glyphs` |
 | `foot/.config/foot/foot.ini` | `foot-colors` |
 | `fuzzel/.config/fuzzel/fuzzel.ini` | `fuzzel-colors` |
 | `btop/.config/btop/themes/current.theme` | `btop-colors` |
 | `eza/.config/eza/theme.yml` | `eza-colors` |
 | `tmux/.config/tmux/scripts/status-hostname` | `status-hostname-colors` |
 | `tmux/.config/tmux/scripts/status-ram` | `status-ram-colors` |
-| `tmux/.config/tmux/scripts/tms` | `tms-palette` |
+| `tmux/.config/tmux/scripts/status-ai` | `status-ai-colors` |
+| `tmux/.config/tmux/scripts/_tmux_common.py` | `tmux-state-glyphs` |
+| `local-bin/.local/bin/tms` | `tms-palette` |
+| `local-bin/.local/bin/solo` | `solo-glyphs` |
 | `sway/.config/sway/scripts/lock-screen` | `lock-screen-fallback-color` |
 | `sway/.config/sway/scripts/session-wallpaper` | `session-wallpaper-fallback-color` |
 | `fedora/bin/.local/bin/wallpaper` | `wallpaper-fallback-color` |
+| `waybar/.config/waybar/scripts/caffeinate` | `waybar-caffeinate-glyph` |
+| `waybar/.config/waybar/scripts/issues` | `waybar-issue-glyphs` |
+| `waybar/.config/waybar/scripts/notifications` | `waybar-notification-glyphs` |
+| `fuzzel/.config/fuzzel/scripts/powermenu` | `fuzzel-power-glyphs` |
+| `fuzzel/.config/fuzzel/scripts/cider` | `fuzzel-media-glyphs` |
+| `pi/.pi/agent/extensions/_lib.ts` | `pi-glyphs` |
+| `nvim/.config/nvim/lua/starter.lua` | `nvim-starter-glyphs` |
 | `guides/style.css` | `guides-palette` |
 
 ---
 
-## Non-color values: the `glyph` group
+## The glyph vocabulary
 
-One region is not about color. `tmux-agent-glyphs` renders the
-agent-state glyph chain used by both `window-status-format` and
-`window-status-current-format`, and its glyphs come from `STATE_GLYPH`
-in `tmux/.config/tmux/scripts/_tmux_common.py`, not from
-`docs/palette.toml`.
+`docs/glyphs.toml` is the canonical source for every semantic UI glyph
+this repo authors. Keys name a *meaning* (`agent_crashed`, `cpu`, `ram`,
+`caffeinate`), never a shape. Editing a glyph is the same three steps as
+editing a color: edit the TOML, `make theme`, `make check-theme`.
 
-That dict is already the single source for every Python display surface
-(the `tms` picker, the `prefix + a` menu, the status pill). `.tmux.conf`
-cannot import Python, so it used to re-spell `✗ ! ▶ ·` by hand — twice,
-once per window-status line — and nothing failed when the copies
-diverged. `load_palette()` now exposes those glyphs to templates as a
-synthetic `glyph` group (`{{glyph.crashed}}`), so the chain is generated
-and `make check-theme` fails on drift. `palette.toml` may not define a
-`glyph` group itself; the renderer rejects it rather than silently
-shadowing the Python.
+`load_palette()` exposes the file's one `[glyph]` table to templates as a
+`glyph` group (`{{glyph.agent_crashed}}`). `palette.toml` may not define
+a `glyph` group itself; the renderer rejects it rather than silently
+shadowing the vocabulary.
 
-The two window-status lines share the one rendered `@agent_glyphs`
-option and supply their own background, because tmux carries the
-surrounding `#[bg=...]` into an `#{E:...}` re-expansion.
+The policy the file enforces:
+
+- **`nf-fa` by default.** Font Awesome slots are stable across Nerd Font
+  releases and each selected glyph occupies exactly one terminal cell.
+- **`nf-md` only as a documented exception.** Retained `nf-md-*` entries
+  are grouped in `docs/glyphs.toml` under a comment that says why the
+  group stays (no nf-fa equivalent for sensors and power actions, or a
+  clearly better picture at status-bar size). A migrated surface must
+  not carry an unmanaged `nf-md-*` literal.
+- **No emoji in owned UI or configuration.** Emoji can eat two cells or
+  drag a variation selector along, which makes terminal layout
+  unreliable. Docs may quote an emoji when the emoji is the subject.
+- **Slot names live in comments.** `# U+F057 fa-times-circle` next to
+  each value, so a codepoint is reviewable without a patched font.
+- **Out of the vocabulary:** typographic punctuation, box drawing,
+  Braille spinner frames, list bullets, and `tms` source markers. Those
+  carry local structure, not shared semantic state.
+
+Consumers keep their own native names — `STATE_GLYPH`, `ICON_CPU`,
+`ICON_RAM` — and the renderer materializes those declarations inside the
+marked region. Nothing reads `docs/glyphs.toml` at runtime, and no
+cross-package runtime helper exists. `STATE_GLYPH` in
+`tmux/.config/tmux/scripts/_tmux_common.py` is still the Python API every
+Python display surface reads, but its five entries are now generated,
+and they match the codepoints murmur publishes as `DASH_GLYPH` so the
+same agent cannot wear one face in a tmux tab and another in murmur's
+own output.
+
+`cpu` and `ram` are deliberately distinct shapes: they sit side by side
+in the tmux status bar, and one shape (`nf-md-memory`) used to mean CPU
+in tmux and RAM in Waybar.
+
+`.tmux.conf` cannot import Python or read TOML, so it used to re-spell
+the agent alphabet by hand — twice, once per window-status line — and
+nothing failed when the copies diverged. `tmux-agent-glyphs` generates
+that chain instead. The two window-status lines share the one rendered
+`@agent_glyphs` option and supply their own background, because tmux
+carries the surrounding `#[bg=...]` into an `#{E:...}` re-expansion.
 
 ---
 
@@ -156,7 +199,8 @@ generator. Each is in `AUDIT_ALLOWLIST`:
   hand-edit the colors, so templating 50+ values buys nothing.
 - `ghostty/.config/ghostty/config` — uses the built-in named theme
   (`theme = catppuccin-mocha`); no hex in our config.
-- `nvim/.config/nvim/` — `catppuccin/nvim` plugin handles theming.
+- `nvim/.config/nvim/` — `catppuccin/nvim` plugin handles theming. (Colors
+  only: `lua/starter.lua` *is* a glyph consumer via `nvim-starter-glyphs`.)
 - `waybar/.config/waybar/style.css` — the `@define-color` block *is*
   generated (`waybar-palette`), but the alpha derivations further down
   the file (`alpha(@base, 0.55)`) are hand-written GTK CSS on top of

@@ -9,4 +9,8 @@ COLORS = (
     "{{mocha.maroon}}",  # maroon
 )
 CRUST = "{{mocha.crust}}"
-FALLBACK_STYLE = "#[fg={{mocha.subtext0}}]#[bg={{mocha.surface0}}] 󰒋 ? #[default]"
+# The server glyph the pill leads with, and the fallback that must draw the
+# same one. Both from docs/glyphs.toml, in this region rather than one of
+# their own so the file keeps a single marker pair.
+ICON = "{{glyph.host}}"
+FALLBACK_STYLE = "#[fg={{mocha.subtext0}}]#[bg={{mocha.surface0}}] {{glyph.host}} ? #[default]"

@@ -31,6 +31,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import {
 	conversationTranscript,
 	FastModelCancelled,
+	GLYPH,
 	setGoalFooterMarker,
 	textContent,
 	withFastModelFallback,
@@ -148,7 +149,7 @@ function updateStatus(ctx: ExtensionContext): void {
 		return;
 	}
 	const mins = Math.round((Date.now() - goal.startedAt) / 60000);
-	setGoalFooterMarker(ctx, `◎ goal ${goal.turns}/${goal.maxTurns} · ${mins}m`);
+	setGoalFooterMarker(ctx, `${GLYPH.goal} goal ${goal.turns}/${goal.maxTurns} · ${mins}m`);
 }
 
 export default function (pi: ExtensionAPI) {
@@ -251,7 +252,7 @@ export default function (pi: ExtensionAPI) {
 			active.lastReason = `${result.reason} (${result.model})`;
 
 			if (result.met) {
-				ctx.ui.notify(`✓ Goal met (${result.model}): ${result.reason}`, "info");
+				ctx.ui.notify(`${GLYPH.ok} Goal met (${result.model}): ${result.reason}`, "info");
 				goal = null;
 				updateStatus(ctx);
 				return;

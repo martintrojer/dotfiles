@@ -19,7 +19,9 @@ prompt_muted_color="%F{#6c7086}"
 prompt_toolbox_color="%F{#94e2d5}"
 # THEME END: zsh-prompt-colors
 prompt_reset="%f"
+# THEME BEGIN: zsh-prompt-glyphs
 prompt_error_glyph="󰅚"
+# THEME END: zsh-prompt-glyphs
 prompt_context=""
 
 # OSC 133 A marker for tmux previous-prompt/next-prompt. Embedded in PROMPT

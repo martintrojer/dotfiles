@@ -16,6 +16,35 @@ from _common import (
     run,
 )
 
+# Generated from docs/glyphs.toml -- edit there, run `make theme`.
+# THEME BEGIN: fuzzel-power-glyphs
+ICON_LOCK = "󰌾"
+ICON_LOGOUT = "󰗽"
+ICON_REBOOT = "󰜺"
+ICON_SHUTDOWN = "󰐥"
+ICON_SUSPEND = "󰤄"
+ICON_CAFFEINATE = "󰅶"
+# THEME END: fuzzel-power-glyphs
+
+
+def power_options(caffeinate_on: bool) -> list[tuple[str, str]]:
+    """The menu rows, in display order, as (label, action) pairs.
+
+    The caffeinate row reports its own state, so the menu doubles as the
+    place you check whether it is on -- the waybar glyph is the other.
+    """
+    caffeinate_label = f"{ICON_CAFFEINATE} Caffeinate"
+    if caffeinate_on:
+        caffeinate_label += ": on"
+    return [
+        (f"{ICON_LOCK} Lock", "lock"),
+        (f"{ICON_REBOOT} Reboot", "reboot"),
+        (f"{ICON_LOGOUT} Logout", "logout"),
+        (f"{ICON_SHUTDOWN} Shutdown", "shutdown"),
+        (f"{ICON_SUSPEND} Suspend", "suspend"),
+        (caffeinate_label, "caffeinate"),
+    ]
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -33,17 +62,7 @@ def main() -> int:
     session_quit = sway_scripts / "session-quit"
 
     cache = picker_cache_path("powermenu")
-    # The caffeinate row reports its own state, so the menu doubles as the
-    # place you check whether it is on -- the waybar glyph is the other.
-    caffeinate_label = "󰅶 Caffeinate: on" if caffeinated() else "󰅶 Caffeinate"
-    options = [
-        ("󰌾 Lock", "lock"),
-        ("󰜺 Reboot", "reboot"),
-        ("󰗽 Logout", "logout"),
-        ("󰐥 Shutdown", "shutdown"),
-        ("󰤄 Suspend", "suspend"),
-        (caffeinate_label, "caffeinate"),
-    ]
+    options = power_options(caffeinated())
     display_options = [label for label, _ in options]
 
     selected = fuzzel_dmenu(

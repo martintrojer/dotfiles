@@ -71,8 +71,9 @@ fix where one exists.
 
 ## Caffeinate
 
-`custom/caffeinate` renders `󰅶` in the centre while idle suspend is disabled,
-and nothing at all otherwise — same quiet-by-default rule as `custom/issues`,
+`custom/caffeinate` renders the `caffeinate` glyph
+([`docs/glyphs.toml`](../docs/glyphs.toml)) in the centre while idle suspend is
+disabled, and nothing at all otherwise — same quiet-by-default rule as `custom/issues`,
 with the stylesheet collapsing the block in the `off` class so it costs no
 width. Left click toggles it off.
 

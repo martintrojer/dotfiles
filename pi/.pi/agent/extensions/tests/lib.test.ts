@@ -19,9 +19,26 @@ import {
 	conversationTranscript,
 	expandProbe,
 	formatInterval,
+	GLYPH,
 	NAMED_PROBES,
 	parseInterval,
 } from "../_lib.ts";
+
+// --- GLYPH ---------------------------------------------------------------
+
+// Hand-derived from docs/glyphs.toml. The block in _lib.ts is generated, so
+// these pin the codepoints the UI actually draws: a bad render turns the
+// footer into a tofu box, which no other check would notice.
+test("GLYPH carries the canonical nf-fa codepoints, not emoji", () => {
+	assert.deepEqual({ ...GLYPH }, { refresh: "\uf021", watch: "\uf06e", goal: "\uf140", ok: "\uf058" });
+});
+
+test("no GLYPH value is an emoji presentation sequence", () => {
+	for (const [key, value] of Object.entries(GLYPH)) {
+		assert.equal([...value].length, 1, `${key} is not one codepoint`);
+		assert.ok(value.codePointAt(0)! >= 0xe000, `${key} is outside the private use area`);
+	}
+});
 
 // --- parseInterval -------------------------------------------------------
 
