@@ -1173,6 +1173,27 @@ def run_tms_tests() -> None:
     expect_truthy(
         "done rows keep the done glyph", STATE_GLYPH[AgentState.done] in done_text
     )
+
+    # State is a fixed column after the padded session name, before the path.
+    # Empty-state rows reserve the same cell so paths remain vertically aligned.
+    with_state = tms.Entry(
+        kind="tmux",
+        name="docs",
+        session_name="docs",
+        path="/tmp/docs",
+        worst_state=AgentState.done,
+    ).visible_text()
+    without_state = tms.Entry(
+        kind="tmux", name="shell", session_name="shell", path="/tmp/shell"
+    ).visible_text()
+    expect_truthy(
+        "agent state sits between session name and path",
+        f"{STATE_GLYPH[AgentState.done]}  /tmp/docs" in with_state,
+    )
+    expect_truthy(
+        "rows without state reserve the state column",
+        "shell".ljust(tms.DISPLAY_NAME_WIDTH) + "     /tmp/shell" in without_state,
+    )
     # Deliberately a state AgentStats cannot produce (a session with a done
     # and a blocked agent reports worst_state=blocked). It is the only way to
     # observe branch order, and order is the invariant: done is informational
