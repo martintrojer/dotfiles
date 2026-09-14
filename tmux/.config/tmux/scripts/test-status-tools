@@ -1188,11 +1188,44 @@ def run_tms_tests() -> None:
     ).visible_text()
     expect_truthy(
         "agent state sits between session name and path",
-        f"{STATE_GLYPH[AgentState.done]}  /tmp/docs" in with_state,
+        f"{STATE_GLYPH[AgentState.done]}      /tmp/docs" in with_state,
     )
     expect_truthy(
         "rows without state reserve the state column",
-        "shell".ljust(tms.DISPLAY_NAME_WIDTH) + "     /tmp/shell" in without_state,
+        "shell".ljust(tms.DISPLAY_NAME_WIDTH) + "        /tmp/shell" in without_state,
+    )
+    ansi = re.compile(r"\x1b\[[0-9;]*m")
+    header = ansi.sub("", tms.header_text().splitlines()[-1])
+    row = ansi.sub("", with_state)
+    expect(
+        "tms and murmur share a 30-column primary name",
+        tms.DISPLAY_NAME_WIDTH,
+        30,
+    )
+    expect(
+        "tms header aligns the session column",
+        header.index("session"),
+        row.index("docs"),
+    )
+    expect(
+        "tms header aligns the state column",
+        header.index("state"),
+        row.index(STATE_GLYPH[AgentState.done]),
+    )
+    expect(
+        "tms header aligns the path column",
+        header.index("path"),
+        row.index("/tmp/docs"),
+    )
+    expect(
+        "tms drops fzf's inner border inside a tmux popup",
+        tms.fzf_border({"TMUX": "/tmp/tmux/default,1,0"}),
+        "none",
+    )
+    expect(
+        "tms keeps fzf's border in a normal tmux pane",
+        tms.fzf_border({"TMUX": "/tmp/tmux/default,1,0", "TMUX_PANE": "%1"}),
+        "rounded",
     )
     # Deliberately a state AgentStats cannot produce (a session with a done
     # and a blocked agent reports worst_state=blocked). It is the only way to

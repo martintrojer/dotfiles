@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 import tomllib
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
@@ -35,7 +35,7 @@ from _tmux_common import (  # noqa: E402
     tmux_cmd,
 )
 
-DISPLAY_NAME_WIDTH = 20
+DISPLAY_NAME_WIDTH = 30
 DEFAULT_SPLIT = ""
 # Stays at ~/.config/tmux/tms.toml even though tms itself now lives in
 # local-bin: it is the user's session recipe file, moving it would break
@@ -74,6 +74,8 @@ CATPPUCCIN = {
 # THEME END: tms-palette
 
 FZF_BORDER_LABEL = " sessions "
+UNDERLINE = "\x1b[4m"
+RESET = "\x1b[0m"
 
 
 class ConfigError(ValueError):
@@ -153,9 +155,9 @@ class Entry:
         name = self.display_name.ljust(DISPLAY_NAME_WIDTH)
         ws = self.worst_state
         glyph = STATE_GLYPH[ws] if ws else " "
-        text = f"{self.icon}  {name}  {glyph}"
+        text = f"{self.icon}  {name} {glyph}"
         if self.display_path:
-            text = f"{text}  {self.display_path}"
+            text = f"{text}      {self.display_path}"
         if self.worst_state is AgentState.crashed:
             return ansi_style(
                 text,
@@ -332,7 +334,14 @@ def header_text() -> str:
         ("^x zoxide", CATPPUCCIN["sapphire"]),
         ("^f find", CATPPUCCIN["subtext0"]),
     ]
-    return "  " + " ".join(ansi_style(label, fg=color) for label, color in items)
+    legend = "  " + " ".join(ansi_style(label, fg=color) for label, color in items)
+    columns = f"   {'session'.ljust(DISPLAY_NAME_WIDTH)} {'state'.ljust(7)}path"
+    return f"{legend}\n{UNDERLINE}{columns}{RESET}"
+
+
+def fzf_border(env: Mapping[str, str] = os.environ) -> str:
+    """Avoid a second border inside tmux's already-bordered popup."""
+    return "none" if env.get("TMUX") and not env.get("TMUX_PANE") else "rounded"
 
 
 def sanitize_session_part(part: str) -> str:
@@ -832,7 +841,8 @@ def _fzf_command(mode: str, query: str = "") -> list[str]:
     cmd = [
         "fzf",
         "--layout=reverse",
-        "--border=rounded",
+        "--border",
+        fzf_border(),
         "--ansi",
         # Match only the visible display column (field 1), not the payload
         # fields tacked on for the consumer (kind/session/path/startup/split).
