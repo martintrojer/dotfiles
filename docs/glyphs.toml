@@ -1,0 +1,89 @@
+# Canonical glyph vocabulary.
+#
+# Sibling to `docs/palette.toml`: glyphs are not colors, so they get their
+# own file, but they are managed the same way. Keys name a *meaning*, not
+# a shape, and every surface that draws a glyph renders it from here
+# through `_dotfiles_sync/render_theme.py`, so one edit propagates and
+# `make check-theme` fails on drift.
+#
+# Rules:
+#   - One table, `[glyph]`. Values are single-codepoint strings.
+#   - Prefer Nerd Fonts nf-fa (Font Awesome); it is the widest-covered
+#     family and its shapes stay legible at status-bar size. Exceptions
+#     are grouped and justified below.
+#   - Never inline a glyph in a consumer file. Add a key here instead.
+#   - Codepoints are in comments because the literal is unreadable in a
+#     font without the patched glyph.
+
+[glyph]
+
+# Agent states. Drawn by tmux window tabs, the status-ai segment and the
+# `tms` picker, ordered by urgency.
+agent_crashed = ""  # U+F057 fa-times-circle
+agent_blocked = ""  # U+F075 fa-question-circle
+agent_done = ""  # U+F058 fa-check-circle
+agent_working = ""  # U+F04B fa-play
+agent_idle = ""  # U+F186 fa-moon-o
+
+# Outcomes and verbs. Reused wherever something passed, failed or is polled.
+ok = ""  # U+F058 fa-check-circle
+fail = ""  # U+F057 fa-times-circle
+refresh = ""  # U+F021 fa-refresh
+watch = ""  # U+F06E fa-eye
+goal = ""  # U+F140 fa-play-circle
+
+# Greetings, keyed by time of day (nvim dashboard, shell login banner).
+greeting_night = ""  # U+F186 fa-moon-o
+greeting_morning = ""  # U+F185 fa-sun-o
+greeting_afternoon = ""  # U+F0C2 fa-cloud
+greeting_evening = ""  # U+F006 fa-star-o
+
+# --- nf-md exceptions -------------------------------------------------
+#
+# Everything above is nf-fa. The groups below keep the nf-md shapes the
+# repo already draws, because nf-fa has no equivalent (hardware sensors,
+# power actions) or because the nf-md glyph is simply the better picture
+# at status-bar size.
+
+# Hardware and devices. One family throughout, so the Waybar issues
+# segment reads as a set: `temperature` is the nf-md thermometer rather
+# than the nf-fa one for that reason. `cpu` and `ram` must stay distinct
+# shapes -- they appear side by side.
+cpu = "󰘚"  # U+F061A md-cpu-64-bit
+ram = "󰍛"  # U+F035B md-memory
+# Not a Nerd Font glyph at all: macOS reports memory *pressure*, a
+# gauge-like score rather than a used/total ratio, and the quarter-filled
+# circle says "reading on a dial" where the memory chip says "how full".
+# Different meaning, so a different key rather than reusing `ram`.
+memory_pressure = "◔"  # U+25D4 circle with upper right quadrant black
+swap = "󰓡"  # U+F04E1 md-swap-horizontal
+temperature = "󰔏"  # U+F050F md-thermometer
+disk = "󰋊"  # U+F02CA md-harddisk
+network = "󰲛"  # U+F0C9B md-network-off
+audio = "󰖁"  # U+F0581 md-volume-off
+microphone = "󰍭"  # U+F036D md-microphone-off
+bluetooth = "󰂯"  # U+F00AF md-bluetooth
+
+# Power menu actions (fuzzel powermenu).
+power_lock = "󰌾"  # U+F033E md-lock
+power_logout = "󰗽"  # U+F05FD md-logout
+power_reboot = "󰜺"  # U+F073A md-restart-off
+power_shutdown = "󰐥"  # U+F0425 md-power
+power_suspend = "󰤄"  # U+F0904 md-weather-night
+
+# Media transport (fuzzel cider menu).
+media_play = "󰐊"  # U+F040A md-play
+media_previous = "󰒮"  # U+F04AE md-skip-previous
+media_next = "󰒭"  # U+F04AD md-skip-next
+media_stop = "󰓛"  # U+F04DB md-stop
+
+# Chrome: tmux status segments, the shell prompt and file surfaces.
+agent_robot = "󰚩"  # U+F06A9 md-robot
+host = "󰒋"  # U+F048B md-server
+uptime = "󰥔"  # U+F0954 md-clock-outline
+zoom = "󰍉"  # U+F0349 md-magnify-scan
+caffeinate = "󰅶"  # U+F0176 md-coffee
+notifications_on = "󰂚"  # U+F009A md-bell-outline
+notifications_off = "󰂛"  # U+F009B md-bell-off-outline
+folder = "󰉋"  # U+F024B md-folder-outline
+prompt_error = "󰅚"  # U+F015A md-close-circle

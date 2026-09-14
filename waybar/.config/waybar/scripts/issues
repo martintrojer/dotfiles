@@ -37,8 +37,11 @@ DISK_WARN = 85
 DISK_CRIT = 95
 WIFI_WARN = 25
 
+# One nf-md family throughout, so the hardware group reads as a set.
+# Generated from docs/glyphs.toml -- edit there, run `make theme`.
+# THEME BEGIN: waybar-issue-glyphs
 ICON_CPU = "󰘚"
-ICON_TEMP = ""
+ICON_TEMP = "󰔏"
 ICON_RAM = "󰍛"
 ICON_SWAP = "󰓡"
 ICON_DISK = "󰋊"
@@ -46,6 +49,7 @@ ICON_NET = "󰲛"
 ICON_AUDIO = "󰖁"
 ICON_MIC = "󰍭"
 ICON_BT = "󰂯"
+# THEME END: waybar-issue-glyphs
 
 ACTION_OPEN = {
     "audio": ["footclient", "--app-id=wiremix-float", "wiremix"],

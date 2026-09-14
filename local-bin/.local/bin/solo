@@ -9,6 +9,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Generated from docs/glyphs.toml -- edit there, run `make theme`.
+# THEME BEGIN: solo-glyphs
+FAIL_GLYPH = ""
+# THEME END: solo-glyphs
+
 
 def find_project_root() -> Path:
     cwd = Path.cwd().resolve()
@@ -82,7 +87,8 @@ def main() -> int:
                 fcntl.flock(stale_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 print(
-                    f"❌ [{args.name}] lock active at [{project_root}]", file=sys.stderr
+                    f"{FAIL_GLYPH} [{args.name}] lock active at [{project_root}]",
+                    file=sys.stderr,
                 )
                 return 100
             os.unlink(lock_path)
@@ -94,7 +100,10 @@ def main() -> int:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         os.close(fd)  # don't leak the fd on contention
-        print(f"❌ [{args.name}] lock active at [{project_root}]", file=sys.stderr)
+        print(
+            f"{FAIL_GLYPH} [{args.name}] lock active at [{project_root}]",
+            file=sys.stderr,
+        )
         return 100
 
     os.ftruncate(fd, 0)

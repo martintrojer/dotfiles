@@ -1,3 +1,9 @@
+# The robot marking the pill as the agent segment. From docs/glyphs.toml;
+# it rides in this region, not one of its own, so status-ai keeps a single
+# marker pair. Rendered as a wide escape on purpose: "\uf06a9" is NOT this
+# character, it is U+F06A followed by the digit 9.
+ICON = "{{glyph.agent_robot}}"
+
 ICON_STYLE = "#[fg={{mocha.subtext0}}]#[nobold]"
 STATE_STYLE: dict[AgentState, str] = {
     AgentState.crashed: "#[fg={{mocha.red}}]#[bold]",

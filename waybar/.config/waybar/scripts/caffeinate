@@ -26,7 +26,10 @@ OFF_PAYLOAD: dict[str, object] = {
     "class": ["off"],
 }
 
+# Generated from docs/glyphs.toml -- edit there, run `make theme`.
+# THEME BEGIN: waybar-caffeinate-glyph
 ICON = "󰅶"
+# THEME END: waybar-caffeinate-glyph
 
 
 def flag_path() -> Path:

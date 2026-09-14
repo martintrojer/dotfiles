@@ -7,8 +7,12 @@ blocked / done / working / idle).  No output at all means no agents.
 
 Sets one tmux user option, read from ``.tmux.conf`` as ``#{E:@ai_status}``:
 
-  @ai_status — the whole segment body, e.g. "󰚩 ✗ !! ▶▶▶ ··"
-               (empty when no agents, so the conditional hides the segment)
+  @ai_status — the whole segment body: the robot, then one colored run per
+               state, most urgent first -- say one crashed, two blocked,
+               three working, two idle.  Empty when no agents, so the
+               conditional in .tmux.conf hides the segment.  The shapes are
+               docs/glyphs.toml's ``agent_*`` keys; spelling them here would
+               be a second copy to keep in sync.
 
 The segment shows one glyph per agent rather than a single worst-state
 rollup with a number, so "three working, one blocked" is a shape you read
@@ -37,10 +41,6 @@ from _tmux_common import STATE_GLYPH, AgentState, tmux_cmd
 # not symlinked into the config directory.
 STATUS_COMMAND = ("murmur", "status")
 
-# nf-md-robot.  Written as a wide escape on purpose: "\uf06a9" is NOT this
-# character, it is U+F06A followed by the digit 9.
-ICON = "\U000f06a9"
-
 # Per-state foregrounds, mirroring the window-status glyph colors so the
 # same glyph means the same thing in both places:
 #   crashed — red + bold   (needs you now)
@@ -52,6 +52,12 @@ ICON = "\U000f06a9"
 # so a bold crashed run would otherwise bleed into the runs after it.
 # Backgrounds stay in .tmux.conf — the pill box is a layout decision there.
 # THEME BEGIN: status-ai-colors
+# The robot marking the pill as the agent segment. From docs/glyphs.toml;
+# it rides in this region, not one of its own, so status-ai keeps a single
+# marker pair. Rendered as a wide escape on purpose: "\uf06a9" is NOT this
+# character, it is U+F06A followed by the digit 9.
+ICON = "󰚩"
+
 ICON_STYLE = "#[fg=#a6adc8]#[nobold]"
 STATE_STYLE: dict[AgentState, str] = {
     AgentState.crashed: "#[fg=#f38ba8]#[bold]",

@@ -67,8 +67,11 @@ new surface wants novelty.
 - Proportional fonts are acceptable for document/content surfaces, not for
   status cells whose job is alignment, compactness, and predictable icon spacing.
 - Nerd Font glyphs are allowed as compact labels, but icons should not become a
-  second visual language. If an icon needs a tooltip to be understood, it should
-  probably be paired with text or appear only in a familiar context.
+  second visual language. Which glyph carries which meaning is not a per-surface
+  choice: it comes from [`docs/glyphs.toml`](glyphs.toml), under the policy in
+  [`docs/THEME.md`](THEME.md#the-glyph-vocabulary). If an icon needs a tooltip
+  to be understood, it should probably be paired with text or appear only in a
+  familiar context.
 
 Prefer fewer font families over perfect per-tool aesthetics. A calm mismatch is
 better than novelty, but a shared font family is better still when the surface is

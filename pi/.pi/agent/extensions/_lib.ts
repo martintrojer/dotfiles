@@ -16,6 +16,18 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
+// Glyphs the extension UI draws. Generated from docs/glyphs.toml -- edit
+// there, run `make theme`. Selection circles (answer.ts) and the Braille
+// spinner (btw.ts) stay local: they are structural furniture, not vocabulary.
+// THEME BEGIN: pi-glyphs
+export const GLYPH = {
+	refresh: "",
+	watch: "",
+	goal: "",
+	ok: "",
+} as const;
+// THEME END: pi-glyphs
+
 export interface ContentBlock {
 	type?: string;
 	text?: string;
@@ -356,8 +368,8 @@ type WatchLoopStore = {
 };
 
 const watchLoopStores: Record<WatchLoopMode, WatchLoopStore> = {
-	loop: { mode: "loop", label: "loop", glyph: "⟳", items: new Map(), nextId: 1 },
-	watch: { mode: "watch", label: "watch", glyph: "👁", items: new Map(), nextId: 1 },
+	loop: { mode: "loop", label: "loop", glyph: GLYPH.refresh, items: new Map(), nextId: 1 },
+	watch: { mode: "watch", label: "watch", glyph: GLYPH.watch, items: new Map(), nextId: 1 },
 };
 
 function sha256(s: string): string {

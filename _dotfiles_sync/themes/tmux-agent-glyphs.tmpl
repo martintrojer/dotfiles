@@ -1,6 +1,6 @@
 # Agent-state glyph chain, shared by window-status-format and
-# window-status-current-format. Generated from STATE_GLYPH in
-# tmux/.config/tmux/scripts/_tmux_common.py -- edit there, run `make theme`.
+# window-status-current-format. Generated from the agent_* keys in
+# docs/glyphs.toml -- edit there, run `make theme`.
 #
 # Deliberately sets no bg: tmux carries the caller's #[bg=...] into an
 # #{E:...} re-expansion, so each window-status line supplies its own
@@ -9,4 +9,4 @@
 # Arms are ordered by urgency, matching the AgentState int values: a
 # window in `done` outranks `working` because a finished agent wants you
 # more than a busy one.
-set -g @agent_glyphs '#{?#{==:#{@agent_state},crashed}, #[fg={{mocha.red}}]#[bold]{{glyph.crashed}}#[nobold],#{?#{==:#{@agent_state},blocked}, #[fg={{mocha.peach}}]{{glyph.blocked}},#{?#{==:#{@agent_state},done}, #[fg={{mocha.teal}}]{{glyph.done}},#{?#{==:#{@agent_state},working}, {{glyph.working}},#{?#{@pane_agent}, {{glyph.idle}},}}}}}'
+set -g @agent_glyphs '#{?#{==:#{@agent_state},crashed}, #[fg={{mocha.red}}]#[bold]{{glyph.agent_crashed}}#[nobold],#{?#{==:#{@agent_state},blocked}, #[fg={{mocha.peach}}]{{glyph.agent_blocked}},#{?#{==:#{@agent_state},done}, #[fg={{mocha.teal}}]{{glyph.agent_done}},#{?#{==:#{@agent_state},working}, {{glyph.agent_working}},#{?#{@pane_agent}, {{glyph.agent_idle}},}}}}}'

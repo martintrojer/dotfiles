@@ -15,11 +15,23 @@ from _common import (
     run,
 )
 
+# Generated from docs/glyphs.toml -- edit there, run `make theme`.
+# THEME BEGIN: fuzzel-media-glyphs
+ICON_PLAY = "󰐊"
+ICON_PREVIOUS = "󰒮"
+ICON_NEXT = "󰒭"
+# THEME END: fuzzel-media-glyphs
+
+# Local, not vocabulary: "show the app window" is a Cider-specific
+# affordance, not a shared meaning any other surface draws. md-menu
+# (U+F035C).
+ICON_SHOW = "󰍜"
+
 ACTIONS = [
-    ("󰐊 Play / Pause", "play-pause"),
-    ("󰒭 Next", "next"),
-    ("󰒮 Previous", "previous"),
-    ("󰍜 Show Cider", "show"),
+    (f"{ICON_PLAY} Play / Pause", "play-pause"),
+    (f"{ICON_NEXT} Next", "next"),
+    (f"{ICON_PREVIOUS} Previous", "previous"),
+    (f"{ICON_SHOW} Show Cider", "show"),
 ]
 
 

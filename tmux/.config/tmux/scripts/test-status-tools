@@ -30,6 +30,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -43,6 +44,9 @@ TMS = SCRIPT_DIR.parents[3] / "local-bin" / ".local" / "bin" / "tms"
 TMUX_CONF = SCRIPT_DIR.parents[2] / ".tmux.conf"
 # <repo>/tmux/.config/tmux/scripts -> <repo>
 REPO_ROOT = SCRIPT_DIR.parents[3]
+GLYPHS_TOML = REPO_ROOT / "docs" / "glyphs.toml"
+STATUS_HOSTNAME = SCRIPT_DIR / "status-hostname"
+STATUS_RAM = SCRIPT_DIR / "status-ram"
 
 sys.path.insert(0, str(SCRIPT_DIR))
 from _tmux_common import STATE_GLYPH, AgentState  # noqa: E402
@@ -363,6 +367,9 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
 
     print("\n[status-ai: format injection]")
     run_status_ai_injection_tests()
+
+    print("\n[glyph vocabulary]")
+    run_glyph_vocabulary_tests()
 
 
 def agent_probe_env(env: dict[str, str]) -> dict[str, str]:
@@ -918,6 +925,145 @@ def run_status_ai_injection_tests() -> None:
         f"an absurd upstream count stays a short option ({len(absurd)} chars)",
         len(absurd) < 20,
     )
+
+
+def vocabulary() -> dict[str, str]:
+    """The `[glyph]` table from docs/glyphs.toml, the repo's one glyph source."""
+    with GLYPHS_TOML.open("rb") as fp:
+        return tomllib.load(fp)["glyph"]
+
+
+def run_glyph_vocabulary_tests() -> None:
+    """Every tmux glyph is docs/glyphs.toml's, and the state slots are murmur's.
+
+    Two separate claims. First, the agent-state shapes: murmur publishes a
+    DASH_GLYPH per state and this repo draws the same five states in window
+    tabs, the status-ai pill and the tms picker. When the two disagree the
+    same agent wears two faces depending on which surface you look at, so
+    the codepoints are pinned literally here rather than compared against a
+    murmur import -- pinning is the point, and importing murmur would make
+    a status renderer depend on the tool it reports on.
+
+    Second, the chrome glyphs: they are generated from the vocabulary, so
+    asserting the rendered constants equal the table catches a hand-edit of
+    a generated region that `make check-theme` would otherwise only notice
+    once task_5 registers these regions.
+    """
+    glyphs = vocabulary()
+
+    # murmur's DASH_GLYPH slots, by state.
+    expect(
+        "STATE_GLYPH matches murmur's published dash glyphs",
+        {state.name: value for state, value in STATE_GLYPH.items()},
+        {
+            "crashed": "\uf057",
+            "blocked": "\uf075",
+            "done": "\uf058",
+            "working": "\uf04b",
+            "idle": "\uf186",
+        },
+    )
+    for state, glyph in STATE_GLYPH.items():
+        expect(
+            f"the {state.name} glyph is the vocabulary's agent_{state.name}",
+            glyph,
+            glyphs[f"agent_{state.name}"],
+        )
+
+    # cpu and ram sit one segment apart in status-right. One shape for both
+    # is the bug this pins: you cannot tell which number is which.
+    conf = TMUX_CONF.read_text(encoding="utf-8")
+    expect(
+        "the cpu and ram glyphs are different shapes",
+        glyphs["cpu"] == glyphs["ram"],
+        False,
+    )
+    status_right = next(
+        (ln for ln in conf.splitlines() if ln.startswith("set -g status-right ")), ""
+    )
+    expect_truthy(".tmux.conf defines status-right", bool(status_right))
+    expect(
+        "status-right draws the cpu segment through @glyph_cpu",
+        "@glyph_cpu" in status_right,
+        True,
+    )
+
+    # The chrome glyphs, each read back out of the file that draws it.
+    for option, key in (
+        ("@glyph_host", "host"),
+        ("@glyph_cpu", "cpu"),
+        ("@glyph_zoom", "zoom"),
+        ("@glyph_uptime", "uptime"),
+    ):
+        line = next(
+            (ln for ln in conf.splitlines() if ln.startswith(f"set -g {option} ")), ""
+        )
+        expect(
+            f".tmux.conf sets {option} from the vocabulary",
+            line.count(glyphs[key]),
+            1,
+        )
+
+    status_ai = _import_script(STATUS_AI, "status_ai_glyphs")
+    expect(
+        "status-ai's robot is the vocabulary's",
+        status_ai.ICON,
+        glyphs["agent_robot"],
+    )
+
+    status_hostname = _import_script(STATUS_HOSTNAME, "status_hostname_glyphs")
+    expect(
+        "status-hostname's host glyph is the vocabulary's",
+        status_hostname.ICON,
+        glyphs["host"],
+    )
+    expect_truthy(
+        "the hostname fallback draws the same host glyph",
+        glyphs["host"] in status_hostname.FALLBACK_STYLE,
+    )
+
+    status_ram = _import_script(STATUS_RAM, "status_ram_glyphs")
+    expect(
+        "status-ram's Linux glyph is the vocabulary's ram",
+        status_ram.ICON,
+        glyphs["ram"],
+    )
+    expect(
+        "status-ram's Darwin glyph is the vocabulary's memory_pressure",
+        status_ram.DARWIN_ICON,
+        glyphs["memory_pressure"],
+    )
+    expect(
+        "no tmux surface spells a vocabulary glyph inline",
+        [
+            (path.name, key)
+            for path in (TMUX_CONF, STATUS_AI, STATUS_HOSTNAME, STATUS_RAM)
+            for key, glyph in glyphs.items()
+            if glyph in path.read_text(encoding="utf-8")
+            and not _inside_theme_region(path, glyph)
+        ],
+        [],
+    )
+
+
+def _inside_theme_region(path: Path, glyph: str) -> bool:
+    """True when every occurrence of *glyph* in *path* is generated.
+
+    A glyph between `THEME BEGIN:`/`THEME END:` markers came from the
+    vocabulary through a template; one outside them was typed by hand and
+    will not follow the next `docs/glyphs.toml` edit.
+    """
+    inside = False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if "THEME BEGIN:" in line:
+            inside = True
+            continue
+        if "THEME END:" in line:
+            inside = False
+            continue
+        if not inside and glyph in line:
+            return False
+    return True
 
 
 def run_tms_tests() -> None:

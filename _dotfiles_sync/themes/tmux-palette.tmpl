@@ -14,3 +14,18 @@ set -g @color_surface1 '{{mocha.surface1}}'
 set -g @color_surface2 '{{mocha.surface2}}'
 set -g @color_base '{{mocha.base}}'
 set -g @color_crust '{{mocha.crust}}'
+
+# Chrome glyphs, from docs/glyphs.toml. .tmux.conf cannot read TOML, so the
+# vocabulary reaches it as user options and each segment interpolates
+# `#{@glyph_*}` instead of spelling a codepoint: a glyph typed into a format
+# string is invisible to `make check-theme`, one read from an option is not.
+# They ride in this region rather than one of their own so the whole file
+# stays a single registered pair.
+#
+# Safe inside `#{E:...}`: a nested `#{@glyph_x}` resolves during the
+# re-expansion, which is what lets @status_hostname and the window-status
+# zoom conditional both use one.
+set -g @glyph_host '{{glyph.host}}'
+set -g @glyph_cpu '{{glyph.cpu}}'
+set -g @glyph_zoom '{{glyph.zoom}}'
+set -g @glyph_uptime '{{glyph.uptime}}'

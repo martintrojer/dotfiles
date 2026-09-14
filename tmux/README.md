@@ -51,12 +51,14 @@ From your current `tmux/.tmux.conf`:
 - Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
 - Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `codex`, `π - ...`, or a cwd basename.
 - `$HOME/.config/tmux/scripts/status-ai` renders the agent segment and sets the
-  `@ai_status` option. It starts with the `nf-md-robot` icon, followed by agents
+  `@ai_status` option. It starts with the `agent_robot` icon, followed by agents
   grouped into color-coded state runs in urgency order. For up to three agents,
-  the run shows one glyph per agent. Larger runs use `<N><glyph>`, such as
-  `8▶ 5·` (for example, `!! 8▶ 5·` with higher-priority states first). The
-  robot icon replaces a separate `AI` label. `.tmux.conf` reads the value
-  through `#{E:@ai_status}` and supplies the box background. The script controls
+  the run shows one glyph per agent. Larger runs collapse to `<N><glyph>`, so
+  two blocked agents, eight working and five idle read as one blocked pair
+  followed by `8<working> 5<idle>`, higher-priority states first. The glyphs
+  themselves come from the `agent_*` keys in
+  [`docs/glyphs.toml`](../docs/glyphs.toml). The robot icon replaces a separate
+  `AI` label. `.tmux.conf` reads the value through `#{E:@ai_status}` and supplies the box background. The script controls
   the foreground colors because a tmux format conditional cannot change color
   within one value.
 
@@ -65,7 +67,7 @@ From your current `tmux/.tmux.conf`:
 The current bar keeps the same useful information as before, but without the pill-style Catppuccin theme chrome. It follows the shared language in [`docs/LAYOUT.md`](../docs/LAYOUT.md): filled cells are affordances for place, focus, modal state, or attention.
 
 - Left: a filled session block.
-- Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline agent state (`✗` crashed, `!` blocked, `✓` done, `▶` working, `·` idle agent) / zoom markers.
+- Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline agent-state / zoom markers. The state glyphs are the `agent_*` keys in [`docs/glyphs.toml`](../docs/glyphs.toml), one each for crashed, blocked, done, working, and idle.
 - Pane, window, and session switches trigger an immediate `refresh-client -S`, so label changes show up right away instead of waiting for the status timer.
 - Right: a boxed `PREFIX` segment and a boxed agent segment (robot icon + one glyph per agent, urgency-ordered runs, `<N><glyph>` past three in a state), followed by flatter glyph-based `CPU`, `RAM`, `host`, and `uptime` segments. The agent segment disappears entirely when no agents are running.
 
@@ -212,8 +214,9 @@ me right now" across more than one box.
 
 What this package still owns is appearance and keys:
 
-- window glyphs (`✗` crashed, `!` blocked, `✓` done, `▶` working, `·` idle) via
-  `@agent_glyphs`, themed from `docs/palette.toml`
+- window glyphs for the crashed, blocked, done, working, and idle states via
+  `@agent_glyphs` — shapes generated from the `agent_*` keys in
+  [`docs/glyphs.toml`](../docs/glyphs.toml), colors from `docs/palette.toml`
 - `status-ai`, which renders one glyph per agent in `status-right` as
   urgency-ordered colored runs behind a robot icon, rolling up past three per
   state so a large fleet stays narrow

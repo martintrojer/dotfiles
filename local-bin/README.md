@@ -13,7 +13,7 @@ live here under `.local/bin/`.
 - Lock file: `$XDG_STATE_HOME/solo/<project>/<name>.lock` (default base
   `~/.local/state/solo/`). `solo` removes it on normal exit, so only interrupted
   processes leave orphaned locks
-- Busy lock: exits with code `100` and prints `❌ [name] lock active at [project-root]`
+- Busy lock: exits with code `100` and prints ` [name] lock active at [project-root]`
 
 Examples:
 - `solo codex`

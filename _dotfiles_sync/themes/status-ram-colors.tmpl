@@ -1,3 +1,9 @@
 LOW_STYLE = "#[bg={{mocha.surface0}}]#[fg={{mocha.subtext0}}]"
 MEDIUM_STYLE = "#[bg={{mocha.surface0}}]#[fg={{mocha.peach}}]"
 HIGH_STYLE = "#[bg={{mocha.red}}]#[fg={{mocha.crust}}]"
+# Two glyphs because the two platforms report two different things: Linux
+# reports used/total (a memory chip), macOS reports a pressure score (a
+# gauge). Both from docs/glyphs.toml, in this region rather than one of
+# their own so the file keeps a single marker pair.
+ICON = "{{glyph.ram}}"
+DARWIN_ICON = "{{glyph.memory_pressure}}"

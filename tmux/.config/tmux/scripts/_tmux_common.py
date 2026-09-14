@@ -81,14 +81,22 @@ _VISIBLE_STATES = frozenset(
     }
 )
 
-# Glyphs per state — single source for all display surfaces.
+# Glyphs per state — the one dict every Python display surface reads
+# (status-ai, tms). The values come from docs/glyphs.toml, not from here:
+# see the THEME region below and docs/THEME.md.
+# THEME BEGIN: tmux-state-glyphs
+# One glyph per displayable agent state, generated from docs/glyphs.toml.
+# `cleared` is the absence of state, so it deliberately has no entry.
+# These are the shapes murmur publishes as DASH_GLYPH: the same agent must
+# not wear one face in a tmux tab and another in murmur's own output.
 STATE_GLYPH: dict[AgentState, str] = {
-    AgentState.crashed: "\u2717",  # ✗
-    AgentState.blocked: "!",
-    AgentState.done: "\u2713",  # ✓
-    AgentState.working: "\u25b6",  # ▶
-    AgentState.idle: "\u00b7",  # ·
+    AgentState.crashed: "",  # U+F057 fa-times-circle
+    AgentState.blocked: "",  # U+F075 fa-question-circle
+    AgentState.done: "",  # U+F058 fa-check-circle
+    AgentState.working: "",  # U+F04B fa-play
+    AgentState.idle: "",  # U+F186 fa-moon-o
 }
+# THEME END: tmux-state-glyphs
 
 
 # ---------- tmux IPC ----------
