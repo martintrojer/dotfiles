@@ -128,8 +128,11 @@ class RenderedLabelsUseTheConstants(unittest.TestCase):
 
     def test_caffeinate_on_renders_its_icon(self) -> None:
         buf = io.StringIO()
+        # Any path that exists will do -- `render()` only stats it to pick the
+        # on payload. `/proc/self` was Linux-only and stats false on macOS,
+        # silently taking the OFF branch and asserting '' against the icon.
         with (
-            mock.patch.object(caffeinate, "flag_path", lambda: Path("/proc/self")),
+            mock.patch.object(caffeinate, "flag_path", lambda: Path(__file__)),
             redirect_stdout(buf),
         ):
             caffeinate.render()
