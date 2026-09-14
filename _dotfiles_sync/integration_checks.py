@@ -123,11 +123,10 @@ def _tmux_server_path() -> str | None:
 def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     """Verify murmur is installed, initialised, and linked into pi.
 
-    The tmux package hard-depends on it: `status-ai` shells out to `murmur
+    The tmux package uses it for agent state: `status-ai` shells out to `murmur
     status`, `prefix + a` runs `murmur pick`, and three focus hooks call
-    `murmur clear`. Those all fail quietly -- a missing binary means an empty
-    status segment and a popup that flashes and closes, which reads as "no
-    agents running" rather than "the tool is gone".
+    `murmur clear`. A missing binary leaves the status segment empty, while the
+    picker reports that murmur is unavailable and the focus hooks safely no-op.
 
     murmur is an npm package, not a symlink, so `--apply` cannot install it and
     this check cannot repair anything. It only tells you which of the steps is
@@ -167,7 +166,7 @@ def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
         print_header()
         LOGGER.warning(
             f"UNREACHABLE: murmur is on your PATH but not the tmux server's; "
-            f"status, picker and focus hooks all no-op "
+            f"status and focus hooks no-op; picker reports it unavailable "
             f'(tmux kill-server, or tmux setenv -g PATH "$PATH") '
             f"(--ignore {issue_id})"
         )
