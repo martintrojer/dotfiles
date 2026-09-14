@@ -83,6 +83,7 @@ media_show = "󰍜"  # U+F035C md-menu
 
 # Chrome: tmux status segments, the shell prompt and file surfaces.
 agent_robot = "󰚩"  # U+F06A9 md-robot
+crew = ""  # U+F0C0 fa-users
 host = "󰒋"  # U+F048B md-server
 uptime = "󰥔"  # U+F0954 md-clock-outline
 zoom = "󰍉"  # U+F0349 md-magnify-scan

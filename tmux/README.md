@@ -57,8 +57,11 @@ From your current `tmux/.tmux.conf`:
   two blocked agents, eight working and five idle read as one blocked pair
   followed by `8<working> 5<idle>`, higher-priority states first. The glyphs
   themselves come from the `agent_*` keys in
-  [`docs/glyphs.toml`](../docs/glyphs.toml). The robot icon replaces a separate
-  `AI` label. `.tmux.conf` reads the value through `#{E:@ai_status}` and supplies the box background. The script controls
+  [`docs/glyphs.toml`](../docs/glyphs.toml). A trailing dim `crew` glyph and
+  count shows the total supervised fleet and is omitted at zero. Blocked and
+  crashed crew agents also remain in the attention runs, so that total
+  intentionally overlaps them. The robot icon replaces a separate `AI` label.
+  `.tmux.conf` reads the value through `#{E:@ai_status}` and supplies the box background. The script controls
   the foreground colors because a tmux format conditional cannot change color
   within one value.
 
@@ -69,7 +72,7 @@ The current bar keeps the same useful information as before, but without the pil
 - Left: a filled session block.
 - Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline agent-state / zoom markers. The state glyphs are the `agent_*` keys in [`docs/glyphs.toml`](../docs/glyphs.toml), one each for crashed, blocked, done, working, and idle.
 - Pane, window, and session switches trigger an immediate `refresh-client -S`, so label changes show up right away instead of waiting for the status timer.
-- Right: a boxed `PREFIX` segment and a boxed agent segment (robot icon + one glyph per agent, urgency-ordered runs, `<N><glyph>` past three in a state), followed by flatter glyph-based `CPU`, `RAM`, `host`, and `uptime` segments. The agent segment disappears entirely when no agents are running.
+- Right: a boxed `PREFIX` segment and a boxed agent segment (robot icon + urgency-ordered attention runs + an optional trailing crew total), followed by flatter glyph-based `CPU`, `RAM`, `host`, and `uptime` segments. The agent segment disappears only when neither human agents nor crew exist.
 
 ## Built-in tmux UI
 
@@ -239,7 +242,7 @@ fleet. A blocked agent on another host shows up here.
 
 | command | what it does |
 | --- | --- |
-| `murmur status` | `<state>\t<count>` lines, most urgent first. What `status-ai` parses |
+| `murmur status` | `<state>\t<count>` lines, most urgent first, then optional `crew\t<count>`. What `status-ai` parses |
 | `murmur pick` | the `prefix + a` popup: type to narrow, enter jumps, `ctrl-a` toggles crew |
 | `murmur dash` | live cards + pane glance (run from a shell; not bound here yet) |
 | `murmur clear --pane <id>` | clears attention for one pane. What the focus hooks call |

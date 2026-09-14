@@ -3,16 +3,17 @@
 
 Reads the folded output from ``murmur status``, which emits one
 ``<state>\t<count>`` line per non-zero state, most urgent first (crashed /
-blocked / done / working / idle).  No output at all means no agents.
+blocked / done / working / idle), followed by an optional ``crew\t<count>``
+line. No output at all means no agents.
 
 Sets one tmux user option, read from ``.tmux.conf`` as ``#{E:@ai_status}``:
 
   @ai_status — the whole segment body: the robot, then one colored run per
                state, most urgent first -- say one crashed, two blocked,
                three working, two idle.  Empty when no agents, so the
-               conditional in .tmux.conf hides the segment.  The shapes are
-               docs/glyphs.toml's ``agent_*`` keys; spelling them here would
-               be a second copy to keep in sync.
+               conditional in .tmux.conf hides the segment. A dim crew total
+               follows the state runs when non-zero. The shapes come from
+               docs/glyphs.toml; spelling them here would be a second copy.
 
 The segment shows one glyph per agent rather than a single worst-state
 rollup with a number, so "three working, one blocked" is a shape you read
@@ -35,10 +36,10 @@ from _status_common import EXPECTED_ERRORS, log_error
 from _tmux_common import STATE_GLYPH, AgentState, tmux_cmd
 
 # murmur, not a sibling script: it aggregates agents across every machine, so
-# this segment now paints the whole fleet rather than this host. Same contract
-# ("<state>\t<count>" lines, most urgent first, no output means no agents), so
-# everything below is unchanged. Resolved on PATH because murmur is installed,
-# not symlinked into the config directory.
+# this segment paints the whole fleet rather than this host. The protocol is
+# validated below: state-count lines come first and an optional crew total comes
+# last. Resolved on PATH because murmur is installed, not symlinked into the
+# config directory.
 STATUS_COMMAND = ("murmur", "status")
 
 # Per-state foregrounds, mirroring the window-status glyph colors so the
@@ -57,8 +58,10 @@ STATUS_COMMAND = ("murmur", "status")
 # marker pair. Rendered as a wide escape on purpose: "\uf06a9" is NOT this
 # character, it is U+F06A followed by the digit 9.
 ICON = "󰚩"
+CREW_ICON = ""
 
 ICON_STYLE = "#[fg=#a6adc8]#[nobold]"
+CREW_STYLE = "#[fg=#6c7086]#[nobold]"
 STATE_STYLE: dict[AgentState, str] = {
     AgentState.crashed: "#[fg=#f38ba8]#[bold]",
     AgentState.blocked: "#[fg=#fab387]#[nobold]",
@@ -126,33 +129,44 @@ def render_segment(
     return " ".join(runs)
 
 
-def parse_counts(raw: str) -> dict[AgentState, int]:
+def bounded_count(count: int, max_count: int = MAX_COUNT) -> str:
+    """Render a bounded decimal count for a re-expanded tmux option."""
+    return str(count) if count <= max_count else f"{max_count}+"
+
+
+def parse_counts(raw: str) -> tuple[dict[AgentState, int], int]:
     """Parse the ``murmur status`` contract into per-state counts.
 
     ``.tmux.conf`` reads @ai_status through ``#{E:...}``, which re-expands the
     full tmux format language — a ``#(...)`` sequence in the value is executed
-    as a shell command on every status refresh.  So no upstream byte is ever
-    echoed: a line whose state or count does not validate is dropped, and what
-    reaches the option is built here from a closed vocabulary (STATE_GLYPH
+    as a shell command on every status refresh. So no upstream byte is ever
+    echoed: a line whose key or count does not validate is dropped, and what
+    reaches the option is built here from a closed vocabulary (state and crew
     glyphs, digits, spaces, and the style tags above).
     """
     counts: dict[AgentState, int] = {}
+    crew = 0
     for line in raw.splitlines():
         state_str, tab, count_str = line.partition("\t")
-        if not tab:
+        if not tab or not count_str.isdigit():
+            continue
+        if state_str == "crew":
+            crew += int(count_str)
             continue
         state = AgentState.parse(state_str)
         if state is None or state not in STATE_GLYPH:
             continue
-        if not count_str.isdigit():
-            continue
         counts[state] = counts.get(state, 0) + int(count_str)
-    return counts
+    return counts, crew
 
 
 def render(raw: str) -> str:
     """Full segment body for the raw ``murmur status`` output."""
-    segment = render_segment(parse_counts(raw))
+    counts, crew = parse_counts(raw)
+    runs = [render_segment(counts)]
+    if crew > 0:
+        runs.append(f"{CREW_STYLE}{CREW_ICON}{bounded_count(crew)}")
+    segment = " ".join(run for run in runs if run)
     if not segment:
         # Distinguish "nothing at all" (hide the segment) from "upstream said
         # something, but none of it parsed" (show a loud, inert marker).
