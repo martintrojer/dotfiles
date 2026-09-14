@@ -91,7 +91,7 @@ _VISIBLE_STATES = frozenset(
 # not wear one face in a tmux tab and another in murmur's own output.
 STATE_GLYPH: dict[AgentState, str] = {
     AgentState.crashed: "",  # U+F057 fa-times-circle
-    AgentState.blocked: "",  # U+F075 fa-question-circle
+    AgentState.blocked: "",  # U+F075 fa-comment
     AgentState.done: "",  # U+F058 fa-check-circle
     AgentState.working: "",  # U+F04B fa-play
     AgentState.idle: "",  # U+F186 fa-moon-o

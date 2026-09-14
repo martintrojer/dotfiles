@@ -20,12 +20,8 @@ from _common import (
 ICON_PLAY = "󰐊"
 ICON_PREVIOUS = "󰒮"
 ICON_NEXT = "󰒭"
-# THEME END: fuzzel-media-glyphs
-
-# Local, not vocabulary: "show the app window" is a Cider-specific
-# affordance, not a shared meaning any other surface draws. md-menu
-# (U+F035C).
 ICON_SHOW = "󰍜"
+# THEME END: fuzzel-media-glyphs
 
 ACTIONS = [
     (f"{ICON_PLAY} Play / Pause", "play-pause"),

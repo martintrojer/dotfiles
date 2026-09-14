@@ -87,6 +87,7 @@ class GeneratedGlyphConstants(unittest.TestCase):
             ("ICON_PLAY", "media_play"),
             ("ICON_NEXT", "media_next"),
             ("ICON_PREVIOUS", "media_previous"),
+            ("ICON_SHOW", "media_show"),
         ):
             with self.subTest(constant=attr):
                 self.assertEqual(getattr(cider, attr), GLYPHS[key])
@@ -101,19 +102,13 @@ class GeneratedGlyphConstants(unittest.TestCase):
         ]
         self.assertEqual(len(set(shapes)), len(shapes))
 
-    def test_only_the_known_local_glyph_is_spelled_outside_a_region(self) -> None:
-        # Generation is pointless if a shape can still be spelled inline, so
-        # scan for Nerd Font codepoints (private use areas) outside the
-        # generated regions and pin the survivors.
-        #
-        # `ICON_SHOW` stays local: "show the app window" is a Cider-specific
-        # affordance, not a shared meaning, and the vocabulary has no key for
-        # it. chrome-tabs' ○●◌◍ are structural instance markers outside the
-        # private use areas, so they are excluded by construction rather than
-        # by an exemption list.
+    def test_no_glyph_is_spelled_outside_a_region(self) -> None:
+        # Generation is pointless if a semantic shape can still be spelled
+        # inline. chrome-tabs' ○●◌◍ stay local structural instance markers and
+        # sit outside the private use areas, so no exemption list is needed.
         allowed = {
             "powermenu": set(),
-            "cider": {cider.ICON_SHOW},
+            "cider": set(),
         }
         for path in (SCRIPTS / "powermenu", SCRIPTS / "cider"):
             with self.subTest(file=path.name):

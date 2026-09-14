@@ -37,10 +37,11 @@ DISK_WARN = 85
 DISK_CRIT = 95
 WIFI_WARN = 25
 
-# One nf-md family throughout, so the hardware group reads as a set.
+# Hardware glyphs use the documented nf-md exception; CPU uses nf-fa bars
+# so its silhouette stays distinct from RAM at status-bar size.
 # Generated from docs/glyphs.toml -- edit there, run `make theme`.
 # THEME BEGIN: waybar-issue-glyphs
-ICON_CPU = "󰘚"
+ICON_CPU = ""
 ICON_TEMP = "󰔏"
 ICON_RAM = "󰍛"
 ICON_SWAP = "󰓡"
