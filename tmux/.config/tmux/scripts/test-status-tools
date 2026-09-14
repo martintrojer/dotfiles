@@ -49,7 +49,7 @@ STATUS_HOSTNAME = SCRIPT_DIR / "status-hostname"
 STATUS_RAM = SCRIPT_DIR / "status-ram"
 
 sys.path.insert(0, str(SCRIPT_DIR))
-from _tmux_common import STATE_GLYPH, AgentState  # noqa: E402
+from _tmux_common import AGENT_COMMANDS, STATE_GLYPH, AgentState  # noqa: E402
 
 # Per-process socket: two concurrent runs (e.g. `make check-all` here and in an
 # agent workspace on the same box) would otherwise share one tmux server and
@@ -376,14 +376,39 @@ def agent_probe_env(env: dict[str, str]) -> dict[str, str]:
     """Return an environment with a long-running process named ``codex``.
 
     Keep the system binary in place: macOS kills copied platform binaries,
-    while invoking it through a symlink still gives ``ps`` the probe basename.
+    while invoking it through a symlink still gives ``ps`` the probe basename
+    -- which is what the ``ProcessSnapshot`` descendant walk reads.
+
+    tmux does not agree. ``#{pane_current_command}`` reports the kernel name
+    of the *resolved* executable, so the symlink shows up as ``sleep`` where
+    ``ps`` shows ``codex``. A test that needs tmux's own view of the pane
+    command must therefore declare the resolved name an agent as well, using
+    the ``TMUX_LABEL_AGENTS`` hook the renderer already honours. Without it
+    the ``pane_current_command in AGENTS`` branch cannot fire on macOS at
+    all, and a mu-managed pane goes unmarked.
     """
     agent_bin = Path(env["XDG_STATE_HOME"]).parent / "probe-bin"
     agent_bin.mkdir(parents=True, exist_ok=True)
     agent = agent_bin / "codex"
     agent.unlink(missing_ok=True)
     agent.symlink_to("/bin/sleep")
-    return {**env, "PATH": f"{agent_bin}:{env['PATH']}"}
+    resolved = Path(os.readlink(agent)).name
+    return {
+        **env,
+        "PATH": f"{agent_bin}:{env['PATH']}",
+        "TMUX_LABEL_AGENTS": " ".join((*AGENT_COMMANDS, resolved)),
+    }
+
+
+def probe_is_up(sub_env: dict[str, str]):
+    """Predicate matching tmux's name for the probe's resolved executable.
+
+    Polling for ``"codex"`` here never matches, and ``_wait_for`` returns the
+    last value instead of raising, so the miss costs a silent 3s timeout and
+    then asserts against a pane that may not have exec'd yet.
+    """
+    expected = sub_env["TMUX_LABEL_AGENTS"].split()[-1]
+    return lambda v: v == expected
 
 
 def run_managed_agent_label_tests(env: dict[str, str]) -> None:
@@ -400,7 +425,7 @@ def run_managed_agent_label_tests(env: dict[str, str]) -> None:
     sub_env = agent_probe_env(env)
     tmux(sub_env, ["new-window", "-d", "-t", "s1:", "-n", "worker-9", "codex 400"])
     wid = tmux(sub_env, ["display-message", "-p", "-t", "s1:worker-9", "#{window_id}"])
-    _wait_for(sub_env, wid, "#{pane_current_command}", lambda v: v == "codex")
+    _wait_for(sub_env, wid, "#{pane_current_command}", probe_is_up(sub_env))
     tmux(sub_env, ["select-pane", "-t", wid, "-T", "worker-9 \u00b7"])
 
     try:
@@ -452,7 +477,7 @@ def run_split_pane_label_tests(env: dict[str, str]) -> None:
         sub_env,
         agent_pane,
         "#{pane_current_command}",
-        lambda v: v == "codex",
+        probe_is_up(sub_env),
     )
 
     try:
