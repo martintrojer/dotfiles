@@ -1156,6 +1156,11 @@ def run_tms_tests() -> None:
             (ln for ln in conf.splitlines() if ln.startswith(f"set -g {fmt} ")), ""
         )
         expect(f"{fmt} uses the shared chain", "#{E:@agent_glyphs}" in line, True)
+        expect(
+            f"{fmt} suppresses the duplicate glyph in mu crew sessions",
+            "#{?#{m:mu-*,#{session_name}},,#{E:@agent_glyphs}}" in line,
+            True,
+        )
         expect(f"{fmt} spells no glyph inline", "@agent_state},crashed" in line, False)
 
     # `cleared` is the absence of state, so it deliberately has no glyph.
