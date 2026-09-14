@@ -145,7 +145,7 @@ Notes:
 - `find_max_depth` and `preview_command` are required.
 - `blacklist`, `noisy_basenames`, and `sessions` default to empty when omitted.
 - `sessions` are shown first in the picker with a `★` marker.
-- sessions with an agent wanting attention are highlighted with the same subtle yellow-on-surface treatment used elsewhere in the tmux UI. The state is read from the `@agent_state` window option murmur writes, via `_tmux_common.scan_agent_states`.
+- Sessions with an agent wanting attention are highlighted with the same subtle yellow-on-surface treatment used elsewhere in the tmux UI. A fixed state column between the session name and path keeps agent glyphs and paths aligned. The state is read from the `@agent_state` window option murmur writes, via `_tmux_common.scan_agent_states`.
 - per-session `split` is optional.
 - valid `split` values are `vertical` and `horizontal`.
 - if `split` is omitted, that session starts with a single pane.
