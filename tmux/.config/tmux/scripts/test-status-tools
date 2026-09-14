@@ -1041,6 +1041,11 @@ def run_glyph_vocabulary_tests() -> None:
         status_ai.ICON,
         glyphs["agent_robot"],
     )
+    expect(
+        "status-ai's crew marker is the vocabulary's",
+        status_ai.CREW_ICON,
+        glyphs["crew"],
+    )
 
     status_hostname = _import_script(STATUS_HOSTNAME, "status_hostname_glyphs")
     expect(
