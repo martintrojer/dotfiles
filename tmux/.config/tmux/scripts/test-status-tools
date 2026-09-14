@@ -740,7 +740,14 @@ def run_status_ai_injection_tests() -> None:
     # Strip only the style tags status-ai builds itself; whatever remains had
     # better be glyphs, digits, spaces, the icon and the overflow '+'.
     residue = re.sub(r"#\[(?:fg=\#[0-9a-f]{6}|bold|nobold)\]", "", widest)
-    allowed = set(glyph.values()) | set("0123456789 +") | {status_ai.ICON}
+    allowed = (
+        set(glyph.values())
+        | set("0123456789 +")
+        | {
+            status_ai.ICON,
+            status_ai.CREW_ICON,
+        }
+    )
     stray = sorted(set(residue) - allowed)
     expect(f"@ai_status stays in the closed vocabulary (stray={stray})", stray, [])
     expect("no '#' survives outside a style tag", "#" in residue, False)
@@ -885,6 +892,30 @@ def run_status_ai_injection_tests() -> None:
             f"{style[AgentState.crashed]}{glyph[AgentState.crashed]} "
             f"{style[AgentState.idle]}{glyph[AgentState.idle]}"
         ),
+    )
+    expect(
+        "crew total follows attention rollups and deliberately overlaps them",
+        status_ai.render("crashed\t1\nblocked\t2\ncrew\t7"),
+        body(
+            f"{style[AgentState.crashed]}{glyph[AgentState.crashed]} "
+            f"{style[AgentState.blocked]}{glyph[AgentState.blocked] * 2} "
+            f"{status_ai.CREW_STYLE}{status_ai.CREW_ICON}7"
+        ),
+    )
+    expect(
+        "a healthy crew-only fleet keeps the pill visible",
+        status_ai.render("crew\t1"),
+        body(f"{status_ai.CREW_STYLE}{status_ai.CREW_ICON}1"),
+    )
+    expect(
+        "a zero crew count emits no crew glyph",
+        status_ai.render("working\t1\ncrew\t0"),
+        body(f"{style[AgentState.working]}{glyph[AgentState.working]}"),
+    )
+    expect(
+        "crew count is clamped by the same bound as state rollups",
+        status_ai.render("crew\t99999999"),
+        body(f"{status_ai.CREW_STYLE}{status_ai.CREW_ICON}{status_ai.MAX_COUNT}+"),
     )
     expect(
         "a hostile line is dropped, the good one still renders",
