@@ -20,7 +20,7 @@
 # Agent states. Drawn by tmux window tabs, the status-ai segment and the
 # `tms` picker, ordered by urgency.
 agent_crashed = ""  # U+F057 fa-times-circle
-agent_blocked = ""  # U+F075 fa-question-circle
+agent_blocked = ""  # U+F075 fa-comment
 agent_done = ""  # U+F058 fa-check-circle
 agent_working = ""  # U+F04B fa-play
 agent_idle = ""  # U+F186 fa-moon-o
@@ -30,7 +30,11 @@ ok = ""  # U+F058 fa-check-circle
 fail = ""  # U+F057 fa-times-circle
 refresh = ""  # U+F021 fa-refresh
 watch = ""  # U+F06E fa-eye
-goal = ""  # U+F140 fa-play-circle
+goal = ""  # U+F140 fa-bullseye
+
+# System metrics. CPU is a bar chart because consumers display utilization,
+# and its silhouette stays distinct from both agent-state circles and RAM.
+cpu = ""  # U+F080 fa-bar-chart
 
 # Greetings, keyed by time of day (nvim dashboard, shell login banner).
 greeting_night = ""  # U+F186 fa-moon-o
@@ -45,11 +49,10 @@ greeting_evening = ""  # U+F006 fa-star-o
 # power actions) or because the nf-md glyph is simply the better picture
 # at status-bar size.
 
-# Hardware and devices. One family throughout, so the Waybar issues
-# segment reads as a set: `temperature` is the nf-md thermometer rather
-# than the nf-fa one for that reason. `cpu` and `ram` must stay distinct
-# shapes -- they appear side by side.
-cpu = "󰘚"  # U+F061A md-cpu-64-bit
+# Hardware and devices. The Waybar issue icons stay in one family:
+# `temperature` is the nf-md thermometer rather than the nf-fa one for
+# that reason. RAM keeps the literal chip while CPU uses the nf-fa bars
+# above, so the adjacent metrics have different silhouettes.
 ram = "󰍛"  # U+F035B md-memory
 # Not a Nerd Font glyph at all: macOS reports memory *pressure*, a
 # gauge-like score rather than a used/total ratio, and the quarter-filled
@@ -76,6 +79,7 @@ media_play = "󰐊"  # U+F040A md-play
 media_previous = "󰒮"  # U+F04AE md-skip-previous
 media_next = "󰒭"  # U+F04AD md-skip-next
 media_stop = "󰓛"  # U+F04DB md-stop
+media_show = "󰍜"  # U+F035C md-menu
 
 # Chrome: tmux status segments, the shell prompt and file surfaces.
 agent_robot = "󰚩"  # U+F06A9 md-robot
