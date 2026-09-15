@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""Background poller for the tmux agent-state segment.
+
+``status-ai`` used to shell out to ``murmur status`` on every tmux
+render. That is a Node process start, which loads a couple of hundred
+shared libraries before murmur's own code runs -- so the per-render
+price is a PROCESS, not the work. Anything auditing process starts
+multiplies it further. Measured on a live session, this one segment
+accounted for most of a core, nearly all of which went away when the
+``murmur`` binary alone was stubbed out: the interpreter was not the
+problem, the Node exec was. See ``docs/DECISIONS.md``.
+
+Changing Python interpreters does not reach this. The renderer's own
+cold-start is real but small beside the Node exec underneath it, which
+is why the fix is to stop running murmur per-tick rather than to make
+the caller cheaper.
+
+Worse, the tick is not the 5s ``status-interval``. tmux re-renders
+``status-right`` on pane and window events too, so a 14-window session
+was measured invoking ``status-ai`` 36 times in 30s -- 1.2/s, six times
+what the timer implies. Throttling therefore wins even though the
+interval is already 5s.
+
+CONTRACT WITH THE RENDERER
+--------------------------
+This poller owns the ``murmur status`` call and writes the finished
+value into the ``@ai_status`` tmux option itself, which is what the
+segment has always been: ``.tmux.conf`` reads ``#{E:@ai_status}`` and
+``status-ai`` never printed to stdout. So there is no render file to
+cat -- publishing *is* setting the option -- and the sh renderer is a
+pure watchdog.
+
+All the heavy machinery (flock singleton, crash-loop spawn rate limit,
+tmux-liveness gating, lifetime ceiling) comes from ``_status_poller``.
+
+The render logic itself stays in ``_status_ai``: duplicating the
+closed-vocabulary guard into a second file is exactly the second copy
+that guard exists to prevent.
+"""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+import _status_ai  # noqa: E402
+from _status_poller import (  # noqa: E402
+    TMUX_ATTACHED,
+    TMUX_GONE,
+    LazySpawner,
+    acquire_singleton,
+    find_pollers_by_argv,
+    install_signal_handlers,
+    kill_pid,
+    setup_rotating_logger,
+    tmux_server_fingerprint,
+    tmux_status,
+    xdg_state_dir,
+)
+
+STATE_DIR = xdg_state_dir("tmux-ai")
+PID_FILE = STATE_DIR / "poller.pid"
+STAMP_FILE = STATE_DIR / "spawn.stamp"
+LOG_FILE = STATE_DIR / "poller.log"
+
+# How often to ask murmur. The segment shows agent state, which the
+# reader glances at rather than watches, so a few seconds of lag costs
+# nothing -- and this interval is the entire point of the poller: it
+# decouples the murmur exec rate from the (much higher, event-driven)
+# tmux render rate.
+INTERVAL_SECONDS = 5
+# Detached sessions are not being looked at; slow down rather than stop
+# so re-attaching shows a fresh badge immediately.
+INTERVAL_IDLE_SECONDS = 30
+# Hard ceiling on one poller's lifetime, mirroring the other pollers:
+# a fresh process sheds any leaked state and is re-spawned by the
+# renderer's watchdog within one tick.
+MAX_LIFETIME_SECONDS = 24 * 60 * 60
+
+LOG = setup_rotating_logger("status-ai-poller", LOG_FILE)
+
+
+def loop_once() -> None:
+    """One poll: ask murmur, publish the option. Never raises."""
+    try:
+        raw = subprocess.check_output(
+            _status_ai.STATUS_COMMAND,
+            text=True,
+            stderr=subprocess.DEVNULL,
+            timeout=10,
+        ).strip()
+    except _status_ai.EXPECTED_ERRORS as exc:
+        LOG.warning("murmur status failed: %s", exc)
+        # Leave the last good value in place rather than blanking the
+        # segment on a transient failure: a momentarily unavailable
+        # murmur is not the same as "no agents".
+        return
+    _status_ai.tmux_cmd(
+        "set-option", "-gq", "@ai_status", _status_ai.render(raw), check=False
+    )
+
+
+def main_loop() -> int:
+    install_signal_handlers()
+    started_at = time.monotonic()
+    server_fingerprint = tmux_server_fingerprint()
+    LOG.info("poller started pid=%s", os.getpid())
+    try:
+        while True:
+            loop_once()
+
+            status = tmux_status()
+            if status == TMUX_GONE:
+                LOG.info("tmux server gone, exiting (status bar is the watchdog)")
+                return 0
+            current_fingerprint = tmux_server_fingerprint()
+            if (
+                server_fingerprint is not None
+                and current_fingerprint is not None
+                and current_fingerprint != server_fingerprint
+            ):
+                LOG.info("tmux server changed, exiting for a fresh poller")
+                return 0
+
+            interval = INTERVAL_SECONDS
+            if status != TMUX_ATTACHED:
+                interval = INTERVAL_IDLE_SECONDS
+            if time.monotonic() - started_at > MAX_LIFETIME_SECONDS:
+                LOG.info("max lifetime reached, exiting for a fresh process")
+                return 0
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        LOG.info("poller exiting on signal")
+        return 0
+
+
+def _spawner() -> LazySpawner:
+    return LazySpawner(
+        pid_file=PID_FILE,
+        stamp_file=STAMP_FILE,
+        poller_path=SCRIPT_DIR / "status-ai-poller",
+        log_callback=LOG.warning,
+    )
+
+
+def _ensure() -> int:
+    _spawner().ensure()
+    return 0
+
+
+def _once() -> int:
+    loop_once()
+    return 0
+
+
+def _restart() -> int:
+    for pid in find_pollers_by_argv("status-ai-poller", fallback_pid_file=PID_FILE):
+        kill_pid(pid)
+    with contextlib.suppress(OSError):
+        STAMP_FILE.unlink()
+    return 0
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="status-ai-poller",
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--ensure",
+        action="store_true",
+        help=(
+            "Spawn the poller detached iff not already running and the "
+            "spawn rate limit allows, then exit. Invoked by the slim sh "
+            "renderer only when its kill -0 probe finds the poller dead."
+        ),
+    )
+    mode.add_argument(
+        "--once",
+        action="store_true",
+        help="Run exactly one poll cycle and exit. For tests and debugging.",
+    )
+    mode.add_argument(
+        "--restart",
+        action="store_true",
+        help="Kill any live poller and clear the rate-limit stamp.",
+    )
+    return parser.parse_args(argv)
+
+
+def main() -> int:
+    args = _parse_args()
+    if args.ensure:
+        return _ensure()
+    if args.once:
+        return _once()
+    if args.restart:
+        return _restart()
+
+    lock_fd = acquire_singleton(PID_FILE)
+    if lock_fd is None:
+        # Another poller holds the lock; normal race outcome from the
+        # renderer spawning us speculatively. Exit quietly.
+        return 0
+    try:
+        return main_loop()
+    finally:
+        with contextlib.suppress(OSError):
+            os.close(lock_fd)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

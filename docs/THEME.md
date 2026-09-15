@@ -99,7 +99,7 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `eza/.config/eza/theme.yml` | `eza-colors` |
 | `tmux/.config/tmux/scripts/status-hostname` | `status-hostname-colors` |
 | `tmux/.config/tmux/scripts/status-ram` | `status-ram-colors` |
-| `tmux/.config/tmux/scripts/status-ai` | `status-ai-colors` |
+| `tmux/.config/tmux/scripts/_status_ai.py` | `status-ai-colors` |
 | `tmux/.config/tmux/scripts/_tmux_common.py` | `tmux-state-glyphs` |
 | `local-bin/.local/bin/tms` | `tms-palette` |
 | `local-bin/.local/bin/solo` | `solo-glyphs` |
