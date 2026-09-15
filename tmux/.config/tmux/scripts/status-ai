@@ -1,190 +1,56 @@
-#!/usr/bin/env python3
-"""Render the tmux agent-state status segment: one glyph per running agent.
-
-Reads the folded output from ``murmur status``, which emits one
-``<state>\t<count>`` line per non-zero state, most urgent first (crashed /
-blocked / done / working / idle), followed by an optional ``crew\t<count>``
-line. No output at all means no agents.
-
-Sets one tmux user option, read from ``.tmux.conf`` as ``#{E:@ai_status}``:
-
-  @ai_status — the whole segment body: the robot, then one colored run per
-               state, most urgent first -- say one crashed, two blocked,
-               three working, two idle.  Empty when no agents, so the
-               conditional in .tmux.conf hides the segment. A dim crew total
-               follows the state runs when non-zero. The shapes come from
-               docs/glyphs.toml; spelling them here would be a second copy.
-
-The segment shows one glyph per agent rather than a single worst-state
-rollup with a number, so "three working, one blocked" is a shape you read
-at a glance instead of a count you decode.  Past ROLLUP_THRESHOLD agents in
-one state that run rolls up to "<N><glyph>" -- per state, so a large fleet
-stays narrow without losing which states it is made of.  Runs are ordered by
-urgency and each run carries its own foreground, so the eye lands on the red
-first.
-
-Colors live here (not in ``.tmux.conf``) because the foreground changes
-*within* one option value, which a format conditional cannot express.  The
-hex is generated: see the THEME region below and ``docs/THEME.md``.
-"""
-
-from __future__ import annotations
-
-import subprocess
-
-from _status_common import EXPECTED_ERRORS, log_error
-from _tmux_common import STATE_GLYPH, AgentState, tmux_cmd
-
-# murmur, not a sibling script: it aggregates agents across every machine, so
-# this segment paints the whole fleet rather than this host. The protocol is
-# validated below: state-count lines come first and an optional crew total comes
-# last. Resolved on PATH because murmur is installed, not symlinked into the
-# config directory.
-STATUS_COMMAND = ("murmur", "status")
-
-# Per-state foregrounds, mirroring the window-status glyph colors so the
-# same glyph means the same thing in both places:
-#   crashed — red + bold   (needs you now)
-#   blocked — peach        (needs you soon)
-#   done    — teal         (finished, unseen: informational, not alarming)
-#   working — subtext0     (busy, no signal)
-#   idle    — overlay0     (present, dimmest)
-# Every non-crashed style says `nobold` explicitly: runs are concatenated,
-# so a bold crashed run would otherwise bleed into the runs after it.
-# Backgrounds stay in .tmux.conf — the pill box is a layout decision there.
-# THEME BEGIN: status-ai-colors
-# The robot marking the pill as the agent segment. From docs/glyphs.toml;
-# it rides in this region, not one of its own, so status-ai keeps a single
-# marker pair. Rendered as a wide escape on purpose: "\uf06a9" is NOT this
-# character, it is U+F06A followed by the digit 9.
-ICON = "󰚩"
-CREW_ICON = ""
-
-ICON_STYLE = "#[fg=#a6adc8]#[nobold]"
-CREW_STYLE = "#[fg=#6c7086]#[nobold]"
-STATE_STYLE: dict[AgentState, str] = {
-    AgentState.crashed: "#[fg=#f38ba8]#[bold]",
-    AgentState.blocked: "#[fg=#fab387]#[nobold]",
-    AgentState.done: "#[fg=#94e2d5]#[nobold]",
-    AgentState.working: "#[fg=#a6adc8]#[nobold]",
-    AgentState.idle: "#[fg=#6c7086]#[nobold]",
-}
-# THEME END: status-ai-colors
-
-# Repeat a state's glyph while the run is still a shape you can count at a
-# glance; past this the run becomes "<N><glyph>".  At 3, three working agents
-# stay "###" and four blocked ones read "4!" instead of the uncountable
-# "!!!!".  At or below the threshold the output is byte-identical to the old
-# one-glyph-per-agent rendering; this only changes the large-fleet case.
-ROLLUP_THRESHOLD = 3
-
-# Largest count rendered exactly; past it a run reads "<MAX_COUNT>+<glyph>".
+#!/bin/sh
+# Slim tmux status-right watchdog for the agent-state segment.
 #
-# This is the surviving half of the retired MAX_GLYPHS budget, kept for the
-# reason MAX_GLYPHS was load-bearing: .tmux.conf reads @ai_status through
-# #{E:...}, so the *length* of the value must not be upstream's to choose.
-# Per-state rollup retires the "at most 10 glyphs" part as redundant (a run is
-# now at most a number plus one glyph), but digits are not self-bounding -- a
-# count of 10**400 would still be 400 columns wide.  Clamping the number is
-# what actually bounds the option, so that is the part that stays.
-MAX_COUNT = 999
+# WHY THIS IS sh, NOT PYTHON
+# --------------------------
+# This segment used to call `murmur status` on every render. murmur is
+# a Node CLI, and a Node process start loads a couple of hundred shared
+# libraries before it runs a line of murmur's own code. That makes the
+# per-render cost a PROCESS cost, not a milliseconds-of-work cost --
+# which matters because anything auditing process starts (and plenty
+# does) multiplies it again. Measured here: this one segment accounted
+# for most of a core, nearly all of which went away when the murmur
+# call was stubbed out.
+#
+# The interpreter was never the lever. A Python cold-start is real but
+# small beside the Node exec underneath it, so no choice of interpreter
+# -- and no faster rewrite of murmur -- reaches this. Only not running
+# murmur per-tick does.
+#
+# The tick is also not what status-interval suggests. tmux re-renders
+# status-right on pane and window events too: a 14-window session was
+# measured running this script 36 times in 30s (1.2/s) against the 6
+# the 5s interval implies. Decoupling the murmur exec rate from the
+# render rate is the whole fix.
+#
+# CONTRACT WITH THE POLLER
+# ------------------------
+# There is no render file to cat: this segment publishes through the
+# @ai_status tmux option (.tmux.conf reads #{E:@ai_status}), and
+# status-ai-poller writes that option directly. So the hot path here is
+# *nothing* -- the bar is already painted from the option before this
+# script runs. All this does is the liveness probe that keeps the
+# poller alive.
+#
+# Steady state is therefore one `read` builtin and one `kill -0`
+# syscall: no fork, no exec, no Python, no Node.
 
-# Shown when upstream said something but none of it parsed.  Deliberately
-# style-free: this is the path a hostile ``murmur status`` reaches, and
-# the fewer constructs it can emit the smaller the sink (see
-# ``run_status_ai_injection_tests``).
-INERT = " ? "
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/tmux-ai"
+PID_FILE="$STATE_DIR/poller.pid"
+POLLER="${0%/*}/status-ai-poller"
 
+# Watchdog: respawn only when the poller is actually dead. kill -0 is a
+# pure syscall; the rate-limited Python --ensure path runs at most once
+# per crash, never per tick.
+# read is a shell builtin (no fork); a missing pid file just leaves
+# $pid empty and the redirection error is swallowed. The 2>/dev/null
+# precedes the input redirect on purpose: redirections are applied
+# left to right, so a trailing one is not yet in effect when the
+# failing open is reported and the error reaches the terminal.
+pid=''
+read -r pid 2>/dev/null <"$PID_FILE" || true
+if ! { [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; }; then
+	[ -x "$POLLER" ] && "$POLLER" --ensure >/dev/null 2>&1 &
+fi
 
-def render_segment(
-    counts: dict[AgentState, int],
-    threshold: int = ROLLUP_THRESHOLD,
-    max_count: int = MAX_COUNT,
-) -> str:
-    """Build the glyph runs for *counts*.
-
-    One contiguous colored run per state, urgency-descending.  A run of at
-    most *threshold* agents is the glyph repeated -- the shape you read; a
-    larger one is its count followed by a single glyph in the same color, so
-    no state is ever summarised away.  A global "+N" tail cannot say whether
-    the agents it swallowed were idle or crashed; "5! 4v 6#" still can.
-    Counts past *max_count* render as ``<max_count>+<glyph>``.
-
-    Returns ``""`` for no agents at all, which is the signal ``.tmux.conf``
-    uses to hide the whole segment.
-    """
-    runs: list[str] = []
-    for state in sorted(counts, reverse=True):
-        count = counts[state]
-        if count <= 0:
-            continue
-        glyph = STATE_GLYPH[state]
-        if count <= threshold:
-            body = glyph * count
-        elif count <= max_count:
-            body = f"{count}{glyph}"
-        else:
-            body = f"{max_count}+{glyph}"
-        runs.append(STATE_STYLE[state] + body)
-    return " ".join(runs)
-
-
-def bounded_count(count: int, max_count: int = MAX_COUNT) -> str:
-    """Render a bounded decimal count for a re-expanded tmux option."""
-    return str(count) if count <= max_count else f"{max_count}+"
-
-
-def parse_counts(raw: str) -> tuple[dict[AgentState, int], int]:
-    """Parse the ``murmur status`` contract into per-state counts.
-
-    ``.tmux.conf`` reads @ai_status through ``#{E:...}``, which re-expands the
-    full tmux format language — a ``#(...)`` sequence in the value is executed
-    as a shell command on every status refresh. So no upstream byte is ever
-    echoed: a line whose key or count does not validate is dropped, and what
-    reaches the option is built here from a closed vocabulary (state and crew
-    glyphs, digits, spaces, and the style tags above).
-    """
-    counts: dict[AgentState, int] = {}
-    crew = 0
-    for line in raw.splitlines():
-        state_str, tab, count_str = line.partition("\t")
-        if not tab or not count_str.isdigit():
-            continue
-        if state_str == "crew":
-            crew += int(count_str)
-            continue
-        state = AgentState.parse(state_str)
-        if state is None or state not in STATE_GLYPH:
-            continue
-        counts[state] = counts.get(state, 0) + int(count_str)
-    return counts, crew
-
-
-def render(raw: str) -> str:
-    """Full segment body for the raw ``murmur status`` output."""
-    counts, crew = parse_counts(raw)
-    runs = [render_segment(counts)]
-    if crew > 0:
-        runs.append(f"{CREW_STYLE}{CREW_ICON}{bounded_count(crew)}")
-    segment = " ".join(run for run in runs if run)
-    if not segment:
-        # Distinguish "nothing at all" (hide the segment) from "upstream said
-        # something, but none of it parsed" (show a loud, inert marker).
-        return "" if not raw.strip() else INERT
-    return f" {ICON_STYLE}{ICON} {segment} "
-
-
-def main() -> None:
-    try:
-        raw = subprocess.check_output(
-            STATUS_COMMAND, text=True, stderr=subprocess.DEVNULL
-        ).strip()
-    except EXPECTED_ERRORS as exc:
-        log_error("status-ai", f"murmur status failed: {exc}")
-        raw = ""
-
-    tmux_cmd("set-option", "-gq", "@ai_status", render(raw), check=False)
-
-
-if __name__ == "__main__":
-    main()
+exit 0

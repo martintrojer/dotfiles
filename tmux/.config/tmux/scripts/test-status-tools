@@ -36,7 +36,11 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 STATUS_WINDOW_LABEL = SCRIPT_DIR / "status-window-label"
 CHEATSHEET = SCRIPT_DIR / "cheatsheet"
-STATUS_AI = SCRIPT_DIR / "status-ai"
+# The render/parse logic behind the status-ai segment. It lives in a
+# module rather than the renderer because the renderer is now sh: the
+# per-tick murmur (Node) exec moved into status-ai-poller.
+STATUS_AI = SCRIPT_DIR / "_status_ai.py"
+STATUS_AI_POLLER = SCRIPT_DIR / "status-ai-poller"
 # tms moved to local-bin (shared with the herdr package); the repo copy is
 # three levels up from tmux/.config/tmux/scripts.
 TMS = SCRIPT_DIR.parents[3] / "local-bin" / ".local" / "bin" / "tms"
@@ -711,7 +715,11 @@ def run_status_ai_injection_tests() -> None:
     the sole writer, so the guard belongs there: only STATE_GLYPH glyphs,
     digits and spaces may reach the option.
     """
-    status_ai = _import_script(STATUS_AI, "status_ai_mod")
+    # Import under the real module name: status-ai-poller does
+    # `import _status_ai`, so a copy loaded under any other name would
+    # be a *different* module object and the patches below would not be
+    # seen by the code under test.
+    status_ai = _import_script(STATUS_AI, "_status_ai")
     glyph = status_ai.STATE_GLYPH
     style = status_ai.STATE_STYLE
 
@@ -734,12 +742,16 @@ def run_status_ai_injection_tests() -> None:
             # set-option -gq <name> <value>
             recorded[args[2]] = args[3]
 
+        # The poller is what calls murmur and writes the option now, so
+        # the injection path under test runs through it -- the guard
+        # itself still lives in the shared module.
+        poller = _import_script(STATUS_AI_POLLER, "status_ai_poller_mod")
         original_command = status_ai.STATUS_COMMAND
         original_cmd = status_ai.tmux_cmd
         status_ai.STATUS_COMMAND = (str(stub), "status")
         status_ai.tmux_cmd = fake_tmux_cmd
         try:
-            status_ai.main()
+            poller.loop_once()
         finally:
             status_ai.STATUS_COMMAND = original_command
             status_ai.tmux_cmd = original_cmd
