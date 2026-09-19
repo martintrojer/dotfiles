@@ -37,7 +37,6 @@ verb does the same thing whether you're inside tmux or on the bare desktop.
 | Last window (same workspace)  | `mod+Shift+g`     | `prefix+l`      |
 | Focus left/down/up/right      | `mod+h/j/k/l`     | `C-h/j/k/l`     |
 | Move element left/down/up/right | `mod+Shift+h/j/k/l` | (n/a, panes don't move that way) |
-| Primary "switcher" picker     | `mod+Tab` (windows) | `prefix+s` (sessions) |
 
 Modifier conventions inside sway:
 
@@ -128,11 +127,6 @@ Layout containers:
 Pickers (all under `fuzzel/.config/fuzzel/scripts/`):
 
 - `mod+space` — fuzzel app launcher (default `--prompt 'Run '`).
-- `mod+Tab` — `windows`, swaymsg-driven window switcher. Sorted by
-  most-recently-used with the currently focused window pushed to the bottom,
-  so `mod+Tab Enter` toggles back to the previous window in two keystrokes
-  (Alt-Tab style). Each row starts with `·` (other windows) or `•` (the
-  currently focused window, which is pushed to the bottom).
 - `mod+v` — `clipboard`, clipman history.
 - `mod+e` — `emoji`, bemoji-backed.
 - `mod+\` — `calc`, qalc/bc-backed.
@@ -145,16 +139,13 @@ Pickers (all under `fuzzel/.config/fuzzel/scripts/`):
 - `mod+Shift+m` — `cider`, small Cider media-control picker. Kept on Shift because `mod+m` summons Cider itself.
 - `mod+Shift+p` — `powermenu` (lock / suspend / logout / reboot / shutdown).
   Kept on Shift because it's destructive (suspend / shutdown).
-- `mod+grave` — `chrome-tabs`, DevTools-protocol tab switcher (paired
-  visually with `mod+Tab` window switcher — grave and Tab sit adjacent
-  on the keyboard).
 - `mod+F1` — `hotkeys`, parses this file's bindings and dispatches the
   chosen action via `swaymsg`. F1 mirrors hammerspoon's `Hyper+F1`.
 
 ## Session Model
 
-The compositor is started by your display manager / TTY launcher. Once running,
-sway exec's `~/.config/sway/scripts/session-start`, which:
+The display manager or TTY launcher starts Sway or Swayward. Once running, the
+compositor runs `~/.config/sway/scripts/session-start`, which:
 
 1. Imports `DISPLAY`, `WAYLAND_DISPLAY`, `XDG_CURRENT_DESKTOP`,
    `XDG_SESSION_TYPE`, and `SWAYSOCK` into systemd's user environment so units
@@ -163,11 +154,11 @@ sway exec's `~/.config/sway/scripts/session-start`, which:
 3. Starts `sway-session.target`.
 4. Asks `kanshictl reload` to re-assert output profiles, ignoring failure.
 
-Step 4 exists because sway runs this script via `exec_always`, so it also runs
-on `swaymsg reload` — and since the config declares no `output` lines (kanshi
-owns them), a reload resets every output to scale 1.0. On a cold start kanshi
-isn't listening yet, `kanshictl` fails harmlessly, and kanshi applies its own
-profile when it starts moments later.
+Step 4 exists because Sway runs this script via `exec_always`, so it also runs
+on `swaymsg reload`. The Sway config declares no `output` lines because kanshi
+owns them, and a reload resets every output to scale 1.0. Swayward runs the
+script only at startup. On a cold start kanshi is not listening yet,
+`kanshictl` fails harmlessly, and kanshi applies its own profile when it starts.
 
 `sway-session.target` declares `Wants=` for the desktop daemons, so each one
 gets started exactly once when the session comes up:
@@ -224,8 +215,9 @@ explicit `systemctl suspend`) and would need a live process to hold the lock.
 The ask was one timeout.
 
 `Ctrl+Alt+Delete` runs `~/.config/sway/scripts/session-quit`, which stops
-`sway-session.target` and then `swaymsg exit` — leaving systemd cleanly
-shutting down the daemons before the compositor itself terminates.
+`sway-session.target` asynchronously and then runs `swaymsg exit`. Swayward
+exposes the same IPC command. Cleanup continues after the compositor exits, so a
+slow service cannot hold the desktop open.
 
 ## Lock Screen
 

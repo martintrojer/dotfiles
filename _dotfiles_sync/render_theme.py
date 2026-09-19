@@ -205,6 +205,9 @@ AUDIT_ALLOWLIST: dict[str, str] = {
     "docs/palette.toml": "the palette itself",
     "docs/glyphs.toml": "the glyph vocabulary itself",
     "docs/THEME.md": "human-readable gloss of the palette",
+    "swayward/.config/swayward/config.kdl": (
+        "hand-maintained Sway migration whose colors track the source config"
+    ),
     "bat/.config/bat/themes/Catppuccin Mocha.tmTheme": "vendored upstream",
     "yazi/.config/yazi/flavors/catppuccin-mocha.yazi/flavor.toml": "vendored upstream",
     "yazi/.config/yazi/flavors/catppuccin-mocha.yazi/tmtheme.xml": "vendored upstream",

@@ -53,6 +53,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "kanshi",
             "mako",
             "sway",
+            "swayward",
             "swaylock",
             "thunar",
             "waybar",
