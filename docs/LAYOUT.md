@@ -20,17 +20,17 @@ or muted foreground. If everything is boxed, boxes stop meaning anything.
 
 ## Geometry
 
-Keep the geometry boring and terminal-like:
+Keep the geometry compact and restrained:
 
-- square corners, no pills
-- thin hard borders where a surface needs containment
+- rounded pills for filled Waybar navigation, selection, and attention states
+- transparent backgrounds for ambient Waybar context
+- thin hard borders where a larger surface needs containment
 - small gaps and compact padding
 - monospace where text lives next to terminal content
-- no blur/glass/shadow as a primary design element
+- no blur, glass, or shadow as a primary design element
 
-Rounded corners are reserved for places where the toolkit forces the issue or
-where a temporary overlay benefits from separation. They are not the
-default language.
+A pill still needs to earn its fill under the core rule above. Rounded geometry
+does not turn ambient text into a control.
 
 ## Color and weight
 

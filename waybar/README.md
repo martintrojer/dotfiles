@@ -21,10 +21,9 @@ threshold. Healthy state emits an empty module with the `ok` class.
 
 Layout language:
 
-- workspaces are blocks because they are navigation objects
-- issues sit in the center and become blocks only when they need a response
-- notifications become blocks only when they need a response
-- clock is ambient context, so it stays unboxed
+- workspaces are rounded pills because they are navigation objects
+- issues, caffeinate, and notifications become rounded pills only when they need a response
+- weather and clock are ambient context, so they stay unboxed
 
 ## The empty center
 
@@ -49,7 +48,7 @@ The bar is tuned to stay at 20px on the main display, preserving an extra tmux
 row compared with the old larger bar.
 
 - base font: SF Compact + JetBrains fallback, 10pt, weight 500
-- issue/notification blocks: JetBrains Mono Nerd Font
+- issue, caffeinate, and notification pills: JetBrains Mono Nerd Font
 - window/tray modules are omitted rather than shrunk into ambiguity
 
 ## Issue policy
