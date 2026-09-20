@@ -104,8 +104,7 @@ class GeneratedGlyphConstants(unittest.TestCase):
 
     def test_no_glyph_is_spelled_outside_a_region(self) -> None:
         # Generation is pointless if a semantic shape can still be spelled
-        # inline. chrome-tabs' ○●◌◍ stay local structural instance markers and
-        # sit outside the private use areas, so no exemption list is needed.
+        # inline, so no exemption list is needed.
         allowed = {
             "powermenu": set(),
             "cider": set(),

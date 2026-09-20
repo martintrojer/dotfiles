@@ -108,7 +108,7 @@ Default shape:
 - notifications are hidden when empty, blocked when they need a response
 - weather and clock are ambient context
 - tray and window title are omitted; controls and context live in keybindings,
-  issue click actions, tmux, the focused app, or the window switcher
+  issue click actions, tmux, or the focused app
 
 Interaction rule:
 

@@ -143,8 +143,6 @@ bindsym $mod+s exec ~/.config/fuzzel/scripts/ssh
 # mod+v: clipboard picker (mirrors tmux prefix+v).
 bindsym $mod+v exec ~/.config/fuzzel/scripts/clipboard
 bindsym $mod+e exec ~/.config/fuzzel/scripts/emoji
-bindsym $mod+Tab exec ~/.config/fuzzel/scripts/windows
-bindsym $mod+grave exec ~/.config/fuzzel/scripts/chrome-tabs
 bindsym $mod+backslash exec ~/.config/fuzzel/scripts/calc
 
 bindsym XF86AudioRaiseVolume exec wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+
