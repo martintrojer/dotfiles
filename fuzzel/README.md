@@ -5,8 +5,6 @@
 - `fuzzel/.config/fuzzel/scripts/ssh` - SSH host selector
 - `fuzzel/.config/fuzzel/scripts/toolboxes` - Toolbox/distrobox container selector
 - `fuzzel/.config/fuzzel/scripts/calc` - Calculator with qalc/bc
-- `fuzzel/.config/fuzzel/scripts/windows` - Window switcher (Sway)
-- `fuzzel/.config/fuzzel/scripts/chrome-tabs` - Chrome tab switcher via DevTools Protocol
 - `fuzzel/.config/fuzzel/scripts/clipboard` - Text and image clipboard history via cliphist
 - `fuzzel/.config/fuzzel/scripts/emoji` - Emoji picker with bemoji
 - `fuzzel/.config/fuzzel/scripts/hotkeys` - Sway keybindings picker (executes selection via `swaymsg`)

@@ -13,7 +13,7 @@ The default bar is a sparse top HUD:
 
 There is intentionally no tray and no window title. App/system controls live in
 keybindings and issue click actions; focused-window context belongs to the app,
-tmux, or the window switcher rather than the desktop bar.
+tmux, or the focused app rather than the desktop bar.
 
 System telemetry is not always visible. It is aggregated by
 `~/.config/waybar/scripts/issues` and appears only when something crosses a

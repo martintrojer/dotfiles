@@ -17,6 +17,5 @@ if [[ -z "$browser" ]]; then
 fi
 
 exec "$browser" \
-  --remote-debugging-port=9222 \
   --enable-features=UseOzonePlatform \
   --ozone-platform=wayland
