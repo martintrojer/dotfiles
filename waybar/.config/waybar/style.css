@@ -63,7 +63,7 @@ window#waybar,
 	margin-bottom: 0;
 	margin-left: 4px;
 	margin-right: 4px;
-	border-radius: 0;
+	border-radius: 6px;
 	background: @surface0;
 	color: @text;
 }
@@ -131,7 +131,7 @@ window#waybar,
 	font-weight: 500;
 	padding-left: 7pt;
 	padding-right: 7pt;
-	border-radius: 999px;
+	border-radius: 6px;
 	margin: 0;
 	transition: 0.25s ease;
 }
@@ -161,7 +161,7 @@ window#waybar,
 tooltip {
 	background: @base;
 	border: 3px solid @surface2;
-	border-radius: 10px;
+	border-radius: 8px;
 	font-family: "SF Compact Text", "JetBrains Mono Nerd Font";
 	font-size: 11pt;
 	font-weight: 500;
