@@ -131,7 +131,7 @@ window#waybar,
 	font-weight: 500;
 	padding-left: 7pt;
 	padding-right: 7pt;
-	border-radius: 0;
+	border-radius: 999px;
 	margin: 0;
 	transition: 0.25s ease;
 }
