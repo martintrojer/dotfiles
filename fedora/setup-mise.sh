@@ -17,5 +17,7 @@ fi
 # zsh/.zsh/tools.zsh, and installing does not require it.
 (
   cd /tmp
-  MISE_GLOBAL_CONFIG_FILE="$manifest" "$mise" install --yes
+  export MISE_GLOBAL_CONFIG_FILE="$manifest"
+  "$mise" install --yes
+  "$mise" exec lua -- luarocks install --local luacheck 1.2.0-1
 )
