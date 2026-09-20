@@ -14,8 +14,9 @@ TSCONFIG := tsconfig.json
 # the exact pinned version, so `make check-all` behaves identically on every
 # host and a toolchain bump is a reviewable one-line diff.
 #
-# luacheck stays a system binary: it is a Lua rock with no usable npm/PyPI
-# distribution (the `luacheck` npm package is unrelated 2015 bindings).
+# luacheck stays a Lua rock: it has no usable npm/PyPI distribution (the
+# `luacheck` npm package is unrelated 2015 bindings). Fedora's setup-mise.sh
+# installs the pinned rock into this standard user-local path.
 PYTHON_VERSION := 3.14
 RUFF_VERSION := 0.16.2
 TY_VERSION := 0.0.70
@@ -23,6 +24,7 @@ SHELLCHECK_VERSION := 0.11.0.1
 STYLUA_VERSION := 2.5.2
 PRETTIER_VERSION := 3.9.6
 TYPESCRIPT_VERSION := 7.0.2
+LUACHECK_VERSION := 1.2.0-1
 
 PYTHON := uv run --python $(PYTHON_VERSION) --no-project --quiet python
 RUFF := uvx --quiet ruff@$(RUFF_VERSION)
@@ -31,6 +33,7 @@ SHELLCHECK := uvx --quiet --from shellcheck-py==$(SHELLCHECK_VERSION) shellcheck
 STYLUA := npx -y @johnnymorganz/stylua-bin@$(STYLUA_VERSION)
 PRETTIER := npx -y prettier@$(PRETTIER_VERSION)
 TSC := npx -y -p typescript@$(TYPESCRIPT_VERSION) tsc
+LUACHECK := $(if $(wildcard $(HOME)/.luarocks/bin/luacheck),$(HOME)/.luarocks/bin/luacheck,luacheck)
 PYTHON_PY_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f --extension py --print0 .
 PYTHON_SHEBANG_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f '^[^.]+$$' . -X bash -lc 'for path in "$$@"; do IFS= read -r first < "$$path" || true; if [[ $$first =~ ^\#!.*python ]]; then printf "%s\\0" "$$path"; fi; done' bash
 PYTHON_FILES_CMD := { $(PYTHON_PY_FILES_CMD); $(PYTHON_SHEBANG_FILES_CMD); }
@@ -127,7 +130,7 @@ check-zsh:
 
 check-lua:
 	$(STYLUA) --check $(LUA_FILES)
-	luacheck $(LUA_FILES)
+	$(LUACHECK) $(LUA_FILES)
 
 format-lua:
 	$(STYLUA) $(LUA_FILES)
@@ -193,7 +196,7 @@ tool-versions:
 	  'stylua      $(STYLUA_VERSION) (npx)' \
 	  'prettier    $(PRETTIER_VERSION) (npx)' \
 	  'typescript  $(TYPESCRIPT_VERSION) (npx)' \
-	  'luacheck    system binary (no npm/PyPI distribution)'
+	  'luacheck    $(LUACHECK_VERSION) (LuaRocks, installed by fedora/setup-mise.sh)'
 
 # The repo's push gate. This is a make target rather than a pre-push hook
 # because jj (0.42) has no hook point at all and `jj git push` does not run

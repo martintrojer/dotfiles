@@ -331,7 +331,7 @@ make push ARGS='-b main'     # extra args go through ARGS
 
 **Why a make target and not a pre-push hook.** jj (0.42) has no hook mechanism — no config key, nothing in `jj util config-schema`, nothing in the CLI — and `jj git push` does not run git's client-side hooks, because it pushes through its own git library rather than shelling out to `git`. Verified empirically against a throwaway colocated repo: a `.git/hooks/pre-push` that exits 1 blocks `git push` and is silently ignored by `jj git push`. Since jj is the primary VCS here, a pre-push hook would present as a gate while the command actually used walked straight past it. If jj ever gains hooks, this target becomes a one-line wrapper around one.
 
-The gate can't leak into other repos: it's this repo's Makefile, with no global git config or `core.hooksPath` involved. `make check-all` needs tmux, zsh, luacheck, `uv`, `npm`/`node`, and network on first run — that toolchain requirement is the other half of why this stayed local.
+The gate can't leak into other repos: it's this repo's Makefile, with no global git config or `core.hooksPath` involved. `make check-all` needs tmux, zsh, `uv`, `npm`/`node`, and network on first run. On Fedora, `fedora/setup-mise.sh` installs Luacheck into `~/.luarocks/bin/`. That toolchain requirement is the other half of why this stayed local.
 
 ### Pinned toolchain
 
@@ -339,7 +339,7 @@ Every checker version lives in the Makefile, not on the machine. `uv` runs the P
 
 Two deliberate exceptions:
 
-- **luacheck** stays a system binary. It's a Lua rock with no usable npm or PyPI distribution — the `luacheck` npm package is unrelated 2015-era bindings.
+- **Luacheck** stays a pinned Lua rock. It has no usable npm or PyPI distribution; the `luacheck` npm package is unrelated 2015-era bindings. `fedora/setup-mise.sh` installs it into `~/.luarocks/bin/`, and the Makefile calls that path directly. Fedora toolboxes share the home directory, so they use the same installation.
 - **`target-version` in `ruff.toml` trails `PYTHON_VERSION`.** The checkers run under the pinned interpreter, but the scripts themselves are executed by each host's `#!/usr/bin/env python3`. Keeping the emitted syntax a release behind stops a linter bump from rewriting code into a form (e.g. PEP 758 `except A, B:`) that a not-yet-upgraded machine can't parse.
 
 ## Testing and debugging the bootstrap
