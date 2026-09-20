@@ -247,7 +247,7 @@ layer_effects "lockscreen"    { blur enable; blur_ignore_transparent enable; sha
 | `mako/.config/mako/config` | `background-color` (normal) | `#1e1e2e8c` (~55%) |
 | `mako/.config/mako/config` | `background-color` (critical) | `#1e1e2ed9` (~85%) |
 | `mako/.config/mako/config` | `outer-margin` | `6` (was `20`; doubles as blur halo) |
-| `foot/.config/foot/foot.ini` | `[colors-dark] alpha` | `0.9` |
+| `foot/.config/foot/foot.ini` | `[colors-dark] alpha` | `0.8` |
 
 #### SwayFX gotchas worth remembering
 
