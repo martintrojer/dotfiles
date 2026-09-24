@@ -446,6 +446,36 @@ def run_managed_agent_label_tests(env: dict[str, str]) -> None:
     finally:
         tmux(sub_env, ["kill-window", "-t", wid], check=False)
 
+    # The same pane launched through an interpreter wrapper (pi-meta is a
+    # Python script that execs pi as a child). The pane command is then the
+    # wrapper, which sends the renderer down the descendant walk -- and that
+    # found the agent and returned its bare name, so every wrapped mu worker
+    # was labelled `pi` and its mu state glyph never reached the tab.
+    tmux(
+        sub_env,
+        [
+            "new-window",
+            "-d",
+            "-t",
+            "s1:",
+            "-n",
+            "worker-8",
+            'python3 -c \'import subprocess; subprocess.run(["codex", "400"])\'',
+        ],
+    )
+    wid = tmux(sub_env, ["display-message", "-p", "-t", "s1:worker-8", "#{window_id}"])
+    _wait_for(sub_env, wid, "#{pane_current_command}", lambda v: v.startswith("python"))
+    tmux(sub_env, ["select-pane", "-t", wid, "-T", "worker-8 \u00b7 task_x \u00b7"])
+
+    try:
+        expect(
+            "a wrapped managed pane's label is still its mu title",
+            label_for_window(sub_env, wid),
+            "worker-8 \u00b7 task_x \u00b7",
+        )
+    finally:
+        tmux(sub_env, ["kill-window", "-t", wid], check=False)
+
 
 def run_split_pane_label_tests(env: dict[str, str]) -> None:
     """An agent in a non-active pane is invisible to the label path.

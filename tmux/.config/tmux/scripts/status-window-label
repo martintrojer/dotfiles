@@ -76,6 +76,14 @@ def has_meaningful_title(pane_title: str, host_name: str) -> bool:
     return not pane_title.startswith((":", "/", "~"))
 
 
+def is_mu_title(pane_title: str, window_name: str) -> bool:
+    """A mu-managed pane: mu names the window after the agent and keeps
+    that name as the first `` · ``-separated token of the pane title,
+    which then carries mu's interpreted state glyph.
+    """
+    return bool(window_name) and pane_title.split(" \u00b7", 1)[0] == window_name
+
+
 _ps_snapshot = ProcessSnapshot()
 
 
@@ -162,6 +170,11 @@ def render(
         or pane_current_command in _AGENT_WRAPPERS
         or pane_current_command in AGENT_HELPERS
     ):
+        # A mu title outranks the detected name. mu workers launched via a
+        # wrapper (pi-meta is Python) land here, and a bare `pi` would drop
+        # mu's state glyph -- the only one a mu-* session's tab shows.
+        if is_mu_title(pane_title, window_name):
+            return pane_title
         detected = _ps_snapshot.detect_agent(pane_pid, AGENTS)
         if detected:
             return detected
