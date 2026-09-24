@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+current=$(tmux display-message -p '#S')
+preferred="mu-${current##*/}"
+
+sessions=$(
+  tmux list-sessions -F $'#{session_activity}\t#{session_name}' |
+    awk -F '\t' '$2 ~ /^mu-/ { print }' |
+    sort -rn |
+    cut -f2-
+)
+
+if [[ -z $sessions ]]; then
+  tmux display-message 'No mu workstream sessions'
+  exit 0
+fi
+
+choice=$(
+  {
+    grep -Fx "$preferred" <<<"$sessions" || true
+    grep -Fvx "$preferred" <<<"$sessions" || true
+  } |
+    "$HOME/.tmux/plugins/tmux-fzf/scripts/.fzf-tmux" -p -w 80% -h 75% -- \
+      --no-sort \
+      --no-multi \
+      --exit-0 \
+      --prompt='mu workstream> ' \
+      --header="Current: $current · likely: $preferred"
+) || exit 0
+
+[[ -n $choice ]] && tmux switch-client -t "$choice"
