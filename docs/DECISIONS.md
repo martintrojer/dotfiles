@@ -265,6 +265,22 @@ Even if you never re-enable SwayFX, these bit on first setup:
 
 ---
 
+### T3 Code as the agent cockpit (tried 2026-09-25, rejected)
+
+[T3 Code](https://github.com/pingdotgg/t3code) is an open-source GUI for coding agents: one server per machine wraps agent CLIs, and desktop, web, and mobile clients connect to any number of those servers. Evaluated it as the cockpit for pi and a `mu` crew, by running it, not by reading about it. It worked. It is still the wrong shape.
+
+- **What works without forking it.** T3 has no pi provider and no generic ACP one, but its Grok provider is a plain ACP client, so pi ran as a stock T3 provider via [pi-acp](https://github.com/svkozak/pi-acp) behind a small shim: models, reasoning levels, `$` skills, `/` commands, and tool calls all rendered. A pi thread in T3 orchestrated `mu` with no pane of its own: `mu` needs a tmux server, not a tmux client, so `mu agent spawn/send/wait/read` from a T3 thread put a crew pane in the normal tmux, and murmur showed the worker as crew. Remote machines work too, over an SSH port forward on an existing control master.
+- **It is the fat-app shape this setup exists to avoid.** One Ghostty tab per machine with tmux inside is the tiling window manager macOS lacks; every agent is a pane that can be split, zoomed, attached, and driven by `mu` or `murmur pick`, over ssh as well as locally. T3 is one Electron window reached by `Cmd-Tab`. Its terminal and browser live inside its own panels, and its keybindings stop at its window edge, so tmux keys, fzf pickers, and `vim-tmux-navigator` never reach it.
+- **It duplicates state instead of owning new state.** pi still writes its session files, so each thread is stored twice with no sync between them: continue in one and the other goes stale. Provider configuration is per server, so each machine needs its own copy. Agent state exists in T3 and in murmur. `mu` owns the work and murmur owns what an agent is doing; T3 is a third owner of both.
+- **It adds no orchestration.** Whether each machine runs its own orchestrator or one orchestrator drives local and remote workers, the crew stays in tmux panes that T3 never sees. T3 would only host the one conversation being steered. murmur already puts every agent on every machine in one list you can jump from and prompt.
+- **What pi loses inside it.** The TUI goes: `/tree`, pi's pickers, and extension UIs that expect a terminal. T3 threads are linear, and conversation rollback is disabled for ACP providers, so not even a linear rewind survives. pi does not ask before running a tool, so T3's permission modes all behave as full access while the UI suggests otherwise. The orchestrator also leaves murmur and the status bar, because it has no pane.
+- **Remote is a transport problem, not a feature gap.** T3's built-in SSH environments open a fresh connection per step with `ControlMaster=no`: one 2FA tap each, and contention on a host that caps sessions per connection. What works is running `t3 serve` detached on the host and adding the port forward to an existing control master with `ssh -O forward`. A forward is a TCP channel, not a session, so it never takes the capped slot, but the link then lives exactly as long as that master.
+- **Two borrowable ideas.** Rich rendering of agent output (diffs, images, clickable file references) as an on-demand view in the terminal, not a permanent window. Phone access, if it is ever wanted, as a thin murmur view rather than a second cockpit. Same rule as herdr: port the idea, keep the substrate.
+
+**Reconsider if:** agents need steering from a phone or by collaborators who will not use tmux, OR T3 grows a native pi provider with tree navigation and can attach to existing terminals instead of owning its own. Either way it has to clear pillar #11: T3 is young, fast-moving, single-vendor infra, the opposite end of the axis from tmux.
+
+---
+
 ## Accepted (non-obvious)
 
 ---
