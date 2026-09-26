@@ -14,7 +14,7 @@ Foot reloads its config automatically on file change.
 ## Config highlights
 
 - Catppuccin Mocha palette (matches the rest of the desktop)
-- Hack Nerd Font Mono @ 12pt with `vertical-letter-offset=0`
+- Hack Nerd Font Mono Bold @ 12pt for all text (bold is not distinguishable) with `vertical-letter-offset=0`
 - 8px window padding, 80% background opacity
 - 50000 lines of scrollback, 3-line wheel multiplier
 - Hide mouse cursor while typing
