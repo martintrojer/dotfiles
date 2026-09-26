@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Yazi (Foot)
+Comment=Browse directories in Yazi running in Foot
+Exec=yazi-foot %f
+Icon=system-file-manager
+Terminal=false
+Categories=System;FileTools;FileManager;
+MimeType=inode/directory;
