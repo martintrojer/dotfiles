@@ -444,6 +444,26 @@ Replaces the brief alacritty-everywhere experiment ([above](#alacritty-as-the-cr
 
 ---
 
+### Foot text weight: Hack Regular with gamma-correct blending, not a heavier face (accepted 2026-09-26)
+
+Hack Regular read too thin on the 1.5x-scaled 4K output. The goal was the same letter shapes, slightly fuller, still short of Bold. Hack is built on DejaVu Sans Mono and ships only Regular and Bold, so no real in-between face exists.
+
+Tried in side-by-side `foot -o` windows before settling:
+
+- **JetBrainsMono Medium:** right weight, but too angular.
+- **GeistMono Medium, then SemiBold:** a real in-between weight, but not the look. Geist also has no italics.
+- **Hack Bold for all text:** committed and used briefly. Very full, and bold text becomes indistinguishable from normal text.
+- **Synthetic semibold (`embolden=true`):** measured from screenshots, fontconfig's embolden thickens Hack about as much as the real Bold face. It is not a lighter step.
+- **Adwaita Mono** (GNOME's Iosevka SS04, Menlo-style, already installed by Fedora): close in shape, but its package also ships only Regular and Bold.
+
+The pick is `gamma-correct-blending=yes` in foot's `[main]` section. Blending in linear colour space renders light glyphs on a dark background thicker. That lands between Regular and Bold, keeps Hack's exact shapes, and leaves the real Bold face distinct. It is the boring choice: one config line, no new font to install or track.
+
+Foot has a server/client split. `footclient` windows keep the config the server loaded, so a font change needs `systemctl --user restart sway-foot-server`. A standalone `foot -o 'font=...'` window reads config fresh, which makes it the way to compare candidates without touching open windows.
+
+**Reconsider if:** text needs a different weight again. Iosevka SS04 ships Medium and SemiBold and is the closest Hack-like download. Also reconsider if the background moves to light, where gamma blending thins dark glyphs instead.
+
+---
+
 ### Tmux owns in-buffer text ops; the terminal owns only what it structurally can (accepted 2026-05-02, revised 2026-05-15)
 
 Recurring temptation: every modern terminal (Alacritty, Ghostty, foot) has hint/url-picker/vi-mode. Each overlaps with tmux copy-mode + `tmux-fingers-rs`. Resist.
