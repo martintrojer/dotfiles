@@ -43,7 +43,7 @@ import { buildSessionContext, getMarkdownTheme } from "@earendil-works/pi-coding
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { Box, Input, Markdown, Text, truncateToWidth } from "@earendil-works/pi-tui";
 import type { Focusable, TUI } from "@earendil-works/pi-tui";
-import { conversationTranscript, pickSessionModel, textContent } from "./_lib.ts";
+import { conversationTranscript, pickSessionModel, textContent, withoutSystemMessages } from "./_lib.ts";
 
 // Fallback flattened transcript budget if structured session-context building fails.
 const CONTEXT_BUDGET = 24000;
@@ -85,9 +85,10 @@ function buildProjectContext(ctx: ExtensionCommandContext): string {
 function buildSystemPrompt(ctx: ExtensionCommandContext): string {
 	const projectContext = buildProjectContext(ctx);
 	return [
-		"You are answering quick side questions about an ongoing coding session.",
-		"You have NO tools. Answer from the provided main-session context and your own knowledge.",
-		"Be concise and direct. The user may ask follow-up questions.",
+		"Answer quick side questions about the ongoing coding session.",
+		"Use the supplied conversation and project context.",
+		"If the answer depends on information not present in that context, say what is missing.",
+		"Keep answers concise and direct. Support follow-up questions.",
 		...(projectContext ? ["", "<project_context>", projectContext, "</project_context>"] : []),
 	].join("\n");
 }
@@ -95,7 +96,9 @@ function buildSystemPrompt(ctx: ExtensionCommandContext): string {
 /** Structured main-session messages, preserving roles/tool-results better than a flattened transcript. */
 function buildMainMessages(ctx: ExtensionCommandContext): Message[] {
 	try {
-		return buildSessionContext(ctx.sessionManager.getEntries(), ctx.sessionManager.getLeafId()).messages as Message[];
+		return withoutSystemMessages(
+			buildSessionContext(ctx.sessionManager.getEntries(), ctx.sessionManager.getLeafId()).messages as Message[],
+		);
 	} catch {
 		// Fallback to flattened text if session-context construction fails.
 		return [
