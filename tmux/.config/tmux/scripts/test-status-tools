@@ -1455,6 +1455,36 @@ def run_tms_path_tests(tms) -> None:
     for path, mode, want, name in cases:
         expect(name, tms.is_useful_path(path, mode=mode, config=config), want)
 
+    with tempfile.TemporaryDirectory() as tmp:
+        real = Path(tmp) / "real"
+        alias = Path(tmp) / "alias"
+        real.mkdir()
+        alias.symlink_to(real, target_is_directory=True)
+        expect(
+            "path aliases do not duplicate a configured session",
+            tms.build_path_entries(
+                kind="zoxide",
+                paths=[str(alias)],
+                configured_paths={str(real)},
+                mode="zoxide",
+                config=config,
+            ),
+            [],
+        )
+        expect(
+            "path aliases from one source are listed once",
+            len(
+                tms.build_path_entries(
+                    kind="zoxide",
+                    paths=[str(real), str(alias)],
+                    configured_paths=set(),
+                    mode="zoxide",
+                    config=config,
+                )
+            ),
+            1,
+        )
+
 
 def run_tms_entry_tests(tms) -> None:
     """build_entries: which sessions appear, in what order, merged with what.

@@ -539,17 +539,19 @@ def build_path_entries(
     mode: str,
     config: TmsConfig,
 ) -> list[Entry]:
+    configured_real_paths = {os.path.realpath(path) for path in configured_paths}
     seen_paths: set[str] = set()
     entries: list[Entry] = []
     for path in paths:
         full = expand(path)
+        real = os.path.realpath(full)
         if (
-            full in configured_paths
-            or full in seen_paths
+            real in configured_real_paths
+            or real in seen_paths
             or not is_useful_path(full, mode=mode, config=config)
         ):
             continue
-        seen_paths.add(full)
+        seen_paths.add(real)
         entries.append(
             Entry(
                 kind=kind,
