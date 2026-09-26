@@ -309,8 +309,11 @@ window-rule {
 // or anything beneath it changes. The wiki marks non-xray blur experimental --
 // it drops out during window open/close animations and while dragging a tiled
 // window. Set xray back to true (or delete the line) if that shows.
+// The *-float match covers the footclient popups (yazi, btop, ...), which
+// replace foot's app-id via --app-id.
 window-rule {
     match app-id="^foot(client)?$"
+    match app-id="-float$"
 
     background-effect {
         blur true
