@@ -49,6 +49,7 @@ These bindings open and switch sessions:
 - `prefix`+`S` — tmux's built-in session tree, sorted by name
 - `prefix`+`g` — jump to the last session via `tms`
 - `prefix`+`T` — create or switch to a session rooted at the current pane path
+- `prefix`+`u` — toggle between a workspace and its `mu-*` workstream sessions (likely counterpart first, then recent activity)
 - `prefix`+`R` — reload `~/.tmux.conf`
 - `prefix`+`w` — tmux's built-in session-window tree picker
 - click the left status session block to open the session picker

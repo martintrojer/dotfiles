@@ -1,32 +1,38 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# From a workspace session, list mu- sessions; from a mu- session, list the
+# workspaces. The likely counterpart goes first, the rest by recent activity.
 current=$(tmux display-message -p '#S')
-preferred="mu-${current##*/}"
+if [[ $current == mu-* ]]; then
+  mu=0 want=${current#mu-} kind=workspace
+else
+  mu=1 want=mu-${current##*/} kind='mu workstream'
+fi
 
 sessions=$(
   tmux list-sessions -F $'#{session_activity}\t#{session_name}' |
-    awk -F '\t' '$2 ~ /^mu-/ { print }' |
     sort -rn |
-    cut -f2-
+    awk -F '\t' -v mu="$mu" -v want="$want" '
+      ($2 ~ /^mu-/) == mu {
+        base = $2; sub(/.*\//, "", base)
+        if (base == want) print $2; else rest[++n] = $2
+      }
+      END { for (i = 1; i <= n; i++) print rest[i] }'
 )
 
 if [[ -z $sessions ]]; then
-  tmux display-message 'No mu workstream sessions'
+  tmux display-message "No $kind sessions"
   exit 0
 fi
 
 choice=$(
-  {
-    grep -Fx "$preferred" <<<"$sessions" || true
-    grep -Fvx "$preferred" <<<"$sessions" || true
-  } |
-    "$HOME/.tmux/plugins/tmux-fzf/scripts/.fzf-tmux" -p -w 80% -h 75% -- \
-      --no-sort \
-      --no-multi \
-      --exit-0 \
-      --prompt='mu workstream> ' \
-      --header="Current: $current · likely: $preferred"
+  "$HOME/.tmux/plugins/tmux-fzf/scripts/.fzf-tmux" -p -w 80% -h 75% -- \
+    --no-sort \
+    --no-multi \
+    --exit-0 \
+    --prompt="$kind> " \
+    --header="Current: $current · likely: $want" <<<"$sessions"
 ) || exit 0
 
 [[ -n $choice ]] && tmux switch-client -t "$choice"
