@@ -475,12 +475,6 @@ window-rule {
     sway-border-width 2
 }
 
-window-rule {
-    match app-id="^t3code$"
-    sway-border "pixel"
-    sway-border-width 2
-}
-
 // Cider starts hidden in the scratchpad; Super+m shows it.
 window-rule {
     match app-id="^cider$"

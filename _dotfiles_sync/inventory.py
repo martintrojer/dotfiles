@@ -57,6 +57,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "swaylock",
             "thunar",
             "waybar",
+            "xdg",
         ),
     ),
     (
