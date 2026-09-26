@@ -84,6 +84,7 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `S`: tmux `choose-tree` session picker, sorted by name
 - `prefix` + `g`: switch to last session via `tms`
 - `prefix` + `T`: create or switch to a session rooted at the current pane path
+- `prefix` + `u`: toggle between a workspace session and its `mu-*` workstream sessions. From a workspace it lists `mu-*` sessions; from a `mu-*` session it lists workspaces. The likely counterpart (`hacking/foo` ↔ `mu-foo`, matched on the session basename) comes first, the rest by recent activity
 - `prefix` + `R`: reload `~/.tmux.conf` (mirrors sway `mod+Shift+r`)
 - `prefix` + `r`: cycle active pane width 1/3 → 1/2 → 2/3 (mirrors sway `mod+r`)
 - `prefix` + `v`: clipboard history picker (mirrors sway `mod+v`)

@@ -31,7 +31,7 @@ SECTION_ORDER = ["Sessions", "Windows", "Panes", "Resize", "Copy & Pick", "Tools
 # against the first column of `tmux list-keys -T prefix -N`. Add a new key
 # here and it shows up in the picker on next run.
 SECTION_KEYS: dict[str, set[str]] = {
-    "Sessions": {"s", "S", "g", "T", "R", "w", "d", "D", "$"},
+    "Sessions": {"s", "S", "g", "T", "u", "R", "w", "d", "D", "$"},
     "Windows": {
         "c",
         "n",
