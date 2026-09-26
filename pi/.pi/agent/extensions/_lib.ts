@@ -8,7 +8,7 @@
  */
 
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { Api, AssistantMessage, Model, ProviderHeaders } from "@earendil-works/pi-ai";
+import type { Api, AssistantMessage, Message, Model, ProviderHeaders } from "@earendil-works/pi-ai";
 import { exec } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -113,6 +113,11 @@ export function textContent(content: AssistantMessage["content"]): string {
 		.map((c) => c.text)
 		.join("")
 		.trim();
+}
+
+/** Keep conversation history while letting the caller own the prompt and tools. */
+export function withoutSystemMessages(messages: Message[]): Message[] {
+	return messages.filter((message) => message.role !== "system");
 }
 
 // Structural, deliberately minimal: it names only the fields these extensions
