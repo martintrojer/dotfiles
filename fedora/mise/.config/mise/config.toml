@@ -25,7 +25,9 @@ imagemagick = "latest"
 jj = "latest"
 just = "latest"
 lazygit = "latest"
-lua = "latest"
+# Pinned to 5.4, not latest: luacheck 1.2.0 (the `make check-lua` rock) assigns
+# to a for-loop variable, which Lua 5.5 made const, so it dies on load.
+lua = "5.4"
 marp-cli = "latest"
 neovim = "latest"
 # Pinned to a major, not latest: pi and other Node tooling are installed into
