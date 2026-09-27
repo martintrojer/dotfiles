@@ -53,7 +53,7 @@ Stock herdr, learned with `prefix+?`. The deltas that bite a tmux hand:
 | Split right / down | `prefix+v` / `prefix+minus` | `prefix+%` / `prefix+"` |
 | Focus panes | `prefix+h/j/k/l` | `prefix+arrows` |
 | Rename / close tab | `prefix+shift+t` / `prefix+shift+x` | `prefix+,` / `prefix+&` |
-| Goto / workspace picker | `prefix+g` / `prefix+w` | (tms / choose-tree) |
+| Goto / workspace picker | `prefix+g` / `prefix+w` | (tsesh / choose-tree) |
 
 `split_vertical` puts the new pane **to the right** and `split_horizontal`
 puts it **below** — the names describe the divider, not the motion.
@@ -113,41 +113,20 @@ space.
 - **`vim-tmux-navigator`** (`ctrl+h/j/k/l` across nvim splits and panes) — no
   herdr↔nvim protocol, and binding bare ctrl-letters would steal keys from
   pane apps.
-- **Status bar scripts** (`status-ai`, `status-ram`, `status-uptime`,
+- **Status bar scripts** (`status-ram`, `status-uptime`,
   `status-hostname`, `status-window-label`) — herdr's sidebar covers agent
   state natively and there is no status line to render the rest into.
 - **Agent state** — this is the thing herdr replaces. Both are live at once
-  right now: [murmur](https://github.com/martintrojer/murmur)'s pi extension
+  right now: [murmur](https://github.com/mu-crew/murmur)'s pi extension
   (installed by `murmur link pi`) and herdr's own `herdr-agent-state.ts`
   (installed by `herdr integration install pi`). Different filenames, no
   collision, but see below.
 - **Clipboard history / notification sound** — OS-specific backends; this
   package is common scope. Toasts only (`ui.toast.delivery = "herdr"`).
 
-## Sessions (`tms`)
+## Sessions
 
-`tms` still understands herdr (a tms "session" is a herdr **workspace** under
-`$HERDR_ENV`), but it is **not** bound in this config — stock `prefix+s` is
-settings and `prefix+g` is goto. Drive it from the shell
-(`tms pick-and-connect`, `TMS_BACKEND=herdr` to force) if the eval needs
-pinned recipes; otherwise use herdr's own workspace picker (`prefix+w`) and
-goto (`prefix+g`).
-
-The script lives at `local-bin/.local/bin/tms`. `$TMUX` is checked before
-`$HERDR_ENV`, so a tmux nested somehow still means tmux.
-
-| tms | tmux | herdr |
-| --- | ---- | ----- |
-| session | session | workspace (label) |
-| create + `startup` | `new-session` + `send-keys` | `workspace create --cwd` + `pane run` |
-| `split = vertical` | `split-window -h` | `pane split --direction right` |
-| `split = horizontal` | `split-window -v` | `pane split --direction down` |
-| switch | `switch-client` | `workspace focus` |
-| preview | `capture-pane` | `pane read` |
-
-Under herdr there are no agent glyphs in picker rows (sidebar owns that
-signal), and `tms last` relies only on the `LAST_FILE` tms writes — herdr has
-no `client_last_session` equivalent.
+The session picker (`tms`, now [`tsesh`](https://github.com/martintrojer/tmux-session-picker)) is tmux-only since it moved to its own repo; its herdr backend was dropped. Use herdr's own workspace picker (`prefix+w`).
 
 ## Agent Integrations
 

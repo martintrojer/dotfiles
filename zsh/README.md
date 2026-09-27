@@ -98,7 +98,7 @@ Selection criterion: ≥5 hits in `~/.zsh_history`. Everything else from the OMZ
 
 ### `tm` tmux helper
 
-In `functions.zsh`. Runs `$HOME/.config/tmux/scripts/tms pick-and-connect` — the picker shows the selection UI; on `<Enter>` `tms` attaches or creates the tmux session in one step.
+In `functions.zsh`. Runs `tsesh pick-and-connect` from the [tmux-session-picker](https://github.com/martintrojer/tmux-session-picker) TPM plugin: the picker shows the selection UI, and `<Enter>` attaches to or creates the tmux session in one step. `tm <query>` opens it pre-filtered.
 
 ## Update plugins
 

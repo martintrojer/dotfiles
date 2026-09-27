@@ -6,7 +6,14 @@ from collections.abc import Callable
 from pathlib import Path
 
 from .config import lazy_header
-from .pins import TPM, TPM_DEST, ZSH_PLUGINS, ZSH_PLUGINS_DEST
+from .pins import (
+    MU_CREW_DOTFILES,
+    MU_CREW_DOTFILES_DEST,
+    TPM,
+    TPM_DEST,
+    ZSH_PLUGINS,
+    ZSH_PLUGINS_DEST,
+)
 
 LOGGER = logging.getLogger("dotfiles-sync")
 
@@ -115,4 +122,19 @@ def apply_tmux_tpm(target: Path, *, verbose: bool) -> None:
         dest=dest,
         verbose=verbose,
         print_header=print_header,
+    )
+
+
+def apply_mu_crew_dotfiles(target: Path, *, verbose: bool) -> None:
+    """Clone or move mu-crew/dotfiles to its pinned ref; .tmux.conf sources it."""
+    name, url, ref = MU_CREW_DOTFILES
+    dest = target / MU_CREW_DOTFILES_DEST
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    _apply_pinned_clone(
+        name=name,
+        url=url,
+        ref=ref,
+        dest=dest,
+        verbose=verbose,
+        print_header=lazy_header("mu-crew-dotfiles"),
     )

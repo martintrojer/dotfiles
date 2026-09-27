@@ -1,6 +1,6 @@
 # Cursor
 
-User-level Cursor Agent hooks for [murmur](https://github.com/martintrojer/murmur)
+User-level Cursor Agent hooks for [murmur](https://github.com/mu-crew/murmur)
 attention.
 
 ## What this package links

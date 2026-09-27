@@ -20,7 +20,7 @@ Some extensions originated from [mitsuhiko/agent-stuff](https://github.com/mitsu
 
 ### `murmur` — agent state, installed not linked
 
-Agent state signalling moved to [murmur](https://github.com/martintrojer/murmur),
+Agent state signalling moved to [murmur](https://github.com/mu-crew/murmur),
 which aggregates across machines rather than just this one. Its extension is
 **not** in this package: `murmur link pi` writes it to
 `~/.pi/agent/extensions/murmur.ts`, pinning an absolute store path as it goes,
@@ -200,4 +200,4 @@ invocation at all.
 
 No runner dependency and no `package.json`: node strips the TS types itself, so `node --test` runs the files directly. The `tests/` directory is never linked into `$HOME` — `tests` is in `NAME_PATTERNS` (`_dotfiles_sync/ignore.py`), so pi never sees it as an extension.
 
-Agent state is murmur's, so the tmux side of it is tested there, not here. `tmux/.config/tmux/scripts/test-status-tools` keeps only what this repo still owns: the window label, the `status-ai` render, and the tmux-facing CLIs.
+Agent state is murmur's, so the tmux side of it is tested there, not here. The tmux formats are mu-crew/dotfiles' and tested there. `tmux/.config/tmux/scripts/test-status-tools` keeps only what this repo still owns: the window label, the format-injection audit, the glyph overrides, and the cheatsheet.

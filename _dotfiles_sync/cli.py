@@ -10,6 +10,7 @@ from time import monotonic
 
 from .config import BACKUP_DIR_NAME, task_enabled
 from .external import (
+    apply_mu_crew_dotfiles,
     apply_tmux_tpm,
     apply_zsh_plugins,
 )
@@ -17,6 +18,7 @@ from .fedora_systemd import apply_fedora_systemd_masks, check_fedora_systemd_mas
 from .integration_checks import (
     check_codex_notify,
     check_cursor_notify,
+    check_mu_crew_dotfiles,
     check_murmur,
     check_tmux_tpm,
     check_zsh_plugins,
@@ -169,8 +171,13 @@ def run_check_tasks(
             TaskPolicy(packages=frozenset({"tmux"})),
             lambda: check_tmux_tpm(target, verbose=verbose, ignore=ignore),
         ),
-        # Both packages depend on it: tmux shells out to murmur for the status
-        # segment, the picker and the focus hooks; pi hosts its extension.
+        (
+            TaskPolicy(packages=frozenset({"tmux"})),
+            lambda: check_mu_crew_dotfiles(target, verbose=verbose, ignore=ignore),
+        ),
+        # Both packages depend on it: tmux reads murmur's options for the pill
+        # and glyphs, and calls it for the picker and focus hooks; pi hosts its
+        # extension.
         (
             TaskPolicy(packages=frozenset({"tmux", "pi"})),
             lambda: check_murmur(target, verbose=verbose, ignore=ignore),
@@ -250,6 +257,10 @@ def run_apply_tasks(
         (
             TaskPolicy(packages=frozenset({"tmux"})),
             lambda: apply_tmux_tpm(target, verbose=verbose),
+        ),
+        (
+            TaskPolicy(packages=frozenset({"tmux"})),
+            lambda: apply_mu_crew_dotfiles(target, verbose=verbose),
         ),
     )
 
