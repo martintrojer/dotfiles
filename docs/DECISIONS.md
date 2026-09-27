@@ -640,7 +640,7 @@ Evaluated it against the existing tmux setup. Decision: stay on tmux, port the o
 
 **Reconsider if:** herdr ships multi-host in stable core *and* clears pillar #11 (1.0, real test suite, more than one maintainer) — that is a crisper trigger than the fleet experiment above, since it is a checkable event rather than an experiment yet to be run.
 
-**Landed 2026-09-12 — the stack is tmux + murmur + mu + coop.** Several of the reconsider triggers above moved (herdr is Apache 2.0 now, multi-machine work advanced, mu can drive herdr). None of that changes the daily spine. This extension records why, and where workmux fits (it does not).
+**Landed 2026-09-12 — the stack is tmux + murmur + mu + coop.** *(coop was renamed mule on 2026-09-27; this entry keeps the name it had.)* Several of the reconsider triggers above moved (herdr is Apache 2.0 now, multi-machine work advanced, mu can drive herdr). None of that changes the daily spine. This extension records why, and where workmux fits (it does not).
 
 #### The jobs, one each
 
@@ -683,7 +683,7 @@ herdr moved: license Apache 2.0, multi-machine closer to the dream, mu grew a he
 
 **Reconsider the stack if:** a capped remote stops being part of daily work *and* herdr clears pillar #11 *and* mu's herdr path is the better daily driver end-to-end — or if murmur dies and the replacement still answers multi-host attention without owning the panes.
 
-**Extended 2026-09-27 — the tmux wiring moves upstream.** The stack now lives under the [mu-crew](https://github.com/mu-crew) org (coop is being renamed mule), and the tmux side of it is shared config rather than this repo's alone.
+**Extended 2026-09-27 — the tmux wiring moves upstream.** The stack now lives under the [mu-crew](https://github.com/mu-crew) org (coop is now mule), and the tmux side of it is shared config rather than this repo's alone.
 
 - **Out:** `status-ai`, `status-ai-poller`, `_status_ai.py`, `_status_poller.py`, the `@agent_glyphs` / `@murmur_pane_glyph` chains, the focus hooks, the `a` / `G` / `u` binds, `tmux-mu-session`, `tms`, and the agent half of `_tmux_common` (`AgentState`, `STATE_GLYPH`, `AgentStats`, `scan_agent_states`).
 - **In:** [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles), cloned at a pinned ref like the zsh plugins and sourced from `.tmux.conf`; and [tmux-session-picker](https://github.com/martintrojer/tmux-session-picker) (`tsesh`, ex-`tms`) as a TPM plugin, config in the `tsesh/` package.

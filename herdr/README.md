@@ -6,7 +6,7 @@ It provides workspaces, tabs, and panes like tmux, plus per-pane detection with
 socket API (`herdr agent`, `herdr pane`) for driving other agents.
 
 **This package is an evaluation, not a migration.** tmux remains the daily
-multiplexer. The stack decision — tmux + murmur + mu + coop, and why not herdr
+multiplexer. The stack decision — tmux + murmur + mu + mule, and why not herdr
 or workmux — is in [`../docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state
 awareness (landed 2026-09-12). Running herdr with these dotfiles tests it under
 normal use; it is not the home driver.
@@ -15,7 +15,7 @@ normal use; it is not the home driver.
 came back for sidebar and provenance reasons. Since then herdr moved (Apache
 2.0, multi-machine closer) and mu can drive it — but the work remote's
 `MaxSessions 1` still makes durable herdr attachment starve murmur collects.
-That constraint is why coop exists. See [Eval notes](#eval-notes). Starting
+That constraint is why mule exists. See [Eval notes](#eval-notes). Starting
 another evaluation requires only the `herdr` command.
 
 This is a **common-scope package**: it links on both Linux and macOS, so
@@ -145,13 +145,13 @@ multiplexer is absent.
 
 ## Eval Notes
 
-**Where it landed.** Daily home is tmux + murmur + mu + coop. This package
+**Where it landed.** Daily home is tmux + murmur + mu + mule. This package
 stays so re-testing is cheap. The 2026-08-10 day trial already bounced on the
 sidebar (fixed left column vs status-bar pills you have already paid for) and
 on pillar #11. The 2026-09-12 stack decision adds the hard environmental
 reason: **`MaxSessions 1` on the work remote.** Multi-machine herdr wants a
 durable attach that holds the only session channel; murmur then cannot collect.
-coop solves long remotes for mu without taking that channel; it does not make
+mule solves long remotes for mu without taking that channel; it does not make
 herdr-as-multiplexer free.
 
 **What moved upstream (and still is not enough).** License is Apache 2.0.
