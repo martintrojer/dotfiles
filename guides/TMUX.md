@@ -239,7 +239,7 @@ options = [
   "An agent in that window is blocked / needs attention",
 ]
 answer = 2
-why = "Window glyphs come from murmur's rendered state on `@agent_state`."
+why = "Window glyphs come from murmur's rendered state on `@murmur_window_state`."
 
 [[questions]]
 q = "Which tool owns agent state?"

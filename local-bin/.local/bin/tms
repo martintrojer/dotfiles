@@ -569,7 +569,7 @@ def build_entries(mode: str) -> list[Entry]:
     sessions_by_name = {session.name: session for session in configured_sessions}
     configured_paths = {expand(session.path) for session in configured_sessions}
     live_names = set(backend().list_sessions())
-    # Agent glyphs come from tmux window options (@agent_state), so they only
+    # Agent glyphs come from tmux window options (@murmur_window_state), so they only
     # describe tmux sessions. Under the herdr backend the rows are workspaces
     # and a tmux scan would staple one multiplexer's agent states onto the
     # other's rows -- herdr's own sidebar owns that signal there.
@@ -665,7 +665,7 @@ def tmux_session_preview(name: str) -> int:
         "-t",
         exact_session_target(name),
         "-F",
-        "#{window_index}\t#{window_active}\t#{window_name}\t#{window_panes}\t#{@agent_state}",
+        "#{window_index}\t#{window_active}\t#{window_name}\t#{window_panes}\t#{@murmur_window_state}",
         check=False,
     )
     panes = tmux_cmd(
@@ -941,7 +941,7 @@ class TmuxBackend:
 
     name = "tmux"
     # Picker rows can carry agent glyphs: they come from this backend's own
-    # @agent_state window options, so they describe exactly these rows.
+    # @murmur_window_state window options, so they describe exactly these rows.
     has_agent_state = True
 
     def list_sessions(self) -> list[str]:
@@ -1025,7 +1025,7 @@ class HerdrBackend:
 
     name = "herdr"
     # No agent glyphs on herdr rows: the only source tms has is tmux's
-    # @agent_state, which says nothing about a herdr workspace. herdr's
+    # @murmur_window_state, which says nothing about a herdr workspace. herdr's
     # sidebar owns that signal here.
     has_agent_state = False
 

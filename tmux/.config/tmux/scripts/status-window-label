@@ -216,10 +216,10 @@ def main(argv: list[str]) -> int:
         # Best-effort fallback: print whatever window_name we got.
         label = fields["window_name"]
 
-    # Set @pane_agent on the window so tmux format conditionals can
-    # show an idle marker when no @agent_state is active.
+    # Set @murmur_window_has_agent on the window so tmux format conditionals can
+    # show an idle marker when no @murmur_window_state is active.
     #
-    # Set-only, never unset: @pane_agent is sticky by contract (murmur
+    # Set-only, never unset: @murmur_window_has_agent is sticky by contract (murmur
     # owns the push path that sets it). This renderer runs on every status
     # redraw and often can't see the agent -- it runs in a container, the
     # pane has a meaningful title, or the shell branch returns a cwd
@@ -229,7 +229,7 @@ def main(argv: list[str]) -> int:
     # Asked of the PANE too, because `label` is a display choice: a
     # mu-spawned pane runs `pi` titled `worker-9`, so the title branch
     # wins and the label is in no word list. Gating on it alone left every
-    # managed agent unmarked, and an idle one has no @agent_state to fall
+    # managed agent unmarked, and an idle one has no @murmur_window_state to fall
     # back on. No extra `ps` -- this is the case the descendant walk never
     # sees, where the active pane's own command is the agent.
     if window_id and (label in AGENTS or fields["pane_current_command"] in AGENTS):
@@ -238,7 +238,7 @@ def main(argv: list[str]) -> int:
             "-q",
             "-t",
             window_id,
-            "@pane_agent",
+            "@murmur_window_has_agent",
             "1",
             check=False,
         )

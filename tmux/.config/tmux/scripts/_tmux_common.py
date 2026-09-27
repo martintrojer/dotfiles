@@ -262,14 +262,14 @@ class AgentStats:
 def scan_agent_states() -> AgentStats:
     """Scan all tmux windows for agent state.
 
-    Reads ``@agent_state`` and ``@pane_agent`` in one ``list-windows``
+    Reads ``@murmur_window_state`` and ``@murmur_window_has_agent`` in one ``list-windows``
     call.  Returns global counts and caches per-session breakdowns.
     """
     result = tmux_cmd(
         "list-windows",
         "-a",
         "-F",
-        "#{session_name}\t#{@agent_state}\t#{@pane_agent}",
+        "#{session_name}\t#{@murmur_window_state}\t#{@murmur_window_has_agent}",
         check=False,
     )
     if result.returncode != 0:
@@ -282,9 +282,9 @@ def scan_agent_states() -> AgentStats:
         parts = line.split("\t")
         if len(parts) != 3:
             continue
-        session_name, state_str, pane_agent = parts
+        session_name, state_str, window_has_agent = parts
         state = AgentState.parse(state_str)
-        if state is None and pane_agent == "1":
+        if state is None and window_has_agent == "1":
             state = AgentState.idle
         if state is None:
             continue

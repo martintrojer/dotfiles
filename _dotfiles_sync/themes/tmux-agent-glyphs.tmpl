@@ -1,12 +1,12 @@
-# Agent-state glyph chain, shared by window-status-format and
-# window-status-current-format. Generated from the agent_* keys in
+# Murmur state glyph chains. Generated from the agent_* keys in
 # docs/glyphs.toml -- edit there, run `make theme`.
 #
 # Deliberately sets no bg: tmux carries the caller's #[bg=...] into an
-# #{E:...} re-expansion, so each window-status line supplies its own
-# background (surface0 inactive, surface2 current) and this chain only
-# has to own the fg + glyph. That is what lets one option serve both.
-# Arms are ordered by urgency, matching the AgentState int values: a
-# window in `done` outranks `working` because a finished agent wants you
-# more than a busy one.
-set -g @agent_glyphs '#{?#{==:#{@agent_state},crashed}, #[fg={{mocha.red}}]#[bold]{{glyph.agent_crashed}}#[nobold],#{?#{==:#{@agent_state},blocked}, #[fg={{mocha.peach}}]{{glyph.agent_blocked}},#{?#{==:#{@agent_state},done}, #[fg={{mocha.teal}}]{{glyph.agent_done}},#{?#{==:#{@agent_state},working}, {{glyph.agent_working}},#{?#{@pane_agent}, {{glyph.agent_idle}},}}}}}'
+# #{E:...} re-expansion, so each status or border format supplies its own
+# background and these chains only own the fg + glyph.
+#
+# Window and pane options use different names because tmux pane options
+# inherit same-named window options. A shell beside an agent must not
+# inherit that agent's state.
+set -g @agent_glyphs '#{?#{==:#{@murmur_window_state},crashed}, #[fg={{mocha.red}}]#[bold]{{glyph.agent_crashed}}#[nobold],#{?#{==:#{@murmur_window_state},blocked}, #[fg={{mocha.peach}}]{{glyph.agent_blocked}},#{?#{==:#{@murmur_window_state},done}, #[fg={{mocha.teal}}]{{glyph.agent_done}},#{?#{==:#{@murmur_window_state},working}, {{glyph.agent_working}},#{?#{@murmur_window_has_agent}, {{glyph.agent_idle}},}}}}}'
+set -g @murmur_pane_glyph '#{?#{==:#{@murmur_pane_state},crashed}, · #[fg={{mocha.red}}]#[bold]{{glyph.agent_crashed}}#[nobold],#{?#{==:#{@murmur_pane_state},blocked}, · #[fg={{mocha.peach}}]{{glyph.agent_blocked}},#{?#{==:#{@murmur_pane_state},done}, · #[fg={{mocha.teal}}]{{glyph.agent_done}},#{?#{==:#{@murmur_pane_state},working}, · {{glyph.agent_working}},#{?#{==:#{@murmur_pane_state},idle}, · {{glyph.agent_idle}},}}}}}'
