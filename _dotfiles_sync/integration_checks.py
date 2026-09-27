@@ -179,7 +179,7 @@ def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
         print_header()
         LOGGER.warning(
             f"MISSING: murmur is not on PATH; tmux agent state is dead "
-            f"(npm i -g @martintrojer/murmur, then murmur init) (--ignore {issue_id})"
+            f"(npm i -g @mu-crew/murmur, then murmur init) (--ignore {issue_id})"
         )
         return True
 
@@ -274,7 +274,7 @@ def check_codex_notify(target: Path, *, verbose: bool, ignore: set[str]) -> bool
         LOGGER.warning(
             f"STALE: codex notify at {path} still calls `agent-attention`, which was "
             f"removed -- every notification fails silently. Replace it with "
-            f"`murmur notify --source codex --event-type notify --title Codex` "
+            f'`notify = ["murmur", "notify", "--source", "codex"]` '
             f"(--ignore {issue_id})"
         )
         return True

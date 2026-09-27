@@ -19,11 +19,10 @@ class PostApplyHintsTest(unittest.TestCase):
     def test_prints_codex_murmur_notify_line(self) -> None:
         text = self.hints()
         self.assertIn("~/.codex/config.toml", text)
-        self.assertIn(
-            'notify = ["/bin/sh", "-lc", "murmur notify --source codex '
-            '--event-type notify --title Codex"]',
-            text,
-        )
+        self.assertIn('notify = ["murmur", "notify", "--source", "codex"]', text)
+        # A bare `sh -lc '<script>'` wrapper puts the event JSON Codex appends
+        # into $0, so murmur never sees which event fired (docs/SETUP.md § 6).
+        self.assertNotIn('"-lc"', text)
 
     def test_prints_cursor_murmur_stop_hook(self) -> None:
         text = self.hints()
