@@ -10,7 +10,14 @@ from pathlib import Path
 
 from .config import lazy_header
 from .external import _pinned_clone_head, _pinned_clone_resolve
-from .pins import TPM, TPM_DEST, ZSH_PLUGINS, ZSH_PLUGINS_DEST
+from .pins import (
+    MU_CREW_DOTFILES,
+    MU_CREW_DOTFILES_DEST,
+    TPM,
+    TPM_DEST,
+    ZSH_PLUGINS,
+    ZSH_PLUGINS_DEST,
+)
 
 LOGGER = logging.getLogger("dotfiles-sync")
 
@@ -93,13 +100,28 @@ def _murmur_state_dir(target: Path) -> Path:
     return target / ".local" / "state" / "murmur"
 
 
+def check_mu_crew_dotfiles(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    name, _url, ref = MU_CREW_DOTFILES
+    issue_id = f"mu-crew-dotfiles:{name}"
+    if issue_id in ignore:
+        return False
+    return _check_pinned_clone(
+        target / MU_CREW_DOTFILES_DEST,
+        name=name,
+        ref=ref,
+        issue_id=issue_id,
+        print_header=lazy_header("mu-crew-dotfiles"),
+        verbose=verbose,
+    )
+
+
 def _tmux_server_path() -> str | None:
     """The PATH the running tmux server hands to its own `run-shell` children.
 
     A tmux server inherits PATH from whatever shell started it and keeps it for
     its whole life, so it can lag behind the interactive PATH by a login: a
-    freshly `npm i -g`'d murmur resolves in your terminal while `status-ai` and
-    the `prefix + a` popup still see nothing. Returns None when there is no
+    freshly `npm i -g`'d murmur resolves in your terminal while the focus hooks
+    and the `prefix + a` popup still see nothing. Returns None when there is no
     server to ask, in which case the caller's PATH is the only answer available.
     """
     tmux = shutil.which("tmux")
@@ -123,10 +145,11 @@ def _tmux_server_path() -> str | None:
 def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     """Verify murmur is installed, initialised, and linked into pi.
 
-    The tmux package uses it for agent state: `status-ai` shells out to `murmur
-    status`, `prefix + a` runs `murmur pick`, and three focus hooks call
-    `murmur clear`. A missing binary leaves the status segment empty, while the
-    picker reports that murmur is unavailable and the focus hooks safely no-op.
+    The tmux package uses it for agent state through mu-crew/dotfiles: murmur
+    publishes the @murmur_* options the glyphs and pill read, `prefix + a` runs
+    `murmur pick`, and three focus hooks call `murmur clear`. A missing binary
+    leaves the pill empty, while the picker reports that murmur is unavailable
+    and the focus hooks safely no-op.
 
     murmur is an npm package, not a symlink, so `--apply` cannot install it and
     this check cannot repair anything. It only tells you which of the steps is

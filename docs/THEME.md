@@ -99,9 +99,6 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `eza/.config/eza/theme.yml` | `eza-colors` |
 | `tmux/.config/tmux/scripts/status-hostname` | `status-hostname-colors` |
 | `tmux/.config/tmux/scripts/status-ram` | `status-ram-colors` |
-| `tmux/.config/tmux/scripts/_status_ai.py` | `status-ai-colors` |
-| `tmux/.config/tmux/scripts/_tmux_common.py` | `tmux-state-glyphs` |
-| `local-bin/.local/bin/tms` | `tms-palette` |
 | `local-bin/.local/bin/solo` | `solo-glyphs` |
 | `sway/.config/sway/scripts/lock-screen` | `lock-screen-fallback-color` |
 | `sway/.config/sway/scripts/session-wallpaper` | `session-wallpaper-fallback-color` |
@@ -144,31 +141,26 @@ The policy the file enforces:
 - **Slot names live in comments.** `# U+F057 fa-times-circle` next to
   each value, so a codepoint is reviewable without a patched font.
 - **Out of the vocabulary:** typographic punctuation, box drawing,
-  Braille spinner frames, list bullets, and `tms` source markers. Those
+  Braille spinner frames, and list bullets. Those
   carry local structure, not shared semantic state.
 
-Consumers keep their own native names — `STATE_GLYPH`, `ICON_CPU`,
-`ICON_RAM` — and the renderer materializes those declarations inside the
-marked region. Nothing reads `docs/glyphs.toml` at runtime, and no
-cross-package runtime helper exists. `STATE_GLYPH` in
-`tmux/.config/tmux/scripts/_tmux_common.py` is still the Python API every
-Python display surface reads, but its five entries are now generated,
-and they match the codepoints murmur publishes as `DASH_GLYPH` so the
-same agent cannot wear one face in a tmux tab and another in murmur's
-own output.
+Consumers keep their own native names — `ICON_CPU`, `ICON_RAM`,
+`@mu_crew_g_*` — and the renderer materializes those declarations inside
+the marked region. Nothing reads `docs/glyphs.toml` at runtime, and no
+cross-package runtime helper exists. The five `agent_*` glyphs match the
+codepoints murmur publishes as `DASH_GLYPH`, so the same agent cannot
+wear one face in a tmux tab and another in murmur's own output.
 
 `cpu` and `ram` are deliberately distinct shapes: they sit side by side
 in the tmux status bar, and one shape (`nf-md-memory`) used to mean CPU
 in tmux and RAM in Waybar.
 
-`.tmux.conf` cannot import Python or read TOML, so it used to re-spell
-the agent alphabet by hand — twice, once per window-status line — and
-nothing failed when the copies diverged. `tmux-agent-glyphs` generates
-that chain instead. The two window-status lines share the one rendered
-`@agent_glyphs` option and supply their own background, because tmux
-carries the surrounding `#[bg=...]` into an `#{E:...}` re-expansion. The same
-region renders `@murmur_pane_glyph` for per-pane borders from
-`@murmur_pane_state`.
+The agent-state formats themselves (window glyph, pane glyph, pill) come
+from [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles), which
+reads each state's colour and glyph from `@mu_crew_c_*` / `@mu_crew_g_*`
+options. `tmux-mu-crew-glyphs` in `.tmux.conf` sets those options from
+this palette and vocabulary after sourcing mu-crew, so the chains live
+upstream once while their look stays generated here.
 
 ---
 
@@ -208,9 +200,8 @@ generator. Each is in `AUDIT_ALLOWLIST`:
   the file (`alpha(@base, 0.55)`) are hand-written GTK CSS on top of
   the generated names.
 - `tmux/.config/tmux/scripts/test-status-tools` — carries no hex. It
-  asserts on palette *key names* in the generated `tms-palette` region
-  (every key the render path reaches exists, and every generated key is
-  referenced), so it fails loud if that template drifts.
+  asserts that the generated `tmux-mu-crew-glyphs` overrides carry the
+  vocabulary's agent glyphs and come after mu-crew's own defaults.
 
 ---
 

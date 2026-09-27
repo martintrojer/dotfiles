@@ -34,6 +34,8 @@ A complexity heatmap flagged four files as "programs wearing dotfile clothing": 
 
 **Reconsider only if:** `optiscaler-sync` attracts outside users, OR `fedora/gaming/` needs a different release cadence than the shell config (in which case the honest unit is that whole directory, not four scattered scripts).
 
+**Partly superseded 2026-09-27:** `tms` was extracted as `tsesh` after murmur's session option removed its `_tmux_common` coupling. See *Agent state awareness* § Extended 2026-09-27.
+
 ---
 
 ### A shared `pylib/` helper module (rejected 2026-08-01)
@@ -671,7 +673,7 @@ herdr moved: license Apache 2.0, multi-machine closer to the dream, mu grew a he
 
 - **0.3.0 — `murmur dash`.** Live cards + pane glance over the same view as `status` and `pick`. Floored collect while open; paint from cache. Nerd Font + Catppuccin Mocha. Layout ideas borrowed from herdr/workmux; no worktree lifecycle, no task graph, no permanent sidebar.
 - **`murmur pick` stayed jump-first.** Popup: enter jumps, typing narrows, `ctrl-a` / `--all` toggles crew. Richer browse lives in dash.
-- **Peers, doctor, jump overrides, harness notify** — see murmur's `docs/setup.md` and [SSH.md](https://github.com/martintrojer/murmur/blob/main/SSH.md). Dotfiles keep glyphs, `prefix+a` → `murmur pick`, focus-clear hooks, and `status-ai`.
+- **Peers, doctor, jump overrides, harness notify** — see murmur's `docs/setup.md` and [SSH.md](https://github.com/mu-crew/murmur/blob/main/SSH.md). The tmux wiring moved to mu-crew/dotfiles on 2026-09-27; see below.
 
 #### What this means for reconsider triggers above
 
@@ -680,6 +682,15 @@ herdr moved: license Apache 2.0, multi-machine closer to the dream, mu grew a he
 - workmux is not on the reconsider list.
 
 **Reconsider the stack if:** a capped remote stops being part of daily work *and* herdr clears pillar #11 *and* mu's herdr path is the better daily driver end-to-end — or if murmur dies and the replacement still answers multi-host attention without owning the panes.
+
+**Extended 2026-09-27 — the tmux wiring moves upstream.** The stack now lives under the [mu-crew](https://github.com/mu-crew) org (coop is being renamed mule), and the tmux side of it is shared config rather than this repo's alone.
+
+- **Out:** `status-ai`, `status-ai-poller`, `_status_ai.py`, `_status_poller.py`, the `@agent_glyphs` / `@murmur_pane_glyph` chains, the focus hooks, the `a` / `G` / `u` binds, `tmux-mu-session`, `tms`, and the agent half of `_tmux_common` (`AgentState`, `STATE_GLYPH`, `AgentStats`, `scan_agent_states`).
+- **In:** [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles), cloned at a pinned ref like the zsh plugins and sourced from `.tmux.conf`; and [tmux-session-picker](https://github.com/martintrojer/tmux-session-picker) (`tsesh`, ex-`tms`) as a TPM plugin, config in the `tsesh/` package.
+- **What made it cheap.** murmur now publishes `@murmur_session_state` and `@murmur_count_<state>`. The pill became pure tmux format (no process per redraw, which was the reason `status-ai-poller` existed) and tsesh reads one option instead of vendoring a window scanner. Both pieces lost their only coupling to this repo.
+- **What stays here:** placement (status-right, window-status formats) and theme. `tmux-mu-crew-glyphs` overrides mu-crew's `@mu_crew_c_*` / `@mu_crew_g_*` from `docs/palette.toml` and `docs/glyphs.toml` after sourcing it, so the look is still generated here while the chains live upstream once. The line is now *tools own behaviour; mu-crew/dotfiles owns the shared wiring; this repo owns placement and theme*.
+- **Moving forward together:** bump `MU_CREW_DOTFILES` in `_dotfiles_sync/pins.py` and `--apply tmux`; `prefix`+`U` for tsesh.
+- **Supersedes** the 2026-08-01 rejection of extracting `tms`. Its objections were coupling to `_tmux_common` and to `render_theme.py`; the murmur options removed the first and the THEME-region override removed the second.
 
 ---
 

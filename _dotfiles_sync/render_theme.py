@@ -113,7 +113,7 @@ CONSUMERS: tuple[Consumer, ...] = (
     Consumer(repo("waybar/.config/waybar/config.jsonc"), ("waybar-calendar-colors",)),
     Consumer(repo("mako/.config/mako/config"), ("mako-colors",)),
     Consumer(repo("swaylock/.config/swaylock/config"), ("swaylock-colors",)),
-    Consumer(repo("tmux/.tmux.conf"), ("tmux-palette", "tmux-agent-glyphs")),
+    Consumer(repo("tmux/.tmux.conf"), ("tmux-palette", "tmux-mu-crew-glyphs")),
     Consumer(
         repo("zsh/.zsh/tools.zsh"),
         ("zsh-prompt-colors", "zsh-prompt-glyphs"),
@@ -131,14 +131,6 @@ CONSUMERS: tuple[Consumer, ...] = (
         ("status-ram-colors",),
     ),
     Consumer(
-        repo("tmux/.config/tmux/scripts/_status_ai.py"),
-        ("status-ai-colors",),
-    ),
-    Consumer(
-        repo("local-bin/.local/bin/tms"),
-        ("tms-palette",),
-    ),
-    Consumer(
         repo("sway/.config/sway/scripts/lock-screen"),
         ("lock-screen-fallback-color",),
     ),
@@ -151,10 +143,6 @@ CONSUMERS: tuple[Consumer, ...] = (
         ("wallpaper-fallback-color",),
     ),
     Consumer(repo("guides/style.css"), ("guides-palette",)),
-    Consumer(
-        repo("tmux/.config/tmux/scripts/_tmux_common.py"),
-        ("tmux-state-glyphs",),
-    ),
     Consumer(
         repo("waybar/.config/waybar/scripts/caffeinate"),
         ("waybar-caffeinate-glyph",),

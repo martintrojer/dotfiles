@@ -290,16 +290,16 @@ class GlyphVocabularyTests(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertEqual(len(value), 1, f"{key} is not one codepoint")
 
-    def test_rendered_chain_carries_every_agent_glyph(self) -> None:
+    def test_mu_crew_overrides_carry_every_agent_glyph(self) -> None:
         glyphs = render_theme.load_glyphs()
         rendered = render_theme.render_region(
-            "tmux-agent-glyphs", render_theme.load_palette()
+            "tmux-mu-crew-glyphs", render_theme.load_palette()
         )
         for state in ("crashed", "blocked", "done", "working", "idle"):
             self.assertIn(
-                glyphs[f"agent_{state}"],
+                f"@mu_crew_g_{state} '{glyphs[f'agent_{state}']}'",
                 rendered,
-                f"{state} glyph missing from the chain",
+                f"{state} glyph missing from the mu-crew overrides",
             )
 
     def test_changing_a_glyph_makes_the_conf_drift(self) -> None:
@@ -390,8 +390,7 @@ class GeneratedGlyphRegionTests(unittest.TestCase):
         "nvim-starter-glyphs",
         "pi-glyphs",
         "solo-glyphs",
-        "tmux-agent-glyphs",
-        "tmux-state-glyphs",
+        "tmux-mu-crew-glyphs",
         "waybar-caffeinate-glyph",
         "waybar-issue-glyphs",
         "waybar-notification-glyphs",

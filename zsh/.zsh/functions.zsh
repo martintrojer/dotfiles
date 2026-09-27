@@ -57,8 +57,8 @@ rmhist() {
 # so the workaround is documented properly. See that file's docstring.
 
 # tm: session picker (pinned sessions + live sessions + zoxide + finder).
-# Backend follows the environment: tmux inside tmux, herdr inside herdr.
+# tsesh comes from the martintrojer/tmux-session-picker TPM plugin.
 tm() {
-  tms pick-and-connect ${1:+--query} ${1:+"$1"}
+  "$HOME/.tmux/plugins/tmux-session-picker/bin/tsesh" pick-and-connect ${1:+--query} ${1:+"$1"}
 }
 

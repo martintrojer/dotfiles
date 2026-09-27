@@ -7,8 +7,8 @@ test to an isolated tmux server) is honored consistently.
 
 Sibling to ``_status_common.py``: that one owns the silent-renderer
 error policy + throttled log used by ``status-*`` scripts; this one
-owns the IPC plumbing used by status renderers *and* interactive
-scripts (``tms``, ``cheatsheet``).
+owns the IPC plumbing used by ``status-window-label`` and ``cheatsheet``.
+Agent state is murmur's; mu-crew/dotfiles renders it.
 
 The leading underscore matches the rest of the repo's convention for
 library files colocated with executables (don't ``exec _tmux_common``).
@@ -16,7 +16,6 @@ library files colocated with executables (don't ``exec _tmux_common``).
 
 from __future__ import annotations
 
-import enum
 import os
 import subprocess
 from collections import deque
@@ -32,71 +31,6 @@ AGENT_WRAPPERS: tuple[str, ...] = tuple(
         "Python python python3 node nodejs bun deno",
     ).split()
 )
-
-
-# ---------- agent state enum ----------
-
-
-class AgentState(enum.IntEnum):
-    """Agent states ordered by urgency (higher = more urgent).
-
-    The int value doubles as sort key for worst-state rollup.
-    ``cleared`` is a transient signal, not a displayable state.
-
-    ``done`` means "finished but not yet seen" and deliberately ranks
-    above ``working``: a finished agent wants your attention more than
-    a busy one.  It is informational, not alarming, so it stays out of
-    ``AgentStats.attention_count``.
-    """
-
-    cleared = 0
-    idle = 1
-    working = 2
-    done = 3
-    blocked = 4
-    crashed = 5
-
-    @classmethod
-    def parse(cls, raw: object, default: AgentState | None = None) -> AgentState | None:
-        """Coerce a string/value to AgentState, returning *default* on miss."""
-        if isinstance(raw, cls):
-            return raw
-        try:
-            return cls[str(raw)]
-        except (KeyError, ValueError):
-            return default
-
-    @property
-    def visible(self) -> bool:
-        """True for states that produce a badge / status-bar glyph."""
-        return self in _VISIBLE_STATES
-
-
-_VISIBLE_STATES = frozenset(
-    {
-        AgentState.working,
-        AgentState.done,
-        AgentState.blocked,
-        AgentState.crashed,
-    }
-)
-
-# Glyphs per state — the one dict every Python display surface reads
-# (status-ai, tms). The values come from docs/glyphs.toml, not from here:
-# see the THEME region below and docs/THEME.md.
-# THEME BEGIN: tmux-state-glyphs
-# One glyph per displayable agent state, generated from docs/glyphs.toml.
-# `cleared` is the absence of state, so it deliberately has no entry.
-# These are the shapes murmur publishes as DASH_GLYPH: the same agent must
-# not wear one face in a tmux tab and another in murmur's own output.
-STATE_GLYPH: dict[AgentState, str] = {
-    AgentState.crashed: "",  # U+F057 fa-times-circle
-    AgentState.blocked: "",  # U+F075 fa-comment
-    AgentState.done: "",  # U+F058 fa-check-circle
-    AgentState.working: "",  # U+F04B fa-play
-    AgentState.idle: "",  # U+F186 fa-moon-o
-}
-# THEME END: tmux-state-glyphs
 
 
 # ---------- tmux IPC ----------
@@ -200,109 +134,3 @@ class ProcessSnapshot:
                 return self.comm[cur]
             queue.extend(self.children.get(cur, ()))
         return None
-
-
-# ---------- agent state summary ----------
-
-
-class AgentStats:
-    """Counts of agent windows by state across all tmux sessions.
-
-    Single source of truth for the status pill, tms picker, and any
-    other consumer that needs to know how many agents are in each state.
-    """
-
-    __slots__ = ("_by_session", "blocked", "crashed", "done", "idle", "working")
-
-    def __init__(
-        self,
-        *,
-        crashed: int = 0,
-        blocked: int = 0,
-        done: int = 0,
-        working: int = 0,
-        idle: int = 0,
-    ) -> None:
-        self.crashed = crashed
-        self.blocked = blocked
-        self.done = done
-        self.working = working
-        self.idle = idle
-        self._by_session: dict[str, AgentStats] = {}
-
-    @property
-    def attention_count(self) -> int:
-        """Windows needing user action (blocked + crashed).
-
-        ``done`` is excluded on purpose: it drives informational styling,
-        not the peach/red alarm styling this count feeds.
-        """
-        return self.blocked + self.crashed
-
-    @property
-    def worst_state(self) -> AgentState | None:
-        """Return the most urgent state, or None."""
-        if self.crashed:
-            return AgentState.crashed
-        if self.blocked:
-            return AgentState.blocked
-        if self.done:
-            return AgentState.done
-        if self.working:
-            return AgentState.working
-        if self.idle:
-            return AgentState.idle
-        return None
-
-    def per_session(self) -> dict[str, AgentStats]:
-        """Return per-session breakdowns.  Requires a fresh ``scan()``."""
-        return dict(self._by_session)
-
-
-def scan_agent_states() -> AgentStats:
-    """Scan all tmux windows for agent state.
-
-    Reads ``@murmur_window_state`` and ``@murmur_window_has_agent`` in one ``list-windows``
-    call.  Returns global counts and caches per-session breakdowns.
-    """
-    result = tmux_cmd(
-        "list-windows",
-        "-a",
-        "-F",
-        "#{session_name}\t#{@murmur_window_state}\t#{@murmur_window_has_agent}",
-        check=False,
-    )
-    if result.returncode != 0:
-        return AgentStats()
-
-    global_counts: dict[AgentState, int] = {}
-    by_session: dict[str, dict[AgentState, int]] = {}
-
-    for line in result.stdout.splitlines():
-        parts = line.split("\t")
-        if len(parts) != 3:
-            continue
-        session_name, state_str, window_has_agent = parts
-        state = AgentState.parse(state_str)
-        if state is None and window_has_agent == "1":
-            state = AgentState.idle
-        if state is None:
-            continue
-        global_counts[state] = global_counts.get(state, 0) + 1
-        sc = by_session.setdefault(session_name, {})
-        sc[state] = sc.get(state, 0) + 1
-
-    def _from_counts(counts: dict[AgentState, int]) -> AgentStats:
-        return AgentStats(
-            crashed=counts.get(AgentState.crashed, 0),
-            blocked=counts.get(AgentState.blocked, 0),
-            done=counts.get(AgentState.done, 0),
-            working=counts.get(AgentState.working, 0),
-            idle=counts.get(AgentState.idle, 0),
-        )
-
-    stats = _from_counts(global_counts)
-    stats._by_session = {
-        name: _from_counts(counts) for name, counts in by_session.items()
-    }
-    return stats

@@ -45,27 +45,27 @@ why = "Both `base-index` and `pane-base-index` are set to 1."
 
 These bindings open and switch sessions:
 
-- `prefix`+`s` — local popup-backed `tms` picker (pinned + live + zoxide + scan)
+- `prefix`+`s` — `tsesh` picker popup (pinned + live + zoxide + scan)
 - `prefix`+`S` — tmux's built-in session tree, sorted by name
-- `prefix`+`g` — jump to the last session via `tms`
+- `prefix`+`g` — jump to the last session via `tsesh`
 - `prefix`+`T` — create or switch to a session rooted at the current pane path
 - `prefix`+`u` — toggle between a workspace and its `mu-*` workstream sessions (likely counterpart first, then recent activity)
 - `prefix`+`R` — reload `~/.tmux.conf`
 - `prefix`+`w` — tmux's built-in session-window tree picker
 - click the left status session block to open the session picker
 
-`tms` is the opinionated repo-specific picker; `choose-tree` is tmux's native
+`tsesh` ([tmux-session-picker](https://github.com/martintrojer/tmux-session-picker), a TPM plugin) is the opinionated picker; `choose-tree` is tmux's native
 universal picker. Both earn their place.
 
 ```quiz
 [[questions]]
-q = "Which binding opens the local popup-backed `tms` picker?"
+q = "Which binding opens the `tsesh` picker popup?"
 options = ["`prefix`+`s`", "`prefix`+`S`", "`prefix`+`F`"]
 answer = 0
-why = "Lowercase `s` is the repo-defined `tms` picker popup."
+why = "Lowercase `s` is the `tsesh` picker popup."
 
 [[questions]]
-q = "Which binding switches to the last session via `tms`?"
+q = "Which binding switches to the last session via `tsesh`?"
 options = ["`prefix`+`g`", "`prefix`+`G`", "`prefix`+`w`"]
 answer = 0
 why = "The easy last-session key is `prefix`+`g`."
@@ -217,10 +217,12 @@ and uptime.
   agent glyphs when a window wants attention
 - **Right:** boxed `PREFIX` and agent segment (robot + urgency-ordered glyphs),
   then CPU, RAM, host, uptime
-- murmur owns agent state across every peered machine; this config only paints
-  and binds
+- murmur owns agent state across every peered machine;
+  [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles) paints and binds it,
+  and this config places and themes it
 - `prefix`+`a` opens `murmur pick` (jump list; `ctrl-a` toggles crew)
-- `murmur dash` is the live cards + glance view (run from a shell)
+- `murmur dash` is the live cards + glance view; `prefix`+`G` goes back to it
+- `prefix`+`C-m` toggles murmur's side panel
 - attention clears when you focus the agent pane (focus hooks call
   `murmur clear`)
 
@@ -249,43 +251,43 @@ options = [
   "tmux itself, via a built-in option",
 ]
 answer = 1
-why = "murmur owns behaviour and aggregates across machines; this repo keeps only the glyphs, the bind and the hooks."
+why = "murmur owns behaviour and aggregates across machines; mu-crew/dotfiles holds the tmux wiring."
 ```
 
-## Persistence, tms config, and TPM
+## Persistence, tsesh config, and TPM
 
 The repo avoids full session restore. Instead, it optimizes recreation:
-pinned sessions in `tms.toml`, quick attach/create flows, and TPM for plugin
+pinned sessions in tsesh's config, quick attach/create flows, and TPM for plugin
 lifecycle.
 
 - No save/restore plugin for tmux layout state
-- `tms` recreates sessions quickly; Neovim shada, zsh history, and agent-native
+- `tsesh` recreates sessions quickly; Neovim shada, zsh history, and agent-native
   session stores cover the state that actually matters
-- pinned sessions live in `~/.config/tmux/tms.toml`
-- inside the `tms` picker: `Ctrl`+`c` filters to configured sessions only;
+- pinned sessions live in `~/.config/tsesh/config.toml` (the `tsesh` package)
+- inside the `tsesh` picker: `Ctrl`+`c` filters to configured sessions only;
   `Ctrl`+`t` shows live tmux sessions; `Ctrl`+`x` shows zoxide entries;
   `Ctrl`+`f` runs the fallback `fd` scan
 - fzf defaults to `--exact` (literal substring match); prefix a query
   token with `'` to opt back into fuzzy matching for that token. Set
-  `fzf_exact = false` in `tms.toml` to turn the toggle off globally.
-- `live_session_threshold = N` in `tms.toml` opens the picker on the live
+  `fzf_exact = false` in the tsesh config to turn the toggle off globally.
+- `live_session_threshold = N` in the tsesh config opens the picker on the live
   view instead of the merged view when there are >= N live tmux sessions;
   default `0` keeps the previous always-merged behavior
-- `./dotfiles-sync --apply` only clones TPM itself at a pinned ref
+- `./dotfiles-sync --apply` clones TPM and mu-crew/dotfiles at pinned refs
 - `prefix`+`I` — install plugin entries (TPM)
 - `prefix`+`U` — update plugins
 - `prefix`+`Alt`+`u` — uninstall removed plugins
 
 ```quiz
 [[questions]]
-q = "Where do pinned `tms` sessions live?"
+q = "Where do pinned `tsesh` sessions live?"
 options = [
-  "`~/.tmux/tms.conf`",
+  "`~/.tmux/tsesh.conf`",
+  "`~/.config/tsesh/config.toml`",
   "`~/.config/tmux/tms.toml`",
-  "`~/.config/tms/config.toml`",
 ]
 answer = 1
-why = "Pinned session definitions are stored in the tmux package at `tms.toml`."
+why = "tsesh reads `~/.config/tsesh/config.toml`, linked from the `tsesh` package."
 
 [[questions]]
 q = "Which key installs all TPM plugin entries after a fresh setup?"

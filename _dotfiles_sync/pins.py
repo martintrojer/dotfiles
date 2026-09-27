@@ -28,3 +28,14 @@ TPM: Final[tuple[str, str, str]] = (
     "v3.1.0",
 )
 TPM_DEST: Final[Path] = Path(".tmux/plugins/tpm")
+
+# mu-crew/dotfiles: the tmux wiring shared by mu, murmur and mule (focus hooks,
+# picker/dash/side-panel/workstream keys, agent glyph and pill formats).
+# .tmux.conf sources tmux/mu-crew.conf from this clone. Same model as the zsh
+# plugins: bump the ref and re-run dotfiles-sync --apply.
+MU_CREW_DOTFILES: Final[tuple[str, str, str]] = (
+    "mu-crew-dotfiles",
+    "https://github.com/mu-crew/dotfiles",
+    "29042fb6376caefa1b63b8c98bbae63649f729b1",
+)
+MU_CREW_DOTFILES_DEST: Final[Path] = Path(".local/share/mu-crew-dotfiles")

@@ -17,8 +17,9 @@
 
 [glyph]
 
-# Agent states. Drawn by tmux window tabs, the status-ai segment and the
-# `tms` picker, ordered by urgency.
+# Agent states, ordered by urgency. Drawn by tmux window tabs, pane borders
+# and the agent pill, through mu-crew/dotfiles' @mu_crew_g_* options
+# (region tmux-mu-crew-glyphs in tmux/.tmux.conf).
 agent_crashed = ""  # U+F057 fa-times-circle
 agent_blocked = ""  # U+F075 fa-comment
 agent_done = ""  # U+F058 fa-check-circle
