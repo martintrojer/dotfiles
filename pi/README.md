@@ -39,7 +39,7 @@ never waits on a fold. No-ops when murmur is absent or uninitialised.
 
 See [`tmux/README.md` § AI Agent Attention](../tmux/README.md#ai-agent-attention)
 and [`docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state awareness (tmux +
-murmur + mu + coop).
+murmur + mu + mule).
 
 ### `/loop` — recurring prompt scheduler
 

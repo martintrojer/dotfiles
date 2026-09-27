@@ -69,4 +69,4 @@ See [`docs/SETUP.md`](./docs/SETUP.md) for the install + update flow.
 
 [`docs/DECISIONS.md`](./docs/DECISIONS.md) records past audits — chezmoi,
 oh-my-zsh, niri→sway, TPM vendoring, and the agent stack (tmux + murmur + mu +
-coop; why not herdr or workmux). Read it before reopening those decisions.
+mule; why not herdr or workmux). Read it before reopening those decisions.
