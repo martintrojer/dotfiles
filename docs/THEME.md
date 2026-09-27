@@ -166,7 +166,9 @@ the agent alphabet by hand — twice, once per window-status line — and
 nothing failed when the copies diverged. `tmux-agent-glyphs` generates
 that chain instead. The two window-status lines share the one rendered
 `@agent_glyphs` option and supply their own background, because tmux
-carries the surrounding `#[bg=...]` into an `#{E:...}` re-expansion.
+carries the surrounding `#[bg=...]` into an `#{E:...}` re-expansion. The same
+region renders `@murmur_pane_glyph` for per-pane borders from
+`@murmur_pane_state`.
 
 ---
 

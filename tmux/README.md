@@ -146,7 +146,7 @@ Notes:
 - `find_max_depth` and `preview_command` are required.
 - `blacklist`, `noisy_basenames`, and `sessions` default to empty when omitted.
 - `sessions` are shown first in the picker with a `★` marker.
-- Sessions with an agent wanting attention are highlighted with the same subtle yellow-on-surface treatment used elsewhere in the tmux UI. The picker uses the same `marker · 30-column name · state · context` prefix as `murmur pick`, with an underlined column header; its path remains the context column. The state is read from the `@agent_state` window option murmur writes, via `_tmux_common.scan_agent_states`.
+- Sessions with an agent wanting attention are highlighted with the same subtle yellow-on-surface treatment used elsewhere in the tmux UI. The picker uses the same `marker · 30-column name · state · context` prefix as `murmur pick`, with an underlined column header; its path remains the context column. The state is read from the `@murmur_window_state` window option murmur writes, via `_tmux_common.scan_agent_states`.
 - per-session `split` is optional.
 - valid `split` values are `vertical` and `horizontal`.
 - if `split` is omitted, that session starts with a single pane.
@@ -219,7 +219,8 @@ me right now" across more than one box.
 What this package still owns is appearance and keys:
 
 - window glyphs for the crashed, blocked, done, working, and idle states via
-  `@agent_glyphs` — shapes generated from the `agent_*` keys in
+  `@agent_glyphs`, and pane-border glyphs via `@murmur_pane_glyph` — shapes
+  generated from the `agent_*` keys in
   [`docs/glyphs.toml`](../docs/glyphs.toml), colors from `docs/palette.toml`
 - `status-ai`, which renders one glyph per agent in `status-right` as
   urgency-ordered colored runs behind a robot icon, rolling up past three per
@@ -231,8 +232,12 @@ What murmur owns is behaviour: reported state, peer collect, crash detection,
 appearance and keys*. Why tmux + murmur + mu + coop (and not herdr or workmux)
 is in [`docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state awareness.
 
-`@agent_state` is the seam, and it has a second consumer: the `tms` session
-picker colours its rows from it via `_tmux_common.scan_agent_states`, so a
+Murmur publishes `@murmur_window_state` and `@murmur_window_has_agent` for
+window-level surfaces, and `@murmur_pane_state` for pane borders. The names
+differ because tmux pane options inherit same-named window options; a shell
+beside an agent must not inherit that agent's state. The window state has a
+second consumer: the `tms` session picker colours its rows from it via
+`_tmux_common.scan_agent_states`, so a
 badge murmur writes shows up as a glyph next to the session name in
 `prefix + s` as well as in the status bar. That is also why `murmur clear`
 clears the tmux option even for a pane murmur has no event for — a badge left

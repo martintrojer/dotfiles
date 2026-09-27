@@ -318,16 +318,18 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
         "",
     )
 
-    # @pane_agent is sticky: the push path owns it, and a redraw that can't
+    # @murmur_window_has_agent is sticky: the push path owns it, and a redraw that can't
     # see the agent (container, custom title, plain shell) must not clear it.
-    tmux(env, ["set-window-option", "-t", w1_id, "@pane_agent", "1"])
+    tmux(env, ["set-window-option", "-t", w1_id, "@murmur_window_has_agent", "1"])
     label_for_window(env, w1_id)
     expect(
-        "non-agent label leaves sticky @pane_agent alone",
-        tmux(env, ["display-message", "-p", "-t", w1_id, "#{@pane_agent}"]),
+        "non-agent label leaves sticky @murmur_window_has_agent alone",
+        tmux(
+            env, ["display-message", "-p", "-t", w1_id, "#{@murmur_window_has_agent}"]
+        ),
         "1",
     )
-    tmux(env, ["set-window-option", "-u", "-t", w1_id, "@pane_agent"])
+    tmux(env, ["set-window-option", "-u", "-t", w1_id, "@murmur_window_has_agent"])
 
     # An agent window: name in AGENTS, active command a wrapper, no
     # detectable agent child -- the branch that falls back to the window
@@ -355,8 +357,11 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
         "agent window renders the agent name", label_for_window(env, agent_id), "codex"
     )
     expect(
-        "agent label sets @pane_agent",
-        tmux(env, ["display-message", "-p", "-t", agent_id, "#{@pane_agent}"]),
+        "agent label sets @murmur_window_has_agent",
+        tmux(
+            env,
+            ["display-message", "-p", "-t", agent_id, "#{@murmur_window_has_agent}"],
+        ),
         "1",
     )
     tmux(env, ["kill-window", "-t", agent_id])
@@ -420,8 +425,8 @@ def run_managed_agent_label_tests(env: dict[str, str]) -> None:
 
     mu's shape -- window and title named after the agent, agent as the
     pane command -- takes the meaningful-title branch, so the label is a
-    name no word list knows. Gating the sticky ``@pane_agent`` on it left
-    every managed agent unmarked, and an idle one has no ``@agent_state``
+    name no word list knows. Gating the sticky ``@murmur_window_has_agent`` on it left
+    every managed agent unmarked, and an idle one has no ``@murmur_window_state``
     to fall back on: gone from both the picker and the status pill.
     """
     print("\n[status-window-label: mu-managed agent pane]")
@@ -440,7 +445,10 @@ def run_managed_agent_label_tests(env: dict[str, str]) -> None:
         )
         expect(
             "and the window is still marked as hosting an agent",
-            tmux(sub_env, ["display-message", "-p", "-t", wid, "#{@pane_agent}"]),
+            tmux(
+                sub_env,
+                ["display-message", "-p", "-t", wid, "#{@murmur_window_has_agent}"],
+            ),
             "1",
         )
     finally:
@@ -483,7 +491,7 @@ def run_split_pane_label_tests(env: dict[str, str]) -> None:
     ``status-window-label`` reads the *active* pane's fields, so in a split
     where the user sits in the sibling shell it walks the shell's process
     tree, never finds the agent, and therefore never sets the sticky
-    ``@pane_agent``. Solo-window tests cannot see this: there the active
+    ``@murmur_window_has_agent``. Solo-window tests cannot see this: there the active
     pane *is* the agent pane.
 
     This is documented behaviour rather than a defect -- the label names
@@ -491,7 +499,7 @@ def run_split_pane_label_tests(env: dict[str, str]) -> None:
     shell. The consequence is bounded because the picker does its own
     pane scan, but the picker moved to murmur, so what is pinned here is
     only the label-path half: an inactive agent pane must not set the
-    sticky ``@pane_agent``.
+    sticky ``@murmur_window_has_agent``.
     """
     print("\n[status-window-label: split-pane agent visibility]")
 
@@ -528,7 +536,10 @@ def run_split_pane_label_tests(env: dict[str, str]) -> None:
         )
         expect(
             "so the label path does not mark the window as hosting an agent",
-            tmux(sub_env, ["display-message", "-p", "-t", wid, "#{@pane_agent}"]),
+            tmux(
+                sub_env,
+                ["display-message", "-p", "-t", wid, "#{@murmur_window_has_agent}"],
+            ),
             "",
         )
     finally:
@@ -1318,7 +1329,45 @@ def run_tms_tests() -> None:
             "#{?#{m:mu-*,#{session_name}},,#{E:@agent_glyphs}}" in line,
             True,
         )
-        expect(f"{fmt} spells no glyph inline", "@agent_state},crashed" in line, False)
+        expect(
+            f"{fmt} spells no glyph inline",
+            "@murmur_window_state},crashed" in line,
+            False,
+        )
+
+    expect(
+        "window chain reads murmur's window state",
+        "@murmur_window_state" in chain,
+        True,
+    )
+    expect(
+        "window chain reads murmur's agent marker",
+        "@murmur_window_has_agent" in chain,
+        True,
+    )
+    legacy_state = "#{@" + "agent_state}"
+    expect("window chain no longer reads legacy state", legacy_state in chain, False)
+    pane_chain = next(
+        (ln for ln in conf.splitlines() if ln.startswith("set -g @murmur_pane_glyph ")),
+        "",
+    )
+    expect_truthy("tmux.conf defines @murmur_pane_glyph", bool(pane_chain))
+    expect(
+        "pane chain reads pane-scoped state", "@murmur_pane_state" in pane_chain, True
+    )
+    for state, glyph in STATE_GLYPH.items():
+        expect(
+            f"@murmur_pane_glyph carries the {state.name} glyph",
+            glyph in pane_chain,
+            True,
+        )
+    border = next(
+        (ln for ln in conf.splitlines() if ln.startswith("set -g pane-border-format ")),
+        "",
+    )
+    expect(
+        "pane border appends the pane glyph", "#{E:@murmur_pane_glyph}" in border, True
+    )
 
     # `cleared` is the absence of state, so it deliberately has no glyph.
     expect(
