@@ -7,15 +7,14 @@ suitable for stashing in a user option and re-expanded with
 from the short hostname so each box gets a stable, distinct corner color
 in peripheral vision (mirrors the per-window decoration trick VSCode uses
 for its title bar). Run once at config load — the value is host-pinned
-and never changes for a given machine.
+and never changes for a given machine. If it fails, .tmux.conf keeps its
+muted default pill, so there is no fallback here.
 """
 
 from __future__ import annotations
 
 import socket
 import zlib
-
-from _status_common import EXPECTED_ERRORS, log_error
 
 # Light catppuccin accents — all readable with a `crust` foreground.
 # Order is fixed so the hostname → color mapping stays stable as the
@@ -33,11 +32,8 @@ COLORS = (
     "#eba0ac",  # maroon
 )
 CRUST = "#11111b"
-# The server glyph the pill leads with, and the fallback that must draw the
-# same one. Both from docs/glyphs.toml, in this region rather than one of
-# their own so the file keeps a single marker pair.
+# The server glyph the pill leads with, from docs/glyphs.toml.
 ICON = "󰒋"
-FALLBACK_STYLE = "#[fg=#a6adc8]#[bg=#313244] 󰒋 ? #[default]"
 # THEME END: status-hostname-colors
 
 
@@ -55,14 +51,5 @@ def render() -> str:
     return f"#[fg={CRUST}]#[bg={accent}]#[bold] {ICON} {host} #[default]"
 
 
-def main() -> None:
-    try:
-        print(render())
-    except EXPECTED_ERRORS as exc:
-        log_error("status-hostname", f"hostname render failed: {exc!r}")
-        # Fall back to the muted default style so the segment still draws.
-        print(FALLBACK_STYLE)
-
-
 if __name__ == "__main__":
-    main()
+    print(render())

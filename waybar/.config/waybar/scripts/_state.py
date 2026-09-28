@@ -3,13 +3,9 @@
 Colocated with the executables: waybar invokes them directly, so Python's
 ``sys.path[0]`` makes ``from _state import ...`` resolve without PYTHONPATH.
 
-The failure policy below is deliberately the same one
-``tmux/.config/tmux/scripts/_status_common.py`` encodes, because both packages
-have the identical constraint: a headless renderer re-runs every few seconds
-with no terminal, so a traceback is invisible and losing stdout blanks the bar.
-It is copied rather than imported -- the two live in different stow packages
-and rely on ``sys.path[0]`` colocation (see docs/DECISIONS.md, "A shared
-pylib/ helper module"). Keep the two comparable when either changes.
+The failure policy below exists because a headless renderer re-runs every
+few seconds with no terminal: a traceback is invisible and losing stdout
+blanks the bar.
 """
 
 from __future__ import annotations

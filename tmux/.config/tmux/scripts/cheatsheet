@@ -20,8 +20,6 @@ import shutil
 import subprocess
 import sys
 
-from _tmux_common import tmux_cmd
-
 # Section ordering when rendering. "Plugins" and "No prefix" are static
 # footers (see PLUGIN_EXTRAS / NO_PREFIX_EXTRAS) and not produced from
 # list-keys output.
@@ -219,7 +217,12 @@ def render_extras() -> list[str]:
 
 def fetch_keys() -> str:
     """Run ``tmux list-keys -T prefix -N`` and return its raw stdout."""
-    return tmux_cmd("list-keys", "-T", "prefix", "-N", check=False).stdout
+    return subprocess.run(
+        ["tmux", "list-keys", "-T", "prefix", "-N"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout
 
 
 def parse_args() -> argparse.Namespace:
