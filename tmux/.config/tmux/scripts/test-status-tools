@@ -39,7 +39,6 @@ TMUX_CONF = SCRIPT_DIR.parents[2] / ".tmux.conf"
 REPO_ROOT = SCRIPT_DIR.parents[3]
 GLYPHS_TOML = REPO_ROOT / "docs" / "glyphs.toml"
 STATUS_HOSTNAME = SCRIPT_DIR / "status-hostname"
-STATUS_RAM = SCRIPT_DIR / "status-ram"
 
 # Per-process socket: two concurrent runs (e.g. `make check-all` here and in an
 # agent workspace on the same box) would otherwise share one tmux server and
@@ -538,11 +537,28 @@ def run_glyph_vocabulary_tests() -> None:
         (ln for ln in conf.splitlines() if ln.startswith("set -g status-right ")), ""
     )
     expect_truthy(".tmux.conf defines status-right", bool(status_right))
-    expect(
-        "status-right draws the cpu segment through @glyph_cpu",
-        "@glyph_cpu" in status_right,
-        True,
-    )
+    for segment, option in (
+        ("cpu", "@glyph_cpu"),
+        ("ram", "@glyph_ram"),
+        ("uptime", "@glyph_uptime"),
+    ):
+        line = next(
+            (
+                ln
+                for ln in conf.splitlines()
+                if ln.startswith(f"set -g @seg_{segment} ")
+            ),
+            "",
+        )
+        expect(f"the {segment} segment draws through {option}", option in line, True)
+        expect(
+            f"status-right places the {segment} segment",
+            f"@seg_{segment}" in status_right,
+            True,
+        )
+    # The cheap-tick rule: status-right runs no command per redraw. The
+    # hostname pill is computed once at load (run-shell), not here.
+    expect("status-right runs no #( command", "#(" in status_right, False)
 
     # The chrome glyphs, each read back out of the file that draws it.
     for option, key in (
@@ -550,6 +566,8 @@ def run_glyph_vocabulary_tests() -> None:
         ("@glyph_cpu", "cpu"),
         ("@glyph_zoom", "zoom"),
         ("@glyph_uptime", "uptime"),
+        ("@glyph_ram_linux", "ram"),
+        ("@glyph_ram_darwin", "memory_pressure"),
     ):
         line = next(
             (ln for ln in conf.splitlines() if ln.startswith(f"set -g {option} ")), ""
@@ -571,22 +589,11 @@ def run_glyph_vocabulary_tests() -> None:
         glyphs["host"] in status_hostname.FALLBACK_STYLE,
     )
 
-    status_ram = _import_script(STATUS_RAM, "status_ram_glyphs")
-    expect(
-        "status-ram's Linux glyph is the vocabulary's ram",
-        status_ram.ICON,
-        glyphs["ram"],
-    )
-    expect(
-        "status-ram's Darwin glyph is the vocabulary's memory_pressure",
-        status_ram.DARWIN_ICON,
-        glyphs["memory_pressure"],
-    )
     expect(
         "no tmux surface spells a vocabulary glyph inline",
         [
             (path.name, key)
-            for path in (TMUX_CONF, STATUS_HOSTNAME, STATUS_RAM)
+            for path in (TMUX_CONF, STATUS_HOSTNAME)
             for key, glyph in glyphs.items()
             if glyph in path.read_text(encoding="utf-8")
             and not _inside_theme_region(path, glyph)

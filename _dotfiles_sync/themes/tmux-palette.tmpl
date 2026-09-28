@@ -29,3 +29,7 @@ set -g @glyph_host '{{glyph.host}}'
 set -g @glyph_cpu '{{glyph.cpu}}'
 set -g @glyph_zoom '{{glyph.zoom}}'
 set -g @glyph_uptime '{{glyph.uptime}}'
+# Two RAM glyphs because the platforms report different things: Linux used/total
+# (a memory chip), macOS a pressure score (a gauge). @glyph_ram picks one.
+set -g @glyph_ram_linux '{{glyph.ram}}'
+set -g @glyph_ram_darwin '{{glyph.memory_pressure}}'

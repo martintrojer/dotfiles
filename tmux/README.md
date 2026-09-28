@@ -38,7 +38,6 @@ status-line plugins.
 
 - `tmux-plugins/tpm`: tmux plugin manager. It installs, updates, and loads the rest of the plugins from `.tmux.conf`.
 - `tmux-plugins/tmux-yank`: copies from tmux into the system clipboard. Most useful in copy mode and for pushing text out of tmux into the desktop clipboard.
-- `tmux-plugins/tmux-cpu`: provides the `#{cpu_percentage}` format used by the native status bar's CPU segment.
 - `martintrojer/tmux-fingers-rs`: hint-based picking inside visible pane content, similar to Vimium-style jump labels for paths, URLs, SHAs, numbers, and other matches. This is a Rust port of `Morantron/tmux-fingers`; configuration is the same (`@fingers-*` options), the binary is `tmux-fingers-rs`.
 - `mu-crew/tmux-session-picker`: `tsesh`, the session picker behind `prefix` + `s` / `g` / `T`. See its README for keys and config.
 - `sainnhe/tmux-fzf`: fzf-powered tmux management for sessions, windows, panes, bindings, clipboard history, and process actions.
@@ -51,10 +50,8 @@ From your current `tmux/.tmux.conf`:
 - The visible status bar is native tmux formatting using named Catppuccin Mocha palette variables defined near the top of `.tmux.conf`.
 - Built-in tmux UI surfaces such as `choose-tree`, menus, popups, and prompts are also styled directly with Catppuccin Mocha hex values instead of the stock tmux colors.
 - Vim split to tmux pane movement comes from `christoomey/vim-tmux-navigator`.
-- The right side CPU segment comes from `tmux-cpu`.
-- Cross-platform RAM usage is provided by `$HOME/.config/tmux/scripts/status-ram`.
+- CPU, RAM (a pressure score on macOS) and uptime come from mu-crew's poller: one background loop writes them into tmux options, and the segments are pure formats with warn and high levels.
 - Agent state (`working / done / blocked / crashed / idle`) is owned by [murmur](https://github.com/mu-crew/murmur), an installed tool; mu-crew/dotfiles renders it and this package places it. See [AI Agent Attention](#ai-agent-attention).
-- Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
 - Window labels use the active pane's `@murmur_pane_label`, editor command, meaningful shell title, or cwd basename through the pure tmux format `@win_label`.
 - The agent pill in `status-right` is mu-crew's `@mu_crew_pill`: a robot icon, then one coloured `<count><glyph>` run per state, most urgent first, then a dim crew total. It is pure tmux format over murmur's `@murmur_count_*` options (this host) and mu-crew's poller for remote peers, so no process runs on a redraw. `.tmux.conf` supplies the box background and hides the box when no agents exist.
 

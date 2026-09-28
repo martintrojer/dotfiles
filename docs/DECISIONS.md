@@ -692,6 +692,7 @@ herdr moved: license Apache 2.0, multi-machine closer to the dream, mu grew a he
 - **Moving forward together:** bump `MU_CREW_DOTFILES` in `_dotfiles_sync/pins.py` and `--apply tmux`; `prefix`+`U` for tsesh.
 - **Supersedes** the 2026-08-01 rejection of extracting `tms`. Its objections were coupling to `_tmux_common` and to `render_theme.py`; the murmur options removed the first and the THEME-region override removed the second.
 
+- **Status segments, 2026-09-28.** CPU, RAM and uptime moved from `#()` scripts (Python per redraw: measured 10 RAM and 20 label runs per 30 s) and the tmux-cpu plugin to mu-crew/dotfiles' poller: one long-lived loop writes numbers into options, and the segments are formats with warn/high levels. The window label became a pure format over murmur's `@murmur_pane_label`. `status-right` now runs no command on a redraw; a test enforces it. Rejected along the way: rewriting the scripts in sh (the macOS pressure scorer and the label's process-tree walk are not shell-shaped) and in Rust (saves only interpreter start, ~20 ms, and adds a build step; the 2026-08-01 "unified Rust CLI" reasoning still holds). The poller lives in mu-crew/dotfiles, not here, because every user of the stack wants these segments and its README already prescribed the pattern.
 ---
 
 ### Pane-controlled values never reach a tmux format shell line (accepted 2026-08-09)

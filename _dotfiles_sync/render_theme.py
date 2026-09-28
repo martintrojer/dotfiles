@@ -127,10 +127,6 @@ CONSUMERS: tuple[Consumer, ...] = (
         ("status-hostname-colors",),
     ),
     Consumer(
-        repo("tmux/.config/tmux/scripts/status-ram"),
-        ("status-ram-colors",),
-    ),
-    Consumer(
         repo("sway/.config/sway/scripts/lock-screen"),
         ("lock-screen-fallback-color",),
     ),
