@@ -113,7 +113,7 @@ Recurring temptation: mirror sway's `$mod+g` (`workspace back_and_forth`) and di
 - `tmux-fingers`: too large to rewrite. *(Now `tmux-fingers-rs`, see below.)*
 - `tmux-fzf`: clipboard popup is ~5 lines of bind, just works.
 - `tmux-yank`: cross-platform clipboard (`wl-copy`/`pbcopy`/`xclip`) — pillar #8 says to avoid that kind of busywork in shared config.
-- `tmux-cpu`: could become a local `status-cpu` script, but TPM is already running for the other 4 so marginal cost is zero.
+- `tmux-cpu`: could become a local `status-cpu` script, but TPM is already running for the other 4 so marginal cost is zero. *(Removed 2026-09-28: CPU comes from mu-crew's poller, see* Agent state awareness *§ Status segments.)*
 - TPM itself: ~200 lines of bash that does three things (clone, update, source). Boring and understood.
 
 **Tension:** #5 (local over upstream) vs #2 (TPM *is* the builtin idiom for tmux plugins) vs #4 (each plugin earns its place individually). Pillar #5 fires when adding *new* plugins, not when rewriting well-scoped existing ones.
