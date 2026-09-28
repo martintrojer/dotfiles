@@ -54,7 +54,7 @@ These bindings open and switch sessions:
 - `prefix`+`w` — tmux's built-in session-window tree picker
 - click the left status session block to open the session picker
 
-`tsesh` ([tmux-session-picker](https://github.com/martintrojer/tmux-session-picker), a TPM plugin) is the opinionated picker; `choose-tree` is tmux's native
+`tsesh` ([tmux-session-picker](https://github.com/mu-crew/tmux-session-picker), a TPM plugin) is the opinionated picker; `choose-tree` is tmux's native
 universal picker. Both earn their place.
 
 ```quiz
