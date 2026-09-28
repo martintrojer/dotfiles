@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Smoke tests for the tmux status helpers (status-window-label, cheatsheet).
+"""Smoke tests for the tmux status helpers and cheatsheet.
 
 Runs against an isolated tmux server and a throwaway XDG_STATE_HOME so it
 never touches the user's real tmux session, sockets, or pending events.
 
 Agent *state* is murmur's, not this repo's, so nothing here exercises the
 event log, the picker, or crash detection; the glyph and pill formats are
-mu-crew/dotfiles' and tested there. What is left: the label path, the
-format-injection audit of .tmux.conf, and that this repo's overrides of
-mu-crew's glyphs are the vocabulary's.
+mu-crew/dotfiles' and tested there. What is left: the native window-label
+format, the format-injection audit of .tmux.conf, and that this repo's
+overrides of mu-crew's glyphs are the vocabulary's.
 
 Usage:
     tmux/.config/tmux/scripts/test-status-tools
@@ -24,17 +24,14 @@ from __future__ import annotations
 import argparse
 import contextlib
 import os
-import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
 import tomllib
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-STATUS_WINDOW_LABEL = SCRIPT_DIR / "status-window-label"
 CHEATSHEET = SCRIPT_DIR / "cheatsheet"
 # scripts/ -> tmux/ -> .config/ -> <package root>, where the stowed dotfile lives.
 TMUX_CONF = SCRIPT_DIR.parents[2] / ".tmux.conf"
@@ -43,9 +40,6 @@ REPO_ROOT = SCRIPT_DIR.parents[3]
 GLYPHS_TOML = REPO_ROOT / "docs" / "glyphs.toml"
 STATUS_HOSTNAME = SCRIPT_DIR / "status-hostname"
 STATUS_RAM = SCRIPT_DIR / "status-ram"
-
-sys.path.insert(0, str(SCRIPT_DIR))
-from _tmux_common import AGENT_COMMANDS  # noqa: E402
 
 # Per-process socket: two concurrent runs (e.g. `make check-all` here and in an
 # agent workspace on the same box) would otherwise share one tmux server and
@@ -117,61 +111,6 @@ def tmux(env: dict[str, str], args: list[str], check: bool = True) -> str:
     return result.stdout.strip()
 
 
-def label(
-    window_name: str,
-    cmd: str,
-    title: str,
-    path: str,
-    host: str,
-    pid: str,
-) -> str:
-    """Render a label from explicit fields.
-
-    The script itself takes only a window id and fetches the fields from
-    tmux (see its module docstring: anything a pane can write must not
-    reach a ``#(...)`` command line). The precedence chain it applies to
-    those fields is still worth pinning field-by-field, so these cases
-    drive ``render()`` directly; ``label_for_window`` below covers the
-    fetch-and-dispatch path end to end.
-    """
-    swl = _import_script(STATUS_WINDOW_LABEL, "status_window_label_mod")
-    return swl.render(
-        window_name=window_name,
-        pane_current_command=cmd,
-        pane_title=title,
-        pane_current_path=path,
-        host_name=host,
-        pane_pid=pid,
-    )
-
-
-def label_for_window(env: dict[str, str], window_id: str) -> str:
-    """Run the real script the way ``@win_label`` does: one window id."""
-    result = subprocess.run(
-        [str(STATUS_WINDOW_LABEL), window_id],
-        env=env,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        raise TestFailure(
-            f"status-window-label failed:\n  stdout={result.stdout}\n  stderr={result.stderr}"
-        )
-    return result.stdout.strip()
-
-
-def _wait_for(env, target: str, fmt: str, pred, timeout: float = 3.0) -> str:
-    """Poll ``display-message`` until *pred* accepts the value."""
-    deadline = time.monotonic() + timeout
-    value = ""
-    while time.monotonic() < deadline:
-        value = tmux(env, ["display-message", "-p", "-t", target, fmt], check=False)
-        if pred(value):
-            return value
-        time.sleep(0.05)
-    return value
-
-
 def _start_session(env: dict[str, str]) -> None:
     """Create the first session, tolerating a server still shutting down.
 
@@ -183,7 +122,18 @@ def _start_session(env: dict[str, str]) -> None:
     last = ""
     for attempt in range(20):
         result = subprocess.run(
-            ["tmux", "-L", SOCKET, "new-session", "-d", "-s", "s1", "-n", "w1"],
+            [
+                "tmux",
+                "-L",
+                SOCKET,
+                "new-session",
+                "-d",
+                "-s",
+                "s1",
+                "-n",
+                "w1",
+                "sleep 300",
+            ],
             env=env,
             capture_output=True,
             text=True,
@@ -202,10 +152,24 @@ def setup_server(env: dict[str, str]) -> dict[str, str]:
     """Start an isolated tmux server with one detached session, two windows."""
     tmux(env, ["kill-server"], check=False)  # ignore if not running
     _start_session(env)
-    tmux(env, ["new-window", "-t", "s1:", "-n", "w2"])
+    tmux(env, ["new-window", "-t", "s1:", "-n", "w2", "sleep 300"])
     tmux(env, ["select-window", "-t", "s1:1"])  # focus w1
-    tmux(env, ["split-window", "-h", "-t", "s1:1"])  # pane in w1
+    tmux(env, ["split-window", "-h", "-t", "s1:1", "sleep 300"])  # pane in w1
     tmux(env, ["select-pane", "-t", "s1:1.1"])  # focus first pane
+
+    # Load the real label options without pulling plugins or user-specific
+    # run-shell commands into this isolated test.
+    label_conf = Path(env["XDG_STATE_HOME"]) / "window-label.conf"
+    label_conf.write_text(
+        "\n".join(
+            line
+            for line in TMUX_CONF.read_text(encoding="utf-8").splitlines()
+            if line.startswith("set -g @win_label")
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    tmux(env, ["source-file", str(label_conf)])
 
     panes = {}
     for window in ("s1:1", "s1:2"):
@@ -241,123 +205,47 @@ def teardown_server(env: dict[str, str]) -> None:
 # ---------- the actual tests ----------
 
 
+def format_label(env: dict[str, str], target: str) -> str:
+    return tmux(env, ["display-message", "-p", "-t", target, "#{E:@win_label}"])
+
+
+def run_window_label_tests(env: dict[str, str], panes: dict[str, str]) -> None:
+    """Drive every label branch through tmux's format evaluator."""
+    print("\n[window label format]")
+    target = panes["w1p1"]
+    command = tmux(
+        env, ["display-message", "-p", "-t", target, "#{pane_current_command}"]
+    )
+    host = tmux(env, ["display-message", "-p", "-t", target, "#{host}"])
+    path_base = tmux(
+        env, ["display-message", "-p", "-t", target, "#{b:pane_current_path}"]
+    )
+
+    tmux(env, ["set-option", "-p", "-t", target, "@murmur_pane_label", "agent task"])
+    expect("murmur pane label wins", format_label(env, target), "agent task")
+    tmux(env, ["set-option", "-pu", "-t", target, "@murmur_pane_label"])
+
+    tmux(env, ["set-option", "-g", "@win_label_editors", f"|{command}|"])
+    tmux(env, ["select-pane", "-t", target, "-T", "editor title"])
+    expect("editor uses pane command", format_label(env, target), command)
+
+    tmux(env, ["set-option", "-g", "@win_label_editors", "not-this-command"])
+    tmux(env, ["set-option", "-g", "@win_label_shells", f"|{command}|"])
+    tmux(env, ["select-pane", "-t", target, "-T", "★ Side Project"])
+    expect("shell uses meaningful title", format_label(env, target), "★ Side Project")
+    for title in ("", host, ":/tmp/project", "/tmp/project", "~/project"):
+        tmux(env, ["select-pane", "-t", target, "-T", title])
+        expect(f"shell rejects title {title!r}", format_label(env, target), path_base)
+
+    tmux(env, ["set-option", "-g", "@win_label_shells", "not-this-command"])
+    tmux(env, ["select-pane", "-t", target, "-T", "other title"])
+    expect("other command prefers title", format_label(env, target), "other title")
+    tmux(env, ["select-pane", "-t", target, "-T", ""])
+    expect("other command falls back to command", format_label(env, target), command)
+
+
 def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
-    run_split_pane_label_tests(env)
-    run_managed_agent_label_tests(env)
-
-    print("\n[status-window-label]")
-
-    # Pick a pid that is virtually guaranteed not to exist (and therefore
-    # has no descendant agent processes). 9_999_999 is well above the
-    # default ulimit on macOS/Linux.
-    fake_pid = "9999999"
-    host = "test-host"
-
-    expect(
-        "shell with cwd basename",
-        label("zsh", "zsh", host, "/tmp/projectx", host, fake_pid),
-        "projectx",
-    )
-    expect(
-        "active editor wins over title",
-        label("zsh", "nvim", "host-only-title", "/tmp/projectx", host, fake_pid),
-        "nvim",
-    )
-    expect(
-        "meaningful title beats path basename for shells",
-        label("zsh", "zsh", "★ Side Project", "/tmp/projectx", host, fake_pid),
-        "★ Side Project",
-    )
-    expect(
-        "rejects host-equal title",
-        label("zsh", "zsh", host, "/tmp/aaa", host, fake_pid),
-        "aaa",
-    )
-    expect(
-        "rejects path-shaped title",
-        label("zsh", "zsh", ":/foo/bar", "/tmp/aaa", host, fake_pid),
-        "aaa",
-    )
-    expect(
-        "agent window with no detected child falls back to title",
-        label("codex", "Python", "✳ Codex", "/tmp/x", host, fake_pid),
-        "✳ Codex",
-    )
-    expect(
-        "agent window with wrapper but no title falls back to window name",
-        label("codex", "Python", "", "/tmp/x", host, fake_pid),
-        "codex",
-    )
-    expect(
-        "non-agent generic command fallback",
-        label("daemons", "improve-writing", "", "/tmp/x", host, fake_pid),
-        "improve-writing",
-    )
-
-    # The script fetches its own fields, so the end-to-end path (window id
-    # in, label out) needs a real window.
-    w1_id = tmux(env, ["display-message", "-p", "-t", "s1:1", "#{window_id}"])
-    tmux(env, ["select-pane", "-t", "s1:1.1", "-T", "★ Fetched Title"])
-    expect(
-        "window id alone is enough to render a label",
-        label_for_window(env, w1_id),
-        "★ Fetched Title",
-    )
-    tmux(env, ["select-pane", "-t", "s1:1.1", "-T", ""])
-    expect(
-        "a dead window id degrades to an empty label, not a crash",
-        label_for_window(env, "@99999"),
-        "",
-    )
-
-    # @murmur_window_has_agent is sticky: the push path owns it, and a redraw that can't
-    # see the agent (container, custom title, plain shell) must not clear it.
-    tmux(env, ["set-window-option", "-t", w1_id, "@murmur_window_has_agent", "1"])
-    label_for_window(env, w1_id)
-    expect(
-        "non-agent label leaves sticky @murmur_window_has_agent alone",
-        tmux(
-            env, ["display-message", "-p", "-t", w1_id, "#{@murmur_window_has_agent}"]
-        ),
-        "1",
-    )
-    tmux(env, ["set-window-option", "-u", "-t", w1_id, "@murmur_window_has_agent"])
-
-    # An agent window: name in AGENTS, active command a wrapper, no
-    # detectable agent child -- the branch that falls back to the window
-    # name and so marks the window as hosting an agent.
-    tmux(
-        env,
-        [
-            "new-window",
-            "-d",
-            "-t",
-            "s1:",
-            "-n",
-            "codex",
-            "python3 -c 'import time; time.sleep(300)'",
-        ],
-    )
-    agent_id = tmux(env, ["display-message", "-p", "-t", "s1:codex", "#{window_id}"])
-    _wait_for(
-        env,
-        agent_id,
-        "#{pane_current_command}",
-        lambda v: v.startswith("python"),
-    )
-    expect(
-        "agent window renders the agent name", label_for_window(env, agent_id), "codex"
-    )
-    expect(
-        "agent label sets @murmur_window_has_agent",
-        tmux(
-            env,
-            ["display-message", "-p", "-t", agent_id, "#{@murmur_window_has_agent}"],
-        ),
-        "1",
-    )
-    tmux(env, ["kill-window", "-t", agent_id])
-
+    run_window_label_tests(env, panes)
     run_format_injection_tests()
 
     print("\n[cheatsheet]")
@@ -365,171 +253,6 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
 
     print("\n[glyph vocabulary]")
     run_glyph_vocabulary_tests()
-
-
-def agent_probe_env(env: dict[str, str]) -> dict[str, str]:
-    """Return an environment with a long-running process named ``codex``.
-
-    Keep the system binary in place: macOS kills copied platform binaries,
-    while invoking it through a symlink still gives ``ps`` the probe basename
-    -- which is what the ``ProcessSnapshot`` descendant walk reads.
-
-    tmux does not agree. ``#{pane_current_command}`` reports the kernel name
-    of the *resolved* executable, so the symlink shows up as ``sleep`` where
-    ``ps`` shows ``codex``. A test that needs tmux's own view of the pane
-    command must therefore declare the resolved name an agent as well, using
-    the ``TMUX_LABEL_AGENTS`` hook the renderer already honours. Without it
-    the ``pane_current_command in AGENTS`` branch cannot fire on macOS at
-    all, and a mu-managed pane goes unmarked.
-    """
-    agent_bin = Path(env["XDG_STATE_HOME"]).parent / "probe-bin"
-    agent_bin.mkdir(parents=True, exist_ok=True)
-    agent = agent_bin / "codex"
-    agent.unlink(missing_ok=True)
-    agent.symlink_to("/bin/sleep")
-    resolved = Path(os.readlink(agent)).name
-    return {
-        **env,
-        "PATH": f"{agent_bin}:{env['PATH']}",
-        "TMUX_LABEL_AGENTS": " ".join((*AGENT_COMMANDS, resolved)),
-    }
-
-
-def probe_is_up(sub_env: dict[str, str]):
-    """Predicate matching tmux's name for the probe's resolved executable.
-
-    Polling for ``"codex"`` here never matches, and ``_wait_for`` returns the
-    last value instead of raising, so the miss costs a silent 3s timeout and
-    then asserts against a pane that may not have exec'd yet.
-    """
-    expected = sub_env["TMUX_LABEL_AGENTS"].split()[-1]
-    return lambda v: v == expected
-
-
-def run_managed_agent_label_tests(env: dict[str, str]) -> None:
-    """A mu-spawned pane must be marked as hosting an agent.
-
-    mu's shape -- window and title named after the agent, agent as the
-    pane command -- takes the meaningful-title branch, so the label is a
-    name no word list knows. Gating the sticky ``@murmur_window_has_agent`` on it left
-    every managed agent unmarked, and an idle one has no ``@murmur_window_state``
-    to fall back on: gone from both the picker and the status pill.
-    """
-    print("\n[status-window-label: mu-managed agent pane]")
-
-    sub_env = agent_probe_env(env)
-    tmux(sub_env, ["new-window", "-d", "-t", "s1:", "-n", "worker-9", "codex 400"])
-    wid = tmux(sub_env, ["display-message", "-p", "-t", "s1:worker-9", "#{window_id}"])
-    _wait_for(sub_env, wid, "#{pane_current_command}", probe_is_up(sub_env))
-    tmux(sub_env, ["select-pane", "-t", wid, "-T", "worker-9 \u00b7"])
-
-    try:
-        expect(
-            "a managed pane's label is its title, which is in no word list",
-            label_for_window(sub_env, wid),
-            "worker-9 \u00b7",
-        )
-        expect(
-            "and the window is still marked as hosting an agent",
-            tmux(
-                sub_env,
-                ["display-message", "-p", "-t", wid, "#{@murmur_window_has_agent}"],
-            ),
-            "1",
-        )
-    finally:
-        tmux(sub_env, ["kill-window", "-t", wid], check=False)
-
-    # The same pane launched through an interpreter wrapper (pi-meta is a
-    # Python script that execs pi as a child). The pane command is then the
-    # wrapper, which sends the renderer down the descendant walk -- and that
-    # found the agent and returned its bare name, so every wrapped mu worker
-    # was labelled `pi` and its mu state glyph never reached the tab.
-    tmux(
-        sub_env,
-        [
-            "new-window",
-            "-d",
-            "-t",
-            "s1:",
-            "-n",
-            "worker-8",
-            'python3 -c \'import subprocess; subprocess.run(["codex", "400"])\'',
-        ],
-    )
-    wid = tmux(sub_env, ["display-message", "-p", "-t", "s1:worker-8", "#{window_id}"])
-    _wait_for(sub_env, wid, "#{pane_current_command}", lambda v: v.startswith("python"))
-    tmux(sub_env, ["select-pane", "-t", wid, "-T", "worker-8 \u00b7 task_x \u00b7"])
-
-    try:
-        expect(
-            "a wrapped managed pane's label is still its mu title",
-            label_for_window(sub_env, wid),
-            "worker-8 \u00b7 task_x \u00b7",
-        )
-    finally:
-        tmux(sub_env, ["kill-window", "-t", wid], check=False)
-
-
-def run_split_pane_label_tests(env: dict[str, str]) -> None:
-    """An agent in a non-active pane is invisible to the label path.
-
-    ``status-window-label`` reads the *active* pane's fields, so in a split
-    where the user sits in the sibling shell it walks the shell's process
-    tree, never finds the agent, and therefore never sets the sticky
-    ``@murmur_window_has_agent``. Solo-window tests cannot see this: there the active
-    pane *is* the agent pane.
-
-    This is documented behaviour rather than a defect -- the label names
-    what the window is currently showing, and the window is showing a
-    shell. The consequence is bounded because the picker does its own
-    pane scan, but the picker moved to murmur, so what is pinned here is
-    only the label-path half: an inactive agent pane must not set the
-    sticky ``@murmur_window_has_agent``.
-    """
-    print("\n[status-window-label: split-pane agent visibility]")
-
-    # A real process named after a real agent: ProcessSnapshot matches on
-    # the command basename, so the name is the whole fixture.
-    sub_env = agent_probe_env(env)
-
-    tmux(sub_env, ["new-window", "-d", "-t", "s1:", "-n", "splitlbl"])
-    tmux(sub_env, ["split-window", "-h", "-d", "-t", "s1:splitlbl", "codex 400"])
-    wid = tmux(sub_env, ["display-message", "-p", "-t", "s1:splitlbl", "#{window_id}"])
-    panes = tmux(
-        sub_env,
-        ["list-panes", "-t", "s1:splitlbl", "-F", "#{pane_id}\t#{pane_active}"],
-    ).splitlines()
-    agent_pane = panes[1].split("\t")[0]
-    _wait_for(
-        sub_env,
-        agent_pane,
-        "#{pane_current_command}",
-        probe_is_up(sub_env),
-    )
-
-    try:
-        expect("the agent pane is the inactive one", panes[1].split("\t")[1], "0")
-        label = subprocess.run(
-            [str(STATUS_WINDOW_LABEL), wid],
-            env=sub_env,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-        expect_truthy(
-            f"the label describes the active pane, not the agent (got {label!r})",
-            label != "codex",
-        )
-        expect(
-            "so the label path does not mark the window as hosting an agent",
-            tmux(
-                sub_env,
-                ["display-message", "-p", "-t", wid, "#{@murmur_window_has_agent}"],
-            ),
-            "",
-        )
-    finally:
-        tmux(sub_env, ["kill-window", "-t", wid], check=False)
 
 
 # Format fields an in-pane program can write, and so must never be
@@ -581,17 +304,30 @@ def run_format_injection_tests() -> None:
                 False,
             )
 
-    # The label option must stay window-id-only; that is the whole fix,
-    # and it is one careless edit away from regressing.
+    # The label must stay a pure format. Pane-writable fields are safe here
+    # because no part of this option is handed to a shell.
     win_label = next(
         (ln for ln in conf.splitlines() if ln.startswith("set -g @win_label ")), ""
     )
     expect_truthy(".tmux.conf defines @win_label", bool(win_label))
+    expect("@win_label contains no shell command", "#(" in win_label, False)
     expect(
-        "@win_label interpolates only tmux-minted fields",
-        sorted(set(re.findall(r"#\{([a-z_]+)\}", win_label))),
-        ["window_id"],
+        "set-titles-string expands @win_label",
+        'set-option -g set-titles-string "#S · #{T:@win_label}"' in conf,
+        True,
     )
+    for option in ("window-status-format", "window-status-current-format"):
+        line = next(
+            (ln for ln in conf.splitlines() if ln.startswith(f"set -g {option} ")),
+            "",
+        )
+        expect_truthy(f".tmux.conf defines {option}", line)
+        expect(
+            f"{option} shows the mu crew glyph",
+            "#{E:@mu_crew_window_glyph}" in line,
+            True,
+        )
+        expect(f"{option} does not suppress mu-* sessions", "m:mu-*" in line, False)
 
     _assert_hostile_title_renders_inertly()
 
@@ -992,7 +728,6 @@ def main() -> int:
 
     print(f"socket   : {SOCKET}")
     print(f"tmpdir   : {tmpdir}")
-    print(f"status-window-label: {STATUS_WINDOW_LABEL}")
 
     try:
         panes = setup_server(env)
