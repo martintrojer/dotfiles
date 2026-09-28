@@ -33,7 +33,7 @@ It does not own:
 - `repo_checks.py`: package coverage, repo file walk, and systemd unit-target resolution
 - `private_env.py`: accidental secrets and private-endpoint assignments in the repo
 - `managed_links.py`: `$HOME` symlink prune and backlink audit
-- `integration_checks.py`: external drift checks for zsh plugins, TPM, Codex notify, and Cursor notify
+- `integration_checks.py`: external drift checks for zsh plugins, TPM and its `@plugin` checkouts, Codex notify, and Cursor notify
 - `external.py`: pinned third-party clone management for zsh plugins and TPM
 - `model.py`: typed dataclasses and shared aliases
 
