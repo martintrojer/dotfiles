@@ -21,7 +21,7 @@ Two pieces live in their own repos so they can move forward with the tools they 
 | Repo | What it gives this config | How it arrives |
 | --- | --- | --- |
 | [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles) | murmur focus hooks; `prefix` + `a` / `C-m` / `G` / `u`; pane-border format; agent window, pane and pill formats | cloned by `dotfiles-sync --apply` to `~/.local/share/mu-crew-dotfiles` at the ref in [`_dotfiles_sync/pins.py`](../_dotfiles_sync/pins.py); `.tmux.conf` sources `tmux/mu-crew.conf` from it |
-| [martintrojer/tmux-session-picker](https://github.com/martintrojer/tmux-session-picker) | `tsesh`: `prefix` + `s` / `g` / `T` | TPM `@plugin`; config in the [`tsesh/`](../tsesh) package |
+| [mu-crew/tmux-session-picker](https://github.com/mu-crew/tmux-session-picker) | `tsesh`: `prefix` + `s` / `g` / `T` | TPM `@plugin`; config in the [`tsesh/`](../tsesh) package |
 
 To move forward: bump `MU_CREW_DOTFILES` in `pins.py` and run `./dotfiles-sync --apply tmux`; update tsesh with `prefix` + `U`. `.tmux.conf` overrides mu-crew's colours and glyphs after sourcing it, from `docs/palette.toml` and `docs/glyphs.toml` (region `tmux-mu-crew-glyphs`).
 
@@ -40,7 +40,7 @@ status-line plugins.
 - `tmux-plugins/tmux-yank`: copies from tmux into the system clipboard. Most useful in copy mode and for pushing text out of tmux into the desktop clipboard.
 - `tmux-plugins/tmux-cpu`: provides the `#{cpu_percentage}` format used by the native status bar's CPU segment.
 - `martintrojer/tmux-fingers-rs`: hint-based picking inside visible pane content, similar to Vimium-style jump labels for paths, URLs, SHAs, numbers, and other matches. This is a Rust port of `Morantron/tmux-fingers`; configuration is the same (`@fingers-*` options), the binary is `tmux-fingers-rs`.
-- `martintrojer/tmux-session-picker`: `tsesh`, the session picker behind `prefix` + `s` / `g` / `T`. See its README for keys and config.
+- `mu-crew/tmux-session-picker`: `tsesh`, the session picker behind `prefix` + `s` / `g` / `T`. See its README for keys and config.
 - `sainnhe/tmux-fzf`: fzf-powered tmux management for sessions, windows, panes, bindings, clipboard history, and process actions.
 - `christoomey/vim-tmux-navigator`: moves between Neovim splits and tmux panes with the same control-key motions, no prefix.
 
@@ -110,7 +110,7 @@ This config does not save or restore tmux state across reboots. The workflow is 
 
 ### `tsesh` config
 
-Pinned sessions and scan filters live in [`tsesh/.config/tsesh/config.toml`](../tsesh/.config/tsesh/config.toml). Every key is documented in the [tmux-session-picker README](https://github.com/martintrojer/tmux-session-picker) and its `examples/config.toml`.
+Pinned sessions and scan filters live in [`tsesh/.config/tsesh/config.toml`](../tsesh/.config/tsesh/config.toml). Every key is documented in the [tmux-session-picker README](https://github.com/mu-crew/tmux-session-picker) and its `examples/config.toml`.
 
 ## Using tmux-fingers-rs
 

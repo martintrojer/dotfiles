@@ -126,7 +126,7 @@ space.
 
 ## Sessions
 
-The session picker (`tms`, now [`tsesh`](https://github.com/martintrojer/tmux-session-picker)) is tmux-only since it moved to its own repo; its herdr backend was dropped. Use herdr's own workspace picker (`prefix+w`).
+The session picker (`tms`, now [`tsesh`](https://github.com/mu-crew/tmux-session-picker)) is tmux-only since it moved to its own repo; its herdr backend was dropped. Use herdr's own workspace picker (`prefix+w`).
 
 ## Agent Integrations
 
