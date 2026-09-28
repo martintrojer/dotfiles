@@ -1,8 +1,7 @@
 # `guides/`: interactive learning guides
 
 This directory contains one Markdown guide per tool. `build.py` renders the
-guides as static HTML without third-party dependencies. These guides replace
-the handwritten HTML that used to live in `docs/`.
+guides as static HTML without third-party dependencies.
 
 ## Files
 

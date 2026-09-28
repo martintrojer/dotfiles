@@ -114,7 +114,7 @@ space.
   herdr↔nvim protocol, and binding bare ctrl-letters would steal keys from
   pane apps.
 - **Status bar scripts** (`status-ram`, `status-uptime`,
-  `status-hostname`, `status-window-label`) — herdr's sidebar covers agent
+  `status-hostname`) — herdr's sidebar covers agent
   state natively and there is no status line to render the rest into.
 - **Agent state** — this is the thing herdr replaces. Both are live at once
   right now: [murmur](https://github.com/mu-crew/murmur)'s pi extension
@@ -126,7 +126,7 @@ space.
 
 ## Sessions
 
-The session picker (`tms`, now [`tsesh`](https://github.com/mu-crew/tmux-session-picker)) is tmux-only since it moved to its own repo; its herdr backend was dropped. Use herdr's own workspace picker (`prefix+w`).
+The session picker, [tsesh](https://github.com/mu-crew/tmux-session-picker), is tmux-only. Use herdr's own workspace picker (`prefix+w`).
 
 ## Agent Integrations
 

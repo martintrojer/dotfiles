@@ -44,8 +44,7 @@ nothing to report. Keep the group empty.
 
 ## Sizing and typography
 
-The bar is tuned to stay at 20px on the main display, preserving an extra tmux
-row compared with the old larger bar.
+The bar is 20px on the main display, which leaves room for one more tmux row.
 
 - base font: SF Compact + JetBrains fallback, 10pt, weight 500
 - issue, caffeinate, and notification pills: JetBrains Mono Nerd Font

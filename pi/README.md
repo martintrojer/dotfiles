@@ -20,8 +20,8 @@ Some extensions originated from [mitsuhiko/agent-stuff](https://github.com/mitsu
 
 ### `murmur` — agent state, installed not linked
 
-Agent state signalling moved to [murmur](https://github.com/mu-crew/murmur),
-which aggregates across machines rather than just this one. Its extension is
+Agent state comes from [murmur](https://github.com/mu-crew/murmur), which
+aggregates across machines. Its extension is
 **not** in this package: `murmur link pi` writes it to
 `~/.pi/agent/extensions/murmur.ts`, pinning an absolute store path as it goes,
 so `dotfiles-sync` cannot symlink it and only checks that it is there.

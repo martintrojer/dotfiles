@@ -57,7 +57,7 @@ The full lists live in `git-aliases.zsh` and `jj-aliases.zsh`. The keepers:
 - **git**: `g`, `ga`, `gb`, `gc`, `gco`, `gd`, `gf`, `gl`, `glg`, `gp`, `grb`, `gst`
 - **jj**: `jjb`, `jjd`, `jjdmsg`, `jje`, `jjgp`, `jjla`, `jjn`, `jjrb`, `jjsq`, `jjst`
 
-Selection criterion: ≥5 hits in `~/.zsh_history`. Everything else from the OMZ git (~190) and jj (~25) plugins was dropped.
+Selection criterion: ≥5 hits in `~/.zsh_history`.
 
 ### Diff review wrappers (in `aliases.zsh`)
 

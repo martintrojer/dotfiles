@@ -55,7 +55,7 @@ From your current `tmux/.tmux.conf`:
 - Cross-platform RAM usage is provided by `$HOME/.config/tmux/scripts/status-ram`.
 - Agent state (`working / done / blocked / crashed / idle`) is owned by [murmur](https://github.com/mu-crew/murmur), an installed tool; mu-crew/dotfiles renders it and this package places it. See [AI Agent Attention](#ai-agent-attention).
 - Cross-platform uptime is provided by `$HOME/.config/tmux/scripts/status-uptime`.
-- Window labels are derived from the active pane by `$HOME/.config/tmux/scripts/status-window-label`, so vertical-split workflows can switch between labels like `nvim`, `codex`, `π - ...`, or a cwd basename.
+- Window labels use the active pane's `@murmur_pane_label`, editor command, meaningful shell title, or cwd basename through the pure tmux format `@win_label`.
 - The agent pill in `status-right` is mu-crew's `@mu_crew_pill`: a robot icon, then one coloured `<count><glyph>` run per state, most urgent first, then a dim crew total. It is pure tmux format over murmur's `@murmur_count_*` options (this host) and mu-crew's poller for remote peers, so no process runs on a redraw. `.tmux.conf` supplies the box background and hides the box when no agents exist.
 
 ## Status bar layout
@@ -166,17 +166,15 @@ Notes:
 
 ## AI Agent Attention
 
-Agent state is owned by [murmur](https://github.com/mu-crew/murmur)
-(0.3.x), an installed tool rather than a script in this package. It replaced
-the local `agent-attention` script, which was single-machine by construction:
-window ids are machine-local, so it could never answer "is anything blocked on
-me right now" across more than one box.
+Agent state is owned by [murmur](https://github.com/mu-crew/murmur), an
+installed tool rather than a script in this package, so it can answer "is
+anything blocked on me right now" across every machine.
 
 The tmux side of it is [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles): focus hooks that call `murmur clear`, the `prefix` + `a` / `C-m` / `G` / `u` keys, and the window, pane-border and pill formats that read murmur's `@murmur_*` options. This package sources it, places the formats in the status bar, and overrides its colours and glyphs from `docs/palette.toml` and `docs/glyphs.toml`, so murmur state looks the same here as in waybar and zsh.
 
 What murmur owns is behaviour: reported state, peer collect, crash detection, `status` / `pick` / `dash`. The boundary is *tools own behaviour; mu-crew/dotfiles owns the shared tmux wiring; this repo owns placement and theme*. Why tmux + murmur + mu + mule (and not herdr or workmux) is in [`docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state awareness.
 
-murmur publishes `@murmur_session_state`, `@murmur_window_state`, `@murmur_pane_state` and the global `@murmur_count_<state>` options; see its ARCHITECTURE.md. The session state is what `tsesh` colours its rows from.
+murmur publishes `@murmur_session_state`, `@murmur_window_state`, `@murmur_pane_state`, `@murmur_pane_label`, and the global `@murmur_count_<state>` options; see its ARCHITECTURE.md. The pane label requires a murmur release newer than 0.6.0; the session state is what `tsesh` colours its rows from.
 
 Because murmur aggregates across machines, the status bar paints the whole
 fleet. A blocked agent on another host shows up here.
