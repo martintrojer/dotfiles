@@ -135,7 +135,7 @@ def run_apply_group(
         # half-linking them, matching the previous behaviour.
         blocked = {link.package for link in conflicts}
         for package in sorted(blocked):
-            LOGGER.warning(f"Skipping package '{package}' (conflict; see --check)")
+            LOGGER.warning(f"Skipping package '{package}' (conflict; reported below)")
         links = [link for link in links if link.package not in blocked]
 
     if overwrite is not None and conflicts:

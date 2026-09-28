@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import sys
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -305,19 +306,8 @@ def main() -> int:
 
     groups = group_active_packages(specs, active_names)
 
-    has_issues = False
-    for label, packages in groups.items():
-        if args.action == "check":
-            has_issues |= run_check_group(
-                label,
-                packages,
-                specs,
-                target,
-                args.show_diffs,
-                args.verbose,
-                ignore=args.ignore,
-            )
-        else:
+    if args.action == "apply":
+        for label, packages in groups.items():
             run_apply_group(
                 label,
                 packages,
@@ -327,32 +317,55 @@ def main() -> int:
                 overwrite=overwrite,
                 ignore=args.ignore,
             )
-
-    if args.action == "check":
-        has_issues |= run_check_tasks(
+        run_apply_tasks(
             target,
             specs,
             active_names,
             full_run=full_run,
             verbose=args.verbose,
+        )
+        if full_run:
+            print_post_apply_hints()
+        # Hints go to stdout, the report below to stderr (logging); flush so a
+        # pipe or file keeps the problems last, where they are seen.
+        sys.stdout.flush()
+
+    # --apply ends with the same pass --check runs, so both report the same
+    # problems the same way and exit non-zero on them. Apply steps fix what
+    # they can; whatever is left -- a conflict, a check with no apply step, an
+    # apply step that failed -- is reported here rather than scrolling past as
+    # a warning or not appearing at all.
+    has_issues = False
+    for label, packages in groups.items():
+        has_issues |= run_check_group(
+            label,
+            packages,
+            specs,
+            target,
+            args.show_diffs,
+            args.verbose,
             ignore=args.ignore,
         )
+    has_issues |= run_check_tasks(
+        target,
+        specs,
+        active_names,
+        full_run=full_run,
+        verbose=args.verbose,
+        ignore=args.ignore,
+    )
+
+    if args.action == "check":
         if has_issues:
             print("\nIssues found.")
             return 1
         print("No missing links or conflicts found.")
         return 0
 
-    run_apply_tasks(
-        target,
-        specs,
-        active_names,
-        full_run=full_run,
-        verbose=args.verbose,
-    )
+    if has_issues:
+        print("\nApplied, but issues remain (see above).")
+        return 1
     print("\nDone.")
-    if full_run:
-        print_post_apply_hints()
     return 0
 
 

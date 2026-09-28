@@ -56,6 +56,10 @@ From the repo root:
 ./dotfiles-sync --apply nvim             # apply just this package
 ```
 
+`--apply` finishes with the same pass `--check` runs. Anything its apply steps could not fix, such as a conflict, a missing TPM plugin or a stale link, is reported the same way, and both modes exit 1 when a problem is left.
+
+Rule for new checks: add the check to `run_check_tasks` and it runs in both modes. Add an apply step only when the fix is safe to automate.
+
 ## Quality bar
 
 From the repo root, `make check-python` runs `ruff`, `ty`, and `py_compile` on every Python file in the repo. Run it before sending a change. The Makefile pins the versions and fetches them through `uv`; see *Pinned toolchain* in [`../docs/SETUP.md`](../docs/SETUP.md).
