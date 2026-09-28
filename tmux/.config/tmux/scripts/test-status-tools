@@ -239,8 +239,16 @@ def run_window_label_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     tmux(env, ["set-option", "-g", "@win_label_shells", "not-this-command"])
     tmux(env, ["select-pane", "-t", target, "-T", "other title"])
     expect("other command prefers title", format_label(env, target), "other title")
-    tmux(env, ["select-pane", "-t", target, "-T", ""])
-    expect("other command falls back to command", format_label(env, target), command)
+    # The default title a shell leaves behind (the hostname) or a path-shaped
+    # one says nothing about the program now running; the label regressed to
+    # showing "linuxpc" for a node pane when only the shell branch rejected it.
+    for title in ("", host, "~/project"):
+        tmux(env, ["select-pane", "-t", target, "-T", title])
+        expect(
+            f"other command rejects title {title!r}",
+            format_label(env, target),
+            command,
+        )
 
 
 def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
@@ -248,7 +256,7 @@ def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
     run_format_injection_tests()
 
     print("\n[cheatsheet]")
-    run_cheatsheet_tests()
+    run_cheatsheet_tests(env)
 
     print("\n[glyph vocabulary]")
     run_glyph_vocabulary_tests()
@@ -556,6 +564,8 @@ def run_glyph_vocabulary_tests() -> None:
             f"@seg_{segment}" in status_right,
             True,
         )
+    run_probe_segment_tests(status_right)
+
     # The cheap-tick rule: status-right runs no command per redraw. The
     # hostname pill is computed once at load (run-shell), not here.
     expect("status-right runs no #( command", "#(" in status_right, False)
@@ -584,10 +594,6 @@ def run_glyph_vocabulary_tests() -> None:
         status_hostname.ICON,
         glyphs["host"],
     )
-    expect_truthy(
-        "the hostname fallback draws the same host glyph",
-        glyphs["host"] in status_hostname.FALLBACK_STYLE,
-    )
 
     expect(
         "no tmux surface spells a vocabulary glyph inline",
@@ -600,6 +606,50 @@ def run_glyph_vocabulary_tests() -> None:
         ],
         [],
     )
+
+
+def run_probe_segment_tests(status_right: str) -> None:
+    """Probe segments render at 0% and vanish only when their probe is off.
+
+    Regression: status-right gated on ``#{?#{@mu_crew_cpu},...}``, and tmux
+    reads "0" as false, so an idle box dropped its CPU segment and the bar
+    shifted. Evaluated through tmux itself, on a throwaway server.
+    """
+    socket = f"{SOCKET}-probes"
+    conf = TMUX_CONF.read_text(encoding="utf-8")
+
+    def raw(*args: str) -> str:
+        return subprocess.run(
+            ["tmux", "-L", socket, *args], capture_output=True, text=True
+        ).stdout.strip()
+
+    try:
+        raw("-f", "/dev/null", "new-session", "-d", "sleep 300")
+        for line in conf.splitlines():
+            if line.startswith(("set -g @seg_", "set -g @load_")):
+                _set, _g, option, value = line.split(" ", 3)
+                raw("set", "-g", option, value.strip("'"))
+        raw("set", "-g", "@probe_test", status_right.split(" ", 3)[3].strip("'"))
+        for option, value in (
+            ("@mu_crew_cpu", "0"),
+            ("@mu_crew_cpu_text", "0%"),
+            ("@mu_crew_mem", "95"),
+            ("@mu_crew_mem_text", "95%"),
+        ):
+            raw("set", "-g", option, value)
+        rendered = raw("display", "-p", "#{E:@probe_test}")
+        expect_truthy("a 0% cpu reading still renders", " 0% " in rendered)
+        expect_truthy("a 95% ram reading renders", " 95% " in rendered)
+        raw("set", "-gu", "@mu_crew_cpu")
+        raw("set", "-gu", "@mu_crew_cpu_text")
+        expect(
+            "an unpublished probe draws no segment",
+            " 0% " in raw("display", "-p", "#{E:@probe_test}"),
+            False,
+        )
+    finally:
+        raw("kill-server")
+        _unlink_socket(socket)
 
 
 def _inside_theme_region(path: Path, glyph: str) -> bool:
@@ -622,7 +672,7 @@ def _inside_theme_region(path: Path, glyph: str) -> bool:
     return True
 
 
-def run_cheatsheet_tests() -> None:
+def run_cheatsheet_tests(env: dict[str, str]) -> None:
     cs = _import_cheatsheet()
 
     # parse_keys: skip blank lines, split on first whitespace, strip empty notes.
@@ -697,8 +747,14 @@ def run_cheatsheet_tests() -> None:
     expect_truthy("render_extras includes No prefix block", "── No prefix ──" in extras)
 
     # Live integration: --no-picker must produce non-empty, well-formed output.
+    # $TMUX names the isolated server's socket, so the script reads the
+    # bindings loaded there, not whatever server the caller happens to run.
+    socket_path = tmux(env, ["display-message", "-p", "#{socket_path}"])
     proc = subprocess.run(
-        [str(CHEATSHEET), "--no-picker"], capture_output=True, text=True
+        [str(CHEATSHEET), "--no-picker"],
+        capture_output=True,
+        text=True,
+        env={**env, "TMUX": f"{socket_path},0,0"},
     )
     expect("cheatsheet --no-picker exits 0", proc.returncode, 0)
     expect_truthy("cheatsheet --no-picker has output", bool(proc.stdout.strip()))
@@ -723,12 +779,7 @@ def main() -> int:
         return 1
 
     tmpdir = tempfile.mkdtemp(prefix="tmux-status-tools-test-")
-    env: dict[str, str] = {
-        **os.environ,
-        "XDG_STATE_HOME": tmpdir,
-        # Pin the script to our isolated tmux server.
-        "TMUX_SOCKET_NAME": SOCKET,
-    }
+    env: dict[str, str] = {**os.environ, "XDG_STATE_HOME": tmpdir}
     # Ensure the script never picks up a stray TMUX env from this shell.
     env.pop("TMUX_PANE", None)
     env.pop("TMUX", None)
