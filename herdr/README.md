@@ -113,9 +113,9 @@ space.
 - **`vim-tmux-navigator`** (`ctrl+h/j/k/l` across nvim splits and panes) — no
   herdr↔nvim protocol, and binding bare ctrl-letters would steal keys from
   pane apps.
-- **Status bar scripts** (`status-ram`, `status-uptime`,
-  `status-hostname`) — herdr's sidebar covers agent
-  state natively and there is no status line to render the rest into.
+- **Status bar** (`status-hostname`, the mu-crew pills) — herdr's sidebar
+  covers agent state natively and there is no status line to render the rest
+  into.
 - **Agent state** — this is the thing herdr replaces. Both are live at once
   right now: [murmur](https://github.com/mu-crew/murmur)'s pi extension
   (installed by `murmur link pi`) and herdr's own `herdr-agent-state.ts`

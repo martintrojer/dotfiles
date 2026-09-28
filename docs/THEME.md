@@ -98,7 +98,6 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `btop/.config/btop/themes/current.theme` | `btop-colors` |
 | `eza/.config/eza/theme.yml` | `eza-colors` |
 | `tmux/.config/tmux/scripts/status-hostname` | `status-hostname-colors` |
-| `tmux/.config/tmux/scripts/status-ram` | `status-ram-colors` |
 | `local-bin/.local/bin/solo` | `solo-glyphs` |
 | `sway/.config/sway/scripts/lock-screen` | `lock-screen-fallback-color` |
 | `sway/.config/sway/scripts/session-wallpaper` | `session-wallpaper-fallback-color` |
