@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
-from .config import lazy_header
+from .config import REPO_ROOT, lazy_header
 from .external import _pinned_clone_head, _pinned_clone_resolve
 from .pins import (
     MU_CREW_DOTFILES,
@@ -87,6 +88,63 @@ def check_tmux_tpm(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
         print_header=lazy_header("tmux-tpm"),
         verbose=verbose,
     )
+
+
+TMUX_CONF: Path = REPO_ROOT / "tmux" / ".tmux.conf"
+_TPM_PLUGIN_RE = re.compile(
+    r"""^\s*set(?:-option)?\s+-g\s+@plugin\s+['"]([^'"]+)['"]"""
+)
+
+
+def tpm_plugins(conf: Path) -> list[str]:
+    """Return the ``owner/repo`` of every ``set -g @plugin`` line in ``conf``."""
+    return [
+        m.group(1)
+        for line in conf.read_text().splitlines()
+        if (m := _TPM_PLUGIN_RE.match(line))
+    ]
+
+
+def check_tpm_plugins(
+    target: Path, *, verbose: bool, ignore: set[str], conf: Path = TMUX_CONF
+) -> bool:
+    """Every ``@plugin`` has a checkout, and no checkout is left without one.
+
+    dotfiles-sync pins TPM itself; TPM owns the plugins. But nothing reruns
+    TPM's install when a new ``@plugin`` line arrives through a sync, and
+    tmux says nothing about a plugin that is not there: its keys and options
+    just never appear. Removed plugins linger the other way, still on disk.
+    TPM clones each plugin to ``~/.tmux/plugins/<repo basename>``.
+    """
+    plugins_dir = target / TPM_DEST.parent
+    print_header = lazy_header("tmux-plugins")
+    wanted = {spec.rsplit("/", 1)[-1]: spec for spec in tpm_plugins(conf)}
+    found_issue = False
+    for name, spec in sorted(wanted.items()):
+        issue_id = f"tmux-plugin:{name}"
+        if issue_id in ignore:
+            continue
+        if not (plugins_dir / name).is_dir():
+            print_header()
+            LOGGER.warning(
+                f"MISSING: {spec} (run {plugins_dir / 'tpm/bin/install_plugins'}"
+                f"; --ignore {issue_id})"
+            )
+            found_issue = True
+        elif verbose:
+            LOGGER.debug(f"OK: {spec}")
+    if plugins_dir.is_dir():
+        for child in sorted(plugins_dir.iterdir()):
+            issue_id = f"tmux-plugin:{child.name}"
+            if not child.is_dir() or child.name in wanted or issue_id in ignore:
+                continue
+            print_header()
+            LOGGER.warning(
+                f"STALE: {child} has no @plugin line (run "
+                f"{plugins_dir / 'tpm/bin/clean_plugins'}; --ignore {issue_id})"
+            )
+            found_issue = True
+    return found_issue
 
 
 def _murmur_state_dir(target: Path) -> Path:

@@ -21,6 +21,7 @@ from .integration_checks import (
     check_mu_crew_dotfiles,
     check_murmur,
     check_tmux_tpm,
+    check_tpm_plugins,
     check_zsh_plugins,
 )
 from .inventory import build_specs, group_active_packages, resolve_requested_packages
@@ -170,6 +171,10 @@ def run_check_tasks(
         (
             TaskPolicy(packages=frozenset({"tmux"})),
             lambda: check_tmux_tpm(target, verbose=verbose, ignore=ignore),
+        ),
+        (
+            TaskPolicy(packages=frozenset({"tmux"})),
+            lambda: check_tpm_plugins(target, verbose=verbose, ignore=ignore),
         ),
         (
             TaskPolicy(packages=frozenset({"tmux"})),
