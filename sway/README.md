@@ -71,9 +71,8 @@ Modifier conventions inside sway:
   audio mixer, `Shift+b` summons the Bluetooth TUI, `Shift+w` summons the
   NetworkManager TUI, and `Shift+m` opens Cider controls; these stay on Shift
   because their base keys are app launchers. Non-destructive pickers (toolboxes,
-  ssh, hotkeys) used to live on this layer but moved to base `mod+<letter>`
-  slots; only `Shift+p` (powermenu) stays here because lock/suspend/shutdown
-  earn the friction. Lock is reached via `mod+Shift+p` powermenu — no dedicated
+  ssh, hotkeys) sit on base `mod+<letter>` slots; only `Shift+p` (powermenu)
+  is here because lock/suspend/shutdown earn the friction. Lock is reached via `mod+Shift+p` powermenu — no dedicated
   key.
 - `mod+Shift+<motion>` — move container (`Shift+h/j/k/l`, `Shift+arrows`).
 - `mod+Ctrl+<motion>` — workspace-level move (`Ctrl+PgUp/Dn` move container +
