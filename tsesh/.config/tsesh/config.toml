@@ -21,7 +21,7 @@ noisy_basenames = [
 [[sessions]]
 name = "dotfiles"
 path = "~/dotfiles"
-startup = "yazi"
+split = "vertical"
 
 [[sessions]]
 name = "notes"
