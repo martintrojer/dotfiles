@@ -19,7 +19,7 @@ Running the **Debate** workflow in the **Council** skill to run multi-agent deba
 
 Council members are custom personas you write inline. Write four different briefs tailored to the topic — a persona-less agent produces bland agreement. See `../CouncilMembers.md` for writing them and `../SKILL.md` § Running the members for the execution modes.
 
-Below, "launch N members" means: dispatch N subagents if the harness has them, otherwise write each member's section yourself in sequence.
+Below, "launch N members" means: one `mu_delegate` call per member (member brief as `brief`) if the tool is available, then wait for all N follow-ups before the next round; otherwise write each member's section yourself in sequence.
 
 ## Execution
 
@@ -144,7 +144,7 @@ agents landing in the same place, and the reader should know which they got.
 
 ## Timing
 
-With parallel subagents:
+With delegates (in parallel within a round):
 
 - Writing member briefs: inline (orchestrator writes 4 briefs)
 - Round 1: ~10-20 seconds (parallel)

@@ -37,7 +37,7 @@ Members use domain knowledge to challenge specific claims from earlier rounds.
 
 ## Timing
 
-With parallel subagents:
+With delegates (`mu_delegate`):
 
 | Phase | Duration | Parallelism |
 |-------|----------|-------------|

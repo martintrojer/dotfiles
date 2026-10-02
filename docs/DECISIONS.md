@@ -298,7 +298,13 @@ The 2026-08 skills audit had to decide, repeatedly, whether to vendor skills tha
 
 The operational form of this, plus nine other rules extracted from the same audit, is *Zen Of These Skills* in [`skills/README.md`](../skills/README.md).
 
-**Reconsider if:** `mu` stops being the daily driver, or pi gains a first-class subagent tool that makes the prose-orchestration skills executable as written (its `examples/extensions/subagent/` is the thing to watch).
+**Amended 2026-10-02: one-shot delegation is `mu_delegate`.** The original reconsider clause ("pi gains a first-class subagent tool") was met by `mu`, not by pi. The `mu` pi extension, installed by `mu link pi`, ships a `mu_delegate` tool: one call spawns a `scratch` agent in its own pane, hands it the task, and posts its answer back as a follow-up. `council` now runs its members that way (one call per member per round, rounds sequential) and falls back to in-context only when the tool is absent.
+
+- **pi-subagents-style packages rejected.** They come with built-in agent types and run hidden subagents: no pane to attach to, no way to steer one mid-run or keep talking to it, and the transcript collapses into a result. A delegate is a visible, attachable, steerable agent with an ad-hoc brief; that is the property worth keeping.
+- **Not optional, not a second install.** `mu_delegate` ships with `mu link pi`; `MU_DELEGATE=0` is a kill switch, not a feature flag. `mu doctor` checks the extension and the skill, so `dotfiles-sync` adds no check of its own.
+- The rule above still holds: a skill describes one agent's behaviour, and `council` only names the tool. Multi-step coordination with review gates stays a `mu` DAG.
+
+**Reconsider if:** `mu` stops being the daily driver, or `mu_delegate` proves too coarse for skills that need it (e.g. they want results structured rather than as follow-up text).
 
 ---
 
