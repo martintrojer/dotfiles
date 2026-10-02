@@ -8,8 +8,8 @@ description: "Multi-agent collaborative debate producing visible round-by-round 
 > Vendored from [danielmiessler/LifeOS](https://github.com/danielmiessler/LifeOS)
 > `install/skills/Council` (upstream v1.1.20). De-Clauded for this machine: no
 > voice-notification curl, no `~/.claude/` customization path, no execution-log
-> JSONL, no RedTeam cross-references. See **Running the members** below — the
-> parallel-subagent path is optional here.
+> JSONL, no RedTeam cross-references. See **Running the members** below — members
+> run as `mu_delegate` panes, or in-context when that tool is absent.
 
 ## What It Does
 
@@ -32,14 +32,17 @@ See `CouncilMembers.md` for the slot guidance and an example brief.
 ## Running the members
 
 Upstream assumes a `Task`/`Agent` tool with `subagent_type`. Pi has no such
-built-in, so pick whichever of these the current harness supports:
+built-in; in pi the members run as `mu` delegates when the `mu_delegate` tool
+is available, and in-context otherwise:
 
 | Mode | When | How |
 |------|------|-----|
-| **In-context (default)** | Always available; use unless told otherwise | You play every member yourself, one section at a time. Write the brief, then answer *as* that member before moving to the next. Do not peek ahead — draft each member's Round-N text in full before starting the next member's |
-| **Parallel subagents** | Harness exposes a subagent/Task tool (pi ships one as an uninstalled example extension; Claude Code and Codex have one natively) | One agent per member, prompt = brief + round instructions + topic. Rounds stay sequential; members within a round run parallel |
-| **Parallel subagents** (pi) | One-shot members, independence matters | `mu_delegate` per member, one call per member in the same turn; rounds stay sequential |
-| **tmux crew** | Long debate you want to steer mid-flight | Drive it with the `mu` skill, one pane per member |
+| **Delegates (default when available)** | `mu_delegate` is in your tool list (an unmanaged pi with `mu link pi`; it is absent inside `mu` panes) | One `mu_delegate` call per member per round: `brief` = the member brief, `task` = round instructions + full topic context + the transcript so far (a delegate starts with no context). Members within a round run in parallel as visible `scratch` panes the user can attach to and steer. Each answer arrives as a follow-up message; do not poll. Rounds stay sequential: wait for all members' follow-ups before sending the next round |
+| **In-context (fallback)** | No `mu_delegate` | You play every member yourself, one section at a time. Write the brief, then answer *as* that member before moving to the next. Do not peek ahead — draft each member's Round-N text in full before starting the next member's |
+| **mu crew** | Long debate you want to interrogate between rounds | Drive it with the `mu` skill, one long-lived agent per member |
+
+Other harnesses (Claude Code, Codex) can use their native task tool in the
+delegate slot; those are hidden subagents, with no pane to watch or steer.
 
 In-context loses true independence — you know what the other members will say.
 Compensate by committing to each brief's stance hard, and by writing the
@@ -81,7 +84,7 @@ bending a debate into a teardown.
 
 **Agents:** Every council member is a custom brief you write for the topic. This gives each member a distinct role, stance, and domain expertise. Generic agents produce generic debate; topic-specific briefs produce sharp, informed debate.
 
-**Speed:** With parallel subagents, execution is parallel within rounds and sequential between them — a 3-round debate of 4 members is 12 agent calls but only 3 sequential waits (40-90 seconds). In-context, it's one pass and correspondingly slower to read but cheaper to run.
+**Speed:** With delegates, execution is parallel within rounds and sequential between them — a 3-round debate of 4 members is 12 agent calls but only 3 sequential waits (40-90 seconds). In-context, it's one pass and correspondingly slower to read but cheaper to run.
 
 ## Examples
 
@@ -103,7 +106,7 @@ bending a debate into a teardown.
 
 **Works well with:**
 - **`brainstorm`** - Council to pick between approaches, then brainstorm the winner into a spec
-- **`mu`** - When you want the members as long-lived tmux panes you can interrogate. To pick one winner from many candidates rather than debate, use mu's `recipes/tournament.md`; to attack a plan or finding, `recipes/refute.md`
+- **`mu`** - Supplies `mu_delegate` for the members; drive a crew directly when you want long-lived members you can interrogate. To pick one winner from many candidates rather than debate, use mu's `recipes/tournament.md`; to attack a plan or finding, `recipes/refute.md`
 
 ## Practices
 

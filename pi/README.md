@@ -26,6 +26,10 @@ aggregates across machines. Its extension is
 `~/.pi/agent/extensions/murmur.ts`, pinning an absolute store path as it goes,
 so `dotfiles-sync` cannot symlink it and only checks that it is there.
 
+The `mu` pi extension (control socket for `mu` panes, plus the `mu_delegate`
+tool in unmanaged pi) is installed the same way, by `mu link pi`;
+`dotfiles-sync` does not link it, and `mu doctor` checks it.
+
 - On `agent_start`: marks the window `working` and records the pid, which is
   what makes crash detection possible.
 - On `agent_end`: clears if the pane is focused, otherwise `done`.

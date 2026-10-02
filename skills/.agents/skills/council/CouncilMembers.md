@@ -33,7 +33,7 @@ Example brief:
 
 ### Step 3: Run the members
 
-Each member's input is the brief you wrote, plus the round instructions and the topic context. See **Running the members** in `SKILL.md` for the three execution modes — in-context (default), parallel subagents, or `mu` panes.
+Each member's input is the brief you wrote, plus the round instructions and the topic context. See **Running the members** in `SKILL.md` for the three execution modes — `mu_delegate` panes (default when available), in-context, or a `mu` crew.
 
 In-context, that means writing this before you answer as them:
 

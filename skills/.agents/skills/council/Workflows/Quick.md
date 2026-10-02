@@ -34,7 +34,7 @@ Write 4 member briefs tailored to the topic, then announce:
 
 ### Step 2: Parallel Perspective Gathering
 
-Launch all council members — in parallel if the harness has subagents, otherwise write each take yourself in sequence.
+Launch all council members — one `mu_delegate` call per member if the tool is available, otherwise write each take yourself in sequence.
 
 **Each member's input is their brief PLUS:**
 ```
@@ -87,7 +87,7 @@ Run: "Council: [topic]" for 3-round structured discussion.
 
 ## Timing
 
-- Total: 15-30 seconds with parallel subagents (single round). In-context, one response.
+- Total: 15-30 seconds with delegates (single round). In-context, one response.
 
 ## Done
 
