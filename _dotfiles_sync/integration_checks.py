@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import tomllib
 from collections.abc import Callable
 from pathlib import Path
 
@@ -283,6 +284,17 @@ def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     return found_issue
 
 
+def _codex_notify_command(content: str) -> str | None:
+    """The executable codex's top-level `notify` runs, or None if unparseable."""
+    try:
+        notify = tomllib.loads(content).get("notify")
+    except tomllib.TOMLDecodeError:
+        return None
+    if isinstance(notify, list) and notify and isinstance(notify[0], str):
+        return notify[0]
+    return None
+
+
 def check_codex_notify(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     """Verify the codex notify hook points at something that exists.
 
@@ -336,6 +348,22 @@ def check_codex_notify(target: Path, *, verbose: bool, ignore: set[str]) -> bool
             f"(--ignore {issue_id})"
         )
         return True
+
+    # The Codex Computer Use app owns this line when installed. Codex allows
+    # one notify command, so murmur is deliberately absent; only a deleted
+    # app would fail silently.
+    if "SkyComputerUseClient" in line:
+        command = _codex_notify_command(content)
+        if command is not None and not Path(command).is_file():
+            lazy_header("codex-notify")()
+            LOGGER.warning(
+                f"MISSING: codex notify at {path} calls {command}, which does not "
+                f"exist -- every notification fails silently (--ignore {issue_id})"
+            )
+            return True
+        if verbose:
+            LOGGER.debug(f"OK: codex notify hook calls Codex Computer Use in {path}")
+        return False
 
     if "murmur" not in line:
         lazy_header("codex-notify")()
