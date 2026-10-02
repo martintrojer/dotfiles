@@ -23,6 +23,10 @@ SETTINGS_PATH: Final[Path] = Path(".pi") / "agent" / "settings.json"
 PI_SETTINGS: Final[dict[str, object]] = {
     # On top of pi's default tools (read, bash, edit, write).
     "defaultTools": ["+codemode", "+tool_search"],
+    # Always under tmux: let it own scrollback, copy-mode, and search.
+    "tuiMode": "regular",
+    # Object values merge one level deep; other terminal.* keys stay pi's.
+    "terminal": {"showTerminalProgress": True},
 }
 
 
@@ -43,8 +47,19 @@ def _load(path: Path) -> dict[str, object] | None:
     return data
 
 
+def _merged(current: object, want: object) -> object:
+    """want laid over current; dicts merge one level, anything else replaces."""
+    if isinstance(want, dict) and isinstance(current, dict):
+        return {**current, **want}
+    return want
+
+
 def _drift(current: dict[str, object]) -> list[str]:
-    return [key for key, value in PI_SETTINGS.items() if current.get(key) != value]
+    return [
+        key
+        for key, want in PI_SETTINGS.items()
+        if current.get(key) != _merged(current.get(key), want)
+    ]
 
 
 def check_pi_settings(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
@@ -79,7 +94,7 @@ def apply_pi_settings(target: Path, *, verbose: bool) -> None:
         if verbose:
             LOGGER.debug(f"OK: {path} already has {', '.join(PI_SETTINGS)}")
         return
-    current.update({key: PI_SETTINGS[key] for key in drift})
+    current.update({key: _merged(current.get(key), PI_SETTINGS[key]) for key in drift})
     path.parent.mkdir(parents=True, exist_ok=True)
     # Same shape pi writes, so its next save is not a reformat.
     path.write_text(json.dumps(current, indent=2))

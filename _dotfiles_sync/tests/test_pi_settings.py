@@ -27,7 +27,13 @@ class PiSettingsTest(unittest.TestCase):
     def test_apply_merges_and_keeps_pi_owned_keys(self) -> None:
         self.path.parent.mkdir(parents=True)
         self.path.write_text(
-            json.dumps({"defaultModel": "m", "defaultTools": ["-bash"]})
+            json.dumps(
+                {
+                    "defaultModel": "m",
+                    "defaultTools": ["-bash"],
+                    "terminal": {"showImages": False},
+                }
+            )
         )
         with self.assertLogs(pi_settings.LOGGER):
             self.assertTrue(
@@ -38,6 +44,9 @@ class PiSettingsTest(unittest.TestCase):
         data = json.loads(self.path.read_text())
         self.assertEqual(data["defaultModel"], "m")
         self.assertEqual(data["defaultTools"], pi_settings.PI_SETTINGS["defaultTools"])
+        self.assertEqual(
+            data["terminal"], {"showImages": False, "showTerminalProgress": True}
+        )
         self.assertFalse(
             pi_settings.check_pi_settings(self.target, verbose=False, ignore=set())
         )
