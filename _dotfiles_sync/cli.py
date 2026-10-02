@@ -32,6 +32,7 @@ from .managed_links import (
     prune_stale_managed_links,
 )
 from .model import Args, Overwrite, PackageSpec, TaskPolicy
+from .pi_settings import apply_pi_settings, check_pi_settings
 from .private_env import check_private_env_mistakes
 from .repo_checks import (
     check_package_coverage,
@@ -188,6 +189,10 @@ def run_check_tasks(
             TaskPolicy(packages=frozenset({"tmux", "pi"})),
             lambda: check_murmur(target, verbose=verbose, ignore=ignore),
         ),
+        (
+            TaskPolicy(packages=frozenset({"pi"})),
+            lambda: check_pi_settings(target, verbose=verbose, ignore=ignore),
+        ),
         # Not tied to a package: ~/.codex/config.toml is codex's own file,
         # not something this repo links, so this runs everywhere and returns
         # clean on a machine with no codex.
@@ -267,6 +272,10 @@ def run_apply_tasks(
         (
             TaskPolicy(packages=frozenset({"tmux"})),
             lambda: apply_mu_crew_dotfiles(target, verbose=verbose),
+        ),
+        (
+            TaskPolicy(packages=frozenset({"pi"})),
+            lambda: apply_pi_settings(target, verbose=verbose),
         ),
     )
 
