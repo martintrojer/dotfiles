@@ -15,6 +15,12 @@ sway_packages=(
   # Notification daemon for the Wayland session.
   mako
 
+  # swayward session pieces (the GTK portal comes with the base image).
+  # GNOME portal backend for swayward.
+  xdg-desktop-portal-gnome
+  # X11 app support under swayward.
+  xwayland-satellite
+
   # Desktop workflow apps.
   # Containerized dev environments launched from the desktop session.
   distrobox
