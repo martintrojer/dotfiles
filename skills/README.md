@@ -60,6 +60,7 @@ preference order:
 |------|-----|
 | Long-lived crew, multi-phase or review-gated work, parallel tracks, anything that must survive compaction | [`mu`](https://github.com/martintrojer/mu) — the default |
 | A helper you'll keep talking to, no DAG | `mu`'s reserved `scratch` workstream |
+| A multi-agent *pattern*: fan-out, adversarial review, refute, tournament, loop-until-done, ultrathink | `mu`'s recipes, `~/.agents/skills/mu/recipes/` — skills here link to them, never copy them |
 
 `mu` is symlinked into `~/.agents/skills/mu` from its own repo, not vendored
 here. **Skills that bundle their own orchestration are not vendored** — they
@@ -126,10 +127,10 @@ until a later count sees real use.
 | `unslop` | [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing) (MIT) v3.23.0 @ `f9fef0e` + [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT) `unslop` @ `60c641e` | Local synthesis, not byte-comparable to either source. The compact `SKILL.md` is always on; the exhaustive catalog and zero-dependency detector/validator load only for explicit cleanup. The merged license retains both upstream notices. `patterns.js` remains a library called through `node -e` |
 | `technical-writing` | [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT) @ `60c641e` | Upstream `skills/technical-writing`. Local: dropped Cursor's `disable-model-invocation` field so generic agents can discover it; commit messages stay with `commit`; marked `## Related` rows route agent-facing documents to `writing-for-agents` and commits to `commit` |
 | `caveman` | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) (MIT) | Synced @ `7066cc8`. Local: description triggers only on explicit caveman invoke (`caveman mode` / `/caveman`); dropped `"be brief"`, `"less tokens"`, and the token-efficiency auto-trigger so it does not fight `wait-what` |
-| `council` | [danielmiessler/LifeOS](https://github.com/danielmiessler/LifeOS) `install/skills/Council` | Upstream v1.1.20 @ `47df8ee`. **De-Clauded**: dropped the voice-notification curl, the `~/.claude/LIFEOS/` customization path, the execution-log JSONL, and the RedTeam cross-references; `name` lowercased to match the directory. Upstream's `subagent_type: general-purpose` calls became the harness-neutral *Running the members* section. Also fixed upstream's bare `CouncilMembers.md` / `SKILL.md` references inside `Workflows/` to `../` |
+| `council` | [danielmiessler/LifeOS](https://github.com/danielmiessler/LifeOS) `install/skills/Council` | Upstream v1.1.20 @ `47df8ee`. **De-Clauded**: dropped the voice-notification curl, the `~/.claude/LIFEOS/` customization path, the execution-log JSONL, and the RedTeam cross-references; `name` lowercased to match the directory. Upstream's `subagent_type: general-purpose` calls became the harness-neutral *Running the members* section. Also fixed upstream's bare `CouncilMembers.md` / `SKILL.md` references inside `Workflows/` to `../`. Local: `mu_delegate` parallel mode, and Integration points at mu's `tournament` / `refute` recipes |
 | `ponytail` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT) | Synced @ `16f2980`. One local addition: a *Touch only what you must* section adapted from [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT) — upstream ponytail covers what you don't *write*, not what you don't *touch*. Upstream also ships five sibling skills (`-review`, `-audit`, `-debt`, `-gain`, `-help`), deliberately not vendored — see below |
 | `summarize` | [steipete/summarize](https://github.com/steipete/summarize) | Locally rewritten backend section: this host pins OpenCode (`big-pickle`) as the only provider. See `summarize/README.md` |
-| `writing-for-agents` | [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) `skills/productivity/writing-for-agents` @ `84fdeff` | Plus `SKILL-MECHANICS.md`. Local: dropped the `CLAUDE.md` mentions, added the pstack enforcement ladder, and routes human-facing prose to `technical-writing` and cleanup to `unslop`. Upstream's `agents/openai.yaml` is Codex-plugin metadata, not vendored |
+| `writing-for-agents` | [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) `skills/productivity/writing-for-agents` @ `84fdeff` | Plus `SKILL-MECHANICS.md`. Local: dropped the `CLAUDE.md` mentions, added the pstack enforcement ladder, and routes human-facing prose to `technical-writing`, cleanup to `unslop`, and mu worker briefs to mu's `recipes/brief.md`. Upstream's `agents/openai.yaml` is Codex-plugin metadata, not vendored |
 | `receiving-code-review` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Local: "your human partner" → "the user"; two quoted-maxim attributions rewritten as standalone rules |
 | `systematic-debugging` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Plus `root-cause-tracing.md`, `defense-in-depth.md`, `condition-based-waiting.md` + example, `find-polluter.sh`. Local: retargeted two `superpowers:`-prefixed sub-skill references, fixed a mangled `## your human partner's Signals` heading |
 | `test-driven-development` | [obra/superpowers](https://github.com/obra/superpowers) (MIT) @ `44c9b2d` | Plus `writing-good-tests.md` and earlier retargeting. Local selection gate adapted from pstack `tdd` @ `60c641e`: require red-first for requested TDD or cheap bug tests, otherwise use the closest meaningful executable check |
@@ -141,7 +142,7 @@ until a later count sees real use.
 |-------|---------|-------------|
 | `/skill:brainstorm` | "brainstorm", "design a feature", "think through an idea" | Work a decision tree in dependency-ordered rounds, then write an approved spec at `docs/specs/`. Hard gate: no code before the user approves a design. Skip genuine one-liners with no design question |
 
-| `/skill:write-plan` | "write a plan", "plan this feature" | Turn an approved spec into ordered, independently verifiable tasks at `docs/plans/`. TDD steps, exact paths, no placeholders |
+| `/skill:write-plan` | "write a plan", "plan this feature" | Turn an approved spec into a `mu` task DAG (a `docs/plans/` file only on request): scope check, plan header, TDD step structure. The DAG mechanics live in mu's `recipes/plan.md` |
 
 ### Version Control
 
@@ -173,7 +174,7 @@ until a later count sees real use.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `/skill:council` | "council", "debate", "weigh options" | Multi-agent collaborative-adversarial debate with visible transcripts |
+| `/skill:council` | "council", "debate", "weigh options" | Multi-agent collaborative-adversarial debate with visible transcripts. For choosing among many candidates or attacking findings, mu's `tournament` / `refute` recipes fit better |
 
 ### Caveman Mode (Token Efficiency)
 

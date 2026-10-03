@@ -99,3 +99,4 @@ worse than one weak one.
 | `unslop` | Any prose you author. Always-on cleanup beneath this skill's agent-facing structure |
 | `technical-writing` | The document is for a human reader: docs, RFCs, READMEs, or PR descriptions |
 | `ponytail` | A document is code too — the no-op hunt is its ladder pointed at prose |
+| `mu` | The reader is a mu worker: a task note or `--fresh` prompt. `~/.agents/skills/mu/recipes/brief.md` applies these rules to briefs |
