@@ -15,7 +15,7 @@ Foot reloads its config automatically on file change.
 
 - Catppuccin Mocha palette (matches the rest of the desktop)
 - Hack Nerd Font Mono @ 12pt with `vertical-letter-offset=0`
-- `gamma-correct-blending=yes` for fuller light-on-dark text, between Hack Regular and Bold (Hack has no in-between weight)
+- Plain Hack Regular: renderer tweaks (gamma blending, stem darkening) measured as no change; see "Foot text weight" in `docs/DECISIONS.md`
 - 8px window padding, 80% background opacity
 - 50000 lines of scrollback, 3-line wheel multiplier
 - Hide mouse cursor while typing
