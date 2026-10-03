@@ -446,23 +446,40 @@ Replaces the brief alacritty-everywhere experiment ([above](#alacritty-as-the-cr
 
 ---
 
-### Foot text weight: Hack Regular with gamma-correct blending, not a heavier face (accepted 2026-09-26)
+### Foot text weight: plain Hack Regular; no renderer setting thickens it (accepted 2026-10-03, replaces the 2026-09-26 gamma pick)
 
-Hack Regular read too thin on the 1.5x-scaled 4K output. The goal was the same letter shapes, slightly fuller, still short of Bold. Hack is built on DejaVu Sans Mono and ships only Regular and Bold, so no real in-between face exists.
+Hack Regular read too thin on the 1.5x-scaled 4K output. The goal was text slightly fuller than Regular and still short of Bold. Hack is built on DejaVu Sans Mono and ships only Regular and Bold, so it has no in-between face.
 
-Tried in side-by-side `foot -o` windows before settling:
+**The 2026-09-26 pick was wrong.** It chose Hack Regular plus foot's `gamma-correct-blending=yes`, judged by eye in side-by-side windows. On 2026-10-03 the same text was measured from screenshots, and gamma blending changed nothing: 861 vs 858 ink per column, the same stroke coverage. Impressions by eye were unreliable in both directions. Hack with FreeType stem darkening looked clearly fuller, then measured within 2% of plain Hack. The measurements are below.
 
-- **JetBrainsMono Medium:** right weight, but too angular.
-- **GeistMono Medium, then SemiBold:** a real in-between weight, but not the look. Geist also has no italics.
-- **Hack Bold for all text:** committed and used briefly. Very full, and bold text becomes indistinguishable from normal text.
-- **Synthetic semibold (`embolden=true`):** measured from screenshots, fontconfig's embolden thickens Hack about as much as the real Bold face. It is not a lighter step.
-- **Adwaita Mono** (GNOME's Iosevka SS04, Menlo-style, already installed by Fedora): close in shape, but its package also ships only Regular and Bold.
+Measured 2026-10-03, Hack 12pt on Catppuccin Mocha with an opaque background. "Coverage" is the share of pixels in a text line at least half-bright.
 
-The pick is `gamma-correct-blending=yes` in foot's `[main]` section. Blending in linear colour space renders light glyphs on a dark background thicker. That lands between Regular and Bold, keeps Hack's exact shapes, and leaves the real Bold face distinct. It is the boring choice: one config line, no new font to install or track.
+| Setup | Coverage | Stroke |
+|---|---|---|
+| foot, Hack Regular, gamma off or on | 14.4% | 2px |
+| foot or Alacritty, Hack Regular + FreeType stem darkening | 14.5% | 2px |
+| Alacritty, Hack Regular | 14.4% | 2px |
+| foot, Iosevka Term SS04 Medium | 17.4% | 3px |
+| foot, GeistMono Medium | 17.9% | 3px |
+
+Ruled out:
+
+- **Renderer settings:** gamma-correct blending, FreeType stem darkening (`FREETYPE_PROPERTIES=autofitter:no-stem-darkening=0` with autohinting), and switching to Alacritty all render Hack within about 2% of each other. Linux has no setting like Ghostty's macOS-only `font-thicken`.
+- **Synthetic bold (`embolden=true`):** Alacritty's only stroke control on Linux. Both earlier sessions found it about as heavy as real Bold, so bold text stops standing out. (The 2026-09-26 measurement of it may share the scaling mistake noted below.)
+- **Hack Bold for all text:** very full, and bold text can't be told from normal text.
+- **JetBrainsMono Medium:** right weight, too angular.
+- **Iosevka Term SS04 Medium:** right weight, but about 15% narrower, and its Bold is barely heavier than its Medium.
+- **GeistMono Medium:** right weight, same width as Hack, and the font Ghostty uses on macOS. Judged worse than Hack side by side on 2026-10-03, and it has no italic faces.
+- **The rest of Nerd Fonts v3.5.1:** all 72 packages, 332 upright Mono faces, measured from the font files at 24px (12pt at 1.5x). The closest nine then ran in foot, measured from screenshots against Hack Regular's 14.6% coverage: Fira Code Retina 14.4%, Monaspace Neon 15.0%, Go Mono 15.3%, Cascadia Mono 15.5%, Noto Sans Mono Medium 15.9%, Lilex Medium 16.1%, Fira Mono Medium 16.2%, IBM Plex Mono Medium 16.9%. None was worth a switch.
+- **Adwaita Mono:** Fedora's package ships only Regular and Bold.
+
+The pick is **plain Hack Regular**, with Hack Bold for bold text and no renderer tweaks. Every heavier option either looked wrong or stopped bold text standing out, and the renderer settings that sounded like an in-between step measured as no change. `gamma-correct-blending` is off: it did nothing measurable, and a line that claims an effect it doesn't have misleads the next attempt.
+
+**Measuring:** screenshots are in physical pixels (3840 wide at 1.5x), while sway reports window geometry in logical pixels (2560 wide). Multiply sway's `rect` by the scale before cropping, or the measurement covers the wrong part of the screen. Compare with opaque backgrounds (`-o colors-dark.alpha=1.0`), since the wallpaper otherwise changes the numbers.
 
 Foot has a server/client split. `footclient` windows keep the config the server loaded, so a font change needs `systemctl --user restart sway-foot-server`. A standalone `foot -o 'font=...'` window reads config fresh, which makes it the way to compare candidates without touching open windows.
 
-**Reconsider if:** text needs a different weight again. Iosevka SS04 ships Medium and SemiBold and is the closest Hack-like download. Also reconsider if the background moves to light, where gamma blending thins dark glyphs instead.
+**Reconsider if:** a Hack-shaped font with a real Medium face appears, or the background moves to light, where the weights need measuring again. Measure candidates rather than judging them by eye, then still look at the winner: GeistMono won on numbers and lost side by side.
 
 ---
 
