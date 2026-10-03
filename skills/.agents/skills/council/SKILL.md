@@ -38,6 +38,7 @@ built-in, so pick whichever of these the current harness supports:
 |------|------|-----|
 | **In-context (default)** | Always available; use unless told otherwise | You play every member yourself, one section at a time. Write the brief, then answer *as* that member before moving to the next. Do not peek ahead — draft each member's Round-N text in full before starting the next member's |
 | **Parallel subagents** | Harness exposes a subagent/Task tool (pi ships one as an uninstalled example extension; Claude Code and Codex have one natively) | One agent per member, prompt = brief + round instructions + topic. Rounds stay sequential; members within a round run parallel |
+| **Parallel subagents** (pi) | One-shot members, independence matters | `mu_delegate` per member, one call per member in the same turn; rounds stay sequential |
 | **tmux crew** | Long debate you want to steer mid-flight | Drive it with the `mu` skill, one pane per member |
 
 In-context loses true independence — you know what the other members will say.
@@ -102,7 +103,7 @@ bending a debate into a teardown.
 
 **Works well with:**
 - **`brainstorm`** - Council to pick between approaches, then brainstorm the winner into a spec
-- **`mu`** - When you want the members as long-lived tmux panes you can interrogate
+- **`mu`** - When you want the members as long-lived tmux panes you can interrogate. To pick one winner from many candidates rather than debate, use mu's `recipes/tournament.md`; to attack a plan or finding, `recipes/refute.md`
 
 ## Practices
 
