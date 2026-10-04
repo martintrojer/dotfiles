@@ -51,7 +51,7 @@ From your current `tmux/.tmux.conf`:
 - Built-in tmux UI surfaces such as `choose-tree`, menus, popups, and prompts are also styled directly with Catppuccin Mocha hex values instead of the stock tmux colors.
 - Vim split to tmux pane movement comes from `christoomey/vim-tmux-navigator`.
 - CPU, RAM (a pressure score on macOS) and uptime come from mu-crew's poller: one background loop writes them into tmux options, and the segments are pure formats with warn and high levels.
-- Agent state (`working / done / blocked / crashed / idle`) is owned by [murmur](https://github.com/mu-crew/murmur), an installed tool; mu-crew/dotfiles renders it and this package places it. See [AI Agent Attention](#ai-agent-attention).
+- Agent state (`working / waiting / done / blocked / error / crashed / idle`) is owned by [murmur](https://github.com/mu-crew/murmur), an installed tool; mu-crew/dotfiles renders it and this package places it. See [AI Agent Attention](#ai-agent-attention).
 - Window labels use the active pane's `@murmur_pane_label`, else an editor's command, else a meaningful title (not empty, the hostname, or path-shaped), else the cwd basename for shells or the command otherwise, through the pure tmux format `@win_label`.
 - The agent pill in `status-right` is mu-crew's `@mu_crew_pill`: a robot icon, then one coloured `<count><glyph>` run per state, most urgent first, then a dim crew total. It is pure tmux format over murmur's `@murmur_count_*` options (this host) and mu-crew's poller for remote peers, so no process runs on a redraw. `.tmux.conf` supplies the box background and hides the box when no agents exist.
 
@@ -60,7 +60,7 @@ From your current `tmux/.tmux.conf`:
 The bar follows the shared language in [`docs/LAYOUT.md`](../docs/LAYOUT.md): filled cells are affordances for place, focus, modal state, or attention.
 
 - Left: a filled session block.
-- Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline agent-state / zoom markers. The state glyphs are the `agent_*` keys in [`docs/glyphs.toml`](../docs/glyphs.toml), one each for crashed, blocked, done, working, and idle.
+- Center: merged window labels (`number + active-pane label`) with a filled active window, flat inactive windows, and inline agent-state / zoom markers. The state glyphs are the `agent_*` keys in [`docs/glyphs.toml`](../docs/glyphs.toml), one each for crashed, error, blocked, done, working, waiting, and idle.
 - Nothing in the bar runs a command on a redraw: every segment reads tmux options. murmur and mu-crew's poller repaint when they change them; the 5 s `status-interval` only catches a pane's command or title changing under the window labels.
 - Right: a boxed `PREFIX` segment and a boxed agent segment (robot icon + urgency-ordered attention runs + an optional trailing crew total), followed by flatter glyph-based `CPU`, `RAM`, `host`, and `uptime` segments. The agent segment disappears only when neither human agents nor crew exist.
 

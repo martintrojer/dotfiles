@@ -146,7 +146,7 @@ The policy the file enforces:
 Consumers keep their own native names — `ICON_CPU`, `ICON_RAM`,
 `@mu_crew_g_*` — and the renderer materializes those declarations inside
 the marked region. Nothing reads `docs/glyphs.toml` at runtime, and no
-cross-package runtime helper exists. The five `agent_*` glyphs match the
+cross-package runtime helper exists. The `agent_*` glyphs match the
 codepoints murmur publishes as `DASH_GLYPH`, so the same agent cannot
 wear one face in a tmux tab and another in murmur's own output.
 

@@ -1,0 +1,27 @@
+#!/bin/sh
+# murmur on-attention hook: one desktop notification per new attention event.
+# murmur runs this detached with MURMUR_* set; see murmur's docs/setup.md.
+
+# A crew agent finishing is the orchestrator's business, not mine.
+case "$MURMUR_KIND:$MURMUR_EVENT" in
+done:*'"driver":"orchestrated"'*) exit 0 ;;
+esac
+
+title="$MURMUR_AGENT $MURMUR_KIND"
+body="$MURMUR_HOST${MURMUR_MESSAGE:+ — $MURMUR_MESSAGE}"
+
+case "$(uname -s)" in
+Darwin)
+	# argv, not string interpolation, so quotes in the message cannot break out.
+	osascript -e 'on run argv' \
+		-e 'display notification (item 2 of argv) with title "murmur" subtitle (item 1 of argv)' \
+		-e 'end run' "$title" "$body"
+	;;
+*)
+	case "$MURMUR_KIND" in
+	done) urgency=normal ;;
+	*) urgency=critical ;;
+	esac
+	notify-send -a murmur -u "$urgency" "$title" "$body"
+	;;
+esac

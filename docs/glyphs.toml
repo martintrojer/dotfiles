@@ -21,6 +21,8 @@
 # and the agent pill, through mu-crew/dotfiles' @mu_crew_g_* options
 # (region tmux-mu-crew-glyphs in tmux/.tmux.conf).
 agent_crashed = ""  # U+F057 fa-times-circle
+# The last turn failed (provider error, retries exhausted).
+agent_error = ""  # U+F071 fa-exclamation-triangle
 agent_blocked = ""  # U+F075 fa-comment
 agent_done = ""  # U+F058 fa-check-circle
 agent_working = ""  # U+F04B fa-play
