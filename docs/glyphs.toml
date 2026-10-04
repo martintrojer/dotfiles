@@ -24,6 +24,8 @@ agent_crashed = ""  # U+F057 fa-times-circle
 agent_blocked = ""  # U+F075 fa-comment
 agent_done = ""  # U+F058 fa-check-circle
 agent_working = ""  # U+F04B fa-play
+# Stopped, but mu delegates are still out.
+agent_waiting = ""  # U+F252 fa-hourglass-half
 agent_idle = ""  # U+F186 fa-moon-o
 
 # Outcomes and verbs. Reused wherever something passed, failed or is polled.
