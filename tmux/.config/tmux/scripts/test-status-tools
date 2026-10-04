@@ -503,9 +503,11 @@ def run_glyph_vocabulary_tests() -> None:
     conf = TMUX_CONF.read_text(encoding="utf-8")
     murmur_dash = {
         "crashed": "\uf057",
+        "error": "\uf071",
         "blocked": "\uf075",
         "done": "\uf058",
         "working": "\uf04b",
+        "waiting": "\uf252",
         "idle": "\uf186",
     }
     for state, codepoint in murmur_dash.items():

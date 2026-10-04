@@ -265,6 +265,7 @@ class GlyphVocabularyTests(unittest.TestCase):
                 key: glyphs[key]
                 for key in (
                     "agent_crashed",
+                    "agent_error",
                     "agent_blocked",
                     "agent_done",
                     "agent_working",
@@ -274,6 +275,7 @@ class GlyphVocabularyTests(unittest.TestCase):
             },
             {
                 "agent_crashed": "\uf057",
+                "agent_error": "\uf071",
                 "agent_blocked": "\uf075",
                 "agent_done": "\uf058",
                 "agent_working": "\uf04b",
@@ -297,7 +299,15 @@ class GlyphVocabularyTests(unittest.TestCase):
         rendered = render_theme.render_region(
             "tmux-mu-crew-glyphs", render_theme.load_palette()
         )
-        for state in ("crashed", "blocked", "done", "working", "waiting", "idle"):
+        for state in (
+            "crashed",
+            "error",
+            "blocked",
+            "done",
+            "working",
+            "waiting",
+            "idle",
+        ):
             self.assertIn(
                 f"@mu_crew_g_{state} '{glyphs[f'agent_{state}']}'",
                 rendered,
