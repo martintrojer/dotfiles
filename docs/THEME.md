@@ -97,7 +97,6 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `fuzzel/.config/fuzzel/fuzzel.ini` | `fuzzel-colors` |
 | `btop/.config/btop/themes/current.theme` | `btop-colors` |
 | `eza/.config/eza/theme.yml` | `eza-colors` |
-| `tmux/.config/tmux/scripts/status-hostname` | `status-hostname-colors` |
 | `local-bin/.local/bin/solo` | `solo-glyphs` |
 | `sway/.config/sway/scripts/lock-screen` | `lock-screen-fallback-color` |
 | `sway/.config/sway/scripts/session-wallpaper` | `session-wallpaper-fallback-color` |
