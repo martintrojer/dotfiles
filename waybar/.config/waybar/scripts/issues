@@ -99,7 +99,7 @@ class Hwmon:
 
 def demo_issues() -> list[Issue]:
     return [
-        Issue("cpu", f"{ICON_CPU} 91%", "CPU load: 91%"),
+        Issue("cpu", f"{ICON_CPU} 91%", "Load avg: 14.6 (91% of 16 cores)"),
         Issue("temperature", f"{ICON_TEMP} 88°", "Temperature: CPU 88°C, GPU 84°C"),
         Issue("memory", f"{ICON_RAM} 86%", "RAM: 27.5/32.0 GiB (86%)"),
         Issue("swap", f"{ICON_SWAP} 31%", "Swap: 2.5/8.0 GiB (31%)"),
@@ -148,13 +148,13 @@ def meminfo() -> dict[str, int]:
     return values
 
 
-def cpu_load() -> int | None:
+def cpu_load() -> tuple[float, int] | None:
+    """1-min load average and core count. Not utilisation: see waybar/README.md."""
     try:
         load = os.getloadavg()[0]
     except OSError:
         return None
-    cores = os.cpu_count() or 1
-    return round(load / cores * 100)
+    return load, os.cpu_count() or 1
 
 
 def hwmons() -> dict[str, Hwmon]:
@@ -204,10 +204,15 @@ def sensor_lines(title: str, device: Hwmon | None) -> list[str]:
 
 
 def issue_cpu() -> Issue | None:
-    load = cpu_load()
-    if load is None or load < CPU_WARN:
+    sample = cpu_load()
+    if sample is None:
         return None
-    return Issue("cpu", f"{ICON_CPU} {load}%", f"CPU load: {load}%", load >= CPU_CRIT)
+    load, cores = sample
+    pct = round(load / cores * 100)
+    if pct < CPU_WARN:
+        return None
+    tooltip = f"Load avg: {load:.1f} ({pct}% of {cores} cores)"
+    return Issue("cpu", f"{ICON_CPU} {pct}%", tooltip, pct >= CPU_CRIT)
 
 
 def issue_memory() -> Issue | None:

@@ -54,7 +54,7 @@ The bar is 20px on the main display, which leaves room for one more tmux row.
 
 `custom/issues` currently surfaces:
 
-- high CPU load (left click: `btop`)
+- high CPU load: 1-min load average ÷ cores, so it can exceed 100% and counts I/O-blocked tasks; tmux's CPU segment is instantaneous utilisation instead (left click: `btop`)
 - high CPU/GPU temperature (left click: `btop`)
 - high RAM or swap pressure (left click: `btop`)
 - `/var` disk pressure
