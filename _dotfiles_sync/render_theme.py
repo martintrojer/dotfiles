@@ -127,6 +127,10 @@ CONSUMERS: tuple[Consumer, ...] = (
         ("status-hostname-colors",),
     ),
     Consumer(
+        repo("murmur/.config/murmur/on-attention"),
+        ("murmur-notify-theme",),
+    ),
+    Consumer(
         repo("sway/.config/sway/scripts/lock-screen"),
         ("lock-screen-fallback-color",),
     ),

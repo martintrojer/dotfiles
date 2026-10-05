@@ -51,3 +51,8 @@ history=0
 # fill mako history / Waybar's notification counter.
 [app-name=footclient summary=Pi body="Waiting for input"]
 history=0
+
+# murmur's on-attention icons carry the host accent (frame) and the event
+# kind (glyph); 32px is too small to read either at a glance.
+[app-name=murmur]
+max-icon-size=72
