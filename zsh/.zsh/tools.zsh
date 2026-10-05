@@ -5,9 +5,6 @@ elif test -e "${HOME}/.local/bin/mise"; then
   eval "$(~/.local/bin/mise activate zsh)"
 fi
 
-# Initialize other tools
-test -e "${HOME}/.ghcup/env" && . "${HOME}/.ghcup/env"
-
 autoload -Uz colors && colors
 setopt prompt_subst
 

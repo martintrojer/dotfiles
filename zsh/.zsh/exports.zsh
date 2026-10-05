@@ -1,7 +1,8 @@
 # PATH configuration
-export PATH="/usr/local/sbin:$HOME/.local/bin:$PATH"
+# Also set in ~/.zshenv, but macOS /etc/zprofile (path_helper) moves that
+# entry to the end, behind /usr/bin. Re-prepend it here.
+export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.cargo/bin:$HOME/go/bin:$PATH"
-export PATH="$PATH:$HOME/.opencode/bin:$HOME/.pixi/bin:$HOME/.modular/bin"
 
 # Terminal and display
 # Let the terminal emulator set TERM so tmux can detect real capabilities.
