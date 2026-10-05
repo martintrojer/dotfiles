@@ -113,7 +113,7 @@ space.
 - **`vim-tmux-navigator`** (`ctrl+h/j/k/l` across nvim splits and panes) — no
   herdr↔nvim protocol, and binding bare ctrl-letters would steal keys from
   pane apps.
-- **Status bar** (`status-hostname`, the mu-crew pills) — herdr's sidebar
+- **Status bar** (the hostname pill, the mu-crew pills) — herdr's sidebar
   covers agent state natively and there is no status line to render the rest
   into.
 - **Agent state** — this is the thing herdr replaces. Both are live at once

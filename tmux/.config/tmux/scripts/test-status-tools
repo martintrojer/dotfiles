@@ -38,7 +38,6 @@ TMUX_CONF = SCRIPT_DIR.parents[2] / ".tmux.conf"
 # <repo>/tmux/.config/tmux/scripts -> <repo>
 REPO_ROOT = SCRIPT_DIR.parents[3]
 GLYPHS_TOML = REPO_ROOT / "docs" / "glyphs.toml"
-STATUS_HOSTNAME = SCRIPT_DIR / "status-hostname"
 
 # Per-process socket: two concurrent runs (e.g. `make check-all` here and in an
 # agent workspace on the same box) would otherwise share one tmux server and
@@ -569,7 +568,7 @@ def run_glyph_vocabulary_tests() -> None:
     run_probe_segment_tests(status_right)
 
     # The cheap-tick rule: status-right runs no command per redraw. The
-    # hostname pill is computed once at load (run-shell), not here.
+    # hostname pill's color is computed once at load (mu-crew.conf), not here.
     expect("status-right runs no #( command", "#(" in status_right, False)
 
     # The chrome glyphs, each read back out of the file that draws it.
@@ -590,18 +589,11 @@ def run_glyph_vocabulary_tests() -> None:
             1,
         )
 
-    status_hostname = _import_script(STATUS_HOSTNAME, "status_hostname_glyphs")
-    expect(
-        "status-hostname's host glyph is the vocabulary's",
-        status_hostname.ICON,
-        glyphs["host"],
-    )
-
     expect(
         "no tmux surface spells a vocabulary glyph inline",
         [
             (path.name, key)
-            for path in (TMUX_CONF, STATUS_HOSTNAME)
+            for path in (TMUX_CONF,)
             for key, glyph in glyphs.items()
             if glyph in path.read_text(encoding="utf-8")
             and not _inside_theme_region(path, glyph)

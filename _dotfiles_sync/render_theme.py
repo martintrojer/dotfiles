@@ -123,14 +123,6 @@ CONSUMERS: tuple[Consumer, ...] = (
     Consumer(repo("btop/.config/btop/themes/current.theme"), ("btop-colors",)),
     Consumer(repo("eza/.config/eza/theme.yml"), ("eza-colors",)),
     Consumer(
-        repo("tmux/.config/tmux/scripts/status-hostname"),
-        ("status-hostname-colors",),
-    ),
-    Consumer(
-        repo("murmur/.config/murmur/on-attention"),
-        ("murmur-notify-theme",),
-    ),
-    Consumer(
         repo("sway/.config/sway/scripts/lock-screen"),
         ("lock-screen-fallback-color",),
     ),
