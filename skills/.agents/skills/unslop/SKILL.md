@@ -76,6 +76,12 @@ audit, rewrite, edit, iterate, or verify prose.
   fact.
 - Keep paragraphs connected. A document whose paragraphs can be shuffled
   freely needs a stronger argument or less text.
+- Say it literally. Cut aphorisms, rhetorical fragments, personified code ("the
+  plan holds it"), and figurative verbs ("rides along", "stands on") when a
+  plain phrase exists.
+- Write whole sentences. Dropped articles, verbless fragments, arrows, and ad
+  hoc abbreviations make the reader decode instead of read. Explicit `caveman`
+  mode is the exception.
 
 ### Keep formatting honest
 
