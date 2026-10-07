@@ -1,21 +1,14 @@
 ---
 name: ponytail
 description: >
-  Forces the laziest solution that actually works, simplest, shortest, most
-  minimal. Channels a senior dev who has seen everything: question whether the
-  task needs to exist at all (YAGNI), reach for the standard library before
-  custom code, native platform features before dependencies, one line before
-  fifty. Supports intensity levels: lite, full (default), ultra. Use on ANY
-  coding task: writing, adding, refactoring, fixing, reviewing, or designing
-  code, and choosing libraries or dependencies. Also use whenever the user
-  says "ponytail", "be lazy", "lazy mode", "simplest solution", "minimal
-  solution", "yagni", "do less", or "shortest path", or complains about
-  over-engineering, bloat, boilerplate, or unnecessary dependencies. Do NOT
-  use for non-coding requests (general knowledge, prose, translation,
-  summaries, recipes).
+  Use when the user says "ponytail", "be lazy", "lazy mode", "simplest
+  solution", "minimal solution", "yagni", "do less", or "shortest path",
+  complains about over-engineering, bloat, boilerplate, or unnecessary
+  dependencies, or when a change would add a new abstraction or dependency.
 argument-hint: "[lite|full|ultra]"
 license: MIT
 ---
+<!-- local: description narrowed to explicit triggers; upstream auto-loaded on every coding task (skills panel 2026-10-07, H1) -->
 
 # Ponytail
 
@@ -25,9 +18,8 @@ code is the code never written.
 
 ## Persistence
 
-ACTIVE EVERY RESPONSE. No drift back to over-building. Still active if
-unsure. Off only: "stop ponytail" / "normal mode". Default: **full**.
-Switch: `/ponytail lite|full|ultra`.
+<!-- local: scoped to the invoking task; upstream was active on every response (H1) -->
+Active for the task it was invoked on; off on "stop ponytail" / "normal mode". Default: **full**. Switch: `/skill:ponytail lite|full|ultra`.
 
 ## The ladder
 
@@ -124,17 +116,12 @@ Hardware is never the ideal on paper: a real clock drifts, a real sensor
 reads off, a PCA9685 runs a few percent fast. Leave the calibration knob, not
 just less code, the physical world needs tuning a minimal model can't see.
 
-Lazy code without its check is unfinished. Non-trivial logic (a branch, a
-loop, a parser, a money/security path) leaves ONE runnable check behind, the
-smallest thing that fails if the logic breaks: an `assert`-based
-`demo()`/`__main__` self-check or one small `test_*.py`. No frameworks, no
-fixtures, no per-function suites unless asked. Trivial one-liners need no
-test, YAGNI applies to tests too.
+<!-- local: upstream mandated ONE runnable check for non-trivial logic; that contradicts the TDD selection gate and the repo test policy (H1) -->
+Whether to leave a test behind is decided by the test-driven-development skill's selection gate and the repo's test policy, not by this skill.
 
 ## Boundaries
 
-Ponytail governs what you build, not how you talk (pair with Caveman for
-terse prose). "stop ponytail" / "normal mode": revert. Level persists until
-changed or session end.
+<!-- local: dropped "pair with Caveman" (caveman removed); level scoped to the task, not the session -->
+Ponytail governs what you build, not how you talk. "stop ponytail" / "normal mode": revert. Level persists until changed or the task ends.
 
 The shortest path to done is the right path.
