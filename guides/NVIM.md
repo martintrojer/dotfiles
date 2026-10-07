@@ -290,16 +290,12 @@ answer = 2
 why = "Notification history is exposed on `<leader>en`."
 ```
 
-## Notes & reading (`<leader>z`, `<leader>p`)
+## Notes (`<leader>z`)
 
 Notes go through `zk-nvim` against `~/notes` (`vim.g.notes_path`). zk is a
 finder here: new notes and journal entries are written by agents, not nvim
-maps. `render-markdown.nvim` is **off by default** — markdown buffers stay
-raw until `<leader>pr` toggles a glow-like read mode per window: it enables
-`render-markdown`, hides line numbers / signs, raises `conceallevel`, and
-makes the buffer read-only. The `<leader>p` namespace is markdown-buffer-only
-(registered via `after/ftplugin/markdown.lua` and a buffer-local `mini.clue`
-group).
+maps. Markdown buffers stay raw in nvim; rendered reading happens in an
+external TUI.
 
 **zk-nvim — notes (`<leader>z`)**
 
@@ -307,18 +303,6 @@ group).
 - `<leader>zs` — search notes (prompts for query, full-text via zk)
 - `<leader>zz` — browse by tag
 - `<leader>zl` / `<leader>zb` — outgoing links / backlinks for the current note
-
-**Markdown preview (`<leader>p`, markdown only)**
-
-- `<leader>pp` — `nabla.nvim` popup that renders inline LaTeX / math as
-  Unicode ASCII art, no external tooling required
-- `<leader>pr` — toggle markdown read mode (window-scoped): turns on
-  `render-markdown` for headings/lists/code fences/checkboxes, hides UI
-  chrome, and locks the buffer read-only. Following a wikilink in the same
-  window keeps read mode active and re-locks the new buffer.
-- `render-markdown.nvim` defaults: `html` rendering disabled (raw `<tag>`s
-  stay visible), link concealment disabled (works around a wrap+conceal
-  layout bug), and `anti_conceal` disabled so the cursor line stays pretty
 
 ```quiz
 [[questions]]
@@ -330,26 +314,6 @@ options = [
 ]
 answer = 0
 why = "`<leader>zf` calls `ZkNotes` against `vim.g.notes_path` sorted by modified. New notes are agent-written; nvim does not map `ZkNew`."
-
-[[questions]]
-q = "What does `<leader>pr` do in a markdown buffer?"
-options = [
-  "Prints the buffer",
-  "Toggles glow-like read mode via `render-markdown.nvim`",
-  "Creates a new zk note",
-]
-answer = 1
-why = "`<leader>pr` toggles markdown read mode; `<leader>pp` is the nabla LaTeX popup."
-
-[[questions]]
-q = "What does `<leader>pp` do in a markdown buffer?"
-options = [
-  "Prints the buffer",
-  "Renders the LaTeX / math expression at the cursor as a Unicode popup via `nabla.nvim`",
-  "Toggles `render-markdown.nvim`",
-]
-answer = 1
-why = "`nabla.nvim` renders math as ASCII art in a floating popup; `<leader>pr` is the toggle for `render-markdown` read mode."
 ```
 
 ## Workflow extras

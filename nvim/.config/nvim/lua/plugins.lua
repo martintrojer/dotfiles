@@ -33,8 +33,6 @@ vim.pack.add({
 	gh("martintrojer/fugitive-core.nvim"),
 	gh("martintrojer/jj-fugitive"),
 	gh("martintrojer/redline.nvim"),
-	{ src = gh("MeanderingProgrammer/render-markdown.nvim"), name = "render-markdown" },
-	gh("jbyuki/nabla.nvim"),
 	gh("zk-org/zk-nvim"),
 	{ src = gh("martintrojer/vecgrep.nvim"), name = "vecgrep" },
 })
