@@ -76,5 +76,5 @@ Report the rung reached; if unobservable, label it `unproven`.
 | `commit` | The Test Plan makes an unverified claim permanent |
 | `test-driven-development` | "The test passes" needs a watched failure first |
 | `systematic-debugging` | "Bug fixed" needs the original symptom retested |
-| `test-reviewer` | The check passed but you suspect it could not fail |
+| `code-reviewer` (its Tests section) | The check passed but you suspect it could not fail |
 | `refusal` extension (`pi/.pi/agent/extensions/refusal.ts`) | Catches bypassing a refused gate |

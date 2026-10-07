@@ -117,4 +117,4 @@ When a bug has a cheap executable test path, write the failing reproduction and 
 | Skill | When |
 |-------|------|
 | `writing-good-tests.md` (this directory) | Writing or changing any test — mocking depth, mirror assertions, the mutation check |
-| `test-reviewer` | Review-time counterpart: given tests that exist, find the ones that lie |
+| `code-reviewer` (its Tests section) | Review-time counterpart: given tests that exist, find the ones that lie |

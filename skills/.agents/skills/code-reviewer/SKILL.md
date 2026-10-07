@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
-description: Use this skill when reviewing production code for dead code, duplication, unnecessary complexity, and non-idiomatic patterns. Use after implementing a feature, after refactors, or whenever code quality feedback is requested.
-version: 0.3.0
+description: Use when asked to review code or tests: dead code, duplication, unnecessary complexity, non-idiomatic patterns, over-mocked or meaningless tests.
+version: 0.4.0
 ---
 
 # Code Reviewer
@@ -101,12 +101,25 @@ Two rules bind the baseline:
   metadata flag, runtime check, or canonical helper. Keep prose when the rule
   genuinely requires judgment.
 
+### 7. Tests
+
+For each test in the diff: would it fail if the behaviour broke?
+
+- **Excessive mocking** — mocks outnumber real objects, mock setup mirrors production logic, or mock-call verification replaces behaviour verification.
+- **Fake tests** — code runs with no meaningful assertion; assertions recreate the implementation or compare a value to itself.
+- **Weak assertions** — missing, always-true, or hardcoded values that still pass for broken logic. **Mirror assertions** compute the expected value with the code under test. **Change detectors** fail only on an intentional decision (a constant's value, exact wording), so they fire on redesign and sleep through bugs.
+- **Smells and gaps** — irrelevant setup, redundant fixtures, brittleness to implementation details, order or global-state dependence (confirm independence and deterministic setup), untested critical paths and edge cases. When trimming, keep a single smoke/`assert` self-check; never delete the last test that fails when the logic breaks.
+
+**The mutation check.** Mentally mutate the production code — wrong constant, wrong branch, missing side effect, empty return, dropped validation — and confirm at least one test fails for each. A mutation nothing catches marks the behaviour as unprotected, or the test as tautological.
+
+Depth, and rewriting a flagged test: `~/.agents/skills/test-driven-development/writing-good-tests.md`.
+
 ## Review Process
 
 1. Scan for obvious issues (dead code, duplicate blocks)
 2. Evaluate architecture for unnecessary complexity
 3. Check language/framework idiomaticity
-4. Pass the smell baseline and design-shape checks over the diff
+4. Pass the smell baseline and design-shape checks over the diff, and the Tests checks over any test changes
 5. Propose simplifications with concrete alternatives
 6. Prioritize by impact
 
@@ -116,31 +129,11 @@ fans out badly in one context: quality decays as the window fills, and the last
 area reviewed gets the worst attention. Split it across `mu` reviewers, one per
 area, and synthesise the findings.
 
-## Output Format
-
-Use this structure:
-
-### Critical Issues
-Problems that materially harm correctness or maintainability.
-
-### Recommended Changes
-Improvements that would significantly improve quality.
-
-### Suggestions
-Minor cleanups and idiomatic refinements.
-
-For each finding:
-- Quote the specific code
-- Explain why it is a problem
-- Propose a concrete fix
-- Note the principle being applied, or name the smell
-
 ## Related
 
 | Skill | When |
 |-------|------|
 | `ponytail` | Build-time mirror of this skill — the over-engineering checks above are its ladder run in reverse. Deletion is the highest-value outcome |
-| `test-reviewer` | The diff touches tests. Different failure modes, different skill |
 | `systematic-debugging` | Review turns up a bug — find the root cause before proposing the fix |
 | `receiving-code-review` | You are on the receiving end of this output |
 | `mu` | Repo-wide audit or several independent areas — one reviewer per area, then synthesise |
