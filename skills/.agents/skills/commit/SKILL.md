@@ -1,14 +1,9 @@
 ---
 name: commit
 description: >
-  Use this skill when the user asks to "commit", "make a commit", "commit my changes",
-  "create a commit", or invokes /commit. Detects the active VCS (git, jj, or hg),
-  inspects the working copy, drafts a commit message in the project's standard format
-  (terse summary + detailed paragraph + test plan), and creates the commit. Honors
-  staged-files-only when files are already staged in git. Handles jj-specific traps
-  (interactive editors, conflict states, the operation log, the post-commit working
-  copy gotcha) without dropping into TUIs that block non-interactive shells.
-version: 0.3.0
+  Use when the user asks to commit. Detects jj, git, or hg; matches the repo's
+  message style; writes an honest test plan; commits non-interactively.
+version: 0.4.0
 ---
 
 # Commit
@@ -33,9 +28,9 @@ Create a commit for the current changes in a consistent format, regardless of wh
 
 Try in this order; use the first that succeeds:
 
-1. `git status`
-2. `jj status`
-3. `hg status`
+1. `jj root` — a `.jj` dir means jj even when `.git` also exists. In a colocated repo `git status` succeeds too, so checking git first picks the wrong tool.
+2. `git rev-parse --show-toplevel`
+3. `hg root`
 
 ## Inspect changes
 
@@ -141,20 +136,22 @@ For multi-line messages with shell metacharacters or backticks, **always use a h
 
 ### jj-specific traps and idioms
 
-jj has several commands that drop into `$EDITOR` by default and will hang a non-interactive shell. Always pass the non-interactive equivalent.
+jj has several commands that drop into an editor by default and will hang a non-interactive shell. Always pass the non-interactive equivalent.
+
+**Never rely on `EDITOR` to stop jj.** jj's `ui.editor` config beats `$EDITOR`, so `EDITOR=false jj squash` still opens the configured editor and hangs. Pass `-m` / `--use-destination-message`, or use `JJ_EDITOR=false` when probing whether a command wants an editor (it then exits 1 instead of hanging).
 
 | Command | Trap | Use instead |
 |---------|------|-------------|
 | `jj describe` | opens `$EDITOR` | `jj describe -m "..."` or `jj describe --stdin <<<"..."` |
 | `jj commit` | opens `$EDITOR` for the new description | `jj commit -m "..."` |
 | `jj squash` | opens `$EDITOR` to merge source + dest messages | `jj squash -m "..."` (use a fresh combined message) or `jj squash --use-destination-message` (keep the dest's existing message and discard the source's) |
-| `jj split` | opens TUI to pick which changes go where | Don't run interactively. Either tell the user "I'll leave the split to you" or do it manually: `jj new -B @` to insert an empty parent, then `jj move --from @ --to @- <paths>` |
-| `jj resolve` | opens the configured merge tool (often a TUI) | Edit conflict markers in files directly, then `jj squash` the resolution into the conflicted commit |
-| `jj diffedit` / `jj absorb` | TUIs | Avoid in scripted use |
+| `jj split` | opens TUI to pick which changes go where, and `$EDITOR` without `-m` | `jj split -m "msg" <paths>` (the listed paths go into the first commit; no editor). Afterwards @ is the second commit, holding the remaining changes and @'s old description (none if it had none) |
+| `jj resolve` | opens the configured merge tool (often a TUI) | Edit conflict markers in files directly, then `jj squash --use-destination-message` the resolution into the conflicted commit |
+| `jj diffedit` | TUI | Avoid in scripted use |
 
-**The post-commit working copy gotcha (READ THIS).** After `jj commit -m`, `jj describe -m`, or `jj squash -m`, the working copy is left **sitting on the just-finalized commit**, not on a fresh empty commit. Any further edit you make becomes additional content *on that same commit*, not a new commit on top. This is the single most common rake to step on.
+**The post-commit working copy gotcha (READ THIS).** After `jj describe -m` or `jj edit <rev>`, the working copy is left **sitting on that commit**, not on a fresh empty commit. Any further edit you make becomes additional content *on that same commit*, not a new commit on top. This is the single most common rake to step on.
 
-The fix: **`jj new` immediately after every "finalize this commit" operation** to create a fresh empty WC on top.
+The fix: **`jj new` immediately after `jj describe` or `jj edit`** once you are done with that commit, to create a fresh empty WC on top.
 
 ```bash
 jj describe -m "..."   # set the description of @
@@ -163,61 +160,11 @@ jj new                 # CRITICAL: create a fresh WC; otherwise next
                        #           commit
 ```
 
-`jj commit -m "..."` *does* create a new empty WC automatically as part of its semantics ("commit @ and start a new one") — so you don't need `jj new` after `jj commit`. You DO need it after `jj squash`, `jj describe`, and `jj edit <rev>`.
+`jj commit -m "..."` already leaves a fresh empty @ ("commit @ and start a new one"), and so does `jj squash -m "..."` with no paths. `jj squash -m "..." <paths>` moves only those paths, so @ keeps the remaining changes. None of these need `jj new`.
 
 When in doubt: run `jj st` and check what `Working copy (@)` reports. If it has a description that looks like the work you just finalized, you're sitting on it — `jj new` to escape.
 
-**The operation log is your friend.** Every state-changing jj command (commit, describe, squash, rebase, abandon, even `jj edit`) is reversible via `jj undo`. If something goes wrong:
-
-```bash
-jj undo               # rewind the most recent operation
-jj op log             # see the operation history
-jj op restore <id>    # rewind to a specific operation (more surgical
-                      # than a chain of jj undo's, especially when the
-                      # operation you want to undo is several steps back)
-```
-
-Use this aggressively. It's especially useful when:
-- A `jj squash` merged things you didn't want merged, or sent content to the wrong commit.
-- A `jj rebase` produced unexpected conflicts and you want to back out.
-- You ran `jj abandon` on the wrong commit.
-- An interactive command hung and you killed it mid-state.
-- You forgot `jj new` after a finalize operation and accumulated edits in the wrong commit.
-
-`jj op restore <id>` is often cleaner than `jj undo`-ing N times. Find the snapshot before the bad operation in `jj op log` and restore directly.
-
-**Conflict states are silent.** A `jj rebase` (or implicit rebase from `jj edit`-ing a non-leaf commit) can leave descendants in conflict without aborting. Always check `jj st` after operations that touch the commit graph; look for `(conflict)` markers. Resolve by editing the conflict markers in-place. jj uses its own conflict marker format for 2-sided conflicts:
-
-```
-<<<<<<< conflict 1 of 1
-+++++++ <commit-id> "description" (rebase destination)
-<dest content>
-%%%%%%% diff from: <ancestor> ... to: <source>
- <unchanged context>
--<removed line>
-+<added line>
->>>>>>> conflict 1 of 1 ends
-```
-
-Pick the right side (or merge them by hand), delete all the marker lines, then `jj squash` the WC into the conflicted commit to fold the resolution back.
-
-**`jj edit <rev>` is destructive.** It makes the named rev your working copy, and *every save mutates that rev's contents directly*. Descendants get auto-rebased and may conflict. Prefer `jj new <rev>` ("branch off this rev as a new working commit") unless the user explicitly wants to amend `<rev>` in place.
-
-**`jj commit` vs `jj describe`:**
-- `jj commit -m "..."` finalizes the current WC as a commit and creates a fresh empty WC on top. Use this when the work is done and you want to start the next thing.
-- `jj describe -m "..."` only sets the description of the current WC; doesn't create a new WC. Use this when you want to keep iterating on the same change. **Follow with `jj new` if you want to start a new change after.**
-
-**Verify the squash landed where you think.** Especially when iterating on a stack, run `jj log -r 'mutable() & ~empty()'` after a squash to confirm the destination commit's description and content are what you expect. Easy mistake: squashing into `@-` (the parent of WC) lands in the wrong commit if you're confused about where the WC is parented.
-
-**Stack inspection cheat sheet:**
-```bash
-jj log -r 'mutable()'                # all your local commits up to the trunk
-jj log -r 'mutable() & ~empty()'     # same, but skip empty WC commits
-jj log -r '@-..@ | conflicts()'      # focus on conflicted commits
-jj st                                # working copy + parent summary
-jj diff -r <rev>                     # what's in a specific commit
-jj diff -r <rev> --stat              # just the file list
-```
+For undo, conflicts, `jj edit`, or a stack gone wrong, read [jj-recovery.md](jj-recovery.md).
 
 ### git-specific notes
 
@@ -253,8 +200,8 @@ shared choke point. The test plan proves the new test can fail.
 
 - **A jj command hung?** It probably opened `$EDITOR` or a TUI. Kill it (Ctrl-C if interactive; the operation log will show whether the state was committed). Then re-run with the appropriate `-m` / `--use-destination-message` / `--stdin` flag.
 - **Created the wrong commit?** `jj undo` (jj) or `git reset --soft HEAD~1` (git) or `hg rollback` (hg, if no other operations have happened since).
-- **Working copy in a conflict state after a rebase?** Inspect `jj st` for affected files, edit the conflict markers, `jj squash` to fold the resolution back into the conflicted commit. Or `jj undo` the rebase if you want to back out entirely.
-- **Forgot `jj new` after `jj describe`/`jj squash` and now your latest edits landed in the wrong commit?** Either: (a) `jj split <paths>` to peel them out into a fresh commit (non-interactive form); or (b) `jj op restore <pre-edit-snapshot>` to rewind, then redo with proper `jj new` discipline.
+- **Working copy in a conflict state after a rebase?** Inspect `jj st` for affected files, edit the conflict markers, `jj squash --use-destination-message` to fold the resolution back into the conflicted commit. Or `jj undo` the rebase if you want to back out entirely.
+- **Forgot `jj new` after `jj describe`/`jj edit` and now your latest edits landed in the wrong commit?** Either: (a) `jj split -m "msg" <paths>` to peel them out into a fresh commit (bare `jj split <paths>` opens the editor); or (b) `jj op restore <pre-edit-snapshot>` to rewind, then redo with proper `jj new` discipline.
 - **Pushed to the wrong branch?** Out of scope for this skill — handle separately.
 - **Asked to commit work you haven't verified?** Say so and run the gate, or
   write the honest Test Plan (`Not tested — <why>`). Don't write `Ran tests`
