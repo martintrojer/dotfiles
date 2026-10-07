@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Use when asked to review code or tests: dead code, duplication, unnecessary complexity, non-idiomatic patterns, over-mocked or meaningless tests.
+description: "Use when asked to review code or tests: dead code, duplication, unnecessary complexity, non-idiomatic patterns, over-mocked or meaningless tests."
 version: 0.4.0
 ---
 
