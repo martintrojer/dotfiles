@@ -22,7 +22,7 @@ SETTINGS_PATH: Final[Path] = Path(".pi") / "agent" / "settings.json"
 
 PI_SETTINGS: Final[dict[str, object]] = {
     # On top of pi's default tools (read, bash, edit, write).
-    "defaultTools": ["+codemode", "+tool_search"],
+    "defaultTools": ["+codemode"],
     # Not "regular": there, any tmux pane resize clears scrollback and
     # replays the whole transcript into the pane. Fullscreen redraws only
     # the visible rows, at the cost of tmux copy-mode not seeing pi.
