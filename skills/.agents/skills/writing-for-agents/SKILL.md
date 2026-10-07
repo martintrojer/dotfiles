@@ -97,6 +97,6 @@ worse than one weak one.
 | Skill | When |
 |-------|------|
 | `unslop` | Cleanup pass for prose you author, when asked |
-| `technical-writing` | The document is for a human reader: docs, RFCs, READMEs, or PR descriptions |
+| `technical-writing` | The document is for a human reader: docs, RFCs, READMEs, PR descriptions. User-invoked: `/skill:technical-writing` |
 | `ponytail` | A document is code too — the no-op hunt is its ladder pointed at prose |
 | `mu` | The reader is a mu worker: a task note or `--fresh` prompt. `~/.agents/skills/mu/recipes/brief.md` applies these rules to briefs |

@@ -1,6 +1,6 @@
 ---
 name: council
-description: "Multi-agent collaborative debate producing visible round-by-round transcripts with real intellectual friction — members are topic-briefed custom agents, run as a 3-round DEBATE or a 1-round QUICK check, to find the best path. USE WHEN council, debate, multiple perspectives, weigh options, deliberate, get different views, what would experts say, pros and cons."
+description: "Multi-agent debate with round-by-round transcripts: topic-briefed members argue a 3-round DEBATE or 1-round QUICK check. Use only when explicitly asked for a council, debate, multi-agent debate, or multiple expert perspectives."
 ---
 
 # Council Skill
@@ -10,6 +10,8 @@ description: "Multi-agent collaborative debate producing visible round-by-round 
 > voice-notification curl, no `~/.claude/` customization path, no execution-log
 > JSONL, no RedTeam cross-references. See **Running the members** below — members
 > run as `mu_delegate` panes, or in-context when that tool is absent.
+
+<!-- local: description narrowed to explicit council/debate requests; "weigh options", "deliberate", "pros and cons" and "what would experts say" stole ordinary trade-off questions -->
 
 ## What It Does
 

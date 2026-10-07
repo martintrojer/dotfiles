@@ -223,13 +223,13 @@ to start building.
 
 ## Next step
 
-Once the spec is approved: "Ready to break this into an implementation plan?
-The `write-plan` skill turns this into ordered, verifiable tasks."
+Once the spec is approved, turn it into a mu task DAG: read
+`~/.agents/skills/mu/recipes/plan.md`.
 
 ## Related
 
 | Skill | When |
 |-------|------|
-| `write-plan` | Downstream — the only skill this one hands off to |
+| `mu` | Downstream — `recipes/plan.md` turns the approved spec into a task DAG |
 | `council` | Several viable approaches and no clear winner. Debate them, then brainstorm the survivor |
 | `ponytail` | Step 4. YAGNI applies hardest at design time, when cutting costs nothing |

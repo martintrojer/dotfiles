@@ -1,7 +1,10 @@
 ---
 name: summarize
 description: "Summarize CLI: URLs, files, podcasts, YouTube, transcripts, media, extraction, and JSON output. Use for \"summarize this URL/article\", \"what's this link/video about?\", \"transcribe this YouTube/video\"."
+disable-model-invocation: true
 ---
+
+<!-- local: disable-model-invocation added; user-invoked via /skill:summarize, so its description stays out of every prompt -->
 
 # Summarize
 
@@ -20,7 +23,7 @@ OpenCode's free tier rejects outdated clients. If the summary step fails with
 `UpgradeRequired`, upgrade `opencode`.
 
 Config lives in the dotfiles `summarize/` package (`~/.summarize/config.json` is
-a symlink into it; edit the package copy). See `summarize/README.md` for why pi
+a symlink into it; edit the package copy). See `~/dotfiles/summarize/README.md` for why pi
 is deliberately *not* the backend.
 
 ## Start

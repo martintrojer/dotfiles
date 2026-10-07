@@ -71,7 +71,7 @@ iterate, or verify prose.
   plain phrase exists.
 - Write whole sentences. Dropped articles, verbless fragments, arrows, and ad
   hoc abbreviations make the reader decode instead of read.
-  <!-- local: dropped the caveman-mode exception (caveman removed) -->
+  <!-- local: dropped the terse-voice-mode exception (that skill removed) -->
 
 ### Keep formatting honest
 

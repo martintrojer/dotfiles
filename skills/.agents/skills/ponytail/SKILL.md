@@ -121,7 +121,7 @@ Whether to leave a test behind is decided by the test-driven-development skill's
 
 ## Boundaries
 
-<!-- local: dropped "pair with Caveman" (caveman removed); level scoped to the task, not the session -->
+<!-- local: dropped the "pair with" terse-voice skill line (that skill removed); level scoped to the task, not the session -->
 Ponytail governs what you build, not how you talk. "stop ponytail" / "normal mode": revert. Level persists until changed or the task ends.
 
 The shortest path to done is the right path.
