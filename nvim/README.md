@@ -32,16 +32,15 @@ lua/
   tabterm.lua                   — tab-based terminal helper (used by lazygit, tuicr)
   history.lua                   — message and notification history viewers
   todos.lua                     — TODO/FIX/IDEA grep
-  markdown_read_mode.lua        — glow-like reader: render-markdown + lock + chrome off
   async_run.lua                 — `:Sh` async shell with streaming output split
   git_diff.lua                  — side-by-side git diff helpers (used by `<leader>gD`)
   util.lua                      — shared helpers (VCS root detection, cwd helpers, etc.)
   lua_globals.lua               — lua-language-server globals list
 after/ftplugin/
-  markdown.lua                  — wrap + nabla LaTeX popup + read mode
+  markdown.lua                  — soft-wrap prose
 ```
 
-## Plugins (13 vim.pack entries)
+## Plugins (11 vim.pack entries)
 
 ### mini.nvim (14 modules from one repo)
 
@@ -74,8 +73,6 @@ after/ftplugin/
 | fugitive-core.nvim | Shared VCS fugitive core | Own plugin. Common functionality extracted from jj-fugitive |
 | jj-fugitive | Jujutsu VCS power tool | Own plugin. Primary workflow here; git support stays intentionally lightweight |
 | redline.nvim | Inline review comments | Own plugin. Integrates with mini.git, `:DiffTool`, and jj-fugitive reviews |
-| render-markdown.nvim | In-buffer markdown rendering | Headings, code blocks, tables, checkboxes via treesitter. Off by default; toggled per-buffer by `<leader>pr` (read mode) |
-| nabla.nvim | LaTeX formula popup preview (Unicode, no deps) |
 | zk-nvim | Zettelkasten notes | Own plugin. Finds, tags, searches, and follows links via zk CLI |
 | vecgrep.nvim | Semantic search | Own plugin. Local embeddings for meaning-based search, not just string matching |
 
@@ -214,9 +211,6 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `<leader>el` | Diagnostics to loclist |
 | `<leader>em` | Messages history |
 | `<leader>en` | Notification history |
-| **Markdown Preview (`<leader>p`)** | |
-| `<leader>pp` | LaTeX popup (markdown only) |
-| `<leader>pr` | Toggle markdown read mode (markdown only) |
 | **LSP** | |
 | `gd` | Go to definition |
 | `gD` | Declaration |
