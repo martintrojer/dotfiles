@@ -1,6 +1,6 @@
 # Explicit cleanup pattern catalog
 
-Read this catalog only when the user explicitly asks to detect, audit, rewrite, edit, iterate, or verify prose. Ambient `unslop` does not load it and never runs the detector.
+Read this catalog only when the user explicitly asks to detect, audit, rewrite, edit, iterate, or verify prose.
 
 The examples name the patterns they demonstrate. Treat quoted examples, code, and other self-reference as evidence of the rule, not text to rewrite.
 

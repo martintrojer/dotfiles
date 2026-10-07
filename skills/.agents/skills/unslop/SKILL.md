@@ -1,30 +1,19 @@
 ---
 name: unslop
-description: Cut AI tells from every response and prose artifact. Must always apply. Silently keep assistant-authored prose direct, specific, natural, and faithful to the source. When the user explicitly asks to unslop, remove AI-isms, detect, audit, rewrite, edit, or iterate on prose, use the detailed catalog and optional detector workflow.
-version: 0.1.0
+description: Use when the user asks to unslop, remove AI-isms, or detect, audit, rewrite, edit, or verify prose. Preserves meaning, facts, code, and the author's voice.
+version: 0.2.0
 ---
+<!-- local: description narrowed to explicit cleanup requests; upstream was always-on (skills panel 2026-10-07, H1) -->
 
 # Unslop
 
-Apply this skill to every response and every prose artifact you write. Make the
-writing sound like a person with a point, not a model filling a shape.
+<!-- local: removed the always-on opener, "Pick the branch", and the Ambient branch; explicit cleanup is the only mode (H1) -->
+Make the writing sound like a person with a point, not a model filling a shape.
 
-## Pick the branch
+## Explicit cleanup
 
-### Ambient
-
-Use ambient mode unless the user explicitly asks for prose cleanup.
-
-- Apply the rules below silently while writing.
-- Return the requested answer or artifact, not an unslop report.
-- Do not run the detector or validator.
-- Do not load the detailed pattern catalog.
-- Do not announce that this skill ran.
-
-### Explicit cleanup
-
-Use explicit cleanup when the user asks to unslop, remove AI-isms, detect,
-audit, rewrite, edit, iterate, or verify prose.
+Use when the user asks to unslop, remove AI-isms, detect, audit, rewrite, edit,
+iterate, or verify prose.
 
 1. Read [`references/patterns.md`](references/patterns.md) in full.
 2. Choose detect, rewrite, or edit mode from the request.
@@ -33,7 +22,8 @@ audit, rewrite, edit, iterate, or verify prose.
 5. Return the cleaned text or the requested audit, then briefly name material
    decisions. Do not bury the deliverable under process narration.
 
-## Ambient rules
+<!-- local: retitled from "Ambient rules"; they now guide the rewrite -->
+## Rewrite rules
 
 ### Say something concrete
 
@@ -80,8 +70,8 @@ audit, rewrite, edit, iterate, or verify prose.
   plan holds it"), and figurative verbs ("rides along", "stands on") when a
   plain phrase exists.
 - Write whole sentences. Dropped articles, verbless fragments, arrows, and ad
-  hoc abbreviations make the reader decode instead of read. Explicit `caveman`
-  mode is the exception.
+  hoc abbreviations make the reader decode instead of read.
+  <!-- local: dropped the caveman-mode exception (caveman removed) -->
 
 ### Keep formatting honest
 
