@@ -40,6 +40,8 @@ NAME_PATTERNS: Final[tuple[str, ...]] = (
     # those scripts rely on sys.path[0] colocation. They are repo
     # infrastructure, not dotfiles: never link them into $HOME.
     r"tests",
+    # skills/ maintenance script run from the repo, not a dotfile.
+    r"usage-audit\.py",
     # Repo-level docs and vendored licence files. A package that genuinely
     # needs one in $HOME (skills/) links its subtree whole, which bypasses
     # this walk entirely.

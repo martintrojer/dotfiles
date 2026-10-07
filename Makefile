@@ -42,8 +42,7 @@ SHELL_SHEBANG_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude
 SHELL_FILES_CMD := { $(SHELL_SH_FILES_CMD); $(SHELL_SHEBANG_FILES_CMD); }
 LUA_FILES := $(shell $(RG) -g '*.lua')
 ZSH_FILES := $(shell $(RG) -g '*.zsh' -g '.zshrc')
-# Vendored skills are kept byte-comparable against upstream so they stay easy
-# to re-sync; reformatting their reference assets would fork them for nothing.
+# Skills are excluded: reformatting vendored skills would create spurious diffs against upstream on re-sync.
 PRETTIER_FILES := $(shell $(RG) -g '*.ts' -g '*.json' -g '*.jsonc' -g '*.css' -g '!skills/**')
 TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
 FEDORA_TEST_DIRS := fedora/tests fedora/gaming/tests
