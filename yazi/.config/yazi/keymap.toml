@@ -35,5 +35,5 @@ desc = "Empty Trash"
 
 [[mgr.prepend_keymap]]
 on   = [ "g", "l" ]
-run  = "shell 'm \"$0\"' --block"
-desc = "Preview in pager"
+run  = "shell 'ramble \"$0\"' --block"
+desc = "Read markdown in ramble"

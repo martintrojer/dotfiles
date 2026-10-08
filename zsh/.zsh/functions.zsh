@@ -52,10 +52,6 @@ rmhist() {
   echo "Removed history lines matching: $1"
 }
 
-# `m` (markdown reader) lives at local-bin/.local/bin/m. It used to be a
-# zsh function with an inline python pty fork; promoted to a real script
-# so the workaround is documented properly. See that file's docstring.
-
 # tm: session picker (pinned sessions + live sessions + zoxide + finder).
 # tsesh comes from the mu-crew/tmux-session-picker TPM plugin.
 tm() {
