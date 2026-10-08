@@ -191,10 +191,6 @@ AUDIT_ALLOWLIST: dict[str, str] = {
     "bat/.config/bat/themes/Catppuccin Mocha.tmTheme": "vendored upstream",
     "yazi/.config/yazi/flavors/catppuccin-mocha.yazi/flavor.toml": "vendored upstream",
     "yazi/.config/yazi/flavors/catppuccin-mocha.yazi/tmtheme.xml": "vendored upstream",
-    "glow/.config/glow/catppuccin-mocha.json": (
-        "vendored Catppuccin glow style; adopting it means templating 50+ "
-        "values for a file we never hand-edit"
-    ),
 }
 
 

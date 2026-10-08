@@ -91,7 +91,7 @@ Yazi leans on external search tools rather than reinventing them.
 - `g` then `Space` — interactive cd
 - `g` `s` — go to the configured SFTP service `bubba`
 - `g` `t` — jump to Trash via `trash path`
-- `g` `l` — preview the current file via the shared pager-backed `m` command
+- `g` `l` — read the current markdown file in `ramble`
 
 ```quiz
 [[questions]]
@@ -158,7 +158,7 @@ copying, remote navigation, markdown preview, and Trash access.
 - `Tab` — spot the hovered file for preview-related actions
 - `c` `i` — copy file contents to the system clipboard via `clipf`
 - `g` `s` — open the SFTP service named `bubba`
-- `g` `l` — preview the current file via the shared pager-backed `m` command
+- `g` `l` — read the current markdown file in `ramble`
 - `g` `t` — go to Trash via `trash path`
 - `g` `T` — empty Trash via `trash empty`
 
@@ -182,9 +182,9 @@ why = "Uppercase `O` is `open --interactive`."
 
 [[questions]]
 q = "What does `g` then `l` do here?"
-options = ["Jump left", "Preview in pager", "Link the file"]
+options = ["Jump left", "Read the file in ramble", "Link the file"]
 answer = 1
-why = "The custom binding invokes the shared `m` command as a pager-backed preview action."
+why = "The custom binding opens the hovered file in `ramble`, the markdown reader behind the zsh `m` alias."
 ```
 
 ## How Yazi and Neovim divide file work

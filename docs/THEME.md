@@ -186,9 +186,6 @@ generator. Each is in `AUDIT_ALLOWLIST`:
   the Catppuccin upstream. Update via their distribution.
 - `yazi/.config/yazi/flavors/catppuccin-mocha.yazi/` — vendored
   Catppuccin flavor.
-- `glow/.config/glow/catppuccin-mocha.json` — vendored Catppuccin glow
-  style. Co-maintained with `local-bin/.local/bin/m`, but we never
-  hand-edit the colors, so templating 50+ values buys nothing.
 - `ghostty/.config/ghostty/config` — uses the built-in named theme
   (`theme = catppuccin-mocha`); no hex in our config.
 - `nvim/.config/nvim/` — `catppuccin/nvim` plugin handles theming. (Colors
