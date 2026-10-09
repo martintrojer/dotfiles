@@ -137,12 +137,11 @@ export interface ModelPickerContext {
 // Fast/reliable model tiers for lightweight meta-work (question extraction,
 // goal checks). Avoid size-only hints like "4b": those tend to select local
 // Ollama models that are cheap but less reliable for strict JSON/judgment.
-// Note: "-mini" is anchored so it matches gpt-*-mini / o*-mini but NOT gemini
-// (which contains the substring "mini").
-// Sonnet leads: Claude Sonnet 5 is near-Opus capability at Sonnet cost with a
-// 1M context, so it's the preferred fast/reliable meta-work model here. Within
-// the sonnet tier the picker prefers the newest version (sonnet-5 > 4.6).
-const FAST_MODEL_TIERS = [["sonnet"], ["-mini"], ["haiku"], ["flash"], ["small", "lite", "nano"]] as const;
+// Haiku leads: current Haiku is fast, cheap and reliable enough for meta-work.
+// Within a tier the picker prefers the newest version (e.g. sonnet-5 > 4.6).
+// Untiered models (e.g. opus, gpt-5.5) sort by cost, not version, so the
+// fallback after the named tiers is the cheapest model, not the newest flagship.
+const FAST_MODEL_TIERS = [["haiku"], ["luna"], ["sonnet"]] as const;
 
 function modelTier(m: Model<Api>): number {
 	const id = modelLabel(m).toLowerCase();
@@ -289,7 +288,11 @@ export async function pickFastModels(ctx: ModelPickerContext, task = "default"):
 		const la = isLocalModel(a);
 		const lb = isLocalModel(b);
 		if (la !== lb) return la ? 1 : -1;
-		const byVersion = compareVersionDesc(a, b); // within a tier, always prefer the newest
+		if (ta === FAST_MODEL_TIERS.length) {
+			const byCost = modelCost(a) - modelCost(b);
+			if (byCost !== 0) return byCost;
+		}
+		const byVersion = compareVersionDesc(a, b); // within a named tier, always prefer the newest
 		if (byVersion !== 0) return byVersion;
 		const sa = lastSuccess(state, task, a);
 		const sb = lastSuccess(state, task, b);
