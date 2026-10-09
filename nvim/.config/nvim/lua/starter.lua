@@ -1,6 +1,5 @@
 -- Start screen (mini.starter)
 local starter = require("mini.starter")
-local util = require("util")
 
 ----------------------------------------------------------------------
 -- Helpers
@@ -33,17 +32,6 @@ local function cwd_recent_files(n)
 	end
 end
 
-local function notes_section()
-	local notes_path = util.notes_path()
-	local home = vim.fn.expand("~")
-	if notes_path == home then
-		notes_path = "~"
-	elseif notes_path:sub(1, #home + 1) == home .. "/" then
-		notes_path = "~/" .. notes_path:sub(#home + 2)
-	end
-	return string.format("Notes (%s)", notes_path)
-end
-
 local function starter_header()
 	local hour = tonumber(os.date("!%H")) -- UTC (UK)
 	local greeting
@@ -74,7 +62,6 @@ end
 ----------------------------------------------------------------------
 -- Starter Configuration
 ----------------------------------------------------------------------
-local notes_header = notes_section()
 
 starter.setup({
 	items = {
@@ -87,13 +74,6 @@ starter.setup({
 		end),
 		action_item("Work", "Live grep" .. cwd_glyph, function()
 			require("fzf-lua").live_grep({ cwd = vim.uv.cwd() })
-		end),
-		action_item("Work", "Semantic search", "VecgrepLive"),
-		action_item(notes_header, "Notes", function()
-			require("zk.commands").get("ZkNotes")({ notebook_path = util.notes_path(), sort = { "modified" } })
-		end),
-		action_item(notes_header, "TODOs", function()
-			require("todos").grep({ cwd = util.notes_path() })
 		end),
 		action_item("System", "Oil" .. cwd_glyph, function()
 			require("oil").open(vim.uv.cwd())
@@ -123,7 +103,7 @@ vim.api.nvim_create_autocmd("User", {
 	end,
 })
 
--- Delete the starter buffer when navigating away (e.g. :J, :S, opening a file).
+-- Delete the starter buffer when navigating away (e.g. opening a file).
 -- Without this, the starter tab lingers and breaks gt cycling since most
 -- keymaps don't work in the ministarter filetype.
 vim.api.nvim_create_autocmd("BufLeave", {
@@ -138,8 +118,8 @@ vim.api.nvim_create_autocmd("BufLeave", {
 	end,
 })
 
--- Re-open starter when the last real buffer is closed (e.g. quitting lazygit,
--- :J, tuicr, or closing the last file). Fires on BufEnter (landing on an empty
+-- Re-open starter when the last real buffer is closed (e.g. closing the last
+-- file or exiting a terminal). Fires on BufEnter (landing on an empty
 -- buffer after a tab/window close) and TermClose (terminal exits). Uses
 -- vim.schedule to let cleanup settle before checking state.
 local function maybe_open_starter()

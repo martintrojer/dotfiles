@@ -27,19 +27,16 @@ alias -g L='| less'
 alias -g LL='2>&1 | less'
 alias -g NE='2> /dev/null'
 alias -g NUL='> /dev/null 2>&1'
-alias serve='python3 -m http.server 8081'
 alias td='cd "$(trash path)"'
-alias gvd='git difftool --dir-diff --no-prompt --extcmd=nvdiff'
-alias jvd='jj --no-pager diff --tool nvdiff'
 
-# fd-backed recursive find helpers from the old OMZ setup.
+# fd-backed recursive find helper from the old OMZ setup.
 if command -v fd >/dev/null 2>&1; then
   alias ff='fd --hidden --exclude .git --exclude .jj --type f'
-  alias ffd='fd --hidden --exclude .git --exclude .jj --type d'
 fi
 
 # Common `less` misspelling (the only one with history hits).
 alias elss='less'
 
-# Markdown reader.
+# Markdown reader and diff review.
 alias m='ramble'
+alias d='debrief'

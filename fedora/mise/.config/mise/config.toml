@@ -5,19 +5,20 @@ min_version = "2026.6.14"
 [tools]
 bat = "latest"
 btop = "latest"
+# Markdown language server for nvim (no GitHub release; built from crates.io).
+"cargo:mdroots-cli" = "latest"
 eza = "latest"
 fastfetch = "latest"
 fd = "latest"
 fzf = "latest"
 gdu = "latest"
 gh = "latest"
-"github:artempyanykh/marksman" = "latest"
 "github:LuaLS/lua-language-server" = "latest"
+"github:martintrojer/debrief" = "latest"
 "github:martintrojer/ramble" = "latest"
 "github:pythops/bluetui" = "latest"
 "github:rgwood/systemctl-tui" = "latest"
 "github:tekumara/typos-lsp" = "latest"
-"github:zk-org/zk" = "latest"
 go = "latest"
 # Under evaluation as a tmux alternative; daily home is still tmux.
 # See herdr/README.md and docs/DECISIONS.md § Agent state awareness.
@@ -25,7 +26,6 @@ herdr = "latest"
 imagemagick = "latest"
 jj = "latest"
 just = "latest"
-lazygit = "latest"
 # Pinned to 5.4, not latest: luacheck 1.2.0 (the `make check-lua` rock) assigns
 # to a for-loop variable, which Lua 5.5 made const, so it dies on load.
 lua = "5.4"

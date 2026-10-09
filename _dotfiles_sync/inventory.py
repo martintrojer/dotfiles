@@ -33,7 +33,6 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "summarize",
             "tmux",
             "tsesh",
-            "tuicr",
             "vale",
             "yazi",
             "zsh",

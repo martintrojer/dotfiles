@@ -7,7 +7,6 @@
 vim.g.markdown_recommended_style = 0 -- must be set before built-in ftplugin loads
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
-vim.g.notes_path = vim.fn.expand("~/notes")
 vim.g.loaded_node_provider = 0
 vim.g.loaded_perl_provider = 0
 vim.g.loaded_python3_provider = 0
@@ -40,7 +39,6 @@ vim.opt.autoread = true
 -- Plugins + colorscheme
 ----------------------------------------------------------------------
 require("plugins")
-vim.cmd.packadd("nvim.difftool")
 vim.cmd.packadd("nvim.undotree")
 require("catppuccin").setup({ flavour = "mocha" })
 vim.cmd.colorscheme("catppuccin")
@@ -73,11 +71,6 @@ require("oil").setup({
 	keymaps = { ["<C-h>"] = false, ["<M-h>"] = "actions.select_split" },
 	view_options = { show_hidden = true },
 })
-
-require("jj-fugitive").setup({ default_command = "log", open_mode = "tab", ignore_immutable = true })
-require("redline").setup({ providers = { difftool = true, minigit = true } })
-require("zk").setup({ picker = "fzf_lua" })
-require("vecgrep").setup({ search_from_root = true })
 
 ----------------------------------------------------------------------
 -- Treesitter (run :TSSync to install missing parsers)
@@ -145,45 +138,18 @@ require("keymaps")
 ----------------------------------------------------------------------
 -- Commands
 ----------------------------------------------------------------------
-vim.api.nvim_create_user_command("LspInfo", function()
-	local clients = vim.lsp.get_clients({ bufnr = 0 })
-	if #clients == 0 then
-		print("No LSP clients attached")
-		return
-	end
-	for _, c in ipairs(clients) do
-		local state = c.initialized and "ready" or "starting"
-		if c.initialized then
-			local status = vim.lsp.status()
-			if status and status ~= "" and status:find(c.name) then
-				state = "busy"
-			end
-		end
-		print(string.format("%s [%s] (id=%d, root=%s)", c.name, state, c.id, c.root_dir or "none"))
-	end
-end, { desc = "Show LSP clients for current buffer" })
+-- Muscle memory from lspconfig; 0.12 ships the same report as a health check.
+vim.api.nvim_create_user_command("LspInfo", "checkhealth vim.lsp", { desc = "LSP status (checkhealth vim.lsp)" })
 
 vim.api.nvim_create_user_command("PackUpdate", function()
 	vim.pack.update()
 end, { desc = "Update all plugins" })
-
-require("async_run")
 
 ----------------------------------------------------------------------
 -- Autocommands
 ----------------------------------------------------------------------
 vim.api.nvim_create_autocmd("FileType", {
 	pattern = "nvim-undotree",
-	callback = function(ev)
-		vim.keymap.set("n", "q", function()
-			vim.api.nvim_win_close(0, true)
-		end, { buffer = ev.buf, desc = "Close" })
-	end,
-})
-
--- q to close any mini.git split (log, diff, show, diff source)
-vim.api.nvim_create_autocmd("BufEnter", {
-	pattern = "minigit://*",
 	callback = function(ev)
 		vim.keymap.set("n", "q", function()
 			vim.api.nvim_win_close(0, true)

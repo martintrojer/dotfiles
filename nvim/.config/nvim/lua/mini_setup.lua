@@ -39,14 +39,6 @@ local function style_diagnostics()
 	})
 end
 
-local function style_diff()
-	apply_highlights({
-		MiniDiffSignAdd = { fg = palette.teal, bg = "NONE" },
-		MiniDiffSignChange = { fg = palette.sapphire, bg = "NONE" },
-		MiniDiffSignDelete = { fg = palette.maroon, bg = "NONE" },
-	})
-end
-
 local function style_hipatterns()
 	apply_highlights({
 		MiniHipatternsTodo = { fg = palette.base, bg = palette.yellow, bold = true },
@@ -76,7 +68,6 @@ end
 local function apply_theme_overrides()
 	style_cursorword()
 	style_diagnostics()
-	style_diff()
 	style_hipatterns()
 	style_indentscope()
 	style_tabline()
@@ -87,8 +78,6 @@ end
 ----------------------------------------------------------------------
 local function statusline_content()
 	local mode, mode_hl = MiniStatusline.section_mode({ trunc_width = 120 })
-	local git = MiniStatusline.section_git({ trunc_width = 75 })
-	local diff = MiniStatusline.section_diff({ trunc_width = 75 })
 	local diagnostics = MiniStatusline.section_diagnostics({ trunc_width = 75 })
 	local filename = MiniStatusline.section_filename({ trunc_width = 140 })
 	local lsp = MiniStatusline.section_lsp({ trunc_width = 75 })
@@ -98,7 +87,7 @@ local function statusline_content()
 
 	return MiniStatusline.combine_groups({
 		{ hl = mode_hl, strings = { mode } },
-		{ hl = "MiniStatuslineDevinfo", strings = { git, diff, diagnostics } },
+		{ hl = "MiniStatuslineDevinfo", strings = { diagnostics } },
 		"%<",
 		{ hl = "MiniStatuslineFilename", strings = { filename } },
 		"%=",
@@ -113,14 +102,8 @@ end
 ----------------------------------------------------------------------
 require("mini.icons").setup()
 require("mini.surround").setup()
-require("mini.git").setup()
 notify.setup({
 	lsp_progress = { enable = false },
-})
-require("mini.diff").setup({
-	view = {
-		style = "sign",
-	},
 })
 require("mini.bracketed").setup()
 require("mini.cursorword").setup()
@@ -153,10 +136,9 @@ require("mini.tabline").setup({
 -- Keep triggers and clues together so the whole setup can be audited in one
 -- place. Only add prefixes you actually want mini.clue to intercept.
 --
--- Keep the `<leader>` labels in sync with the actual sections in `keymaps.lua`.
+-- Keep the `<leader>` labels in sync with the sections in `lua/keymaps/`.
 local clue_triggers = {
 	{ mode = "n", keys = "<leader>" },
-	{ mode = "x", keys = "<leader>" },
 	{ mode = "n", keys = "g" },
 	{ mode = "x", keys = "g" },
 	{ mode = "n", keys = "'" },
@@ -184,17 +166,10 @@ local clue_clues = {
 	clue.gen_clues.windows(),
 	clue.gen_clues.z(),
 	{ mode = "n", keys = "<leader>f", desc = "+find" },
-	{ mode = "x", keys = "<leader>f", desc = "+find" },
 	{ mode = "n", keys = "<leader>s", desc = "+search" },
-	{ mode = "x", keys = "<leader>s", desc = "+search" },
-	{ mode = "n", keys = "<leader>z", desc = "+notes" },
-	{ mode = "x", keys = "<leader>z", desc = "+notes" },
 	{ mode = "n", keys = "<leader>c", desc = "+code" },
-	{ mode = "x", keys = "<leader>c", desc = "+code" },
 	{ mode = "n", keys = "<leader>e", desc = "+diagnostics" },
-	{ mode = "x", keys = "<leader>e", desc = "+diagnostics" },
 	{ mode = "n", keys = "<leader>u", desc = "+undo" },
-	{ mode = "x", keys = "<leader>u", desc = "+undo" },
 	{ mode = "n", keys = "<leader>g", desc = "+git/vcs" },
 }
 

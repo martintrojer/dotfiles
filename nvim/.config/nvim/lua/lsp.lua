@@ -92,6 +92,13 @@ vim.lsp.config("rust_analyzer", {
 	root_markers = { "Cargo.toml", "rust-project.json", ".git" },
 })
 
+-- mdroots finds note roots itself, so no root_markers; one client serves all.
+vim.lsp.config("mdroots", {
+	cmd = { "mdroots", "lsp" },
+	filetypes = { "markdown" },
+	workspace_required = false,
+})
+
 vim.lsp.config("typos_lsp", {
 	cmd = { "typos-lsp" },
 	root_markers = { ".git" },
@@ -112,4 +119,5 @@ vim.lsp.enable({
 	"gopls",
 	"rust_analyzer",
 	"typos_lsp",
+	"mdroots",
 })

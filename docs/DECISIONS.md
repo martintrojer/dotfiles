@@ -287,6 +287,31 @@ Even if you never re-enable SwayFX, these bit on first setup:
 
 ---
 
+### Keep one-file packages that change behaviour, not just looks (accepted 2026-05-01, restated 2026-10-09)
+
+The test for a one-file package isn't "does it only change colours?" but "would removing it degrade the workflow that uses the tool?". It came from briefly deleting the `tuicr/` theme override, whose white default was unreadable in nvim (tuicr is gone since 2026-10-09).
+
+- `vale/` keeps: its `.vale.ini` sets `MinAlertLevel = suggestion` and the base style, which decides what vale reports at all.
+
+**Reconsider if:** the tool behind the package is dropped.
+
+---
+
+### Consolidate the workflow around ramble, debrief and mdroots (accepted 2026-10-09)
+
+Three own tools replace a spread of plugins and wrappers, and nvim shrinks to a rarely used hand editor.
+
+- **ramble reads markdown and notes.** It replaces glow, the `m` reflow wrapper, tuicr for markdown files, and zk as the notes front end (zk-nvim, `zknew`, nvim's notes keymaps). `m` is the alias.
+- **debrief reviews VCS diffs.** It replaces tuicr for diffs, and with it lazygit, redline.nvim, jj-fugitive (and fugitive-core), sl-fugitive, mini.git, mini.diff, `nvdiff` with `gvd`/`jvd` and the nvim tab-terminal helper. `d` is the alias.
+- **mdroots is the markdown language server**, for ramble and nvim. It replaces `zk lsp` and marksman. It finds note roots by itself, so nothing needs a notebook marker.
+- **nvim stays as vanilla as possible.** It is used rarely, for hand editing. Keep stock LSP maps and fzf pickers; don't add VCS views, review tools, or note-navigation keymaps that duplicate ramble or debrief.
+- **Same pass, cut on history:** vecgrep.nvim (the CLI stays), `:Sh`/`:Shk`, the messages/notification history viewers, the TODO grep, the duplicate-keymap guard, and zsh `nv`, `mvln`, `serve`, `ffd`.
+- **Kept on purpose:** the remaining mini modules, the fzf `<leader>f` pickers (zoxide included), the start screen and the `:TSSync` it runs, `:LspInfo` (now a one-line alias for `:checkhealth vim.lsp`), `hg-aliases.zsh` (work machine), `rmhist`, the `lt`/`llt` variants, every jj alias, and the `vale` package.
+
+**Reconsider if:** one of the three stops being maintained, or hand editing in nvim becomes daily work again.
+
+---
+
 ### Skills are single-agent discipline; orchestration is `mu`'s (accepted 2026-08-04)
 
 The 2026-08 skills audit had to decide, repeatedly, whether to vendor skills that ship their own multi-agent machinery — superpowers' `subagent-driven-development` (503 lines), `dispatching-parallel-agents`, `requesting-code-review`; LifeOS `council`'s parallel debate rounds. The rule that fell out: a skill may describe *how one agent behaves*, never *how several are coordinated*.
@@ -535,17 +560,6 @@ Audited the 12-file split (1,395 lines, largest file 291). Considered collapsing
 - `model.py` is types-only Java-style; cross-imports between `external.py` and `integration_checks.py` smell mildly. Acceptable.
 
 **Reconsider only if:** module count crosses ~20, OR cross-imports form a real cycle, OR a single function needs to span three modules.
-
----
-
-### Keep the `tuicr/` theme override (re-affirmed 2026-05-01 after a brief mis-deletion)
-
-The `tuicr/` package contains one line: `theme = "catppuccin-mocha"`. Briefly classified cosmetic and deleted; immediately restored when `<leader>gt` rendered white-on-dark and was unreadable inside nvim.
-
-- tuicr's default is white. Inside Catppuccin foot/ghostty + nvim it's *functionally unusable*. Pillar #9 (one palette everywhere).
-- **Lesson:** the right test for cosmetic-vs-functional on one-file packages isn't "does it change colors?" — it's "would removing this degrade the workflow that uses the tool?" tuicr: yes. vale: yes (alert-level). Both keep.
-
-**Reconsider only if:** tuicr ships a dark-respecting default, OR the desktop palette changes.
 
 ---
 

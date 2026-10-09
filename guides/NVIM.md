@@ -1,7 +1,7 @@
 # Neovim Learning Guide
 
 Companion to [`nvim/README.md`](../nvim/README.md). 0.12 builtins +
-fzf-lua + Oil + jj-fugitive + a small set of mini.nvim modules. The whole
+fzf-lua + Oil + a small set of mini.nvim modules. The whole
 config is intentionally close to stock Neovim with deliberate plugin choices.
 
 ## 0.12 builtins
@@ -51,39 +51,17 @@ why = "`:wall ++p` writes all modified buffers and creates missing parent direct
 
 ## Source control
 
-Three layers: `lazygit` for big operations, fzf pickers for fast search, and
-diff/log helpers for drill-down. `redline.nvim` wires `mini.diff` and the
-bundled `nvim.difftool` into the statusline / signs so all three Git surfaces
-share the same colors and indicators.
+Git work happens outside Neovim (jj, git, and `debrief` in the shell). Inside
+nvim there are just fzf pickers for fast search.
 
-- `<leader>gg` — lazygit
 - `<leader>gf`, `<leader>gc`, `<leader>gh`, `<leader>gb` — Git pickers (status, commits, buffer history, blame)
-- `<leader>gl` — repo log with stats
-- `<leader>gi` — on a commit opens the full diff; on a hunk jumps to the
-  source line
-- `<leader>gd` — repo diff in a `mini.git` split
-- `<leader>gU` — unified current-file diff
-- `<leader>gD` — side-by-side current-file diff
-- `<leader>go` — toggle `mini.diff` overlay
 
 ```quiz
 [[questions]]
-q = "Which mapping opens lazygit?"
-options = ["`<leader>gg`", "`<leader>gf`", "`<leader>gj`"]
+q = "Which mapping opens the fzf git blame picker?"
+options = ["`<leader>gb`", "`<leader>gh`", "`<leader>gf`"]
 answer = 0
-why = "lazygit lives on `<leader>gg`."
-
-[[questions]]
-q = "Which mapping shows the current file in a side-by-side diff view?"
-options = ["`<leader>gd`", "`<leader>gU`", "`<leader>gD`"]
-answer = 2
-why = "The side-by-side current-file diff is `<leader>gD`."
-
-[[questions]]
-q = "Which mapping toggles the inline diff overlay?"
-options = ["`<leader>gi`", "`<leader>go`", "`<leader>gl`"]
-answer = 1
-why = "`mini.diff`'s overlay toggle is `<leader>go`."
+why = "`<leader>gb` is blame; `gh` is buffer history and `gf` is status."
 ```
 
 ## fzf-lua pickers (`<leader>f`)
@@ -131,15 +109,11 @@ why = "`Ctrl`+`g` switches fuzzy and regex modes inside a picker."
 
 ## Search & grep (`<leader>s`)
 
-Grep, TODO scans, and semantic search live under `<leader>s` so the picker
-namespace stays clean.
+Grep lives under `<leader>s` so the picker namespace stays clean.
 
 - `<leader>sg` — live grep (rg); `<leader>s/` — resume live grep
 - `<leader>sG` — Git grep
 - `<leader>sw` — grep word under cursor
-- `<leader>st` / `<leader>sT` — TODO / FIX grep (buffer dir / repo root)
-- `<leader>sv` (n+v) / `<leader>sV` — vecgrep semantic search / live mode
-- `<leader>sX` — reindex vecgrep
 
 ```quiz
 [[questions]]
@@ -147,25 +121,11 @@ q = "Which mapping greps the word under the cursor?"
 options = ["`<leader>fw`", "`<leader>sw`", "`<leader>*`"]
 answer = 1
 why = "Grep / search live under `<leader>s`; pickers live under `<leader>f`."
-
-[[questions]]
-q = "Which mapping starts semantic (vecgrep) search?"
-options = ["`<leader>fv`", "`<leader>sv`", "`<leader>sg`"]
-answer = 1
-why = "Semantic search is `<leader>sv` (and works in visual mode for the selection)."
-
-[[questions]]
-q = "Which mapping reindexes vecgrep?"
-options = ["`<leader>sX`", "`<leader>sr`", "`<leader>s/`"]
-answer = 0
-why = "`<leader>sX` rebuilds the vecgrep index; `<leader>s/` resumes live grep."
 ```
 
-## Oil, terminal, jj-fugitive, and sl-fugitive
+## Oil and terminal
 
-These replace a file tree, keep shell workflows inside Neovim, and cover
-Jujutsu and Sapling/Mercurial through the same `fugitive`-style command
-interface.
+These replace a file tree and keep shell workflows inside Neovim.
 
 - `-` — open Oil on the parent directory
 - in Oil: edit filenames to rename, delete lines to delete files, yank/paste
@@ -174,12 +134,6 @@ interface.
 - `Ctrl`+`/` — toggle terminal split
 - `Esc` `Esc` — leave terminal insert mode
 - `Ctrl`+`h`/`j`/`k`/`l` — move to tmux panes
-- `:J` — JJ log; `:J status`, `:J diff`, `:J describe`, `:J bookmark`,
-  `:J annotate`
-- `:S` — Sapling/hg log via `sl-fugitive`; `<leader>gs` runs it from the VCS
-  root and includes Phabricator forge links for `fbsource` / `infer`
-- both fugitives default to opening in a new tab and share the same key
-  conventions; `q` closes any of their split buffers
 
 ```quiz
 [[questions]]
@@ -193,18 +147,6 @@ q = "After editing filenames in Oil, how do you apply the changes?"
 options = ["`:OilSave`", "`Enter`", "`:w`"]
 answer = 2
 why = "Oil applies filesystem edits when you write the buffer."
-
-[[questions]]
-q = "What does plain `:J` open?"
-options = ["JJ log", "Git status", "Bookmarks"]
-answer = 0
-why = "Plain `:J` opens the JJ log by default."
-
-[[questions]]
-q = "Which command opens the Sapling/Mercurial log via sl-fugitive?"
-options = ["`:Sap`", "`:S`", "`:Hg`"]
-answer = 1
-why = "`sl-fugitive` registers a single `:S` Ex command modelled on `:G` / `:J`; `<leader>gs` invokes it from the VCS root."
 ```
 
 ## mini.nvim modules
@@ -238,16 +180,13 @@ behavior consistent.
 
 **Display & feedback**
 
-- `mini.diff` shows gutter signs; `<leader>go` toggles full inline overlay
-- `mini.git` powers `<leader>gi` (git inspect at cursor) and the log / diff
-  / show / blame splits; `q` closes any of them
 - `mini.hipatterns` highlights `TODO:`, `FIX:`, `FIXME:`, `HACK:`, `NOTE:`
   keywords and `#rrggbb` hex colors inline
 - `mini.indentscope` draws a thin guide along the current indent block
 - `mini.cursorword` underlays the word under the cursor
 - `mini.trailspace` highlights trailing whitespace
-- `mini.notify` backs `vim.notify()`; `<leader>en` opens history
-- `mini.tabline` shows buffers as tabs; `mini.statusline` renders mode, git,
+- `mini.notify` backs `vim.notify()`; `:lua MiniNotify.show_history()` opens its history
+- `mini.tabline` shows buffers as tabs; `mini.statusline` renders mode,
   diagnostics, LSP, file info, location
 - `mini.icons` provides file / git / LSP icons used across pickers and UI
 - `mini.starter` is the start screen on bare `nvim`
@@ -282,38 +221,21 @@ q = "Which mini module highlights `TODO:` / `FIX:` / `NOTE:` keywords inline?"
 options = ["`mini.hipatterns`", "`mini.cursorword`", "`mini.indentscope`"]
 answer = 0
 why = "`mini.hipatterns` matches the keyword patterns and also colorizes `#rrggbb` hex values."
-
-[[questions]]
-q = "Which mapping opens notification history?"
-options = ["`<leader>ee`", "`<leader>em`", "`<leader>en`"]
-answer = 2
-why = "Notification history is exposed on `<leader>en`."
 ```
 
-## Notes (`<leader>z`)
+## Markdown and notes
 
-Notes go through `zk-nvim` against `~/notes` (`vim.g.notes_path`). zk is a
-finder here: new notes and journal entries are written by agents, not nvim
-maps. Markdown buffers stay raw in nvim; rendered reading happens in an
-external TUI.
-
-**zk-nvim — notes (`<leader>z`)**
-
-- `<leader>zf` — find notes, sorted by modified
-- `<leader>zs` — search notes (prompts for query, full-text via zk)
-- `<leader>zz` — browse by tag
-- `<leader>zl` / `<leader>zb` — outgoing links / backlinks for the current note
+Notes are read, searched and browsed in `ramble`, not nvim. When you do hand
+edit a markdown file here, the `mdroots` language server attaches, so the stock
+LSP maps work on links: `gd` follows one, `gr` lists references, `K` previews
+the target.
 
 ```quiz
 [[questions]]
-q = "Which mapping finds notes sorted by modified time?"
-options = [
-  "`<leader>zf`",
-  "`<leader>zn`",
-  "`<leader>fo`",
-]
-answer = 0
-why = "`<leader>zf` calls `ZkNotes` against `vim.g.notes_path` sorted by modified. New notes are agent-written; nvim does not map `ZkNew`."
+q = "Where do you read, search and follow links between notes?"
+options = ["nvim", "`ramble` (`m`)", "`debrief` (`d`)"]
+answer = 1
+why = "ramble is the markdown reader and notes front end; debrief reviews diffs; nvim is kept for occasional hand edits."
 ```
 
 ## Workflow extras
@@ -321,17 +243,14 @@ why = "`<leader>zf` calls `ZkNotes` against `vim.g.notes_path` sorted by modifie
 The glue: undo history, per-project config, and plugin maintenance.
 
 - `<leader>u` — toggle the bundled `nvim.undotree` panel; `q` to close
-- `<leader>em` / `<leader>en` — messages history / `mini.notify` history; `q`
-  in either buffer returns you to the previous one
 - buffers `:checktime` themselves on `FocusGained` / `BufEnter` (combined
   with `autoread`) so external edits show up without manual `:e`
 - drop a `.nvim.lua` in the project root for trusted local overrides (`exrc`)
-- `:PackUpdate` — update plugins; `:LspInfo` — show attached LSPs;
+- `:PackUpdate` — update plugins; `:LspInfo` — show attached LSPs (alias for `:checkhealth vim.lsp`);
   `:TSUpdate` — update treesitter parsers; `:TSSync` — install any parser
   from the wired-up language list (`bash`, `go`, `haskell`, `lua`, `python`,
   `rust`, `tsx`, `markdown`, ...) that's missing from the local install
-- `:messages` — review past notifications (or `<leader>em` for the same in a
-  scratch buffer with `q` to close)
+- `:messages` — review past messages
 
 ```quiz
 [[questions]]
