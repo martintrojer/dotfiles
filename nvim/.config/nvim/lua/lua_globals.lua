@@ -15,10 +15,7 @@ local M = {}
 M.globals = {
 	"vim",
 	"hs",
-	"MiniDiff",
-	"MiniGit",
 	"MiniStatusline",
-	"MiniTrailspace",
 }
 
 -- Kept as an empty list so existing `.luacheckrc` files that reference

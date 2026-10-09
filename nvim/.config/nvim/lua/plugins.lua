@@ -30,9 +30,4 @@ vim.pack.add({
 	gh("stevearc/oil.nvim"),
 	gh("christoomey/vim-tmux-navigator"),
 	gh("nvim-treesitter/nvim-treesitter"),
-	gh("martintrojer/fugitive-core.nvim"),
-	gh("martintrojer/jj-fugitive"),
-	gh("martintrojer/redline.nvim"),
-	gh("zk-org/zk-nvim"),
-	{ src = gh("martintrojer/vecgrep.nvim"), name = "vecgrep" },
 })

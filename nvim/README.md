@@ -5,10 +5,13 @@ built-ins, and mini.nvim. It uses no framework or separate plugin manager.
 
 ## Philosophy
 
+- nvim is a rarely used hand editor. Markdown reading and notes are `ramble`,
+  diff review is `debrief`; neither gets a nvim counterpart. Prefer stock behaviour over
+  new plugins or keymaps.
 - Neovim 0.12 built-ins provide LSP, commenting, snippets, node selection, and URL opening.
 - fzf-lua handles file search, grep, LSP navigation, buffer switching, and
   `vim.ui.select`.
-- One mini.nvim repository provides 14 modules through a consistent API.
+- One mini.nvim repository provides 12 modules through a consistent API.
 - `vim.pack` manages plugins with a lockfile and no bootstrap script.
 - The configuration defines its keymaps and plugins explicitly.
 
@@ -18,45 +21,37 @@ built-ins, and mini.nvim. It uses no framework or separate plugin manager.
 init.lua                        — options, colorscheme, diagnostics, commands, autocommands
 lua/
   plugins.lua                   — vim.pack.add + build hooks
-  mini_setup.lua                — 14 mini modules + clue + statusline + notify
+  mini_setup.lua                — 11 mini modules (starter lives in starter.lua)
   starter.lua                   — start screen + logo + greeting
   keymaps/                      — keymaps split by domain
-    init.lua                    — dispatcher: loads each submodule with shared `map` helper
+    init.lua                    — requires each domain module
     core.lua                    — editor, terminal, tmux nav, buffer mgmt
     find.lua                    — fzf-lua pickers
-    git.lua                     — source control (lazygit, mini.git, jj-fugitive)
-    search.lua                  — grep, vecgrep
-    notes.lua                   — zk find/search/links
+    git.lua                     — source control (fzf git pickers)
+    search.lua                  — grep
     lsp.lua                     — LSP navigation (definitions, references, calls)
   lsp.lua                       — LSP server configs + enable
-  tabterm.lua                   — tab-based terminal helper (used by lazygit, tuicr)
-  history.lua                   — message and notification history viewers
-  todos.lua                     — TODO/FIX/IDEA grep
-  async_run.lua                 — `:Sh` async shell with streaming output split
-  git_diff.lua                  — side-by-side git diff helpers (used by `<leader>gD`)
-  util.lua                      — shared helpers (VCS root detection, cwd helpers, etc.)
+  util.lua                      — picker cwd helpers (buffer dir, VCS root)
   lua_globals.lua               — lua-language-server globals list
 after/ftplugin/
   markdown.lua                  — soft-wrap prose
 ```
 
-## Plugins (11 vim.pack entries)
+## Plugins (6 vim.pack entries)
 
-### mini.nvim (14 modules from one repo)
+### mini.nvim (12 modules from one repo)
 
 | Module | Purpose |
 |--------|---------|
 | mini.bracketed | `[`/`]` navigation (buffers, diagnostics, quickfix) |
 | mini.clue | Key clue popup on prefix keys |
 | mini.cursorword | Highlight word under cursor |
-| mini.diff | Git hunk signs in gutter + diff overlay |
-| mini.git | Lightweight Git inspection + `:Git` command |
 | mini.hipatterns | Highlight TODO/FIX/HACK/NOTE and hex colors inline |
 | mini.icons | File/filetype icons |
 | mini.indentscope | Indent scope guide line |
 | mini.notify | Floating notifications |
 | mini.starter | Start screen with recent files and actions |
-| mini.statusline | Statusline (mode, git, diagnostics, LSP, position) |
+| mini.statusline | Statusline (mode, diagnostics, LSP, position) |
 | mini.surround | Add/delete/change surroundings |
 | mini.tabline | Buffer tab bar |
 | mini.trailspace | Highlight trailing whitespace |
@@ -70,11 +65,6 @@ after/ftplugin/
 | oil.nvim | File explorer as editable buffer | Nothing like it builtin — rename/move/delete by editing text |
 | vim-tmux-navigator | Tmux pane navigation | Requires matching tmux config. No builtin tmux awareness |
 | nvim-treesitter | Parser management | 0.12 ships treesitter runtime but needs this for parser install/update |
-| fugitive-core.nvim | Shared VCS fugitive core | Own plugin. Common functionality extracted from jj-fugitive |
-| jj-fugitive | Jujutsu VCS power tool | Own plugin. Primary workflow here; git support stays intentionally lightweight |
-| redline.nvim | Inline review comments | Own plugin. Integrates with mini.git, `:DiffTool`, and jj-fugitive reviews |
-| zk-nvim | Zettelkasten notes | Own plugin. Finds, tags, searches, and follows links via zk CLI |
-| vecgrep.nvim | Semantic search | Own plugin. Local embeddings for meaning-based search, not just string matching |
 
 ## What 0.12 builtins handle
 
@@ -94,11 +84,12 @@ First launch clones all plugins via `vim.pack`. Then install LSP servers:
 ### macOS (brew + cargo)
 
 ```bash
-brew install fzf ripgrep fd tree-sitter-cli zoxide tmux lazygit
+brew install fzf ripgrep fd tree-sitter-cli zoxide tmux
 brew install lua-language-server bash-language-server taplo uv
 brew install gopls
 brew install typescript-language-server vscode-langservers-extracted
-brew install typos-lsp rust-analyzer zk
+brew install typos-lsp rust-analyzer
+cargo install mdroots-cli
 uv tool install ty ruff
 ```
 
@@ -112,7 +103,7 @@ mise use node@latest rust@latest fzf@latest ripgrep@latest fd@latest tree-sitter
 mise use github:LuaLS/lua-language-server
 mise use github:tekumara/typos-lsp
 mise use cargo:taplo-cli
-mise use aqua:zk-org/zk
+mise use cargo:mdroots-cli
 go install golang.org/x/tools/gopls@latest
 
 # LSP servers via npm (needs node above)
@@ -139,31 +130,21 @@ Then run `:TSSync` in nvim to install treesitter parsers.
 | Command | What it does |
 |---------|-------------|
 | `:PackUpdate` | Update all plugins (review diff, `:w` to confirm) |
-| `:LspInfo` | Show LSP clients for current buffer |
+| `:LspInfo` | Show LSP clients (alias for `:checkhealth vim.lsp`) |
 | `:TSSync` | Install missing treesitter parsers |
 | `:TSUpdate` | Update treesitter parsers |
 
 ## Key mappings
 
-See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`, `notes`, `lsp`). Highlights:
+See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`, `lsp`). Highlights:
 
 | Key | Action |
 |-----|--------|
 | **Source control (`<leader>g`)** | |
-| `<leader>gg` | Lazygit (tab terminal) |
 | `<leader>gf` | Git status (fzf) |
 | `<leader>gc` | Commits — repo (fzf) |
 | `<leader>gh` | History — buffer commits (fzf) |
 | `<leader>gb` | Blame (fzf) |
-| `<leader>gd` | Git diff |
-| `<leader>gU` | Git diff current file (unified) |
-| `<leader>gD` | Git diff current file (side by side) |
-| `<leader>go` | Diff overlay toggle (mini.diff) |
-| `<leader>gl` | Git log with stats |
-| `<leader>gL` | Git log current file with stats |
-| `<leader>gi` | Git inspect at cursor (mini.git) |
-| `<leader>gt` | Code review (tuicr) |
-| `<leader>gj` | Jujutsu (jj-fugitive) |
 | **Find (`<leader>f`)** | |
 | `<leader>f.` | Resume last picker |
 | `<leader>ff` | Find files |
@@ -191,26 +172,13 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `<leader>s/` | Resume live grep |
 | `<leader>sG` | Git grep |
 | `<leader>sw` | Grep word under cursor |
-| `<leader>st` | Grep TODO/FIX (buffer dir) |
-| `<leader>sT` | Grep TODO/FIX (repo root) |
-| `<leader>sv` | Semantic search (vecgrep, normal+visual) |
-| `<leader>sV` | Live semantic search |
-| `<leader>sX` | Reindex vecgrep |
 | **Code (`<leader>c`)** | |
 | `<leader>ci` | Incoming calls |
 | `<leader>co` | Outgoing calls |
 | `<leader>cF` | Finder (defs+refs+impls) |
-| **Notes (`<leader>z`)** | |
-| `<leader>zf` | Find notes |
-| `<leader>zs` | Search notes |
-| `<leader>zz` | Find by tag |
-| `<leader>zl` | Linked notes |
-| `<leader>zb` | Backlinks |
 | **Diagnostics (`<leader>e`)** | |
 | `<leader>ee` | Diagnostic float |
 | `<leader>el` | Diagnostics to loclist |
-| `<leader>em` | Messages history |
-| `<leader>en` | Notification history |
 | **LSP** | |
 | `gd` | Go to definition |
 | `gD` | Declaration |

@@ -58,7 +58,6 @@ directory helpers, and fd-based recursive search.
 - `LL`, `NE`, `NUL` — redirection shortcuts
 - `...`, `....`, `-`, `md` — survivors from the old OMZ directory helpers
 - `ff` — recursive `fd` search for hidden files (excludes `.git` and `.jj`)
-- `ffd` — directory-only recursive variant
 
 ```quiz
 [[questions]]
@@ -88,22 +87,10 @@ Only the commands used often survived.
 - Git: `g`, `ga`, `gb`, `gc`, `gco`, `gd`, `gf`, `gl`, `glg`, `gp`, `grb`, `gst`
   (and `gc!` for amend)
 - JJ: `jja`, `jjb`, `jjd`, `jjdmsg`, `jje`, `jjgp`, `jjl`, `jjla`, `jjn`,
-  `jjrb`, `jjsq`, `jjst` — `jjla` is the all-revisions log
-- `gvd` → `git difftool --dir-diff --no-prompt --extcmd=nvdiff`
-- `jvd` → `jj --no-pager diff --tool nvdiff`
-- `nvdiff` opens Neovim's `:DiffTool` through the repo script
+  `jjrb`, `jjrbm`, `jjs`, `jjsq`, `jjst`, `jjt` — `jjla` is the all-revisions log
+- `m` → `ramble` (markdown reader); `d` → `debrief` (diff review)
 
 ```quiz
-[[questions]]
-q = "What does `gvd` launch?"
-options = [
-  "git blame in vim",
-  "git difftool with `nvdiff`",
-  "git verbose diffstat only",
-]
-answer = 1
-why = "`gvd` is the dir-diff wrapper that routes review through `nvdiff`."
-
 [[questions]]
 q = "Which alias shows the JJ log over `all()`?"
 options = ["`jjla`", "`jjst`", "`jjd`"]
@@ -154,15 +141,9 @@ why = "fzf provides the cd picker on `Esc`-`c`."
 
 ## Functions and workflow helpers
 
-The function layer stays small and practical: notes, a shared Neovim socket,
-symlink-preserving moves, Yazi cwd handoff, history cleanup, and tmux
-attach/create.
+The function layer stays small and practical: Yazi cwd handoff, history
+cleanup, and tmux attach/create.
 
-- `zknew` — prompt for a title and create a note in `$HOME/notes` via `zk`
-- `nv` — open a file in the shared Neovim server at `/tmp/nvim.pipe` if it
-  exists, otherwise start a listening instance
-- `mvln` — move a file, then leave a symlink at the old path pointing to the
-  new location
 - `y` — launch Yazi, then `cd` to the selected directory on exit using a temp
   cwd file
 - `rmhist <pattern>` — remove matching lines from `$HISTFILE` and reload it
@@ -178,16 +159,6 @@ options = [
 ]
 answer = 1
 why = "`tm` is a thin wrapper around the repo's `tms` picker and attach flow."
-
-[[questions]]
-q = "What is the purpose of `nv`?"
-options = [
-  "Always spawn a brand new Neovim process",
-  "Edit shell history",
-  "Reuse a shared Neovim server if one is listening",
-]
-answer = 2
-why = "`nv` connects to `/tmp/nvim.pipe` when present, otherwise starts the server."
 
 [[questions]]
 q = "What does `y` do after Yazi exits?"

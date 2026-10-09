@@ -39,10 +39,10 @@ Do not add these local files to `.gitignore`; the point is that they live outsid
 .zsh/
   exports.zsh          — PATH, EDITOR, HISTCONTROL, PAGER/LESS, TERM fallbacks
   tools.zsh            — mise activation + hand-rolled prompt (Catppuccin)
-  aliases.zsh          — eza-backed ls/tree families (ls, la, ll, lla, lt, llt, lt5, llt5, l), global pipes (F, H, T, G, L), serve, td, gvd, jvd, ff/ffd
-  git-aliases.zsh      — 12 cherry-picked git aliases (g, ga, gst, glg, gp, …)
-  jj-aliases.zsh       — 10 cherry-picked jj aliases (jjla, jjst, jjgp, jjsq, …)
-  functions.zsh        — zknew, nv, mvln, y, rmhist, tm
+  aliases.zsh          — eza-backed ls/tree families (ls, la, ll, lla, lt, llt, lt5, llt5, l), global pipes (F, H, T, G, L), td, ff, m, d
+  git-aliases.zsh      — 13 cherry-picked git aliases (g, ga, gst, glg, gp, …)
+  jj-aliases.zsh       — 15 cherry-picked jj aliases (jjla, jjst, jjgp, jjsq, …)
+  functions.zsh        — y, rmhist, tm
   homebrew.zsh         — macOS Homebrew PATH bootstrap (sourced first on Darwin)
   os-darwin.zsh        — macOS-only shell tweaks
   os-linux.zsh         — Linux-only tweaks (toolbox TERM, Electron Ozone, toolbox prompt)
@@ -54,16 +54,10 @@ Do not add these local files to `.gitignore`; the point is that they live outsid
 
 The full lists live in `git-aliases.zsh` and `jj-aliases.zsh`. The keepers:
 
-- **git**: `g`, `ga`, `gb`, `gc`, `gco`, `gd`, `gf`, `gl`, `glg`, `gp`, `grb`, `gst`
-- **jj**: `jjb`, `jjd`, `jjdmsg`, `jje`, `jjgp`, `jjla`, `jjn`, `jjrb`, `jjsq`, `jjst`
+- **git**: `g`, `ga`, `gb`, `gc`, `gc!`, `gco`, `gd`, `gf`, `gl`, `glg`, `gp`, `grb`, `gst`
+- **jj**: `jja`, `jjb`, `jjd`, `jjdmsg`, `jje`, `jjgp`, `jjl`, `jjla`, `jjn`, `jjrb`, `jjrbm`, `jjs`, `jjsq`, `jjst`, `jjt`
 
 Selection criterion: ≥5 hits in `~/.zsh_history`.
-
-### Diff review wrappers (in `aliases.zsh`)
-
-- `gvd` → `git difftool --dir-diff --no-prompt --extcmd=nvdiff`
-- `jvd` → `jj --no-pager diff --tool nvdiff`
-- `nvdiff` is a `fedora/bin/` script that opens Neovim's `:DiffTool`
 
 ### Plugins sourced directly
 
@@ -94,7 +88,6 @@ Selection criterion: ≥5 hits in `~/.zsh_history`.
 - `lt5` / `llt5` → deeper tree view at depth 5, with / without long format
 - `td` → `cd "$(trash path)"`
 - `ff <pattern>` → `fd --hidden --exclude .git --exclude .jj --type f <pattern>`
-- `ffd <pattern>` → `fd --hidden --exclude .git --exclude .jj --type d <pattern>`
 
 ### `tm` tmux helper
 
