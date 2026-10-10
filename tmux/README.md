@@ -41,7 +41,7 @@ status-line plugins.
 - `martintrojer/tmux-fingers-rs`: hint-based picking inside visible pane content, similar to Vimium-style jump labels for paths, URLs, SHAs, numbers, and other matches. This is a Rust port of `Morantron/tmux-fingers`; configuration is the same (`@fingers-*` options), the binary is `tmux-fingers-rs`.
 - `mu-crew/tmux-session-picker`: `tsesh`, the session picker behind `prefix` + `s` / `g` / `T`. See its README for keys and config.
 - `sainnhe/tmux-fzf`: fzf-powered tmux management for sessions, windows, panes, bindings, clipboard history, and process actions.
-- `christoomey/vim-tmux-navigator`: moves between Neovim splits and tmux panes with the same control-key motions, no prefix.
+- `christoomey/vim-tmux-navigator`: moves between Neovim splits and tmux panes with the same control-key motions, no prefix. `@vim_navigator_pattern` also forwards the keys to debrief and ramble, which move between their own panes and hand off to tmux at their edge.
 
 ## Active integrations
 
