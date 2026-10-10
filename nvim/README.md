@@ -103,7 +103,7 @@ mise use node@latest rust@latest fzf@latest ripgrep@latest fd@latest tree-sitter
 mise use github:LuaLS/lua-language-server
 mise use github:tekumara/typos-lsp
 mise use cargo:taplo-cli
-mise use cargo:mdroots-cli
+mise use github:martintrojer/mdroots
 go install golang.org/x/tools/gopls@latest
 
 # LSP servers via npm (needs node above)
