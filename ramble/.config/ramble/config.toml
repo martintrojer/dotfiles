@@ -1,0 +1,125 @@
+## ramble configuration.
+##
+## Every option is shown with its default value, commented out. Uncomment a
+## line to change it. Lines starting with "##" are explanations.
+
+## ---------------------------------------------------------------------------
+## Rendering
+# [render]
+## Upper bound on the reflow width, in columns.
+# max_width = 100
+# theme = "catppuccin-mocha"
+## Draw LaTeX math ($…$, $$…$$, ```math) as Unicode; false shows the source.
+# math = true
+
+## ---------------------------------------------------------------------------
+## Sidebar
+[sidebar]
+## always | never | auto. always: shown, <leader>e hides it. never: hidden,
+## <leader>e shows it. auto (peek): shown while you use it (C-w into it,
+## <leader>E, :Sidebar files|outline|split), hidden again when you open a
+## file, jump to a heading, go back to the text or press Esc; <leader>e pins
+## it. A start with no page (a directory or no argument) always shows the
+## file tree.
+show = "auto"
+## auto | files | outline | split (<leader>E cycles outline, files, split)
+## auto: files while no page is loaded (a directory or no argument), then
+## `reading` once a page is shown (a file, stdin, or a file opened later).
+default = "split"
+## outline | split: what auto shows while a page is loaded.
+# reading = "outline"
+## Width in columns, not counting the border. "auto" fits the rows shown
+## (most of them: one very long name doesn't stretch it) within min_width
+## and max_width, and grows into room the page can't use (render.max_width).
+## A number is used as given.
+# width = "auto"
+# min_width = 16
+## Also capped at 35% of the terminal width.
+# max_width = 48
+## Share of the sidebar given to files in split mode.
+# split_ratio = 0.5
+## Also list non-markdown files in the tree.
+# show_all = false
+## Hide the sidebar while the terminal is narrower than this many columns;
+## it comes back when the terminal grows, unless you hid it. 0 disables.
+# auto_hide_below = 80
+## left | right: the screen edge the sidebar sits at (:Sidebar left|right
+## switches it). C-w h / C-h and C-w l / C-l follow the screen: on the
+## right, C-l goes to the sidebar.
+# side = "left"
+
+## ---------------------------------------------------------------------------
+## Keys
+# [keys]
+# leader = " "
+## After a pause in a key sequence, show the keys that can come next.
+# clue = true
+## C-h / C-j / C-k / C-l move between panes as C-w h/j/k/l do; at the edge,
+## inside tmux, they move to the tmux pane there. false unbinds them (the
+## C-w keys stay).
+# pane_nav = true
+
+## ---------------------------------------------------------------------------
+## Mouse: click, double-click, drag to copy, wheel. Shift+drag still makes
+## a native terminal selection; false leaves the mouse to the terminal/tmux.
+# [mouse]
+# enabled = true
+
+## ---------------------------------------------------------------------------
+## Comments on source lines, kept in debrief-review's batch for the repo.
+## Tab in the comment box cycles untyped -> kinds in order -> untyped.
+## A typed comment exports as "## Item N [ISSUE]", with a legend of the
+## kinds used and their definitions. A list replaces the built-ins below
+## (ids are lowercased); `kinds = []` leaves every comment untyped.
+# [review]
+# enabled = true  # comment mode (c, cc) and markers; comments go to debrief-review's batch
+# kinds = [
+#   { id = "issue", definition = "Something is wrong. Fix it." },
+#   { id = "suggestion", definition = "A better way to do it. Apply it, or say in your reply why not." },
+#   { id = "question", definition = "The reviewer wants an answer. Answer in your reply; change code only if the answer shows a problem." },
+#   { id = "nit", definition = "Minor or cosmetic. Fix it if it's cheap." },
+# ]
+
+## ---------------------------------------------------------------------------
+## <leader>rr sends the batch: the markdown goes to `command` on stdin (with
+## DEBRIEF_ROOT set). An empty command, a failure, or a 10 s timeout copies
+## it to the clipboard instead. Either way the batch is then cleared.
+##   command = ["sh", "-c", "mu agent send worker-1 \"$(cat)\""]
+## `preamble` replaces the export's opening paragraph ("" drops it):
+##   preamble = "Please address these review comments."
+# [send]
+# command = []
+
+## ---------------------------------------------------------------------------
+## Language servers (optional). With none configured, every page uses the
+## built-in mdroots backend: links, backlinks, notes, search and tags need no
+## external tools. Servers are tried in order; the first whose root marker is
+## found above the file serves that page, other pages stay on mdroots.
+## kind: zk | marksman | generic (generic gets standard LSP requests only).
+## position_encoding: "utf-8" | "utf-16" | "utf-32".
+## position_encoding defaults to utf-32 for zk; set it to override. E.g.:
+##   [[lsp.server]]
+##   kind = "zk"
+##   command = ["zk", "lsp"]
+##   root_markers = [".zk"]
+##
+##   [[lsp.server]]
+##   kind = "marksman"
+##   command = ["marksman", "server"]
+##   root_markers = [".marksman.toml", ".git"]
+
+## ---------------------------------------------------------------------------
+## Launchers: run a command in the terminal, then reload the page.
+## Variables (substituted per argument, no shell): ${file} ${line} ${dir}
+## ${vcs_root} ${editor}.
+## An entry with the same name replaces a default; new names are added;
+## `disabled = true` removes a default, e.g.:
+##   [[launch]]
+##   name = "edit"
+##   disabled = true
+
+# [[launch]]
+# name = "edit"
+# key = "<leader>o"
+# command = ["${editor}", "+${line}", "${file}"]
+
