@@ -99,7 +99,10 @@ PLUGIN_EXTRAS: list[tuple[str, str]] = [
 ]
 NO_PREFIX_EXTRAS: list[tuple[str, str]] = [
     ("C-q", "Clear pane history"),
-    ("C-h/j/k/l", "Move between panes / vim, debrief, ramble splits (vim-tmux-navigator)"),
+    (
+        "C-h/j/k/l",
+        "Move between panes / vim, debrief, ramble splits (vim-tmux-navigator)",
+    ),
 ]
 
 KEY_COL_WIDTH = 9
