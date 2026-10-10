@@ -163,21 +163,12 @@ for state, count in Counter(row["state"] for row in results).most_common():
 PY
 ```
 
-### Sync a repo from GitHub to Bubba
+### Sync repos from GitHub to Bubba
 
-For fast-forwardable repos, no local clone is needed:
+Use [`forgejo-sync`](../local-bin/README.md): it copies missing repos, fast-forwards existing ones, and reports diverged refs. Dry run by default:
 
 ```bash
-repo=REPO
-branch=main
-workdir=$(mktemp -d)
-trap 'rm -rf "$workdir"' EXIT
-
-git init --bare "$workdir/$repo.git"
-git -C "$workdir/$repo.git" remote add github "git@github.com:martintrojer/$repo.git"
-git -C "$workdir/$repo.git" remote add bubba "ssh://git@bubba:3022/martintrojer/$repo.git"
-git -C "$workdir/$repo.git" fetch github "+refs/heads/$branch:refs/remotes/github/$branch"
-git -C "$workdir/$repo.git" push bubba "refs/remotes/github/$branch:refs/heads/$branch"
+forgejo-sync --only REPO          # preview one repo
+forgejo-sync --only REPO --apply  # sync it
+forgejo-sync --apply              # every repo
 ```
-
-If Bubba rejects with `fetch first`, the histories diverged or Bubba has commits GitHub does not. Inspect before force-pushing.
