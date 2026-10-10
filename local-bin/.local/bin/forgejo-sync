@@ -1,0 +1,480 @@
+#!/usr/bin/env python3
+"""Copy every GitHub repo I own to Forgejo (Bubba) and keep the copies current.
+
+Dry run by default; pass --apply to change anything. GitHub is the inventory
+(public, private and archived repos). For each repo:
+
+  fork with no commits of mine  -> skip
+  missing on Forgejo            -> migrate (one-off copy, same visibility, LFS)
+  Forgejo pull mirror           -> trigger mirror-sync
+  normal Forgejo repo           -> fast-forward branches and tags from GitHub
+
+It never deletes, and only force-pushes repos named with --force. A ref that
+Forgejo has moved past GitHub is reported as DIVERGED and left alone;
+`--force NAME` overwrites such refs in NAME with GitHub's (FORCED), guarded by
+--force-with-lease. A push the server refuses (hook, protected branch) is
+REJECTED with its reason. Refs that exist only on Forgejo are left alone
+either way. Git LFS objects come over on migrate, but later syncs only move
+refs. A fork whose GitHub compare fails is an ERROR, never a silent SKIP.
+The GitHub token is sent to Forgejo only to migrate private repos.
+
+Config:
+  FORGEJO_URL    default http://bubba:8090 (LAN)
+  FORGEJO_TOKEN  or the file ~/.config/forgejo-sync/token
+                 (token scopes: write:repository, read:user)
+  ~/.config/forgejo-sync/skip   optional, one repo name per line, # comments
+GitHub access comes from `gh` (`gh auth login`).
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import os
+import subprocess
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+
+def xdg(var: str, default: str) -> Path:
+    # Empty counts as unset (XDG spec).
+    return Path(os.environ.get(var) or Path.home() / default) / "forgejo-sync"
+
+
+CONFIG_DIR = xdg("XDG_CONFIG_HOME", ".config")
+CACHE_DIR = xdg("XDG_CACHE_HOME", ".cache")
+GH_CREDENTIAL = [
+    "-c",
+    "credential.helper=",
+    "-c",
+    "credential.helper=!gh auth git-credential",
+]
+
+
+@dataclass(frozen=True)
+class GhRepo:
+    name: str
+    fork: bool
+    private: bool
+    description: str
+    url: str
+
+
+@dataclass(frozen=True)
+class Result:
+    name: str
+    # OK, SKIP, MIGRATE, MIRRORSYNC, UPDATE, FORCED, DIVERGED, REJECTED, ERROR
+    action: str
+    detail: str = ""
+
+
+class Forgejo:
+    def __init__(self, url: str, token: str) -> None:
+        self.url = url.rstrip("/")
+        self.token = token
+        self.user: str = self.call("GET", "/user")["login"]
+
+    def call(self, method: str, path: str, body: dict[str, Any] | None = None) -> Any:
+        req = urllib.request.Request(
+            f"{self.url}/api/v1{path}",
+            method=method,
+            data=json.dumps(body).encode() if body is not None else None,
+            headers={
+                "Authorization": f"token {self.token}",
+                "Content-Type": "application/json",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=900) as resp:
+                raw = resp.read()
+        except urllib.error.HTTPError as e:
+            msg = e.read()[:200].decode(errors="replace").replace("\n", " ")
+            raise RuntimeError(f"{method} {path}: HTTP {e.code}: {msg}") from e
+        return json.loads(raw) if raw else None
+
+    def repos(self) -> dict[str, bool]:
+        """Lowercased repo name -> is pull mirror, for repos owned by me."""
+        out: dict[str, bool] = {}
+        page = 1
+        while batch := self.call("GET", f"/user/repos?limit=50&page={page}"):
+            for r in batch:
+                if r["owner"]["login"] == self.user:
+                    out[r["name"].lower()] = bool(r["mirror"])
+            page += 1
+        return out
+
+    def git_url(self, name: str) -> str:
+        return f"{self.url}/{self.user}/{name}.git"
+
+    def git_env(self) -> dict[str, str]:
+        """Auth header as env config, so the token stays out of argv (ps)."""
+        basic = base64.b64encode(f"{self.user}:{self.token}".encode()).decode()
+        return {
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "http.extraHeader",
+            "GIT_CONFIG_VALUE_0": f"Authorization: Basic {basic}",
+        }
+
+
+def run(
+    cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        cmd,
+        cwd=cwd,
+        env=os.environ | env if env else None,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+class GhError(RuntimeError):
+    pass
+
+
+def gh_api(path: str, jq: str | None = None, paginate: bool = False) -> str:
+    cmd = ["gh", "api", path]
+    if paginate:
+        cmd.append("--paginate")
+    if jq:
+        cmd += ["--jq", jq]
+    p = run(cmd)
+    if p.returncode != 0:
+        raise GhError(f"gh api {path}: {p.stderr.strip()}")
+    return p.stdout
+
+
+def gh_json_lines(path: str, jq: str) -> Iterator[Any]:
+    for line in gh_api(path, jq, paginate=True).splitlines():
+        if line.strip():
+            yield json.loads(line)
+
+
+def github_repos() -> list[GhRepo]:
+    jq = ".[] | {name, fork, private, description, html_url}"
+    return [
+        GhRepo(
+            r["name"], r["fork"], r["private"], r["description"] or "", r["html_url"]
+        )
+        for r in gh_json_lines("user/repos?affiliation=owner&per_page=100", jq)
+    ]
+
+
+def fork_has_my_work(me: str, name: str) -> bool:
+    """True if any branch of the fork has commits by me that the parent lacks."""
+    parent = gh_api(
+        f"repos/{me}/{name}", ".parent | [.owner.login, .default_branch] | @tsv"
+    )
+    if not parent.strip():
+        return True  # parent deleted: the fork is the only copy, keep it
+    owner, default = parent.strip().split("\t")
+    mine = f'[.[] | select(.author.login == "{me}")] | length'
+    for b in gh_json_lines(
+        f"repos/{me}/{name}/branches?per_page=100", ".[] | .name | tojson"
+    ):
+        q = urllib.parse.quote(b, safe="")
+        # Same-named parent branch first, then the parent's default branch.
+        for base in dict.fromkeys((b, default)):
+            path = (
+                f"repos/{me}/{name}/compare/{owner}:"
+                f"{urllib.parse.quote(base, safe='')}...{q}?per_page=100"
+            )
+            try:
+                # --paginate: compare lists at most 250 commits per page.
+                pages = gh_api(path, f".commits | {mine}", paginate=True)
+            except GhError as e:
+                if "No common ancestor" in str(e):
+                    # Unrelated history (e.g. gh-pages): all of it is the fork's.
+                    pages = gh_api(
+                        f"repos/{me}/{name}/commits?sha={q}&per_page=100",
+                        mine,
+                        paginate=True,
+                    )
+                elif "HTTP 404" in str(e) and base != default:
+                    continue  # parent has no such branch: try its default
+                else:
+                    raise  # rate limit, 5xx, ...: an ERROR, never a silent SKIP
+            if sum(int(n) for n in pages.split()) > 0:
+                return True
+            break
+    return False
+
+
+def refs(
+    cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None
+) -> dict[str, str]:
+    p = run(cmd, cwd, env)
+    if p.returncode != 0:
+        raise RuntimeError(
+            p.stderr.strip().splitlines()[-1] if p.stderr.strip() else "git failed"
+        )
+    out: dict[str, str] = {}
+    # Tab-separated, one ref per \n: ref names may hold other whitespace.
+    for line in p.stdout.split("\n"):
+        if line:
+            sha, ref = line.split("\t", 1)
+            out[ref] = sha
+    return out
+
+
+# Push rejections that mean "Forgejo moved past GitHub", not a server refusal.
+DIVERGED_REASONS = ("non-fast-forward", "fetch first", "already exists", "stale info")
+
+
+@dataclass
+class PushOutcome:
+    updated: list[str]
+    forced: list[str]
+    diverged: list[str]
+    rejected: list[str]  # "ref: reason"
+
+
+def parse_push(porcelain: str) -> PushOutcome:
+    out = PushOutcome([], [], [], [])
+    for ln in porcelain.split("\n"):
+        parts = ln.split("\t")
+        if len(parts) < 3:
+            continue
+        flag, ref, summary = parts[0], parts[1].split(":")[-1], parts[2]
+        if flag in (" ", "*", "+"):
+            out.updated.append(ref)
+            if flag == "+":
+                out.forced.append(ref)
+        elif flag == "!":
+            if summary.startswith("[rejected]") and any(
+                r in summary for r in DIVERGED_REASONS
+            ):
+                out.diverged.append(ref)
+            else:
+                out.rejected.append(f"{short_refs([ref])}: {summary}")
+    return out
+
+
+def sync_refs(fj: Forgejo, repo: GhRepo, apply: bool, force: bool) -> Result:
+    cache = CACHE_DIR / f"{repo.name}.git"
+    if cache.exists():
+        p = run(["git", *GH_CREDENTIAL, "remote", "update", "--prune"], cache)
+    else:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        p = run(
+            [
+                "git",
+                *GH_CREDENTIAL,
+                "clone",
+                "--quiet",
+                "--mirror",
+                f"{repo.url}.git",
+                str(cache),
+            ]
+        )
+    if p.returncode != 0:
+        return Result(
+            repo.name, "ERROR", f"fetch from GitHub: {p.stderr.strip()[-200:]}"
+        )
+
+    want = refs(
+        [
+            "git",
+            "for-each-ref",
+            "--format=%(objectname)%09%(refname)",
+            "refs/heads",
+            "refs/tags",
+        ],
+        cache,
+    )
+    have = refs(
+        [
+            "git",
+            "ls-remote",
+            "--refs",
+            fj.git_url(repo.name),
+            "refs/heads/*",
+            "refs/tags/*",
+        ],
+        env=fj.git_env(),
+    )
+    todo = sorted(ref for ref, sha in want.items() if have.get(ref) != sha)
+    if not todo:
+        return Result(repo.name, "OK")
+
+    push = ["git", "push", "--porcelain"]
+    if not apply:
+        push.append("--dry-run")
+    if force:
+        # Overwrite only if Forgejo still has what we just saw.
+        push += [f"--force-with-lease={r}:{have[r]}" for r in todo if r in have]
+    # No "+" on refspecs: it would make git ignore the lease.
+    p = run(
+        [*push, fj.git_url(repo.name), *(f"{r}:{r}" for r in todo)],
+        cache,
+        env=fj.git_env(),
+    )
+    o = parse_push(p.stdout)
+    detail = [f"{len(o.updated)} ref(s) updated"]
+    if o.forced:
+        detail.append(f"overwrote: {short_refs(o.forced)}")
+    if o.diverged:
+        why = (
+            "Forgejo changed during sync"
+            if force
+            else "Forgejo has commits GitHub lacks"
+        )
+        detail.append(f"diverged: {short_refs(o.diverged)} ({why}; not forced)")
+    if o.rejected:
+        detail.append(f"rejected by server: {'; '.join(o.rejected)}")
+    if o.rejected:
+        action = "REJECTED"
+    elif o.diverged:
+        action = "DIVERGED"
+    elif p.returncode != 0:
+        return Result(repo.name, "ERROR", f"push: {p.stderr.strip()[-200:]}")
+    else:
+        action = "FORCED" if o.forced else "UPDATE"
+    return Result(repo.name, action, ", ".join(detail))
+
+
+def short_refs(refs: list[str]) -> str:
+    return ", ".join(
+        r.removeprefix("refs/heads/").replace("refs/tags/", "tag:") for r in refs
+    )
+
+
+def migrate(fj: Forgejo, repo: GhRepo, gh_token: str, apply: bool) -> Result:
+    if not apply:
+        return Result(repo.name, "MIGRATE", "private" if repo.private else "public")
+    fj.call(
+        "POST",
+        "/repos/migrate",
+        {
+            "clone_addr": f"{repo.url}.git",
+            "service": "github",
+            # Public repos clone anonymously; keep the token off the wire.
+            **({"auth_token": gh_token} if repo.private else {}),
+            "repo_owner": fj.user,
+            "repo_name": repo.name,
+            "private": repo.private,
+            "description": repo.description,
+            "mirror": False,
+            "lfs": True,
+        },
+    )
+    return Result(repo.name, "MIGRATE", "done")
+
+
+def handle(
+    fj: Forgejo,
+    fj_repos: dict[str, bool],
+    me: str,
+    gh_token: str,
+    repo: GhRepo,
+    apply: bool,
+    force: bool,
+) -> Result:
+    try:
+        if repo.fork and not fork_has_my_work(me, repo.name):
+            return Result(repo.name, "SKIP", "fork, no commits of mine")
+        mirror = fj_repos.get(repo.name.lower())
+        if mirror is None:
+            return migrate(fj, repo, gh_token, apply)
+        if mirror:
+            if apply:
+                fj.call("POST", f"/repos/{fj.user}/{repo.name}/mirror-sync")
+            return Result(repo.name, "MIRRORSYNC")
+        return sync_refs(fj, repo, apply, force)
+    except (RuntimeError, OSError, ValueError) as e:
+        return Result(repo.name, "ERROR", str(e))
+
+
+def read_skip() -> set[str]:
+    path = CONFIG_DIR / "skip"
+    if not path.exists():
+        return set()
+    return {ln.split("#")[0].strip() for ln in path.read_text().splitlines()} - {""}
+
+
+def forgejo_token() -> str:
+    token = os.environ.get("FORGEJO_TOKEN", "")
+    path = CONFIG_DIR / "token"
+    if not token and path.exists():
+        token = path.read_text().strip()
+    if not token:
+        sys.exit(f"forgejo-sync: set FORGEJO_TOKEN or write {path}")
+    return token
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--apply", action="store_true", help="make changes (default: dry run)"
+    )
+    ap.add_argument("--only", metavar="NAME", action="append", help="only these repos")
+    ap.add_argument(
+        "--force",
+        metavar="NAME",
+        action="append",
+        default=[],
+        help="overwrite diverged Forgejo refs in this repo with GitHub's",
+    )
+    ap.add_argument(
+        "-v", "--verbose", action="store_true", help="also print OK and SKIP"
+    )
+    ap.add_argument("-j", "--jobs", type=int, default=6)
+    args = ap.parse_args()
+
+    url = os.environ.get("FORGEJO_URL", "http://bubba:8090")
+    try:
+        fj = Forgejo(url, forgejo_token())
+        fj_repos = fj.repos()
+        me = gh_api("user", ".login").strip()
+        gh_token = run(["gh", "auth", "token"]).stdout.strip()
+        gh_repos = github_repos()
+    except (RuntimeError, OSError) as e:
+        sys.exit(f"forgejo-sync: {url}: {e}")
+    skip = read_skip()
+    if unknown := {*(args.only or ()), *args.force} - {r.name for r in gh_repos}:
+        sys.exit(
+            f"forgejo-sync: not GitHub repos of {me}: {', '.join(sorted(unknown))}"
+        )
+    repos = [
+        r
+        for r in gh_repos
+        if r.name not in skip and (not args.only or r.name in args.only)
+    ]
+
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        results = list(
+            pool.map(
+                lambda r: handle(
+                    fj, fj_repos, me, gh_token, r, args.apply, r.name in args.force
+                ),
+                repos,
+            )
+        )
+
+    quiet = {"OK", "SKIP"}
+    for r in sorted(results, key=lambda r: (r.action, r.name.lower())):
+        if args.verbose or r.action not in quiet:
+            print(f"{r.action:<10} {r.name}{'  ' + r.detail if r.detail else ''}")
+    counts: dict[str, int] = {}
+    for r in results:
+        counts[r.action] = counts.get(r.action, 0) + 1
+    print("\n" + "  ".join(f"{k}: {v}" for k, v in sorted(counts.items())))
+    if not args.apply:
+        print("dry run; re-run with --apply")
+    bad = ("ERROR", "DIVERGED", "REJECTED")
+    return 1 if any(counts.get(k) for k in bad) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

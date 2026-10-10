@@ -26,3 +26,11 @@ Examples:
 - `bubba-lfs-curl-push --dry-run`
 - `bubba-lfs-curl-push bubba main --push`
 - `bubba-lfs-curl-push --ssh-host bubba --ssh-port 3022 --repo-path owner/repo.git --push`
+
+`forgejo-sync` copies every GitHub repo you own (public, private, archived) to Forgejo on Bubba and keeps the copies up to date. It skips forks that have no commits of yours. A repo missing on Forgejo is migrated with the same visibility. A Forgejo pull mirror gets a mirror-sync. A normal repo gets its branches and tags fast-forwarded from GitHub. The script never deletes anything. A ref that moved ahead on Forgejo prints as `DIVERGED`, and the exit code is 1. `--force NAME` overwrites those refs in `NAME` with GitHub's (`FORCED`), using `--force-with-lease` so a ref that changes during the run is left alone. A push the server refuses (hook, protected branch) prints as `REJECTED` with the reason. A fork whose GitHub check fails prints as `ERROR`, never as a silent skip. The GitHub token goes to Forgejo only when migrating a private repo. It does a dry run unless you pass `--apply`. It needs `gh auth login` and a Forgejo token (scopes `write:repository`, `read:user`) in `FORGEJO_TOKEN` or `~/.config/forgejo-sync/token`. Repos listed in `~/.config/forgejo-sync/skip` are left alone.
+
+Examples:
+- `forgejo-sync` (dry run)
+- `forgejo-sync --apply`
+- `forgejo-sync --only rpi --only dotfiles -v`
+- `forgejo-sync --apply --force dotfiles --force notes`
