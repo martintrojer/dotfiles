@@ -18,6 +18,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "bat",
             "btop",
             "cursor",
+            "debrief",
             "eza",
             "gdu",
             "git",
