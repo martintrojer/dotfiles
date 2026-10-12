@@ -47,6 +47,10 @@ layout = "split"
 ## The narrowest diff pane (not counting the file list) shown side by side;
 ## below it the view is unified.
 # split_min_width = 140
+## Inside tmux, zoom debrief's pane at start (as PREFIX z) for the room
+## full diffs need, and unzoom it on exit. A window already zoomed at
+## start, or unzoomed meanwhile, is left as it is.
+tmux_zoom = true
 
 ## ---------------------------------------------------------------------------
 ## Which commits load
