@@ -47,6 +47,8 @@ It does not own:
 
 ## Operator commands
 
+Requires `uv` on `PATH`. The entry-point shebang uses `uv` to select Python 3.14, matching the Makefile, instead of relying on the host's `python3`. `uv` downloads the interpreter if needed on first run.
+
 From the repo root:
 
 ```bash
