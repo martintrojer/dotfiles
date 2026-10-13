@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 from _dotfiles_sync import pi_settings
+from _dotfiles_sync.json_keys import LOGGER
 
 
 class PiSettingsTest(unittest.TestCase):
@@ -35,11 +36,11 @@ class PiSettingsTest(unittest.TestCase):
                 }
             )
         )
-        with self.assertLogs(pi_settings.LOGGER):
+        with self.assertLogs(LOGGER):
             self.assertTrue(
                 pi_settings.check_pi_settings(self.target, verbose=False, ignore=set())
             )
-        with self.assertLogs(pi_settings.LOGGER):
+        with self.assertLogs(LOGGER):
             pi_settings.apply_pi_settings(self.target, verbose=False)
         data = json.loads(self.path.read_text())
         self.assertEqual(data["defaultModel"], "m")
@@ -54,7 +55,7 @@ class PiSettingsTest(unittest.TestCase):
     def test_apply_leaves_unparseable_file_alone(self) -> None:
         self.path.parent.mkdir(parents=True)
         self.path.write_text("{not json")
-        with self.assertLogs(pi_settings.LOGGER):
+        with self.assertLogs(LOGGER):
             pi_settings.apply_pi_settings(self.target, verbose=False)
         self.assertEqual(self.path.read_text(), "{not json")
 

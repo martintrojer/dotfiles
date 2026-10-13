@@ -34,6 +34,9 @@ It does not own:
 - `private_env.py`: accidental secrets and private-endpoint assignments in the repo
 - `managed_links.py`: `$HOME` symlink prune and backlink audit
 - `integration_checks.py`: external drift checks for zsh plugins, TPM and its `@plugin` checkouts, Codex notify, and Cursor notify
+- `json_keys.py`: check/apply helper that merges owned keys into a JSON file another tool rewrites
+- `pi_settings.py`: keys this repo owns in `~/.pi/agent/settings.json`
+- `cursor_settings.py`: keys this repo owns in `~/.cursor/cli-config.json` (the CLI keeps auth, model, and caches)
 - `external.py`: pinned third-party clone management for zsh plugins and TPM
 - `model.py`: typed dataclasses and shared aliases
 
