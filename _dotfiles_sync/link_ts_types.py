@@ -41,11 +41,11 @@ def npm_global_root() -> Path:
 def opencode_sdk_root() -> Path:
     """opencode installs its plugin SDK beside the user's opencode config."""
     for base in (Path.home() / ".config/opencode", Path.home() / ".opencode"):
-        candidate = base / "node_modules/@opencode-ai"
+        candidate = base / "node_modules/@opencode"
         if candidate.is_dir():
             return candidate
     sys.exit(
-        "link-ts-types: @opencode-ai not found under ~/.config/opencode or ~/.opencode"
+        "link-ts-types: @opencode not found under ~/.config/opencode or ~/.opencode"
     )
 
 
@@ -71,7 +71,7 @@ def main() -> int:
     link(pi, PI_PKG)
     for name in PI_VENDORED:
         link(pi / "node_modules" / name, name)
-    link(opencode_sdk_root(), "@opencode-ai")
+    link(opencode_sdk_root(), "@opencode")
 
     print(
         f"link-ts-types: linked {len(PI_VENDORED) + 2} type packages into {NODE_MODULES}"
