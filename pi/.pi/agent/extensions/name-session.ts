@@ -81,7 +81,7 @@ async function generateSessionName(
 		"Good examples (specific, easy to find again):",
 		"- Auto-Name Pi History",
 		"- Fix Tmux Status Bar Tests",
-		"- Summarize Skill URL Fallbacks",
+		"- Fix Article URL Fallbacks",
 		"- Stow Ignore Rules Cleanup",
 		"",
 		"Bad examples (too generic):",

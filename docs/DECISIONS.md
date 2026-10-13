@@ -563,14 +563,6 @@ Audited the 12-file split (1,395 lines, largest file 291). Considered collapsing
 
 ---
 
-### Keep the `summarize` naming triplet (accepted 2026-05-01)
-
-Three things named "summarize": the stow package (CLI config), the agent skill, the CLI binary. Intentionally co-named — they're facets of the same workflow (skill calls CLI, CLI reads config). Renaming any would obscure the relationship. One-second disambiguation cost when reading `git log`; acceptable.
-
-**Reconsider only if:** a fourth unrelated "summarize" tool enters the repo.
-
----
-
 ### Replace GNU Stow with an in-repo symlink planner (accepted 2026-08-01)
 
 Stow was doing very little. We passed `--no-folding` on 33 of 34 packages, which turns off its signature feature, then regex-scraped its English output to recover the package/source/target structure we had just handed it.
