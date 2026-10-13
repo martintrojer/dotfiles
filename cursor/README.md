@@ -29,3 +29,13 @@ murmur clear --pane "$TMUX_PANE"
 
 `./dotfiles-sync --check` fails if `~/.cursor/hooks.json` exists and its `stop`
 hooks do not call murmur.
+
+## Agent approval
+
+`~/.cursor/cli-config.json` stays the CLI's file. It holds auth, the model
+picker, and caches, so a tracked copy would commit account data and churn on
+every launch. This repo owns one key: `approvalMode: "unrestricted"` (Run
+Everything, the same as `--force` / `--yolo`). `--check` reports drift;
+`--apply` merges that key in and leaves the rest alone. A machine with no
+`cli-config.json` yet gets a file containing only that key; the CLI fills its
+defaults on the next launch.

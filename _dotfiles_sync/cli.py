@@ -10,6 +10,7 @@ from pathlib import Path
 from time import monotonic
 
 from .config import BACKUP_DIR_NAME, task_enabled
+from .cursor_settings import apply_cursor_settings, check_cursor_settings
 from .external import (
     apply_mu_crew_dotfiles,
     apply_tmux_tpm,
@@ -193,6 +194,11 @@ def run_check_tasks(
             TaskPolicy(packages=frozenset({"pi"})),
             lambda: check_pi_settings(target, verbose=verbose, ignore=ignore),
         ),
+        # cli-config.json is the CLI's own file (auth, model, caches). Not linked.
+        (
+            TaskPolicy(packages=frozenset({"cursor"})),
+            lambda: check_cursor_settings(target, verbose=verbose, ignore=ignore),
+        ),
         # Not tied to a package: ~/.codex/config.toml is codex's own file,
         # not something this repo links, so this runs everywhere and returns
         # clean on a machine with no codex.
@@ -276,6 +282,10 @@ def run_apply_tasks(
         (
             TaskPolicy(packages=frozenset({"pi"})),
             lambda: apply_pi_settings(target, verbose=verbose),
+        ),
+        (
+            TaskPolicy(packages=frozenset({"cursor"})),
+            lambda: apply_cursor_settings(target, verbose=verbose),
         ),
     )
 
