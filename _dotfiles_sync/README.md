@@ -33,7 +33,7 @@ It does not own:
 - `repo_checks.py`: package coverage, repo file walk, and systemd unit-target resolution
 - `private_env.py`: accidental secrets and private-endpoint assignments in the repo
 - `managed_links.py`: `$HOME` symlink prune and backlink audit
-- `integration_checks.py`: external drift checks for zsh plugins, TPM and its `@plugin` checkouts, Codex notify, and Cursor notify
+- `integration_checks.py`: external drift checks for zsh plugins, TPM and its `@plugin` checkouts, Codex notify, Cursor notify, and Homebrew `python3` on macOS (the entry point's `#!/usr/bin/env python3` needs 3.11+, and Apple's is 3.9)
 - `json_keys.py`: check/apply helper that merges owned keys into a JSON file another tool rewrites
 - `pi_settings.py`: keys this repo owns in `~/.pi/agent/settings.json`
 - `cursor_settings.py`: keys this repo owns in `~/.cursor/cli-config.json` (the CLI keeps auth, model, and caches)
@@ -49,8 +49,6 @@ It does not own:
 - If a split would only create a fake reusable layer, do not do it.
 
 ## Operator commands
-
-Requires `uv` on `PATH`. The entry-point shebang uses `uv` to select Python 3.14, matching the Makefile, instead of relying on the host's `python3`. `uv` downloads the interpreter if needed on first run.
 
 From the repo root:
 

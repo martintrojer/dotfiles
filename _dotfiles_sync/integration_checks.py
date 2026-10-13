@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -281,6 +282,58 @@ def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
         LOGGER.debug(
             "OK: murmur installed, initialised, linked into pi, visible to tmux"
         )
+    return found_issue
+
+
+def check_brew_python(
+    *, verbose: bool, ignore: set[str], os_name: str | None = None
+) -> bool:
+    """On macOS, `python3` must be Homebrew's, not Apple's 3.9.
+
+    The linked scripts (dotfiles-sync, tsesh, museum-search) run through
+    `#!/usr/bin/env python3` and need 3.11+ for tomllib. Homebrew drops the
+    unversioned `python3` link when its `python@3` alias moves to a new minor
+    and the old keg stays installed, so a routine `brew upgrade` quietly hands
+    the name back to /usr/bin/python3. Checked on the tmux server's PATH too,
+    because tsesh runs from tmux bindings.
+    """
+    issue_id = "brew-python"
+    if issue_id in ignore or (os_name or platform.system()) != "Darwin":
+        return False
+    print_header = lazy_header("brew-python")
+
+    brew = shutil.which("brew")
+    if brew is None:
+        print_header()
+        LOGGER.warning(f"MISSING: brew is not on PATH (--ignore {issue_id})")
+        return True
+    prefix = subprocess.run(
+        [brew, "--prefix"], capture_output=True, text=True, check=False
+    ).stdout.strip()
+    want = Path(prefix) / "bin" / "python3"
+    if not want.exists():
+        print_header()
+        LOGGER.warning(
+            f"MISSING: no Homebrew python3 at {want} (brew install python@3) "
+            f"(--ignore {issue_id})"
+        )
+        return True
+
+    found_issue = False
+    paths: dict[str, str | None] = {"your PATH": None}
+    if (tmux_path := _tmux_server_path()) is not None:
+        paths["the tmux server's PATH"] = tmux_path
+    for label, path in paths.items():
+        found = shutil.which("python3", path=path)
+        if found is None or Path(found) != want:
+            print_header()
+            LOGGER.warning(
+                f"SHADOWED: python3 on {label} is {found}, not {want} "
+                f"(--ignore {issue_id})"
+            )
+            found_issue = True
+    if not found_issue and verbose:
+        LOGGER.debug(f"OK: python3 is {want}")
     return found_issue
 
 
