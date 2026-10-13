@@ -18,6 +18,7 @@ from .external import (
 )
 from .fedora_systemd import apply_fedora_systemd_masks, check_fedora_systemd_masks
 from .integration_checks import (
+    check_brew_python,
     check_codex_notify,
     check_cursor_notify,
     check_mu_crew_dotfiles,
@@ -211,6 +212,12 @@ def run_check_tasks(
         (
             TaskPolicy(),
             lambda: check_cursor_notify(target, verbose=verbose, ignore=ignore),
+        ),
+        # Not tied to a package: every linked Python script needs it. No-op
+        # off macOS.
+        (
+            TaskPolicy(),
+            lambda: check_brew_python(verbose=verbose, ignore=ignore),
         ),
         (
             TaskPolicy(packages=frozenset({"systemd"})),
