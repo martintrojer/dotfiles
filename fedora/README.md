@@ -13,8 +13,13 @@ laptop hosts to install only the Sway baseline documented here.
 The scripts and manifest have separate roles:
 
 - **`os/`** — package layering (`rpm-ostree`/`dnf`). Re-run these on a cadence:
-  after a major-version rebase or when rebuilding the system clean. They need a
-  reboot to take effect.
+  after a major-version rebase, when rebuilding the system clean, or after
+  adding packages to a `*-packages.sh` list (`--idempotent` skips ones already
+  layered). They need a reboot to take effect. Both finish by running
+  `os/check-layered.sh`, which compares layered packages with every
+  `*-packages.sh` array (including `gaming/os/`) and lists both sides: listed
+  but not layered, and layered but not listed, each with the `rpm-ostree`
+  command that fixes it. It only reports; it changes nothing.
 - **`config/`** — system configuration under `/etc` (writable and persistent on
   Atomic). Idempotent; re-run only when the tracked file changes.
 - `mise/.config/mise/config.toml` — tracked global manifest for Fedora userland
