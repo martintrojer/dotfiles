@@ -2,6 +2,13 @@
 # `dotfiles-sync --apply` links it as the global mise config.
 min_version = "2026.6.14"
 
+# Keep `npm i -g` out of the node install dir. mise's default prefix is per
+# version (installs/node/24.21.0/...), so every node bump, even a patch, starts
+# with an empty global set. ~/.local/bin is already on PATH (zshenv, and
+# environment.d for the graphical session).
+[env]
+NPM_CONFIG_PREFIX = "{{env.HOME}}/.local"
+
 [tools]
 bat = "latest"
 btop = "latest"
@@ -30,9 +37,9 @@ just = "latest"
 lua = "5.4"
 marp-cli = "latest"
 neovim = "latest"
-# Pinned to a major, not latest: pi and other Node tooling are installed into
-# this runtime, and a major bump silently orphans their global installs.
-node = "24"
+# Pinned to a major, not latest: global npm installs live in ~/.local (see
+# [env]) and survive bumps, but native addons can break on a new major's ABI.
+node = "26"
 # prettier/shellcheck/stylua are here for editor format-on-save and ad-hoc CLI
 # use. The repo's `make check-*` gate does not use them: it pins its own
 # versions and runs them via uvx/npx (see docs/SETUP.md).
