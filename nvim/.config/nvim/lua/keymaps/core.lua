@@ -1,26 +1,18 @@
 local map = vim.keymap.set
 
-----------------------------------------------------------------------
 -- General
-----------------------------------------------------------------------
 map("n", "<esc>", "<cmd>nohlsearch<cr>", { desc = "Clear search" })
 map("n", "ZX", "<cmd>update | bdelete<cr>", { desc = "Save and close buffer" })
 
-----------------------------------------------------------------------
 -- Diagnostics
-----------------------------------------------------------------------
 map("n", "<leader>ee", vim.diagnostic.open_float, { desc = "Diagnostic float" })
 map("n", "<leader>el", vim.diagnostic.setloclist, { desc = "Diagnostics to loclist" })
 map("n", "<leader>u", "<cmd>Undotree<cr>", { desc = "Undotree" })
 
-----------------------------------------------------------------------
 -- Oil
-----------------------------------------------------------------------
 map("n", "-", "<CMD>Oil<CR>", { desc = "Open parent directory" })
 
-----------------------------------------------------------------------
 -- Terminal
-----------------------------------------------------------------------
 local term_buf = nil
 local term_win = nil
 local function toggle_terminal()
@@ -46,9 +38,7 @@ map({ "n", "t" }, "<c-/>", toggle_terminal, { desc = "Toggle terminal" })
 map({ "n", "t" }, "<c-_>", toggle_terminal, { desc = "Toggle terminal" })
 map("t", "<esc><esc>", "<c-\\><c-n>", { desc = "Exit terminal mode" })
 
-----------------------------------------------------------------------
 -- Tmux Navigation
-----------------------------------------------------------------------
 local function tmux_terminal_map(lhs, command, desc)
 	map("t", lhs, function()
 		vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-\\><C-N>", true, false, true), "n", false)

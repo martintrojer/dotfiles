@@ -101,7 +101,7 @@ This config does not save or restore tmux state across reboots. The workflow is 
 
 - `tsesh` recreates any project session in two keystrokes (`prefix` + `s`), with pinned sessions and optional startup commands from `~/.config/tsesh/config.toml` (the [`tsesh/`](../tsesh) package).
 - `detach-on-destroy off` keeps sessions sticky within a running tmux server, so accidental window closes don't kick you out.
-- Neovim's `shada` restores oldfiles, registers, global marks, and command/search history across restarts. Buffer lists and window layouts are **not** persisted — use `<leader>fo` (recent files) or `mini.starter` to re-enter.
+- Neovim's `shada` restores oldfiles, registers, global marks, and command/search history across restarts. Buffer lists and window layouts are **not** persisted — use `<leader>fo` (recent files) to re-enter.
 - Shell history is global via zsh.
 - Agent CLIs (`codex`, `opencode`, `pi`) keep their conversation state in their own session stores, not in tmux pane state.
 

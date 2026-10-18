@@ -37,7 +37,6 @@ class MarkerMatchTests(unittest.TestCase):
             "# THEME BEGIN: sway-palette",
             "/* THEME BEGIN: waybar-palette */",
             "\t\t\t\t\t// THEME BEGIN: waybar-calendar-colors",
-            "-- THEME BEGIN: nvim-starter-glyphs",
         ):
             with self.subTest(line=line):
                 match = render_theme.MARKER_BEGIN_RE.match(line)
@@ -399,7 +398,6 @@ class GeneratedGlyphRegionTests(unittest.TestCase):
     GLYPH_REGIONS = (
         "fuzzel-media-glyphs",
         "fuzzel-power-glyphs",
-        "nvim-starter-glyphs",
         "pi-glyphs",
         "solo-glyphs",
         "tmux-mu-crew-glyphs",

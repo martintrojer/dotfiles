@@ -1,11 +1,6 @@
-----------------------------------------------------------------------
--- Module
-----------------------------------------------------------------------
 local M = {}
 
-----------------------------------------------------------------------
 -- Public API
-----------------------------------------------------------------------
 -- Globals we both read from and write to (`vim.opt.foo = bar`,
 -- `hs.window.animationDuration = 0`, etc.). Listing them as
 -- `read_globals` makes luacheck flag any sub-field assignment as

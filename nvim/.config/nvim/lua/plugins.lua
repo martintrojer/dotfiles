@@ -1,15 +1,11 @@
 -- Plugin management via vim.pack
 
-----------------------------------------------------------------------
 -- Helpers
-----------------------------------------------------------------------
 local gh = function(x)
 	return "https://github.com/" .. x
 end
 
-----------------------------------------------------------------------
 -- Build Hooks
-----------------------------------------------------------------------
 vim.api.nvim_create_autocmd("User", {
 	pattern = "PackChanged*",
 	callback = function(ev)
@@ -20,9 +16,7 @@ vim.api.nvim_create_autocmd("User", {
 	end,
 })
 
-----------------------------------------------------------------------
 -- Plugin Specs
-----------------------------------------------------------------------
 vim.pack.add({
 	{ src = gh("catppuccin/nvim"), name = "catppuccin" },
 	{ src = gh("echasnovski/mini.nvim"), name = "mini.nvim" },

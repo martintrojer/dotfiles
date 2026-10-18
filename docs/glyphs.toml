@@ -42,12 +42,6 @@ goal = ""  # U+F140 fa-bullseye
 cpu = ""  # U+F080 fa-bar-chart
 crew = ""  # U+F0C0 fa-users
 
-# Greetings, keyed by time of day (nvim dashboard, shell login banner).
-greeting_night = ""  # U+F186 fa-moon-o
-greeting_morning = ""  # U+F185 fa-sun-o
-greeting_afternoon = ""  # U+F0C2 fa-cloud
-greeting_evening = ""  # U+F006 fa-star-o
-
 # --- nf-md exceptions -------------------------------------------------
 #
 # Everything above is nf-fa. The groups below keep the nf-md shapes the
