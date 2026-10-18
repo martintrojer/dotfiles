@@ -189,7 +189,6 @@ behavior consistent.
 - `mini.tabline` shows buffers as tabs; `mini.statusline` renders mode,
   diagnostics, LSP, file info, location
 - `mini.icons` provides file / git / LSP icons used across pickers and UI
-- `mini.starter` is the start screen on bare `nvim`
 - `mini.clue` shows prefix-key hints after ~300 ms (the `<leader>f` /
   `<leader>s` / `<leader>g` group labels you see come from here)
 
@@ -246,10 +245,10 @@ The glue: undo history, per-project config, and plugin maintenance.
 - buffers `:checktime` themselves on `FocusGained` / `BufEnter` (combined
   with `autoread`) so external edits show up without manual `:e`
 - drop a `.nvim.lua` in the project root for trusted local overrides (`exrc`)
-- `:PackUpdate` — update plugins; `:LspInfo` — show attached LSPs (alias for `:checkhealth vim.lsp`);
+- `:PackUpdate` — sync + update treesitter parsers, then update plugins; `:LspInfo` — show attached LSPs (alias for `:checkhealth vim.lsp`);
   `:TSUpdate` — update treesitter parsers; `:TSSync` — install any parser
-  from the wired-up language list (`bash`, `go`, `haskell`, `lua`, `python`,
-  `rust`, `tsx`, `markdown`, ...) that's missing from the local install
+  from the wired-up language list (`bash`, `go`, `haskell`, `python`,
+  `rust`, `tsx`, `yaml`, ...) that's missing from the local install
 - `:messages` — review past messages
 
 ```quiz

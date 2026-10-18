@@ -1,8 +1,6 @@
 local map = vim.keymap.set
 
-----------------------------------------------------------------------
 -- Buffer-Local Keymaps
-----------------------------------------------------------------------
 vim.api.nvim_create_autocmd("LspAttach", {
 	callback = function(ev)
 		local function bmap(lhs, rhs, desc)

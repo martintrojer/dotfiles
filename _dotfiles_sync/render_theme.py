@@ -160,10 +160,6 @@ CONSUMERS: tuple[Consumer, ...] = (
         ("pi-glyphs",),
     ),
     Consumer(
-        repo("nvim/.config/nvim/lua/starter.lua"),
-        ("nvim-starter-glyphs",),
-    ),
-    Consumer(
         repo("local-bin/.local/bin/solo"),
         ("solo-glyphs",),
     ),

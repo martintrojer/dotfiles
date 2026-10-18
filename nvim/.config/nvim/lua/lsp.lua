@@ -2,9 +2,7 @@
 -- See README.md for install instructions
 local lua_globals = require("lua_globals")
 
-----------------------------------------------------------------------
 -- Server Configs
-----------------------------------------------------------------------
 vim.lsp.config("lua_ls", {
 	cmd = { "lua-language-server" },
 	filetypes = { "lua" },
@@ -104,9 +102,7 @@ vim.lsp.config("typos_lsp", {
 	root_markers = { ".git" },
 })
 
-----------------------------------------------------------------------
 -- Enabled Servers
-----------------------------------------------------------------------
 vim.lsp.enable({
 	"lua_ls",
 	"bashls",

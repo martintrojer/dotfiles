@@ -1,16 +1,13 @@
 -- Minimal nvim 0.12 config: vim.pack, mini.nvim, fzf-lua
 -- See README.md for full documentation
 
-----------------------------------------------------------------------
 -- Options
-----------------------------------------------------------------------
 vim.g.markdown_recommended_style = 0 -- must be set before built-in ftplugin loads
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
-vim.g.loaded_node_provider = 0
-vim.g.loaded_perl_provider = 0
-vim.g.loaded_python3_provider = 0
-vim.g.loaded_ruby_provider = 0
+for _, p in ipairs({ "node", "perl", "python3", "ruby" }) do
+	vim.g["loaded_" .. p .. "_provider"] = 0
+end
 vim.g.tmux_navigator_no_mappings = 1
 
 vim.opt.number = true
@@ -26,7 +23,6 @@ vim.opt.termguicolors = true
 vim.opt.expandtab = true
 vim.opt.shiftwidth = 2
 vim.opt.tabstop = 2
-vim.opt.softtabstop = 2
 vim.opt.scrolloff = 8
 vim.opt.cursorline = true
 vim.opt.mouse = "a"
@@ -35,19 +31,45 @@ vim.opt.pumborder = "rounded"
 vim.opt.exrc = true
 vim.opt.autoread = true
 
-----------------------------------------------------------------------
 -- Plugins + colorscheme
-----------------------------------------------------------------------
 require("plugins")
 vim.cmd.packadd("nvim.undotree")
-require("catppuccin").setup({ flavour = "mocha" })
+require("catppuccin").setup({
+	flavour = "mocha",
+	-- `style` replaces catppuccin's own underline/italic on a group;
+	-- a bare `bold = true` would merge with it instead.
+	custom_highlights = function(c)
+		local curl = function(sp)
+			return { sp = sp, style = { "undercurl" } }
+		end
+		return {
+			MiniCursorword = { bg = c.surface1, style = {} },
+			MiniCursorwordCurrent = { bg = c.surface1, style = {} },
+			DiagnosticUnderlineError = curl(c.red),
+			DiagnosticUnderlineWarn = curl(c.yellow),
+			DiagnosticUnderlineInfo = curl(c.blue),
+			DiagnosticUnderlineHint = curl(c.teal),
+			DiagnosticUnderlineOk = curl(c.green),
+			MiniHipatternsTodo = { fg = c.base, bg = c.yellow, bold = true },
+			MiniHipatternsFixme = { fg = c.base, bg = c.overlay1, bold = true },
+			MiniHipatternsHack = { fg = c.base, bg = c.overlay0, bold = true },
+			MiniHipatternsNote = { fg = c.base, bg = c.overlay0, bold = true },
+			MiniIndentscopeSymbol = { fg = c.surface1 },
+			MiniTablineFill = { fg = c.overlay0, bg = c.mantle },
+			MiniTablineCurrent = { fg = c.base, bg = c.blue, style = { "bold" } },
+			MiniTablineVisible = { fg = c.text, bg = c.surface0, bold = true },
+			MiniTablineHidden = { fg = c.overlay1, bg = c.mantle },
+			MiniTablineModifiedCurrent = { fg = c.base, bg = c.peach, style = { "bold" } },
+			MiniTablineModifiedVisible = { fg = c.base, bg = c.teal, bold = true },
+			MiniTablineModifiedHidden = { fg = c.peach, bg = c.mantle, bold = true },
+			MiniTablineTabpagesection = { fg = c.crust, bg = c.lavender, bold = true },
+		}
+	end,
+})
 vim.cmd.colorscheme("catppuccin")
 
-----------------------------------------------------------------------
 -- Plugin setup
-----------------------------------------------------------------------
 require("mini_setup")
-require("starter")
 
 require("fzf-lua").setup({
 	"default-title",
@@ -72,22 +94,16 @@ require("oil").setup({
 	view_options = { show_hidden = true },
 })
 
-----------------------------------------------------------------------
--- Treesitter (run :TSSync to install missing parsers)
-----------------------------------------------------------------------
+-- Treesitter (run :TSSync to install missing parsers).
+-- c, lua, markdown, markdown_inline, query, vim, vimdoc ship with nvim itself.
 local ts_parsers = {
 	"bash",
-	"c",
 	"go",
 	"haskell",
 	"html",
 	"javascript",
 	"json",
-	"lua",
-	"markdown",
-	"markdown_inline",
 	"python",
-	"query",
 	"rust",
 	"toml",
 	"tsx",
@@ -95,33 +111,14 @@ local ts_parsers = {
 	"yaml",
 }
 vim.api.nvim_create_user_command("TSSync", function()
-	local ok, treesitter = pcall(require, "nvim-treesitter")
-	if not ok then
-		vim.notify("nvim-treesitter is not available", vim.log.levels.ERROR)
-		return
-	end
 	if vim.fn.executable("tree-sitter") ~= 1 then
 		vim.notify("tree-sitter CLI not found in PATH", vim.log.levels.ERROR)
 		return
 	end
-	local missing = vim.tbl_filter(function(lang)
-		return #vim.api.nvim_get_runtime_file("parser/" .. lang .. ".so", false) == 0
-	end, ts_parsers)
-	if #missing == 0 then
-		vim.notify("TSSync: all " .. #ts_parsers .. " parsers installed", vim.log.levels.INFO)
-		return
-	end
-	for i, lang in ipairs(missing) do
-		vim.notify(string.format("TSSync: [%d/%d] installing %s...", i, #missing, lang), vim.log.levels.INFO)
-		vim.cmd("redraw")
-		treesitter.install({ lang }):wait(300000)
-	end
-	vim.notify("TSSync: done (" .. #missing .. " parsers installed)", vim.log.levels.INFO)
+	require("nvim-treesitter").install(ts_parsers, { summary = true }):wait(300000)
 end, { desc = "Install missing treesitter parsers" })
 
-----------------------------------------------------------------------
 -- Diagnostics
-----------------------------------------------------------------------
 vim.diagnostic.config({
 	virtual_text = { spacing = 4, prefix = "●" },
 	signs = true,
@@ -129,25 +126,21 @@ vim.diagnostic.config({
 	float = { border = "rounded" },
 })
 
-----------------------------------------------------------------------
 -- LSP + keymaps
-----------------------------------------------------------------------
 require("lsp")
 require("keymaps")
 
-----------------------------------------------------------------------
 -- Commands
-----------------------------------------------------------------------
 -- Muscle memory from lspconfig; 0.12 ships the same report as a health check.
 vim.api.nvim_create_user_command("LspInfo", "checkhealth vim.lsp", { desc = "LSP status (checkhealth vim.lsp)" })
 
 vim.api.nvim_create_user_command("PackUpdate", function()
+	vim.cmd("TSSync")
+	vim.cmd("TSUpdate")
 	vim.pack.update()
-end, { desc = "Update all plugins" })
+end, { desc = "Update plugins and treesitter parsers" })
 
-----------------------------------------------------------------------
 -- Autocommands
-----------------------------------------------------------------------
 vim.api.nvim_create_autocmd("FileType", {
 	pattern = "nvim-undotree",
 	callback = function(ev)

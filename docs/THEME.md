@@ -107,7 +107,6 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `fuzzel/.config/fuzzel/scripts/powermenu` | `fuzzel-power-glyphs` |
 | `fuzzel/.config/fuzzel/scripts/cider` | `fuzzel-media-glyphs` |
 | `pi/.pi/agent/extensions/_lib.ts` | `pi-glyphs` |
-| `nvim/.config/nvim/lua/starter.lua` | `nvim-starter-glyphs` |
 | `guides/style.css` | `guides-palette` |
 
 ---
@@ -188,8 +187,7 @@ generator. Each is in `AUDIT_ALLOWLIST`:
   Catppuccin flavor.
 - `ghostty/.config/ghostty/config` — uses the built-in named theme
   (`theme = catppuccin-mocha`); no hex in our config.
-- `nvim/.config/nvim/` — `catppuccin/nvim` plugin handles theming. (Colors
-  only: `lua/starter.lua` *is* a glyph consumer via `nvim-starter-glyphs`.)
+- `nvim/.config/nvim/` — `catppuccin/nvim` plugin handles theming.
 - `waybar/.config/waybar/style.css` — the `@define-color` block *is*
   generated (`waybar-palette`), but the alpha derivations further down
   the file (`alpha(@base, 0.55)`) are hand-written GTK CSS on top of

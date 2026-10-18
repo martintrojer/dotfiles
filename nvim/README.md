@@ -21,8 +21,7 @@ built-ins, and mini.nvim. It uses no framework or separate plugin manager.
 init.lua                        — options, colorscheme, diagnostics, commands, autocommands
 lua/
   plugins.lua                   — vim.pack.add + build hooks
-  mini_setup.lua                — 11 mini modules (starter lives in starter.lua)
-  starter.lua                   — start screen + logo + greeting
+  mini_setup.lua                — mini module setup
   keymaps/                      — keymaps split by domain
     init.lua                    — requires each domain module
     core.lua                    — editor, terminal, tmux nav, buffer mgmt
@@ -39,7 +38,7 @@ after/ftplugin/
 
 ## Plugins (6 vim.pack entries)
 
-### mini.nvim (12 modules from one repo)
+### mini.nvim (11 modules from one repo)
 
 | Module | Purpose |
 |--------|---------|
@@ -50,7 +49,6 @@ after/ftplugin/
 | mini.icons | File/filetype icons |
 | mini.indentscope | Indent scope guide line |
 | mini.notify | Floating notifications |
-| mini.starter | Start screen with recent files and actions |
 | mini.statusline | Statusline (mode, diagnostics, LSP, position) |
 | mini.surround | Add/delete/change surroundings |
 | mini.tabline | Buffer tab bar |
@@ -129,7 +127,7 @@ Then run `:TSSync` in nvim to install treesitter parsers.
 
 | Command | What it does |
 |---------|-------------|
-| `:PackUpdate` | Update all plugins (review diff, `:w` to confirm) |
+| `:PackUpdate` | `:TSSync` + `:TSUpdate`, then update all plugins (review diff, `:w` to confirm) |
 | `:LspInfo` | Show LSP clients (alias for `:checkhealth vim.lsp`) |
 | `:TSSync` | Install missing treesitter parsers |
 | `:TSUpdate` | Update treesitter parsers |
