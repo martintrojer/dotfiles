@@ -200,7 +200,7 @@ ownership or crash detection). This repo wires:
 | Harness | Where |
 | --- | --- |
 | codex | `notify = [...]` in `~/.codex/config.toml` (manual; snippet in mu-crew/dotfiles `codex/config.toml`) |
-| opencode | `opencode/.config/opencode/plugin/notify.ts` |
+| opencode | `opencode/.config/opencode/plugins/murmur/tui.ts`, a shim re-exporting mu-crew/dotfiles' `opencode/plugins/murmur/tui.ts` (TUI plugin, runs in the terminal so `$TMUX_PANE` is right) |
 | Cursor CLI | `cursor/.cursor/hooks.json` → `stop` → `murmur notify --source cursor` |
 
 mu-managed pi panes (`MU_MANAGED_AGENT=1`) clear on `agent_end` rather than
