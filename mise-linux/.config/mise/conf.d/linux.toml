@@ -9,7 +9,5 @@ btop = "latest"
 "github:rgwood/systemctl-tui" = "latest"
 # ImageMagick for wallpaper renders (`wallpaper set`).
 imagemagick = "latest"
-just = "latest"
-marp-cli = "latest"
 rclone = "latest"
 sqlite = "latest"
