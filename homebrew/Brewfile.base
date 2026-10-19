@@ -6,8 +6,6 @@
 # `dotfiles-sync` runs under `#!/usr/bin/env python3` and needs 3.11+;
 # Apple's is 3.9 (see check_brew_python).
 brew "python@3"
-# museum-sync needs rsync 3; macOS ships openrsync.
-brew "rsync"
 
 # Terminal (ghostty/) and its fonts. Geist is the configured one; the other
 # two are the commented-out alternatives in ghostty/.config/ghostty/config.

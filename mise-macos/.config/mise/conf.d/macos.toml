@@ -9,3 +9,6 @@
 # Linux gets git-lfs from the base rpm-ostree layer; the shared git config
 # (git/.gitconfig.shared) needs it on both.
 git-lfs = "latest"
+# museum-sync needs rsync 3 (--append-verify); /usr/bin/rsync is openrsync.
+# Linux distros ship rsync 3, so this stays Mac-only.
+"conda:rsync" = "latest"
