@@ -702,7 +702,7 @@ herdr moved: license Apache 2.0, multi-machine closer to the dream, mu grew a he
 
 - **`MaxSessions 1` on the work remote.** herdr multi-machine wants durable remote attachment. On a host that caps one session channel per connection, that attachment *is* the starve: collect and jump compete for the same slot, and ssh's failure mode reads like auth. That is the environment that forced [coop](https://github.com/martintrojer/coop) for mu — not a preference about sidebars.
 - **Substrate cost is still total.** Switching the daily driver means losing `vim-tmux-navigator`, `tmux-fingers-rs`, the TPM surface, and seventeen years of muscle memory for a multiplexer that is still young on pillar #11. Steal ideas; keep tmux.
-- **The package stays.** [`herdr/`](../herdr) remains an eval config. Re-test is a command, not a rebuild. Daily home is tmux.
+- **The package stays.** `herdr/` remains an eval config. Re-test is a command, not a rebuild. Daily home is tmux. *(Removed 2026-10-19: unused since the September eval; re-adding it is one package plus a mise line.)*
 
 #### Why not workmux
 

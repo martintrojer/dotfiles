@@ -25,9 +25,6 @@ gh = "latest"
 "github:martintrojer/ramble" = "latest"
 "github:tekumara/typos-lsp" = "latest"
 go = "latest"
-# Under evaluation as a tmux alternative; daily home is still tmux.
-# See herdr/README.md and docs/DECISIONS.md § Agent state awareness.
-herdr = "latest"
 jj = "latest"
 # Pinned to 5.4, not latest: luacheck 1.2.0 (the `make check-lua` rock) assigns
 # to a for-loop variable, which Lua 5.5 made const, so it dies on load.
