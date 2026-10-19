@@ -1,10 +1,10 @@
 # homebrew
 
-macOS-only. CLI tools shared with Linux live in the mise manifest ([`mise/README.md`](../mise/README.md)), so brew holds only what mise can't do on a Mac: GUI casks, Homebrew's `python3` (`dotfiles-sync` needs 3.11+; Apple's is 3.9), and `rsync` 3 for museum-sync (macOS ships openrsync).
+macOS-only. CLI tools shared with Linux live in the mise manifest ([`mise/README.md`](../mise/README.md)), so brew holds only what mise can't do on a Mac: GUI casks and Homebrew's `python3` (`dotfiles-sync` needs 3.11+; Apple's is 3.9). rsync 3 for museum-sync comes from mise (`conda:rsync`, `mise-macos/`).
 
 | File | Holds |
 |---|---|
-| `Brewfile.base` | what the setup needs on any Mac: python, rsync, Ghostty + fonts, Hammerspoon + Hyperkey, Caffeine, Chrome |
+| `Brewfile.base` | what the setup needs on any Mac: python, Ghostty + fonts, Hammerspoon + Hyperkey, Caffeine, Chrome |
 | `.Brewfile` → `~/.Brewfile` | includes `Brewfile.base`, then `~/.Brewfile.local` if it exists |
 | `~/.Brewfile.local` (untracked) | this machine's apps, in Brewfile syntax |
 

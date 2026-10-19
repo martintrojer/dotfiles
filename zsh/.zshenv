@@ -16,7 +16,7 @@
 # front of it: mise owns node and the shared CLI tools on macOS too, and npm -g
 # installs (murmur, mu, pi) live in ~/.local/bin. A non-interactive
 # `ssh host murmur ...` must resolve those, not stale brew copies. Brew stays
-# on PATH for what only it provides (python3, btop, rsync, ...).
+# on PATH for what only it provides (python3).
 if [ -d "/opt/homebrew/bin" ]; then
   case ":$PATH:" in
     *":/opt/homebrew/bin:"*) ;;
