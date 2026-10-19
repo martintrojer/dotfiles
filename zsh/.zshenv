@@ -12,6 +12,18 @@
 # so anything slow here is paid constantly. No `eval "$(mise activate)"`: that
 # is what .zshrc is for.
 
+# Homebrew first, so the mise shims and ~/.local/bin added below land in
+# front of it: mise owns node and the shared CLI tools on macOS too, and npm -g
+# installs (murmur, mu, pi) live in ~/.local/bin. A non-interactive
+# `ssh host murmur ...` must resolve those, not stale brew copies. Brew stays
+# on PATH for what only it provides (python3, btop, rsync, ...).
+if [ -d "/opt/homebrew/bin" ]; then
+  case ":$PATH:" in
+    *":/opt/homebrew/bin:"*) ;;
+    *) export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH" ;;
+  esac
+fi
+
 if [ -d "$HOME/.local/share/mise/shims" ]; then
   case ":$PATH:" in
     *":$HOME/.local/share/mise/shims:"*) ;;
@@ -24,16 +36,5 @@ if [ -d "$HOME/.local/bin" ]; then
   case ":$PATH:" in
     *":$HOME/.local/bin:"*) ;;
     *) export PATH="$HOME/.local/bin:$PATH" ;;
-  esac
-fi
-
-# Homebrew. On macOS the interactive PATH comes from `brew shellenv` in .zshrc,
-# so a non-interactive `ssh host murmur ...` finds neither the murmur symlink
-# in /opt/homebrew/bin nor the node it execs. Add it here rather than
-# symlinking individual binaries into ~/.local/bin.
-if [ -d "/opt/homebrew/bin" ]; then
-  case ":$PATH:" in
-    *":/opt/homebrew/bin:"*) ;;
-    *) export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH" ;;
   esac
 fi
