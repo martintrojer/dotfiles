@@ -17,6 +17,8 @@ alias llt='eza -la --icons=auto --tree -L 3 -I $_EZA_TREE_IGNORE'
 alias lt5='eza -a --icons=auto --tree -L 5 -I $_EZA_TREE_IGNORE'
 alias llt5='eza -la --icons=auto --tree -L 5 -I $_EZA_TREE_IGNORE'
 alias l='eza -lahG --icons=auto --no-permissions --no-user'
+# Syntax-coloured file viewing (less has no lesspipe/colorizer here).
+alias b='bat'
 
 # General aliases
 alias -g F='| fzf'
