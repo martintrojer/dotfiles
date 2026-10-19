@@ -107,7 +107,7 @@ vim.lsp.config("typos_lsp", {
 })
 
 -- Enabled Servers
-vim.lsp.enable({
+local servers = {
 	"lua_ls",
 	"bashls",
 	"html",
@@ -120,4 +120,23 @@ vim.lsp.enable({
 	"rust_analyzer",
 	"typos_lsp",
 	"mdroots",
+}
+vim.lsp.enable(servers)
+
+-- A missing server binary fails silently (the buffer just gets no LSP), so
+-- name them once at startup. Install hints are in README.md.
+vim.api.nvim_create_autocmd("VimEnter", {
+	once = true,
+	callback = function()
+		local missing = {}
+		for _, name in ipairs(servers) do
+			local cmd = vim.lsp.config[name].cmd
+			if type(cmd) == "table" and vim.fn.executable(cmd[1]) ~= 1 then
+				table.insert(missing, cmd[1])
+			end
+		end
+		if #missing > 0 then
+			vim.notify("LSP servers not found: " .. table.concat(missing, ", "), vim.log.levels.WARN)
+		end
+	end,
 })
