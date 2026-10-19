@@ -13,6 +13,6 @@
 	"include": [
 		"pi/.pi/agent/extensions/*.ts",
 		"pi/.pi/agent/extensions/tests/*.ts",
-		"opencode/.config/opencode/plugin/*.ts"
+		"opencode/.config/opencode/plugins/*/*.ts"
 	]
 }

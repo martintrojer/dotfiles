@@ -31,13 +31,14 @@ TPM_DEST: Final[Path] = Path(".tmux/plugins/tpm")
 
 # mu-crew/dotfiles: the tmux wiring shared by mu, murmur and mule (focus hooks,
 # picker/dash/side-panel/workstream keys, agent glyph and pill formats,
-# @mu_crew_host_color) and murmur's notification hook, which
-# murmur/.config/murmur/on-attention execs.
+# @mu_crew_host_color), murmur's notification hook, which
+# murmur/.config/murmur/on-attention execs, and murmur's opencode plugin, which
+# opencode/.config/opencode/plugins/murmur/tui.ts imports.
 # .tmux.conf sources tmux/mu-crew.conf from this clone. Same model as the zsh
 # plugins: bump the ref and re-run dotfiles-sync --apply.
 MU_CREW_DOTFILES: Final[tuple[str, str, str]] = (
     "mu-crew-dotfiles",
     "https://github.com/mu-crew/dotfiles",
-    "0b57af3238460924531cc6e0b912eaba46ff5864",
+    "603e4dd258b3deb8790a63fbe6a9401dd37d9943",
 )
 MU_CREW_DOTFILES_DEST: Final[Path] = Path(".local/share/mu-crew-dotfiles")

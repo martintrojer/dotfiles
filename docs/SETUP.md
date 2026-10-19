@@ -214,8 +214,11 @@ hook inherits the PATH of whatever launched the harness — a terminal usually
 has your npm prefix; a launcher, daemon, or GUI often does not. Use the
 absolute path from `command -v murmur` in that case.
 
-The opencode plugin at `opencode/.config/opencode/plugin/notify.ts` pipes the
-same JSON payload to `murmur notify` and needs no separate setup.
+opencode notifies murmur through mu-crew/dotfiles' TUI plugin
+(`opencode/plugins/murmur/tui.ts` in the pinned clone).
+`opencode/.config/opencode/plugins/murmur/tui.ts` here is a shim that re-exports
+it, because opencode only loads TUI plugins from `plugins/<name>/`. It needs
+`@opencode/plugin` 2.x in `~/.config/opencode` and no other setup.
 
 ### 7. Cursor CLI stop hook
 

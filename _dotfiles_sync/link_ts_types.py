@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Link the type packages `make check-ts` needs into a repo-root node_modules.
 
-The TypeScript here (pi extensions, opencode plugin) is loaded by globally
+The TypeScript here (pi extensions, the opencode shim) is loaded by globally
 installed hosts, so the repo has no package.json and no installed deps. tsc
 resolves bare specifiers by walking up from the source file into node_modules
 and never looks in the npm global prefix, so build a symlink farm at the repo
@@ -38,17 +38,6 @@ def npm_global_root() -> Path:
     return Path(done.stdout.strip())
 
 
-def opencode_sdk_root() -> Path:
-    """opencode installs its plugin SDK beside the user's opencode config."""
-    for base in (Path.home() / ".config/opencode", Path.home() / ".opencode"):
-        candidate = base / "node_modules/@opencode"
-        if candidate.is_dir():
-            return candidate
-    sys.exit(
-        "link-ts-types: @opencode not found under ~/.config/opencode or ~/.opencode"
-    )
-
-
 def link(target: Path, name: str) -> None:
     if not target.exists():
         sys.exit(f"link-ts-types: missing {name} at {target}")
@@ -71,10 +60,9 @@ def main() -> int:
     link(pi, PI_PKG)
     for name in PI_VENDORED:
         link(pi / "node_modules" / name, name)
-    link(opencode_sdk_root(), "@opencode")
 
     print(
-        f"link-ts-types: linked {len(PI_VENDORED) + 2} type packages into {NODE_MODULES}"
+        f"link-ts-types: linked {len(PI_VENDORED) + 1} type packages into {NODE_MODULES}"
     )
     return 0
 
