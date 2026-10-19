@@ -10,6 +10,9 @@ min_version = "2026.6.14"
 # environment.d for the graphical session).
 [env]
 NPM_CONFIG_PREFIX = "{{env.HOME}}/.local"
+# Same for `go install`: mise points GOBIN at installs/go/<version>/bin, so a
+# go bump drops gopls etc. ~/go/bin is on PATH (zsh exports.zsh).
+GOBIN = "{{env.HOME}}/go/bin"
 
 [tools]
 bat = "latest"
