@@ -56,24 +56,3 @@ if [ -n "$bat_cmd" ]; then
   export MANPAGER="sh -c 'col -bx | $bat_cmd -l man -p'"
   export MANROFFOPT="-c"
 fi
-
-# LESS configuration with lesspipe and bat/batcat
-# Prefer a user-installed lesspipe explicitly so system profile defaults
-# do not win when PATH is still in flux during shell startup.
-lesspipe_path=""
-if [ -x "$HOME/.local/bin/lesspipe.sh" ]; then
-  lesspipe_path="$HOME/.local/bin/lesspipe.sh"
-elif command -v lesspipe.sh >/dev/null 2>&1; then
-  lesspipe_path=$(command -v lesspipe.sh)
-elif [ -x "/usr/bin/lesspipe.sh" ]; then
-  lesspipe_path="/usr/bin/lesspipe.sh"
-fi
-
-if [ -n "$lesspipe_path" ]; then
-  export LESSOPEN="| $lesspipe_path %s"
-  export LESS="-R"
-fi
-
-if [ -n "$lesspipe_path" ] && [ -n "$bat_cmd" ]; then
-  export LESSCOLORIZER="$bat_cmd"
-fi
