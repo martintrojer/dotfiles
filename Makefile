@@ -15,7 +15,7 @@ TSCONFIG := tsconfig.json
 # host and a toolchain bump is a reviewable one-line diff.
 #
 # luacheck stays a Lua rock: it has no usable npm/PyPI distribution (the
-# `luacheck` npm package is unrelated 2015 bindings). Fedora's setup-mise.sh
+# `luacheck` npm package is unrelated 2015 bindings). mise/setup-mise.sh
 # installs the pinned rock into this standard user-local path.
 PYTHON_VERSION := 3.14
 RUFF_VERSION := 0.16.2
@@ -195,7 +195,7 @@ tool-versions:
 	  'stylua      $(STYLUA_VERSION) (npx)' \
 	  'prettier    $(PRETTIER_VERSION) (npx)' \
 	  'typescript  $(TYPESCRIPT_VERSION) (npx)' \
-	  'luacheck    $(LUACHECK_VERSION) (LuaRocks, installed by fedora/setup-mise.sh)'
+	  'luacheck    $(LUACHECK_VERSION) (LuaRocks, installed by mise/setup-mise.sh)'
 
 # The repo's push gate. This is a make target rather than a pre-push hook
 # because jj (0.42) has no hook point at all and `jj git push` does not run

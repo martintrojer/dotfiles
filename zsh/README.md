@@ -16,7 +16,7 @@ Run `make serve-guides` from the repo root to open it in a browser.
 1. Links `zsh/.zshrc` and `zsh/.zsh/` to `~/`.
 2. Clones `zsh-autosuggestions` and `zsh-syntax-highlighting` into `~/.local/share/zsh-plugins/<name>/` at pinned versions (see `_dotfiles_sync/pins.py`).
 
-If you want the `tm` tmux helper, install `tmux`, `fzf`, `zoxide`, `fd`, and `eza` (the Fedora setup covers `tmux` in `base-packages.sh` and the rest via `setup-mise.sh`).
+If you want the `tm` tmux helper, install `tmux`, `fzf`, `zoxide`, `fd`, and `eza` (`mise/setup-mise.sh` installs all of them).
 
 ## Local/private environment
 

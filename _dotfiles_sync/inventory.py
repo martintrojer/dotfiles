@@ -25,6 +25,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "herdr",
             "jj",
             "local-bin",
+            "mise",
             "murmur",
             "nvim",
             "opencode",
@@ -42,7 +43,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
     (
         "darwin",
         REPO_ROOT,
-        ("ghostty", "hammerspoon"),
+        ("ghostty", "hammerspoon", "homebrew", "mise-macos"),
     ),
     (
         "linux",
@@ -52,6 +53,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "foot",
             "fuzzel",
             "kanshi",
+            "mise-linux",
             "mako",
             "sway",
             "swayward",
@@ -67,7 +69,6 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
         (
             "bin",
             "gtk-3.0",
-            "mise",
             "systemd",
         ),
     ),

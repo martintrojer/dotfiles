@@ -22,14 +22,13 @@ The scripts and manifest have separate roles:
   command that fixes it. It only reports; it changes nothing.
 - **`config/`** — system configuration under `/etc` (writable and persistent on
   Atomic). Idempotent; re-run only when the tracked file changes.
-- `mise/.config/mise/config.toml` — tracked global manifest for Fedora userland
-  tools; `setup-mise.sh` installs it without rewriting it.
+- Userland CLI tools come from mise; see [`mise/README.md`](../mise/README.md).
 
 Order for a fresh install:
 
 1. `os/setup-base.sh` — layer base packages (`rpm-ostree`).
 2. `os/setup-sway.sh` — layer extra Sway session packages.
-3. `setup-mise.sh` — install userland tools with `mise`.
+3. `../mise/setup-mise.sh` — install userland tools with `mise`.
 4. `config/setup-zram.sh` — install the zram swap + VM tuning.
 5. `config/setup-resolved.sh` — allow single-label LAN hostname lookups.
 6. `os/setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
@@ -69,29 +68,14 @@ call `rpm-ostree install`:
   [`docs/DECISIONS.md`](../docs/DECISIONS.md) for the partitioning rationale.
 - `mise` is core bootstrap, so the base keeps a small build toolchain
   (`binutils`, `gcc`, `gcc-c++`, `make`). `git`, `git-lfs`, `zsh`
-  are baseline; comfort CLIs that don't need host-layering live in the tracked
-  mise manifest. The manifest tracks which tools belong on a host while
-  `latest` lets setup install current releases without version-maintenance
-  commits. Use `mise outdated` to review updates and `mise upgrade` to
-  apply them. `mise ls --global --missing` detects missing declared tools, and
-  `mise ls --prunable` reveals installed versions no tracked config needs.
-- `setup-mise.sh` bootstraps `mise` only when absent, then installs directly from
-  the tracked manifest. It does not activate mise or generate another config;
-  shell activation remains solely in `zsh/.zsh/tools.zsh`. For a clean host,
-  run `./dotfiles-sync --apply` before the script so the manifest is also linked
-  at `~/.config/mise/config.toml`. Repeated runs are safe. The script does not
-  remove unrelated installed versions; inspect `mise ls --prunable` and run
-  `mise prune --tools` explicitly when deletion is wanted.
-- To verify the optional mise bootstrap before executing it, follow the upstream
-  [GPG instructions](https://mise.jdx.dev/installing-mise.html) and run the
-  verified installer, then rerun `setup-mise.sh`.
+  are baseline; comfort CLIs that don't need host-layering live in the
+  shared mise manifest ([`mise/README.md`](../mise/README.md)).
 - The tmux/zsh session flow uses local scripts + `fzf`, `zoxide`, `fd`, `eza`
   rather than a session-manager binary.
 - Wallpapers: `wallpaper set <url-or-file>` (stores under
-  `~/.local/share/wallpapers/`, restarts `swaybg.service`). The manifest includes
-  ImageMagick for wallpaper renders and Lua for repo checks.
-  `setup-mise.sh` also installs the pinned Luacheck rock under `~/.luarocks/`;
-  the host and Fedora toolboxes share that installation.
+  `~/.local/share/wallpapers/`, restarts `swaybg.service`). The Linux mise
+  extras include ImageMagick for wallpaper renders. Fedora toolboxes share the
+  host's mise installs and Luacheck rock through the shared home directory.
 
 ## Swap (zram)
 
@@ -165,7 +149,7 @@ per machine. The setting is per-user state and is not linked.
 
 ## Packages
 
-Baseline Fedora packages: `bin`, `gtk-3.0`, `mise`, `systemd`. From the repo
+Baseline Fedora packages: `bin`, `gtk-3.0`, `systemd`. From the repo
 root, `./dotfiles-sync --apply` handles the Fedora-only logic; scope it to one
 package with `./dotfiles-sync --apply bin`. There is no manual equivalent;
 the planner owns the symlinks (see `_dotfiles_sync/link.py`).

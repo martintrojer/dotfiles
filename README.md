@@ -44,10 +44,10 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behaviour is 
 
 | Where | What |
 |---|---|
-| Portable core (packages) | [`zsh/`](./zsh), [`nvim/`](./nvim), [`tmux/`](./tmux), [`git/`](./git), [`ssh/`](./ssh), [`local-bin/`](./local-bin) |
+| Portable core (packages) | [`zsh/`](./zsh), [`nvim/`](./nvim), [`tmux/`](./tmux), [`git/`](./git), [`ssh/`](./ssh), [`local-bin/`](./local-bin), [`mise/`](./mise) (CLI tools, both OSes) |
 | Linux desktop stack (packages) | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`foot/`](./foot) (terminal), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaylock/`](./swaylock) |
 | Linux gaming layer | [`fedora/gaming/`](./fedora/gaming) — quarantined, opt-out (`--skip-gaming`) stack for the main Windows→Linux gaming rig (Steam, gamescope, OptiScaler, MangoHud, GameMode, OpenRGB); see [`fedora/gaming/README.md`](./fedora/gaming/README.md) and [`docs/DECISIONS.md`](./docs/DECISIONS.md) |
-| macOS desktop stack (packages) | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) (terminal) |
+| macOS desktop stack (packages) | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) (terminal), [`homebrew/`](./homebrew) (casks + Mac-only formulae) |
 | Fedora setup namespace | [`fedora/`](./fedora) (special case: nested packages + setup wrappers) |
 | Universal agent sources (packages) | [`skills/`](./skills), [`pi/`](./pi) |
 | Repo control plane | [`dotfiles-sync`](./dotfiles-sync), [`_dotfiles_sync/`](./_dotfiles_sync) |

@@ -1,0 +1,11 @@
+# macOS-only additions to the shared mise manifest (mise/.config/mise/config.toml).
+# Linked only on macOS. Keep this to what the tracked config needs on any Mac;
+# per-machine tools go in an untracked conf.d file (e.g. conf.d/local.toml).
+
+[tools]
+# btop publishes no Mac release binary, so the default (aqua) backend fails
+# here; conda-forge has a Mac build. Linux uses plain `btop` (conf.d/linux.toml).
+"conda:btop" = "latest"
+# Linux gets git-lfs from the base rpm-ostree layer; the shared git config
+# (git/.gitconfig.shared) needs it on both.
+git-lfs = "latest"

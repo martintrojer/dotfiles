@@ -1,0 +1,25 @@
+# Base macOS packages: what this setup needs on any Mac (work or personal).
+# A fresh Mac: `brew bundle --file homebrew/Brewfile.base`. homebrew/.Brewfile
+# (linked to ~/.Brewfile) includes this file and adds per-machine apps.
+# CLI tools shared with Linux live in mise, not here.
+
+# `dotfiles-sync` runs under `#!/usr/bin/env python3` and needs 3.11+;
+# Apple's is 3.9 (see check_brew_python).
+brew "python@3"
+# museum-sync needs rsync 3; macOS ships openrsync.
+brew "rsync"
+
+# Terminal (ghostty/) and its fonts. Geist is the configured one; the other
+# two are the commented-out alternatives in ghostty/.config/ghostty/config.
+cask "ghostty"
+cask "font-geist-mono-nerd-font"
+cask "font-hack-nerd-font"
+cask "font-jetbrains-mono-nerd-font"
+
+# Window management (hammerspoon/). Hyperkey provides the HYPER modifier
+# Hammerspoon binds on.
+cask "hammerspoon"
+cask "hyperkey"
+
+cask "caffeine"
+cask "google-chrome"

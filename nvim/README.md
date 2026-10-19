@@ -77,45 +77,20 @@ after/ftplugin/
 
 ## Setup
 
-First launch clones all plugins via `vim.pack`. Then install LSP servers:
-
-### macOS (brew + cargo)
-
-```bash
-brew install fzf ripgrep fd tree-sitter-cli zoxide tmux
-brew install lua-language-server bash-language-server taplo uv
-brew install gopls
-brew install typescript-language-server vscode-langservers-extracted
-brew install typos-lsp rust-analyzer
-cargo install mdroots-cli
-uv tool install ty ruff
-```
-
-### Linux (mise)
+First launch clones all plugins via `vim.pack`. The CLI tools and most LSP
+servers (fzf, ripgrep, fd, tree-sitter, zoxide, tmux, lua-language-server,
+typos-lsp, rust-analyzer, mdroots, taplo) come from the shared mise
+manifest; see [`mise/README.md`](../mise/README.md). The rest, on both OSes:
 
 ```bash
-# Toolchain (mise provides node/npm and rust/cargo)
-mise use node@latest rust@latest fzf@latest ripgrep@latest fd@latest tree-sitter@latest zoxide@latest
-
-# LSP servers via mise
-mise use github:LuaLS/lua-language-server
-mise use github:tekumara/typos-lsp
-mise use cargo:taplo-cli
-mise use github:martintrojer/mdroots
 go install golang.org/x/tools/gopls@latest
-
-# LSP servers via npm (needs node above)
 npm i -g bash-language-server typescript-language-server typescript
 npm i -g vscode-langservers-extracted
-
-# Python LSP servers
 uv tool install ty ruff
 ```
 
-For treesitter parser installs, `nvim-treesitter` also needs the `tree-sitter` CLI in
-`PATH` (installed by `fedora/setup-mise.sh` via `tree-sitter@latest` on Fedora/Linux,
-and by `brew install tree-sitter-cli` on macOS), plus `tar`, `curl`, and a working C
-compiler.
+For treesitter parser installs, `nvim-treesitter` also needs the `tree-sitter`
+CLI in `PATH` (from mise), plus `tar`, `curl`, and a working C compiler.
 
 `fzf-lua` also expects `tmux` for `<leader>fB` (tmux paste buffers) and `zoxide` for
 `<leader>fz` (recent directories). The `zoxide` picker opens `oil` in the selected
