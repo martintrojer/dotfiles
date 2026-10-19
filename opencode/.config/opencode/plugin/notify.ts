@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { Plugin } from "@opencode/plugin";
 
+type Location = { directory?: string; workspaceID?: string } | null | undefined;
+
 export default Plugin.define({
 	id: "murmur.notify",
 	setup(ctx) {
@@ -9,25 +11,27 @@ export default Plugin.define({
 			const child = execFile("murmur", ["notify"], () => {});
 			child.stdin?.on("error", () => {}).end(payload);
 		};
+		// Each loaded location has its own plugin instance, but the stream is global.
+		const isMine = (location: Location) =>
+			location?.directory === ctx.location.directory &&
+			(location && "workspaceID" in location ? location.workspaceID : undefined) === ctx.location.workspaceID;
+
 		const controller = new AbortController();
 		const subscription = (async () => {
 			for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
-				// Each loaded location has its own plugin instance, but the stream is global.
-				if (
-					event.location?.directory !== ctx.location.directory ||
-					(event.location && "workspaceID" in event.location ? event.location.workspaceID : undefined) !==
-						ctx.location.workspaceID
-				)
-					continue;
-
-				if (event.type === "session.idle") {
+				// A finished turn arrives as session.execution.succeeded (2.0.32 no
+				// longer emits the deprecated session.idle). Durable session events
+				// carry no location, so match on the session's own. murmur keys on
+				// "session.idle", hence the type below.
+				if (event.type === "session.execution.succeeded") {
 					const session = await ctx.session.get({ sessionID: event.data.sessionID }).catch(() => undefined);
+					if (session && !isMine(session.location)) continue;
 					// Only a known subagent is skipped; unknown sessions still notify.
 					if (session?.parentID) continue;
 					notify("session.idle", session?.title || "Task completed");
 				}
 
-				if (event.type === "permission.asked") {
+				if (event.type === "permission.asked" && isMine(event.location)) {
 					const { action, resources } = event.data;
 					const detail = resources.length ? `: ${resources.join(", ")}` : "";
 					notify("permission.asked", `${action}${detail}`);
