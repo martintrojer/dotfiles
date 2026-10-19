@@ -287,6 +287,20 @@ Even if you never re-enable SwayFX, these bit on first setup:
 
 ---
 
+### mise owns CLI tools on both OSes; brew keeps only casks and what mise can't do (accepted 2026-10-19)
+
+The Mac installed its CLI tools from brew (and cargo for debrief/ramble/mdroots) with nothing declared, while Linux used a tracked mise manifest. The two lists drifted.
+
+- **One shared list.** `mise/.config/mise/config.toml` holds tools used on both OSes. Per-OS extras link into `~/.config/mise/conf.d/` from `mise-linux/` and `mise-macos/`, so the OS split is which package links (pillar #8), not `os = [...]` conditions in a shared file.
+- **Brew holds what mise can't.** GUI casks, Homebrew's `python3` for `dotfiles-sync`, rsync 3 for museum-sync. Nothing else. `homebrew/Brewfile.base` is what every Mac needs (terminal, fonts, Hammerspoon + Hyperkey, Caffeine, Chrome); `homebrew/.Brewfile` includes it plus an untracked `~/.Brewfile.local` for per-machine apps. node comes from mise on both OSes, so `npm i -g` lands in `~/.local` everywhere.
+- **Nix flakes rejected** for this: Fedora atomic is a poor host for `/nix`, personal tools would need derivations, and nix-darwin still drives brew for casks. See the 2026-06-21 council in the session archive.
+- **lesspipe dropped.** It only coloured plain `less`; `bat` (alias `b`) already pages long files through `less --quit-if-one-screen`.
+- `.zshenv` puts `~/.local/bin` and mise shims ahead of `/opt/homebrew/bin`, so non-interactive ssh (murmur's collector) resolves the mise/npm copies.
+
+**Reconsider only if:** mise loses Mac builds for several shared tools, or brew-only formulae creep back past a handful.
+
+---
+
 ### Keep one-file packages that change behaviour, not just looks (accepted 2026-05-01, restated 2026-10-09)
 
 The test for a one-file package isn't "does it only change colours?" but "would removing it degrade the workflow that uses the tool?". It came from briefly deleting the `tuicr/` theme override, whose white default was unreadable in nvim (tuicr is gone since 2026-10-09).

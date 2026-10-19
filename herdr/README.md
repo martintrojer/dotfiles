@@ -19,11 +19,10 @@ That constraint is why mule exists. See [Eval notes](#eval-notes). Starting
 another evaluation requires only the `herdr` command.
 
 This is a **common-scope package**: it links on both Linux and macOS, so
-nothing in it may depend on sway, fuzzel, mako, or Homebrew. On Fedora the
-binary comes from mise (`fedora/mise/.config/mise/config.toml`); on macOS
-install it yourself (`mise use -g herdr` or herdr's installer). Either way
-herdr's updater is disabled so that it cannot conflict with the package manager
-that owns the `$PATH` entry.
+nothing in it may depend on sway, fuzzel, mako, or Homebrew. The binary comes
+from the shared mise manifest (`mise/.config/mise/config.toml`) on both OSes.
+herdr's updater is disabled so that it cannot conflict with mise, which owns
+the `$PATH` entry.
 
 ## Config
 

@@ -12,7 +12,7 @@
 onboarding = false
 
 [update]
-# mise owns the herdr binary (fedora/mise/.config/mise/config.toml).
+# mise owns the herdr binary (mise/.config/mise/config.toml).
 # Self-update would fight it and leave two copies on $PATH.
 version_check = false
 manifest_check = false

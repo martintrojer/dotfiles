@@ -1,0 +1,16 @@
+# Linux-only additions to the shared mise manifest (mise/.config/mise/config.toml).
+# Linked only on Linux. Tools here are either Linux-only by design (BlueZ,
+# systemd) or used only on the Linux machines.
+
+[tools]
+# macOS uses conda:btop (conf.d/macos.toml): btop publishes no Mac release.
+btop = "latest"
+"github:pythops/bluetui" = "latest"
+"github:rgwood/systemctl-tui" = "latest"
+# ImageMagick for wallpaper renders (`wallpaper set`).
+imagemagick = "latest"
+just = "latest"
+marp-cli = "latest"
+rclone = "latest"
+shellcheck = "latest"
+sqlite = "latest"

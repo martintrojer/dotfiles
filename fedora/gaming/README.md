@@ -29,7 +29,7 @@ records the history.
 
 ## Setup Flow
 
-Order for a fresh install (after the baseline `os/` + `setup-mise.sh`):
+Order for a fresh install (after the baseline `os/` + `mise/setup-mise.sh`):
 
 1. Enable **RPM Fusion** (free + nonfree) — see the header of
    [`os/steam-packages.sh`](./os/steam-packages.sh) for the exact repo-setup

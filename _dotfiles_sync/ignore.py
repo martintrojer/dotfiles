@@ -38,6 +38,10 @@ NAME_PATTERNS: Final[tuple[str, ...]] = (
     r"tests",
     # skills/ maintenance script run from the repo, not a dotfile.
     r"usage-audit\.py",
+    # mise/ bootstrap script run from the repo, not a dotfile.
+    r"setup-mise\.sh",
+    # homebrew/.Brewfile includes this from the repo; only .Brewfile links.
+    r"Brewfile\.base",
     # Repo-level docs and vendored licence files. A package that genuinely
     # needs one in $HOME (skills/) links its subtree whole, which bypasses
     # this walk entirely.
