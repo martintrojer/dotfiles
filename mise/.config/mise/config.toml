@@ -36,13 +36,15 @@ node = "26"
 # OpenCode 2 (npm:@opencode/cli). The murmur TUI plugin shim lives in
 # opencode/.config/opencode/plugins/murmur/.
 opencode = "latest"
-# prettier/stylua (and shellcheck, in conf.d/linux.toml) are here for editor format-on-save and ad-hoc CLI
+# prettier/shellcheck/stylua are here for editor format-on-save, bashls linting
+# and ad-hoc CLI
 # use. The repo's `make check-*` gate does not use them: it pins its own
 # versions and runs them via uvx/npx (see docs/SETUP.md).
 prettier = "latest"
 ripgrep = "latest"
 rust = "latest"
 rust-analyzer = "latest"
+shellcheck = "latest"
 stylua = "latest"
 # TOML LSP for nvim.
 taplo = "latest"

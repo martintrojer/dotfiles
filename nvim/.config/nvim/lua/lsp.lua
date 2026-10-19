@@ -6,7 +6,9 @@ local lua_globals = require("lua_globals")
 vim.lsp.config("lua_ls", {
 	cmd = { "lua-language-server" },
 	filetypes = { "lua" },
-	root_markers = { ".luarc.json", ".luarc.jsonc", ".stylua.toml", "stylua.toml" },
+	-- Nested list = equal priority; .git is the fallback so repos without a
+	-- .luarc still get a workspace (and diagnostics).
+	root_markers = { { ".luarc.json", ".luarc.jsonc", ".stylua.toml", "stylua.toml" }, ".git" },
 	on_attach = function(client)
 		client.server_capabilities.documentFormattingProvider = false
 		client.server_capabilities.documentRangeFormattingProvider = false
@@ -72,15 +74,17 @@ vim.lsp.config("ruff", {
 	},
 })
 
-vim.lsp.config("ts_ls", {
-	cmd = { "typescript-language-server", "--stdio" },
+-- TypeScript 7 (native Go port) ships its own LSP and no tsserver, so
+-- typescript-language-server can't drive it.
+vim.lsp.config("tsgo", {
+	cmd = { "tsc", "--lsp", "--stdio" },
 	filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
 	root_markers = { "tsconfig.json", "jsconfig.json", "package.json", ".git" },
 })
 
 vim.lsp.config("gopls", {
 	cmd = { "gopls" },
-	filetypes = { "go", "gomod", "gowork", "gotmpl" },
+	filetypes = { "go", "gomod", "gowork" },
 	root_markers = { "go.work", "go.mod", ".git" },
 })
 
@@ -111,7 +115,7 @@ vim.lsp.enable({
 	"taplo",
 	"ty",
 	"ruff",
-	"ts_ls",
+	"tsgo",
 	"gopls",
 	"rust_analyzer",
 	"typos_lsp",
