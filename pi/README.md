@@ -138,12 +138,7 @@ Uses a small/fast model to generate a short friendly title for the current sessi
 
 ### `brave_search` — Brave LLM Context tool
 
-Adds model-callable Brave tools:
-
-- `brave_search` — LLM Context API (`/res/v1/llm/context`) for extracted page snippets and source metadata ready for LLM grounding
-- `brave_news_search` — News Search API for recent articles/events
-- `brave_image_search` — Image Search API for thumbnails and source pages
-- `brave_video_search` — Video Search API for tutorials, clips, and source pages
+Adds the model-callable `brave_search` tool: the LLM Context API (`/res/v1/llm/context`) for extracted page snippets and source metadata ready for LLM grounding. The news, image and video search tools were dropped on 2026-10-19 (one call in 434 sessions).
 
 `brave_search` supports context-budget controls (`maxTokens`, `maxUrls`, snippet/token per-URL limits), `contextThresholdMode`, Goggles, freshness, and explicit local-recall/location parameters.
 
@@ -204,4 +199,4 @@ invocation at all.
 
 No runner dependency and no `package.json`: node strips the TS types itself, so `node --test` runs the files directly. The `tests/` directory is never linked into `$HOME` — `tests` is in `NAME_PATTERNS` (`_dotfiles_sync/ignore.py`), so pi never sees it as an extension.
 
-Agent state is murmur's, so the tmux side of it is tested there, not here. The tmux formats are mu-crew/dotfiles' and tested there. `tmux/.config/tmux/scripts/test-status-tools` keeps only what this repo still owns: the window label, the format-injection audit, the glyph overrides, and the cheatsheet.
+Agent state is murmur's, so the tmux side of it is tested there, not here. The tmux formats are mu-crew/dotfiles' and tested there. `tmux/.config/tmux/scripts/test-status-tools` keeps only what this repo still owns: the window label, the format-injection audit, the 0% probe segment, and the glyph overrides. The cheatsheet is untested: it fails loudly.

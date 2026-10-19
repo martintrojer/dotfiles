@@ -561,6 +561,8 @@ Browser-friendly walkthroughs with quizzes for keyboard-heavy tools where forget
 - **Why a Markdown subset:** the format needed is tiny (headings, bullets, inline code/bold/links, ```` ```quiz ```` blocks with TOML). Constrained format → ~80-line renderer, zero third-party dep.
 - **Why `guides/` not `docs/`:** source is Markdown, gets committed; HTML is build artifact in gitignored `guides/build/`. Pillar #10 (source next to its build target).
 
+- **`NVIM.md` dropped 2026-10-19:** nvim is a rarely used hand editor now, and the guide had to be edited in every nvim trim.
+
 **Reconsider only if:** an individual guide stops being opened over 12 months (delete just that one), OR the Markdown subset has to grow far enough that a real library is cheaper than maintaining the renderer.
 
 ---

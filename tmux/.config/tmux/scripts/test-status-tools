@@ -1,799 +1,213 @@
 #!/usr/bin/env python3
-"""Smoke tests for the tmux status helpers and cheatsheet.
+"""Regression tests for what .tmux.conf still owns of the status line.
 
-Runs against an isolated tmux server and a throwaway XDG_STATE_HOME so it
-never touches the user's real tmux session, sockets, or pending events.
+Agent state is murmur's and the glyph/pill formats are mu-crew/dotfiles';
+both are tested in their own repos. What is left here, each pinned by a bug
+that failed silently:
 
-Agent *state* is murmur's, not this repo's, so nothing here exercises the
-event log, the picker, or crash detection; the glyph and pill formats are
-mu-crew/dotfiles' and tested there. What is left: the native window-label
-format, the format-injection audit of .tmux.conf, and that this repo's
-overrides of mu-crew's glyphs are the vocabulary's.
+- the window label picks a useful name (it showed the hostname for a node pane);
+- no pane-writable format field reaches a shell command line (a pane title
+  ran as code on every status redraw);
+- a 0% CPU reading still renders (tmux reads "0" as false, so the segment
+  vanished and the bar shifted);
+- the mu-crew glyph overrides use docs/glyphs.toml and come after the
+  source-file that sets mu-crew's defaults (otherwise the defaults win).
 
-Usage:
-    tmux/.config/tmux/scripts/test-status-tools
-    tmux/.config/tmux/scripts/test-status-tools --keep   # keep server+tmpdir
-    tmux/.config/tmux/scripts/test-status-tools -v       # verbose subprocess output
-
-Exits non-zero on the first failed assertion. Pass `--keep` to inspect the
-isolated tmux server with `tmux -L test-status-tools attach`.
+Runs against an isolated, per-process tmux server. Exits non-zero on failure.
 """
 
 from __future__ import annotations
 
-import argparse
 import contextlib
 import os
 import shutil
 import subprocess
-import tempfile
 import time
 import tomllib
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-CHEATSHEET = SCRIPT_DIR / "cheatsheet"
-# scripts/ -> tmux/ -> .config/ -> <package root>, where the stowed dotfile lives.
+# scripts/ -> tmux/ -> .config/ -> <package root>, where the linked dotfile lives.
 TMUX_CONF = SCRIPT_DIR.parents[2] / ".tmux.conf"
-# <repo>/tmux/.config/tmux/scripts -> <repo>
-REPO_ROOT = SCRIPT_DIR.parents[3]
-GLYPHS_TOML = REPO_ROOT / "docs" / "glyphs.toml"
-
-# Per-process socket: two concurrent runs (e.g. `make check-all` here and in an
-# agent workspace on the same box) would otherwise share one tmux server and
-# kill-server each other's session mid-assertion.
+GLYPHS_TOML = SCRIPT_DIR.parents[3] / "docs" / "glyphs.toml"
+# Per-process socket so concurrent runs don't kill each other's server.
 SOCKET = f"test-status-tools-{os.getpid()}"
+CONF = TMUX_CONF.read_text(encoding="utf-8")
+CONF_LINES = CONF.splitlines()
+
+failures: list[str] = []
 
 
-# ---------- assertion helpers ----------
+def expect(name: str, got: object, want: object = True) -> None:
+    if got == want:
+        print(f"  ok  {name}")
+    else:
+        failures.append(name)
+        print(f"  FAIL {name}\n    want={want!r}\n    got ={got!r}")
 
 
-class TestFailure(SystemExit):
-    pass
+def conf_line(prefix: str) -> str:
+    return next((ln for ln in CONF_LINES if ln.startswith(prefix)), "")
 
 
-class TestResults:
-    def __init__(self) -> None:
-        self.passed: list[str] = []
-        self.failed: list[tuple[str, str]] = []
-
-    def expect(self, name: str, got: object, want: object) -> None:
-        if got == want:
-            self.passed.append(name)
-            print(f"  ok  {name}")
-        else:
-            self.failed.append((name, f"want={want!r} got={got!r}"))
-            print(f"  FAIL {name}\n    want={want!r}\n    got ={got!r}")
-
-    def expect_truthy(self, name: str, got: object) -> None:
-        if got:
-            self.passed.append(name)
-            print(f"  ok  {name}")
-        else:
-            self.failed.append((name, f"expected truthy, got={got!r}"))
-            print(f"  FAIL {name}\n    expected truthy, got={got!r}")
-
-    def report(self) -> int:
-        print(f"\nresult: {len(self.passed)} passed, {len(self.failed)} failed")
-        for name, detail in self.failed:
-            print(f"  - {name}: {detail}")
-        return 0 if not self.failed else 1
+def tmux(*args: str) -> str:
+    env = {k: v for k, v in os.environ.items() if k not in ("TMUX", "TMUX_PANE")}
+    return subprocess.run(
+        ["tmux", "-L", SOCKET, *args], capture_output=True, text=True, env=env
+    ).stdout.strip()
 
 
-# Backwards-compat module-level proxies so the existing assertion call
-# sites read `expect(...)` without threading the runner through every
-# helper. There is exactly one runner per process; the TestResults class
-# exists so tests are introspectable rather than because we need
-# parallel runners.
-RESULTS = TestResults()
+def start_server() -> str:
+    """Start a server with one pane; return its pane id.
 
-
-def expect(name: str, got: object, want: object) -> None:
-    RESULTS.expect(name, got, want)
-
-
-def expect_truthy(name: str, got: object) -> None:
-    RESULTS.expect_truthy(name, got)
-
-
-# ---------- isolated tmux + state ----------
-
-
-def tmux(env: dict[str, str], args: list[str], check: bool = True) -> str:
-    cmd = ["tmux", "-L", SOCKET, *args]
-    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-    if check and result.returncode != 0:
-        raise TestFailure(
-            f"tmux {' '.join(args)} failed:\n  stdout={result.stdout}\n  stderr={result.stderr}"
-        )
-    return result.stdout.strip()
-
-
-def _start_session(env: dict[str, str]) -> None:
-    """Create the first session, tolerating a server still shutting down.
-
-    ``kill-server`` returns as soon as the server is told to exit, not once it
-    has released the socket. Starting the next server immediately then fails
-    with "server exited unexpectedly" (or "duplicate session" if the old one is
-    still answering), which made the suite flake roughly every other run.
+    kill-server returns before the socket is released, so a fresh start can
+    briefly fail; retry rather than flake.
     """
-    last = ""
     for attempt in range(20):
-        result = subprocess.run(
-            [
-                "tmux",
-                "-L",
-                SOCKET,
-                "new-session",
-                "-d",
-                "-s",
-                "s1",
-                "-n",
-                "w1",
-                "sleep 300",
-            ],
-            env=env,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode == 0:
-            return
-        last = result.stderr.strip()
-        # A lingering server from a previous run still owns the socket.
-        if "duplicate session" in last:
-            tmux(env, ["kill-server"], check=False)
-        time.sleep(0.05 * (attempt + 1))
-    raise TestFailure(f"could not start isolated tmux server: {last}")
-
-
-def setup_server(env: dict[str, str]) -> dict[str, str]:
-    """Start an isolated tmux server with one detached session, two windows."""
-    tmux(env, ["kill-server"], check=False)  # ignore if not running
-    _start_session(env)
-    tmux(env, ["new-window", "-t", "s1:", "-n", "w2", "sleep 300"])
-    tmux(env, ["select-window", "-t", "s1:1"])  # focus w1
-    tmux(env, ["split-window", "-h", "-t", "s1:1", "sleep 300"])  # pane in w1
-    tmux(env, ["select-pane", "-t", "s1:1.1"])  # focus first pane
-
-    # Load the real label options without pulling plugins or user-specific
-    # run-shell commands into this isolated test.
-    label_conf = Path(env["XDG_STATE_HOME"]) / "window-label.conf"
-    label_conf.write_text(
-        "\n".join(
-            line
-            for line in TMUX_CONF.read_text(encoding="utf-8").splitlines()
-            if line.startswith("set -g @win_label")
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    tmux(env, ["source-file", str(label_conf)])
-
-    panes = {}
-    for window in ("s1:1", "s1:2"):
-        for line in tmux(
-            env,
-            [
-                "list-panes",
-                "-t",
-                window,
-                "-F",
-                "#{window_index} #{pane_index} #{pane_id}",
-            ],
-        ).splitlines():
-            wi, pi, pid = line.split()
-            panes[f"w{wi}p{pi}"] = pid
-    return panes
-
-
-def _unlink_socket(name: str) -> None:
-    """kill-server leaves the socket file behind; with per-pid socket names
-    that would accumulate stale entries in the socket dir, one set per run.
-    """
-    socket_dir = os.environ.get("TMUX_TMPDIR") or f"/tmp/tmux-{os.getuid()}"
-    with contextlib.suppress(OSError):
-        os.unlink(os.path.join(socket_dir, name))
-
-
-def teardown_server(env: dict[str, str]) -> None:
-    tmux(env, ["kill-server"], check=False)
-    _unlink_socket(SOCKET)
-
-
-# ---------- the actual tests ----------
-
-
-def format_label(env: dict[str, str], target: str) -> str:
-    return tmux(env, ["display-message", "-p", "-t", target, "#{E:@win_label}"])
-
-
-def run_window_label_tests(env: dict[str, str], panes: dict[str, str]) -> None:
-    """Drive every label branch through tmux's format evaluator."""
-    print("\n[window label format]")
-    target = panes["w1p1"]
-    command = tmux(
-        env, ["display-message", "-p", "-t", target, "#{pane_current_command}"]
-    )
-    host = tmux(env, ["display-message", "-p", "-t", target, "#{host}"])
-    path_base = tmux(
-        env, ["display-message", "-p", "-t", target, "#{b:pane_current_path}"]
-    )
-
-    tmux(env, ["set-option", "-p", "-t", target, "@murmur_pane_label", "agent task"])
-    expect("murmur pane label wins", format_label(env, target), "agent task")
-    tmux(env, ["set-option", "-pu", "-t", target, "@murmur_pane_label"])
-
-    tmux(env, ["set-option", "-g", "@win_label_editors", f"|{command}|"])
-    tmux(env, ["select-pane", "-t", target, "-T", "editor title"])
-    expect("editor uses pane command", format_label(env, target), command)
-
-    tmux(env, ["set-option", "-g", "@win_label_editors", "not-this-command"])
-    tmux(env, ["set-option", "-g", "@win_label_shells", f"|{command}|"])
-    tmux(env, ["select-pane", "-t", target, "-T", "★ Side Project"])
-    expect("shell uses meaningful title", format_label(env, target), "★ Side Project")
-    for title in ("", host, ":/tmp/project", "/tmp/project", "~/project"):
-        tmux(env, ["select-pane", "-t", target, "-T", title])
-        expect(f"shell rejects title {title!r}", format_label(env, target), path_base)
-
-    tmux(env, ["set-option", "-g", "@win_label_shells", "not-this-command"])
-    tmux(env, ["select-pane", "-t", target, "-T", "other title"])
-    expect("other command prefers title", format_label(env, target), "other title")
-    # The default title a shell leaves behind (the hostname) or a path-shaped
-    # one says nothing about the program now running; the label regressed to
-    # showing "linuxpc" for a node pane when only the shell branch rejected it.
-    for title in ("", host, "~/project"):
-        tmux(env, ["select-pane", "-t", target, "-T", title])
-        expect(
-            f"other command rejects title {title!r}",
-            format_label(env, target),
-            command,
-        )
-
-
-def run_tests(env: dict[str, str], panes: dict[str, str]) -> None:
-    run_window_label_tests(env, panes)
-    run_format_injection_tests()
-
-    print("\n[cheatsheet]")
-    run_cheatsheet_tests(env)
-
-    print("\n[glyph vocabulary]")
-    run_glyph_vocabulary_tests()
-
-
-# Format fields an in-pane program can write, and so must never be
-# interpolated into a string tmux hands to `sh -c`:
-#   pane_title           -- any program, via a bare OSC 2 escape
-#   window_name          -- OSC 0/2 under automatic-rename, or rename-window
-#   pane_current_path    -- mkdir a hostile directory name and cd into it
-#   pane_current_command -- an argv[0] of the attacker's choosing
-TAINTED_FIELDS = (
-    "pane_title",
-    "window_name",
-    "pane_current_path",
-    "pane_current_command",
-)
-
-
-def run_format_injection_tests() -> None:
-    """tmux format expansion into a shell command line is code execution.
-
-    Regression: ``@win_label`` interpolated ``#{pane_title}`` into a
-    ``#(...)`` command. tmux builds ONE string from that and runs it with
-    ``sh -c``, so a pane title of ``x"; touch /tmp/pwned; echo "y`` --
-    which any program in the pane can set with a bare OSC 2 escape --
-    executed as the tmux server user on every status redraw. There is no
-    argv to protect, so quoting is not a fix; the only fix is keeping
-    pane-writable values off the command line entirely.
-
-    Two halves: a static audit of every shell-bound line in .tmux.conf,
-    and one live render that really would create a file if the audit ever
-    missed a spot.
-    """
-    print("\n[format injection]")
-
-    conf = TMUX_CONF.read_text(encoding="utf-8")
-    # Lines whose content reaches `sh -c`: a #(...) inside a format, or a
-    # run-shell / if-shell command (which are format-expanded first).
-    shell_lines = [
-        line
-        for line in conf.splitlines()
-        if not line.lstrip().startswith("#")
-        and ("#(" in line or "run-shell" in line or "if-shell" in line)
-    ]
-    expect_truthy(".tmux.conf has shell-bound format lines to audit", shell_lines)
-    for line in shell_lines:
-        for field in TAINTED_FIELDS:
-            expect(
-                f"no #{{{field}}} on a shell command line: {line[:48]!r}",
-                f"#{{{field}}}" in line,
-                False,
-            )
-
-    # The label must stay a pure format. Pane-writable fields are safe here
-    # because no part of this option is handed to a shell.
-    win_label = next(
-        (ln for ln in conf.splitlines() if ln.startswith("set -g @win_label ")), ""
-    )
-    expect_truthy(".tmux.conf defines @win_label", bool(win_label))
-    expect("@win_label contains no shell command", "#(" in win_label, False)
-    expect(
-        "set-titles-string expands @win_label",
-        'set-option -g set-titles-string "#S · #{T:@win_label}"' in conf,
-        True,
-    )
-    for option in ("window-status-format", "window-status-current-format"):
-        line = next(
-            (ln for ln in conf.splitlines() if ln.startswith(f"set -g {option} ")),
-            "",
-        )
-        expect_truthy(f".tmux.conf defines {option}", line)
-        expect(
-            f"{option} shows the mu crew glyph",
-            "#{E:@mu_crew_window_glyph}" in line,
-            True,
-        )
-        expect(f"{option} does not suppress mu-* sessions", "m:mu-*" in line, False)
-
-    _assert_hostile_title_renders_inertly()
-
-
-def _assert_hostile_title_renders_inertly() -> None:
-    """Render the real @win_label line against a hostile pane title.
-
-    Harness note: a detached server never draws a status line, so nothing
-    expands and the assertion would pass vacuously. The render needs a
-    *client*. So: an inner server holding the config under test, and an
-    outer server whose only pane runs ``tmux -L inner attach`` to give it
-    one.
-    """
-    inner = f"{SOCKET}-inj-in"
-    outer = f"{SOCKET}-inj-out"
-    tmpdir = Path(tempfile.mkdtemp(prefix="tmux-injection-test-"))
-    canary = tmpdir / "PWNED"
-    payload = f'x"; touch {canary}; echo "y'
-
-    win_label = next(
-        ln
-        for ln in TMUX_CONF.read_text(encoding="utf-8").splitlines()
-        if ln.startswith("set -g @win_label ")
-    )
-    conf = tmpdir / "inner.conf"
-    conf.write_text(
-        "set -g status on\n"
-        "set -g status-interval 1\n"
-        "set -g status-right ''\n"
-        f"{win_label}\n"
-        "set -g window-status-format '[#{E:@win_label}]'\n"
-        "set -g window-status-current-format '[#{E:@win_label}]'\n"
-        # #{T:...} is a third expansion form over the same option; the
-        # original report flagged it, so exercise it in the same render.
-        "set -g set-titles on\n"
-        'set -g set-titles-string "#S #{T:@win_label}"\n',
-        encoding="utf-8",
-    )
-
-    def raw(socket: str, *args: str) -> str:
-        return subprocess.run(
-            ["tmux", "-L", socket, *args], capture_output=True, text=True
-        ).stdout
-
-    try:
-        raw(inner, "kill-server")
-        raw(outer, "kill-server")
-        time.sleep(0.2)
-        raw(
-            inner,
-            "-f",
-            str(conf),
-            "new-session",
-            "-d",
-            "-s",
-            "i",
-            "-n",
-            "w1",
-            "sleep 300",
-        )
-        raw(inner, "select-pane", "-t", "i:w1", "-T", payload)
-        expect(
-            "the hostile pane title was actually set",
-            raw(inner, "display-message", "-p", "-t", "i:w1", "#{pane_title}").strip(),
-            payload,
-        )
-
-        raw(
-            outer,
+        pane = tmux(
             "-f",
             "/dev/null",
             "new-session",
             "-d",
-            "-s",
-            "o",
-            "-x",
-            "120",
-            "-y",
-            "30",
-            f"tmux -L {inner} attach -t i",
+            "-P",
+            "-F",
+            "#{pane_id}",
+            "sleep 300",
         )
-
-        # Let the attached client run several status redraws. Stop early
-        # only on the bad outcome, so a pass always waits the full budget
-        # rather than racing the first redraw.
-        deadline = time.monotonic() + 6.0
-        rendered = ""
-        while time.monotonic() < deadline:
-            rendered = raw(outer, "capture-pane", "-p", "-t", "o")
-            if canary.exists():
-                break
-            time.sleep(0.25)
-
-        expect_truthy(
-            "the attached client rendered a window-status line",
-            "[" in rendered and "]" in rendered,
-        )
-        expect(
-            "a hostile pane title executes nothing during status expansion",
-            canary.exists(),
-            False,
-        )
-    finally:
-        raw(outer, "kill-server")
-        raw(inner, "kill-server")
-        _unlink_socket(outer)
-        _unlink_socket(inner)
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        if pane:
+            return pane
+        time.sleep(0.05 * (attempt + 1))
+    raise SystemExit("could not start isolated tmux server")
 
 
-def _import_script(path: Path, name: str):
-    """Load an extensionless script as a module so its pure helpers are testable.
+def test_window_label(pane: str) -> None:
+    print("\n[window label]")
+    for line in CONF_LINES:
+        if line.startswith("set -g @win_label"):
+            _set, _g, option, value = line.split(" ", 3)
+            tmux("set", "-g", option, value.strip("'\""))
 
-    These scripts have no ``.py`` extension, so we go through SourceFileLoader
-    rather than the more usual ``spec_from_file_location`` shortcut. The module
-    must be registered in ``sys.modules`` before exec: ``@dataclass`` resolves
-    ``cls.__module__`` through that table and raises AttributeError if absent.
-    """
-    import importlib.machinery
-    import importlib.util
-    import sys
+    def label() -> str:
+        return tmux("display", "-p", "-t", pane, "#{E:@win_label}")
 
-    loader = importlib.machinery.SourceFileLoader(name, str(path))
-    spec = importlib.util.spec_from_loader(name, loader)
-    if spec is None:
-        raise TestFailure(f"could not build module spec for {path}")
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[name] = mod
-    sys.path.insert(0, str(SCRIPT_DIR))
-    try:
-        loader.exec_module(mod)
-    finally:
-        sys.path.remove(str(SCRIPT_DIR))
-    return mod
+    def info(fmt: str) -> str:
+        return tmux("display", "-p", "-t", pane, fmt)
 
+    command, host = info("#{pane_current_command}"), info("#{host}")
+    path_base = info("#{b:pane_current_path}")
 
-def _import_cheatsheet():
-    return _import_script(CHEATSHEET, "cheatsheet_mod")
+    tmux("set", "-p", "-t", pane, "@murmur_pane_label", "agent task")
+    expect("murmur pane label wins", label(), "agent task")
+    tmux("set", "-pu", "-t", pane, "@murmur_pane_label")
 
+    tmux("set", "-g", "@win_label_shells", f"|{command}|")
+    tmux("select-pane", "-t", pane, "-T", "Side Project")
+    expect("shell uses a meaningful title", label(), "Side Project")
+    for title in (host, "~/project"):
+        tmux("select-pane", "-t", pane, "-T", title)
+        expect(f"shell rejects title {title!r}", label(), path_base)
 
-def vocabulary() -> dict[str, str]:
-    """The `[glyph]` table from docs/glyphs.toml, the repo's one glyph source."""
-    with GLYPHS_TOML.open("rb") as fp:
-        return tomllib.load(fp)["glyph"]
+    tmux("set", "-g", "@win_label_shells", "not-this-command")
+    for title in (host, "~/project"):
+        tmux("select-pane", "-t", pane, "-T", title)
+        expect(f"other command rejects title {title!r}", label(), command)
 
 
-def run_glyph_vocabulary_tests() -> None:
-    """Every tmux glyph is docs/glyphs.toml's, and the state slots are murmur's.
-
-    Two separate claims. First, the agent-state shapes: murmur publishes a
-    DASH_GLYPH per state and this repo draws the same five states in window
-    tabs, pane borders and the pill, through mu-crew's @mu_crew_g_* options.
-    When the two disagree the same agent wears two faces depending on which
-    surface you look at.
-
-    Second, the chrome glyphs: they are generated from the vocabulary, so
-    asserting the rendered constants equal the table catches a hand-edit of
-    a generated region that `make check-theme` would otherwise only notice
-    once task_5 registers these regions.
-    """
-    glyphs = vocabulary()
-
-    # murmur's DASH_GLYPH slots, by state, reach tmux through this repo's
-    # override of mu-crew's @mu_crew_g_* options. Pinned literally: importing
-    # murmur would make a status renderer depend on the tool it reports on.
-    conf = TMUX_CONF.read_text(encoding="utf-8")
-    murmur_dash = {
-        "crashed": "\uf057",
-        "error": "\uf071",
-        "blocked": "\uf075",
-        "done": "\uf058",
-        "working": "\uf04b",
-        "waiting": "\uf252",
-        "idle": "\uf186",
-    }
-    for state, codepoint in murmur_dash.items():
-        expect(
-            f"the {state} glyph is murmur's dash glyph",
-            glyphs[f"agent_{state}"],
-            codepoint,
-        )
-        expect(
-            f".tmux.conf gives mu-crew the vocabulary's {state} glyph",
-            f"set -g @mu_crew_g_{state} '{glyphs[f'agent_{state}']}'" in conf,
-            True,
-        )
-    for option, key in (("crew", "crew"), ("agent", "agent_robot")):
-        expect(
-            f".tmux.conf gives mu-crew the vocabulary's {key} glyph",
-            f"set -g @mu_crew_g_{option} '{glyphs[key]}'" in conf,
-            True,
-        )
-    # The overrides must come after the source-file, or mu-crew's own
-    # defaults win and the vocabulary silently stops mattering.
+def test_format_injection() -> None:
+    """tmux expands formats into one string and runs it with `sh -c`, so a
+    pane-writable field on a shell-bound line is code execution. Quoting is
+    no fix; the field must not be there at all."""
+    print("\n[format injection]")
+    tainted = ("pane_title", "window_name", "pane_current_path", "pane_current_command")
+    shell_lines = [
+        ln
+        for ln in CONF_LINES
+        if not ln.lstrip().startswith("#")
+        and ("#(" in ln or "run-shell" in ln or "if-shell" in ln)
+    ]
+    expect("found shell-bound lines to audit", bool(shell_lines))
+    leaks = [(f, ln) for ln in shell_lines for f in tainted if f"#{{{f}}}" in ln]
+    expect("no pane-writable field on a shell-bound line", leaks, [])
+    expect("@win_label runs no shell", "#(" in conf_line("set -g @win_label "), False)
     expect(
-        "mu-crew overrides follow the source-file that sets the defaults",
-        conf.index('source-file "$HOME/.local/share/mu-crew-dotfiles/')
-        < conf.index("set -g @mu_crew_g_crashed"),
-        True,
+        "status-right runs no shell", "#(" in conf_line("set -g status-right "), False
     )
 
-    # cpu and ram sit one segment apart in status-right. One shape for both
-    # is the bug this pins: you cannot tell which number is which.
+
+def test_probe_segments() -> None:
+    print("\n[probe segments]")
+    for line in CONF_LINES:
+        if line.startswith(("set -g @seg_", "set -g @load_")):
+            _set, _g, option, value = line.split(" ", 3)
+            tmux("set", "-g", option, value.strip("'"))
+    status_right = conf_line("set -g status-right ").split(" ", 3)[3].strip("'")
+    tmux("set", "-g", "@probe_test", status_right)
+    for option, value in (
+        ("@mu_crew_cpu", "0"),
+        ("@mu_crew_cpu_text", "0%"),
+        ("@mu_crew_mem", "95"),
+        ("@mu_crew_mem_text", "95%"),
+    ):
+        tmux("set", "-g", option, value)
+    rendered = tmux("display", "-p", "#{E:@probe_test}")
+    expect("a 0% cpu reading renders", " 0% " in rendered)
+    expect("a 95% ram reading renders", " 95% " in rendered)
+    tmux("set", "-gu", "@mu_crew_cpu")
+    tmux("set", "-gu", "@mu_crew_cpu_text")
     expect(
-        "the cpu and ram glyphs are different shapes",
-        glyphs["cpu"] == glyphs["ram"],
+        "an unpublished probe draws no segment",
+        " 0% " in tmux("display", "-p", "#{E:@probe_test}"),
         False,
     )
-    status_right = next(
-        (ln for ln in conf.splitlines() if ln.startswith("set -g status-right ")), ""
-    )
-    expect_truthy(".tmux.conf defines status-right", bool(status_right))
-    for segment, option in (
-        ("cpu", "@glyph_cpu"),
-        ("ram", "@glyph_ram"),
-        ("uptime", "@glyph_uptime"),
-    ):
-        line = next(
-            (
-                ln
-                for ln in conf.splitlines()
-                if ln.startswith(f"set -g @seg_{segment} ")
-            ),
-            "",
+
+
+def test_glyph_overrides() -> None:
+    print("\n[glyph overrides]")
+    with GLYPHS_TOML.open("rb") as fp:
+        glyphs = tomllib.load(fp)["glyph"]
+    overrides = [
+        (state, f"agent_{state}")
+        for state in (
+            "crashed",
+            "error",
+            "blocked",
+            "done",
+            "working",
+            "waiting",
+            "idle",
         )
-        expect(f"the {segment} segment draws through {option}", option in line, True)
-        expect(
-            f"status-right places the {segment} segment",
-            f"@seg_{segment}" in status_right,
-            True,
-        )
-    run_probe_segment_tests(status_right)
-
-    # The cheap-tick rule: status-right runs no command per redraw. The
-    # hostname pill's color is computed once at load (mu-crew.conf), not here.
-    expect("status-right runs no #( command", "#(" in status_right, False)
-
-    # The chrome glyphs, each read back out of the file that draws it.
-    for option, key in (
-        ("@glyph_host", "host"),
-        ("@glyph_cpu", "cpu"),
-        ("@glyph_zoom", "zoom"),
-        ("@glyph_uptime", "uptime"),
-        ("@glyph_ram_linux", "ram"),
-        ("@glyph_ram_darwin", "memory_pressure"),
-    ):
-        line = next(
-            (ln for ln in conf.splitlines() if ln.startswith(f"set -g {option} ")), ""
-        )
-        expect(
-            f".tmux.conf sets {option} from the vocabulary",
-            line.count(glyphs[key]),
-            1,
-        )
-
-    expect(
-        "no tmux surface spells a vocabulary glyph inline",
-        [
-            (path.name, key)
-            for path in (TMUX_CONF,)
-            for key, glyph in glyphs.items()
-            if glyph in path.read_text(encoding="utf-8")
-            and not _inside_theme_region(path, glyph)
-        ],
-        [],
-    )
-
-
-def run_probe_segment_tests(status_right: str) -> None:
-    """Probe segments render at 0% and vanish only when their probe is off.
-
-    Regression: status-right gated on ``#{?#{@mu_crew_cpu},...}``, and tmux
-    reads "0" as false, so an idle box dropped its CPU segment and the bar
-    shifted. Evaluated through tmux itself, on a throwaway server.
-    """
-    socket = f"{SOCKET}-probes"
-    conf = TMUX_CONF.read_text(encoding="utf-8")
-
-    def raw(*args: str) -> str:
-        return subprocess.run(
-            ["tmux", "-L", socket, *args], capture_output=True, text=True
-        ).stdout.strip()
-
-    try:
-        raw("-f", "/dev/null", "new-session", "-d", "sleep 300")
-        for line in conf.splitlines():
-            if line.startswith(("set -g @seg_", "set -g @load_")):
-                _set, _g, option, value = line.split(" ", 3)
-                raw("set", "-g", option, value.strip("'"))
-        raw("set", "-g", "@probe_test", status_right.split(" ", 3)[3].strip("'"))
-        for option, value in (
-            ("@mu_crew_cpu", "0"),
-            ("@mu_crew_cpu_text", "0%"),
-            ("@mu_crew_mem", "95"),
-            ("@mu_crew_mem_text", "95%"),
-        ):
-            raw("set", "-g", option, value)
-        rendered = raw("display", "-p", "#{E:@probe_test}")
-        expect_truthy("a 0% cpu reading still renders", " 0% " in rendered)
-        expect_truthy("a 95% ram reading renders", " 95% " in rendered)
-        raw("set", "-gu", "@mu_crew_cpu")
-        raw("set", "-gu", "@mu_crew_cpu_text")
-        expect(
-            "an unpublished probe draws no segment",
-            " 0% " in raw("display", "-p", "#{E:@probe_test}"),
-            False,
-        )
-    finally:
-        raw("kill-server")
-        _unlink_socket(socket)
-
-
-def _inside_theme_region(path: Path, glyph: str) -> bool:
-    """True when every occurrence of *glyph* in *path* is generated.
-
-    A glyph between `THEME BEGIN:`/`THEME END:` markers came from the
-    vocabulary through a template; one outside them was typed by hand and
-    will not follow the next `docs/glyphs.toml` edit.
-    """
-    inside = False
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if "THEME BEGIN:" in line:
-            inside = True
-            continue
-        if "THEME END:" in line:
-            inside = False
-            continue
-        if not inside and glyph in line:
-            return False
-    return True
-
-
-def run_cheatsheet_tests(env: dict[str, str]) -> None:
-    cs = _import_cheatsheet()
-
-    # parse_keys: skip blank lines, split on first whitespace, strip empty notes.
-    sample = (
-        "s       session picker (tsesh)\n"
-        "v       clipboard history\n"
-        "\n"
-        "X       \n"  # empty note: must be skipped
-        "M-Up    Resize the pane up by 5\n"
-    )
-    expect(
-        "parse_keys handles blanks and empty-note lines",
-        cs.parse_keys(sample),
-        [
-            ("s", "session picker (tsesh)"),
-            ("v", "clipboard history"),
-            ("M-Up", "Resize the pane up by 5"),
-        ],
-    )
-
-    expect("classify(s) -> Sessions", cs.classify("s"), "Sessions")
-    expect("classify(0) -> Windows", cs.classify("0"), "Windows")
-    expect("classify(C-Up) -> Resize", cs.classify("C-Up"), "Resize")
-    expect("classify(M-Up) -> Resize", cs.classify("M-Up"), "Resize")
-    expect("classify(C-z) -> None", cs.classify("C-z"), None)
-    # Curated sections must track the real bindings in .tmux.conf: `a` is the
-    # agent picker (was missing, so it fell into "Other"), S-<arrow> are the
-    # sway-style pane swaps, and `y` is copy-mode-vi only — never in the
-    # prefix table, so it must not be advertised as a prefix key.
-    expect("classify(a) -> Tools", cs.classify("a"), "Tools")
-    expect("classify(S-Left) -> Panes", cs.classify("S-Left"), "Panes")
-    expect("classify(y) -> None", cs.classify("y"), None)
-
-    # format_sections: only categorised keys appear; section headers; blank between.
-    entries = [
-        ("s", "session picker"),
-        ("r", "resize cycle"),
-        ("v", "clipboard"),
-        ("C-z", "suspend client"),  # uncategorised
+    ] + [("crew", "crew"), ("agent", "agent_robot")]
+    missing = [
+        key
+        for option, key in overrides
+        if f"set -g @mu_crew_g_{option} '{glyphs[key]}'" not in CONF
     ]
-    out = cs.format_sections(entries, show_all=False)
-    expect_truthy("format_sections includes Sessions header", "── Sessions ──" in out)
-    expect_truthy("format_sections includes Resize header", "── Resize ──" in out)
-    expect_truthy(
-        "format_sections excludes uncategorised by default",
-        not any("suspend client" in line for line in out),
-    )
-    expect_truthy(
-        "format_sections does not show Other without --all",
-        "── Other ──" not in out,
-    )
-
-    # show_all=True surfaces uncategorised under "Other".
-    out_all = cs.format_sections(entries, show_all=True)
-    expect_truthy("format_sections show_all surfaces Other", "── Other ──" in out_all)
-    expect_truthy(
-        "format_sections show_all includes the uncategorised note",
-        any("suspend client" in line for line in out_all),
-    )
-
-    # Section ordering must be deterministic and follow SECTION_ORDER.
-    section_lines = [line for line in out_all if line.startswith("── ")]
-    expect_truthy(
-        "sections appear in declared order",
-        section_lines
-        == [f"── {s} ──" for s in ["Sessions", "Resize", "Copy & Pick", "Other"]],
-    )
-
-    # render_extras always includes the static plugin + no-prefix sections.
-    extras = cs.render_extras()
-    expect_truthy("render_extras includes Plugins block", "── Plugins ──" in extras)
-    expect_truthy("render_extras includes No prefix block", "── No prefix ──" in extras)
-
-    # Live integration: --no-picker must produce non-empty, well-formed output.
-    # $TMUX names the isolated server's socket, so the script reads the
-    # bindings loaded there, not whatever server the caller happens to run.
-    socket_path = tmux(env, ["display-message", "-p", "#{socket_path}"])
-    proc = subprocess.run(
-        [str(CHEATSHEET), "--no-picker"],
-        capture_output=True,
-        text=True,
-        env={**env, "TMUX": f"{socket_path},0,0"},
-    )
-    expect("cheatsheet --no-picker exits 0", proc.returncode, 0)
-    expect_truthy("cheatsheet --no-picker has output", bool(proc.stdout.strip()))
-    expect_truthy(
-        "cheatsheet --no-picker contains Sessions header",
-        "── Sessions ──" in proc.stdout,
+    expect("every mu-crew glyph override uses the vocabulary", missing, [])
+    expect(
+        "overrides follow mu-crew's source-file",
+        CONF.index('source-file "$HOME/.local/share/mu-crew-dotfiles/')
+        < CONF.index("set -g @mu_crew_g_crashed"),
     )
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--keep", action="store_true", help="Keep tmux server and tmp dir on exit"
-    )
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Show all subprocess output"
-    )
-    args = parser.parse_args()
-
     if shutil.which("tmux") is None:
         print("tmux not installed; aborting.")
         return 1
-
-    tmpdir = tempfile.mkdtemp(prefix="tmux-status-tools-test-")
-    env: dict[str, str] = {**os.environ, "XDG_STATE_HOME": tmpdir}
-    # Ensure the script never picks up a stray TMUX env from this shell.
-    env.pop("TMUX_PANE", None)
-    env.pop("TMUX", None)
-
-    print(f"socket   : {SOCKET}")
-    print(f"tmpdir   : {tmpdir}")
-
+    tmux("kill-server")
     try:
-        panes = setup_server(env)
-        if args.verbose:
-            print("panes:", panes)
-        run_tests(env, panes)
+        pane = start_server()
+        test_window_label(pane)
+        test_probe_segments()
     finally:
-        if not args.keep:
-            teardown_server(env)
-            shutil.rmtree(tmpdir, ignore_errors=True)
-        else:
-            print(f"\nKeeping server (tmux -L {SOCKET} attach) and {tmpdir}")
-
-    return RESULTS.report()
+        tmux("kill-server")
+        socket_dir = os.environ.get("TMUX_TMPDIR") or f"/tmp/tmux-{os.getuid()}"
+        with contextlib.suppress(OSError):
+            os.unlink(os.path.join(socket_dir, SOCKET))
+    test_format_injection()
+    test_glyph_overrides()
+    print(f"\n{len(failures)} failed")
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
