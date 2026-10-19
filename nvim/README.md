@@ -167,9 +167,3 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `sa`/`sd`/`sr` | Surround add/delete/replace |
 | `[d`/`]d` | Prev/next diagnostic |
 | `[b`/`]b` | Prev/next buffer |
-
----
-
-## Learning Guide
-
-The walkthrough lives in [`../guides/NVIM.md`](../guides/NVIM.md). Run `make serve-guides` from the repo root to view it as an interactive HTML page with quizzes (rendered to the gitignored `guides/build/`).

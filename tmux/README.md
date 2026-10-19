@@ -228,6 +228,6 @@ and [SSH.md](https://github.com/mu-crew/murmur/blob/main/SSH.md).
 The script is Python (`tmux/.config/tmux/scripts/cheatsheet`). Section membership lives in the `SECTION_KEYS` dict near the top; add a key there to put it in a section. The picker shows a curated subset by default — keys mapped into the `Sessions / Windows / Panes / Resize / Copy & Pick / Tools` sections. Useful flags:
 
 - `--all` dumps every binding in the prefix table; uncategorised keys go to a trailing `Other` section.
-- `--no-picker` prints the rendered cheatsheet to stdout instead of opening fzf, used by `tmux/.config/tmux/scripts/test-status-tools` to assert formatting.
+- `--no-picker` prints the rendered cheatsheet to stdout instead of opening fzf.
 
 A small static block in the script lists plugin binds (tmux-fingers-rs, tmux-fzf, TPM) and no-prefix keys (`C-q`, `C-h/j/k/l` via vim-tmux-navigator) since those don't show up as annotated `bind -N` entries. Update `PLUGIN_EXTRAS` / `NO_PREFIX_EXTRAS` when adding or removing plugins.

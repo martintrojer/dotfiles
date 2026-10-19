@@ -36,9 +36,6 @@ if command -v fd >/dev/null 2>&1; then
   alias ff='fd --hidden --exclude .git --exclude .jj --type f'
 fi
 
-# Common `less` misspelling (the only one with history hits).
-alias elss='less'
-
 # Markdown reader and diff review.
 alias m='ramble'
 alias d='debrief'

@@ -6,9 +6,6 @@ import { Type } from "typebox";
 
 const BRAVE_API_BASE_URL = "https://api.search.brave.com/res/v1";
 const BRAVE_LLM_CONTEXT_ENDPOINT = `${BRAVE_API_BASE_URL}/llm/context`;
-const BRAVE_NEWS_ENDPOINT = `${BRAVE_API_BASE_URL}/news/search`;
-const BRAVE_IMAGES_ENDPOINT = `${BRAVE_API_BASE_URL}/images/search`;
-const BRAVE_VIDEOS_ENDPOINT = `${BRAVE_API_BASE_URL}/videos/search`;
 const API_KEY_ENV_VAR = "BRAVE_SEARCH_API_KEY";
 
 type BraveSearchDetails = {
@@ -27,17 +24,6 @@ type BraveSearchDetails = {
 	locationHeaders: Record<string, string>;
 	resultCount: number;
 	results: BraveContextResult[];
-	truncated: boolean;
-};
-
-type BraveMediaDetails = {
-	kind: "news" | "images" | "videos";
-	query: string;
-	count: number;
-	country: string;
-	searchLang: string;
-	resultCount: number;
-	results: BraveMediaResult[];
 	truncated: boolean;
 };
 
@@ -70,37 +56,6 @@ type BraveContextResult = {
 	hostname?: string;
 	age?: string[];
 	snippets: string[];
-};
-
-type BraveMediaResult = {
-	title: string;
-	url: string;
-	description?: string;
-	age?: string;
-	source?: string;
-	thumbnailUrl?: string;
-	imageUrl?: string;
-	duration?: string;
-};
-
-type BraveMediaApiResult = {
-	title?: unknown;
-	url?: unknown;
-	description?: unknown;
-	age?: unknown;
-	source?: unknown;
-	thumbnail?: { src?: unknown };
-	properties?: {
-		url?: unknown;
-		duration?: unknown;
-	};
-	meta_url?: {
-		hostname?: unknown;
-	};
-};
-
-type BraveMediaResponse = {
-	results?: BraveMediaApiResult[];
 };
 
 const BraveSearchParams = Type.Object({
@@ -184,21 +139,6 @@ const BraveSearchParams = Type.Object({
 			description: "Optional freshness filter: pd, pw, pm, py, or YYYY-MM-DDtoYYYY-MM-DD",
 		}),
 	),
-});
-
-const BraveMediaParams = Type.Object({
-	query: Type.String({ description: "Search query" }),
-	count: Type.Optional(Type.Number({ description: "Number of results to return", minimum: 1, maximum: 50 })),
-	country: Type.Optional(Type.String({ description: "Two-letter country code for localized results (default us)" })),
-	searchLang: Type.Optional(Type.String({ description: "Search language code (default en)" })),
-	freshness: Type.Optional(Type.String({ description: "Optional freshness filter: pd, pw, pm, py, or date range" })),
-	safesearch: Type.Optional(
-		StringEnum(["strict", "moderate", "off"] as const, {
-			description: "Safe search level (default strict for images/videos; Brave default for news)",
-		}),
-	),
-	spellcheck: Type.Optional(Type.Boolean({ description: "Enable Brave spellcheck (default true)" })),
-	offset: Type.Optional(Type.Number({ description: "Pagination offset where supported", minimum: 0, maximum: 9 })),
 });
 
 function asString(value: unknown): string | undefined {
@@ -309,26 +249,6 @@ function parseResults(payload: BraveLlmContextResponse): BraveContextResult[] {
 	return results;
 }
 
-function parseMediaResults(payload: BraveMediaResponse): BraveMediaResult[] {
-	return (payload.results ?? [])
-		.map((result): BraveMediaResult | undefined => {
-			const title = asString(result.title);
-			const url = asString(result.url);
-			if (!title || !url) return undefined;
-			return {
-				title,
-				url,
-				description: asString(result.description),
-				age: asString(result.age),
-				source: asString(result.source) ?? asString(result.meta_url?.hostname),
-				thumbnailUrl: asString(result.thumbnail?.src),
-				imageUrl: asString(result.properties?.url),
-				duration: asString(result.properties?.duration),
-			};
-		})
-		.filter((result): result is BraveMediaResult => result !== undefined);
-}
-
 function formatResult(result: BraveContextResult, index: number): string {
 	const label = result.kind === "generic" ? "source" : result.kind;
 	const lines = [`${index + 1}. ${result.title} (${label})`, `URL: ${result.url}`];
@@ -340,17 +260,6 @@ function formatResult(result: BraveContextResult, index: number): string {
 			lines.push(`- ${snippet}`);
 		}
 	}
-	return lines.join("\n");
-}
-
-function formatMediaResult(result: BraveMediaResult, index: number): string {
-	const lines = [`${index + 1}. ${result.title}`, `URL: ${result.url}`];
-	if (result.source) lines.push(`Source: ${result.source}`);
-	if (result.age) lines.push(`Age: ${result.age}`);
-	if (result.duration) lines.push(`Duration: ${result.duration}`);
-	if (result.description) lines.push(`Description: ${result.description}`);
-	if (result.thumbnailUrl) lines.push(`Thumbnail: ${result.thumbnailUrl}`);
-	if (result.imageUrl) lines.push(`Image: ${result.imageUrl}`);
 	return lines.join("\n");
 }
 
@@ -369,148 +278,33 @@ function truncateText(text: string): { text: string; truncated: boolean } {
 	return { text: output, truncated: truncation.truncated };
 }
 
-async function fetchJson(endpoint: string, apiKey: string, signal: AbortSignal | undefined): Promise<unknown>;
 async function fetchJson(
 	endpoint: string,
 	apiKey: string,
 	signal: AbortSignal | undefined,
 	body: Record<string, string | number | boolean>,
-	locationHeaders?: Record<string, string>,
-): Promise<unknown>;
-async function fetchJson(
-	endpoint: string,
-	apiKey: string,
-	signal: AbortSignal | undefined,
-	body?: Record<string, string | number | boolean>,
-	locationHeaders: Record<string, string> = {},
+	locationHeaders: Record<string, string>,
 ): Promise<unknown> {
 	const response = await fetch(endpoint, {
-		method: body ? "POST" : "GET",
+		method: "POST",
 		headers: {
 			Accept: "application/json",
 			"Accept-Encoding": "gzip",
-			...(body ? { "Content-Type": "application/json" } : {}),
+			"Content-Type": "application/json",
 			"X-Subscription-Token": apiKey,
 			...locationHeaders,
 		},
-		body: body ? JSON.stringify(body) : undefined,
+		body: JSON.stringify(body),
 		signal,
 	});
 
 	if (!response.ok) {
-		const body = await response.text().catch(() => "");
-		const suffix = body ? `: ${body.slice(0, 500)}` : "";
+		const text = await response.text().catch(() => "");
+		const suffix = text ? `: ${text.slice(0, 500)}` : "";
 		throw new Error(`Brave request failed (${response.status} ${response.statusText})${suffix}`);
 	}
 
 	return response.json();
-}
-
-function buildMediaUrl(endpoint: string, params: Record<string, string | number | boolean>): string {
-	const url = new URL(endpoint);
-	for (const [key, value] of Object.entries(params)) {
-		url.searchParams.set(key, String(value));
-	}
-	return url.toString();
-}
-
-function registerMediaTool(
-	pi: ExtensionAPI,
-	options: {
-		kind: BraveMediaDetails["kind"];
-		name: string;
-		label: string;
-		description: string;
-		endpoint: string;
-		defaultCount: number;
-		maxCount: number;
-		apiKey: string;
-	},
-) {
-	pi.registerTool({
-		name: options.name,
-		label: options.label,
-		description: `${options.description}. Requires the ${API_KEY_ENV_VAR} environment variable. Output is truncated to ${DEFAULT_MAX_LINES} lines or ${formatSize(DEFAULT_MAX_BYTES)}.`,
-		promptSnippet: options.description,
-		promptGuidelines: [`Use ${options.name} when the user specifically asks for Brave ${options.kind} search results.`],
-		parameters: BraveMediaParams,
-
-		async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
-			const apiKey = options.apiKey;
-			const query = params.query.trim();
-			if (!query) throw new Error("query must not be empty");
-
-			const count = clampNumber(params.count, options.defaultCount, 1, options.maxCount);
-			const country = normalizeCode(params.country, "us");
-			const searchLang = normalizeCode(params.searchLang, "en");
-			const requestParams: Record<string, string | number | boolean> = {
-				q: query,
-				count,
-				country,
-				search_lang: searchLang,
-			};
-			if (params.freshness?.trim()) requestParams.freshness = params.freshness.trim();
-			if (params.safesearch) requestParams.safesearch = params.safesearch;
-			if (params.spellcheck !== undefined) requestParams.spellcheck = params.spellcheck;
-			if (params.offset !== undefined) requestParams.offset = clampNumber(params.offset, 0, 0, 9);
-
-			const payload = (await fetchJson(
-				buildMediaUrl(options.endpoint, requestParams),
-				apiKey,
-				signal,
-			)) as BraveMediaResponse;
-			const results = parseMediaResults(payload);
-			const resultText =
-				results.length > 0
-					? `Brave ${options.kind} search for: ${query}\n\n${results.map(formatMediaResult).join("\n\n")}`
-					: `No Brave ${options.kind} results found for: ${query}`;
-			const truncated = truncateText(resultText);
-
-			return {
-				content: [{ type: "text", text: truncated.text }],
-				details: {
-					kind: options.kind,
-					query,
-					count,
-					country,
-					searchLang,
-					resultCount: results.length,
-					results,
-					truncated: truncated.truncated,
-				} satisfies BraveMediaDetails,
-			};
-		},
-
-		renderCall(args, theme, _context) {
-			let text = theme.fg("toolTitle", theme.bold(`${options.name} `));
-			text += theme.fg("accent", `"${args.query ?? ""}"`);
-			if (args.count) text += theme.fg("dim", ` count=${args.count}`);
-			return new Text(text, 0, 0);
-		},
-
-		renderResult(result, { expanded, isPartial }, theme, _context) {
-			if (isPartial) return new Text(theme.fg("warning", `Searching Brave ${options.kind}...`), 0, 0);
-
-			const details = result.details as BraveMediaDetails | undefined;
-			if (!details || details.resultCount === 0) return new Text(theme.fg("dim", "No results"), 0, 0);
-
-			let text = theme.fg(
-				"success",
-				`${details.resultCount} Brave ${options.kind} result${details.resultCount === 1 ? "" : "s"}`,
-			);
-			if (details.truncated) text += theme.fg("warning", " (truncated)");
-
-			if (expanded) {
-				for (const [index, item] of details.results.entries()) {
-					text += `\n${theme.fg("accent", `${index + 1}. ${item.title}`)}`;
-					text += `\n${theme.fg("dim", item.url)}`;
-					if (item.description) text += `\n${item.description}`;
-				}
-			}
-
-			return new Text(text, 0, 0);
-		},
-	});
 }
 
 export default function (pi: ExtensionAPI) {
@@ -531,7 +325,6 @@ export default function (pi: ExtensionAPI) {
 			"Use brave_search when the user asks for current web information, external documentation, references, examples, or research that is not available in the local workspace.",
 			"Use brave_search contextThresholdMode='strict' when precision matters more than recall; use 'lenient' or 'disabled' for broad discovery.",
 			"Use brave_search goggles to restrict or boost trusted sources when the user asks for source-constrained research.",
-			"Use brave_news_search, brave_image_search, or brave_video_search when the user specifically asks for news, images, or videos.",
 			"Cite URLs from Brave search results when using web information in the answer.",
 		],
 		parameters: BraveSearchParams,
@@ -635,36 +428,5 @@ export default function (pi: ExtensionAPI) {
 
 			return new Text(text, 0, 0);
 		},
-	});
-
-	registerMediaTool(pi, {
-		kind: "news",
-		name: "brave_news_search",
-		label: "Brave News Search",
-		description: "Search Brave News for recent articles, news events, and trending topics",
-		endpoint: BRAVE_NEWS_ENDPOINT,
-		defaultCount: 10,
-		maxCount: 50,
-		apiKey,
-	});
-	registerMediaTool(pi, {
-		kind: "images",
-		name: "brave_image_search",
-		label: "Brave Image Search",
-		description: "Search Brave Images for image results, thumbnails, and source pages",
-		endpoint: BRAVE_IMAGES_ENDPOINT,
-		defaultCount: 10,
-		maxCount: 50,
-		apiKey,
-	});
-	registerMediaTool(pi, {
-		kind: "videos",
-		name: "brave_video_search",
-		label: "Brave Video Search",
-		description: "Search Brave Videos for video results, tutorials, clips, and source pages",
-		endpoint: BRAVE_VIDEOS_ENDPOINT,
-		defaultCount: 10,
-		maxCount: 50,
-		apiKey,
 	});
 }
