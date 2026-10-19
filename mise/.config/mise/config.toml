@@ -33,6 +33,9 @@ neovim = "latest"
 # Pinned to a major, not latest: global npm installs live in ~/.local (see
 # [env]) and survive bumps, but native addons can break on a new major's ABI.
 node = "26"
+# OpenCode 2 (npm:@opencode/cli). The murmur TUI plugin shim lives in
+# opencode/.config/opencode/plugins/murmur/.
+opencode = "latest"
 # prettier/stylua (and shellcheck, in conf.d/linux.toml) are here for editor format-on-save and ad-hoc CLI
 # use. The repo's `make check-*` gate does not use them: it pins its own
 # versions and runs them via uvx/npx (see docs/SETUP.md).
