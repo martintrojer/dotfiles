@@ -77,6 +77,50 @@ call `rpm-ostree install`:
   extras include ImageMagick for wallpaper renders. Fedora toolboxes share the
   host's mise installs and Luacheck rock through the shared home directory.
 
+## /etc Inventory
+
+Atomic keeps `/usr` identical to the image, so `/etc` is where a host drifts.
+`sudo ostree admin config-diff` lists every change against the image. Everything
+it reports as added (`A`) or deliberately modified is listed here; if it is not
+in this table, it is drift and gets removed or added here.
+
+| Path under `/etc` | Source | Why |
+| --- | --- | --- |
+| `systemd/zram-generator.conf`, `sysctl.d/99-zram-sysctl.conf` | `config/setup-zram.sh` | zram-only swap; see [Swap](#swap-zram) |
+| `systemd/resolved.conf.d/90-single-label.conf` | `config/setup-resolved.sh` | bare LAN hostnames; see [LAN Hostnames](#lan-hostnames-systemd-resolved) |
+| `systemd/system/flatpak-update.{service,timer}` + `timers.target.wants` link | `flatpak/setup-flatpak-update.sh` | no stock flatpak update timer on Sway Atomic |
+| `systemd/system/multi-user.target.wants/sshd.service` | manual `systemctl enable sshd` | ssh into this box from the LAN |
+| `udev/rules.d/10-trim.rules` | `~/hacking/rpi` bootstrap (`14-install-default-trim-udev-rule.sh`) | TRIM on RTL9210 USB-NVMe bridges, for the backup drive |
+| `udev/rules.d/99-powercap.rules` | Mission Center's `missioncenter-magpie-setup` (2026-09-03) | makes RAPL `energy_uj` world-readable so Mission Center shows CPU power. Deliberately undoes the kernel's Platypus lockdown; acceptable on a single-user desktop |
+| `yum.repos.d/google-chrome.repo` (modified) | stock `fedora-workstation-repositories` file, enabled | Chrome repo, the one non-Fedora baseline repo |
+| `yum.repos.d/rpmfusion-nonfree-{steam,nvidia-driver}.repo` (modified) | stock `fedora-workstation-repositories` files, enabled | Steam repo for the gaming layer; the NVIDIA one is unused on this AMD box and can be disabled |
+| `systemd/logind.conf.d/10-power-key-suspend.conf` | `gaming/config/setup-power-key.sh` | power button suspends |
+| `systemd/system/steam-pause-games.service` + `sleep.target.wants` link | `gaming/config/setup-steam-pause.sh` | pause games across suspend (`/usr/lib` sleep hooks are read-only) |
+| `udev/rules.d/99-disable-usb-wakeup.rules` | `gaming/config/setup-wake-usb.sh` | only the power button wakes the tower |
+| `modules-load.d/i2c-dev.conf`, `udev/rules.d/99-i2c.rules`, `i2c` group | `gaming/config/setup-openrgb.sh` | OpenRGB SMBus access |
+| `openrgb/` (empty) | created at runtime by OpenRGB, no package owns it | harmless |
+| `firmware/rtl_bt/*`, SELinux `file_contexts.local` (`lib_t`), kargs | `gaming/config/setup-bt-firmware.sh` | Xbox controller BT firmware fix |
+| `gamemode` line in `group`/`gshadow` | manual, see [GameMode](./gaming/README.md#gamemode-feral) | group exists only in `/usr/lib/group` on rpm-ostree |
+
+The rest of `config-diff` is per-machine state that every install has and the
+repo does not own: users and groups, `machine-id`, `hostname`, locale and
+timezone, `fstab`/`crypttab`, ssh host keys, `nvme/host*`, anaconda's
+`X11/xorg.conf.d/00-keyboard.conf` and `sysconfig/anaconda`, `audit/audit.rules`,
+authselect, SELinux store and lock files, tuned and chrony state,
+`systemd/system/default.target`, and the `systemd/system.control/` drop-ins that
+systemd writes for user slices. `firewalld/zones/` stays empty: the stock
+`public` zone (ssh, mdns, dhcpv6-client) is the baseline. If Steam Remote Play
+fails to connect, `firewall-cmd --permanent --add-service=steam-streaming` (a
+stock firewalld service) is the fix, and it gets a row here.
+
+Outside `/etc`, the gaming layer also writes `/usr/local` (`/var/usrlocal`):
+`steam-session`, `steamos-session-select`, `steam-pause` and the SDDM session
+file. See [`gaming/docs/GAMESCOPE-SESSION.md`](./gaming/docs/GAMESCOPE-SESSION.md).
+
+Removed 2026-10-20: Decky Loader (`plugin_loader.service`, running as root from
+`~/homebrew`, left over from the SDH-PauseGames evaluation that steam-pause
+replaced) and a firewalld zone override with stale ports.
+
 ## Swap (zram)
 
 There is no disk swap; all swap is zram, tracked in `config/zram/` and
