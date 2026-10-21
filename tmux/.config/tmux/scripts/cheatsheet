@@ -271,7 +271,14 @@ def main() -> int:
             "--reverse",
             "--no-multi",
             "--ansi",
-            "--header=tmux cheatsheet (auto-generated; --all for everything)",
+            # Vim-style scrolling. fzf binds are single keys only, so
+            # gg/zz cannot exist (fzf rejects them as unsupported keys)
+            # and there is no centre-on-cursor action for zz. Ctrl-u
+            # loses its default clear-query; Esc closes the popup anyway.
+            # G steals only the capital from the query — fzf matching is
+            # case-insensitive, so `g` still finds the same rows.
+            "--bind=ctrl-u:half-page-up,ctrl-d:half-page-down,G:last",
+            "--header=tmux cheatsheet · C-u/C-d scroll · G bottom · type to filter",
         ],
         input="\n".join(lines),
         text=True,
