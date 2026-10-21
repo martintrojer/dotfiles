@@ -230,4 +230,6 @@ The script is Python (`tmux/.config/tmux/scripts/cheatsheet`). Section membershi
 - `--all` dumps every binding in the prefix table; uncategorised keys go to a trailing `Other` section.
 - `--no-picker` prints the rendered cheatsheet to stdout instead of opening fzf.
 
+Scrolling is vim-flavoured where fzf allows it: `Ctrl-u`/`Ctrl-d` half-page, `G` jumps to the last row. `gg`/`zz` are not possible — fzf key bindings are single keys (it rejects `gg` as an unsupported key) and fzf has no centre-on-cursor action.
+
 A small static block in the script lists plugin binds (tmux-fingers-rs, tmux-fzf, TPM) and no-prefix keys (`C-q`, `C-h/j/k/l` via vim-tmux-navigator) since those don't show up as annotated `bind -N` entries. Update `PLUGIN_EXTRAS` / `NO_PREFIX_EXTRAS` when adding or removing plugins.
