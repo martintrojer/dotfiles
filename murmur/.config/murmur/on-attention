@@ -1,5 +1,29 @@
 #!/bin/sh
-# murmur's notification hook lives in mu-crew/dotfiles (pinned clone; see
-# _dotfiles_sync/pins.py). Silent no-op until dotfiles-sync has cloned it.
-hook="$HOME/.local/share/mu-crew-dotfiles/murmur/on-attention"
-[ -x "$hook" ] && exec "$hook"
+# murmur's on-attention hook: one sound per attention event, rising with
+# severity (done < blocked < error < crashed). No desktop notification: the
+# tmux pill and `murmur dash` already show who it was.
+# murmur runs it detached with MURMUR_* set (see murmur's docs/setup.md).
+
+# A crew agent finishing is the orchestrator's business, not mine.
+case "$MURMUR_KIND:$MURMUR_EVENT" in
+  done:*'"driver":"orchestrated"'*) exit 0 ;;
+esac
+
+if [ "$(uname)" = Darwin ]; then
+  case "$MURMUR_KIND" in
+    done) sound=Tink ;;
+    blocked) sound=Glass ;;
+    error) sound=Basso ;;
+    *) sound=Sosumi ;;
+  esac
+  exec afplay "/System/Library/Sounds/$sound.aiff"
+fi
+
+# Fedora: sound-theme-freedesktop, played through PipeWire.
+case "$MURMUR_KIND" in
+  done) sound=complete ;;
+  blocked) sound=window-attention ;;
+  error) sound=dialog-error ;;
+  *) sound=suspend-error ;;
+esac
+exec pw-play "/usr/share/sounds/freedesktop/stereo/$sound.oga"
