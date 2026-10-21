@@ -1,105 +1,252 @@
-## debrief configuration.
-##
-## Every option is shown with its default value, commented out. Uncomment a
-## line to change it. Lines starting with "##" are explanations. The
-## [view] keys set the starting state of a toggle; the key in the comment
-## toggles it for the session.
+# debrief configuration
+#
+# Every option is listed with its default value, commented out.
+# To change one, remove the "# " in front of it and of its [section].
+#
+# The [view] options set the starting state of a toggle; the key named in
+# an option's description toggles it for the session.
 
-## ---------------------------------------------------------------------------
-## What shows at start
+
+# ── What shows at start ─────────────────────────────────────────────────────
+
 [view]
-## The commit view's file list: always | never | auto. always: shown,
-## <leader>e hides it. never: hidden, <leader>e shows it. auto: a peek,
-## shown while you move toward it (C-h / C-w h), hidden on Enter on a file,
-## Esc or a move back to the diff; <leader>e pins a hidden list and hides a
-## shown one. Below sidebar_auto_hide_below, or when it would leave the
-## diff under 80 columns (split_min_width side by side), a peek draws over
-## the diff.
+
+# The commit view's file list: always | never | auto.
+# always: shown, <leader>e hides it.
+# never: hidden, <leader>e shows it.
+# auto: a peek, shown while you move toward it (C-h / C-w h), hidden on
+# Enter on a file, Esc or a move back to the diff; <leader>e pins a hidden
+# list and hides a shown one.
+# Below sidebar_auto_hide_below, or when it would leave the diff under 80
+# columns (split_min_width side by side), a peek draws over the diff.
 # sidebar = "always"
-## left | right: the file list's screen edge. Pane moves follow the
-## screen: on the right, C-l goes to the list.
+
+# left | right: the file list's screen edge. Pane moves follow the
+# screen: on the right, C-l goes to the list.
 # sidebar_side = "left"
-## Hide an always list below this many columns (0: never); it comes back
-## when the terminal grows, unless <leader>e hid it. An auto list still
-## peeks there, over the diff.
+
+# Hide an always list below this many columns (0: never); it comes back
+# when the terminal grows, unless <leader>e hid it. An auto list still
+# peeks there, over the diff.
 # sidebar_auto_hide_below = 80
-## Width in columns, not counting the border. "auto" fits most paths
-## within sidebar_min_width and sidebar_max_width; a number is used as is.
+
+# Width in columns, not counting the border. "auto" fits most paths
+# within sidebar_min_width and sidebar_max_width; a number is used as is.
 # sidebar_width = "auto"
+
+# The narrowest the file list gets, in columns.
 # sidebar_min_width = 16
-## Also capped at 35% of the terminal width.
+
+# The widest the file list gets, in columns. Also capped at 35% of the
+# terminal width.
 # sidebar_max_width = 48
-## The log's commits under the file list's tree (<leader>E): the tree
-## takes the top 60%, the list the rest; C-j / C-k move between them,
-## Enter opens a commit and keeps the list focused. Hidden when the
-## terminal leaves the list area under 12 rows. Saved sessions don't
-## store it.
+
+# The log's commits under the file list's tree (<leader>E): the tree
+# takes the top 60%, the list the rest; C-j / C-k move between them,
+# Enter opens a commit and keeps the list focused. Hidden when the
+# terminal leaves the list area under 12 rows. Saved sessions don't
+# store it.
 sidebar_commits = true
-## The log's stats pane (<leader>e on the log).
+
+# The log's stats pane (<leader>e on the log).
 # stats = true
-## hunks | full: the commit view shows the hunks or whole files (T).
+
+# hunks | full: the commit view shows the hunks or whole files (T).
 # context = "hunks"
-## unified | split: the commit view in one column or side by side (t).
+
+# unified | split: the commit view in one column or side by side (t).
 layout = "split"
-## tree | flat: the commit view's file list as a directory tree or whole
-## paths in git's order (` in the list).
+
+# tree | flat: the commit view's file list as a directory tree or whole
+# paths in git's order (` in the list).
 # files = "tree"
-## The narrowest diff pane (not counting the file list) shown side by side;
-## below it the view is unified.
+
+# The narrowest diff pane (not counting the file list) shown side by side;
+# below it the view is unified.
 # split_min_width = 140
-## Inside tmux, zoom debrief's pane at start (as PREFIX z) for the room
-## full diffs need, and unzoom it on exit. A window already zoomed at
-## start, or unzoomed meanwhile, is left as it is.
+
+# Inside tmux, zoom debrief's pane at start (as PREFIX z) for the room
+# full diffs need, and unzoom it on exit. A window already zoomed at
+# start, or unzoomed meanwhile, is left as it is.
 tmux_zoom = true
 
-## ---------------------------------------------------------------------------
-## Which commits load
+# git: an open working-copy view reloads in place when files change, the
+# cursor kept on its line. Off: the view waits for r (the log's
+# working-copy row follows the tree either way).
+# follow_working = false
+
+# The commit view's header row: the short ID and the subject, a
+# conventional-commit type (feat, fix(ui), ...) as a coloured badge.
+# header = true
+
+
+# ── Which commits load ──────────────────────────────────────────────────────
+
 # [log]
-## A jj revset or git revision range, as --revset (which overrides it).
-## Unset: the current commit and its ancestors (jj ::@, git HEAD).
-##   revset = "trunk().."
-## Commits loaded at first and per page (at least 1); --limit overrides it.
+
+# A jj revset or git revision range, as --revset (which overrides it).
+# Unset: the current commit and its ancestors (jj ::@, git HEAD).
+# For example:
+#   revset = "trunk().."
+
+# Commits loaded at first and per page (at least 1); --limit overrides it.
 # limit = 200
 
-## ---------------------------------------------------------------------------
-## Rendering
+# The trunk a branch's log stops at: the log shows the branch's commits
+# not in it (its whole history when it is in trunk). A git revision or a
+# jj revset. Unset: origin/HEAD, else main, else master (jj: trunk(),
+# else a main or master bookmark).
+# For example:
+#   trunk = "develop"
+
+
+# ── Rendering ───────────────────────────────────────────────────────────────
+
 # [render]
-## Syntax-highlight diff lines (catppuccin-mocha). Each hunk is coloured on
-## its own, the old and new side apart; files over 10k diff lines and lines
-## over 2k bytes stay plain.
+
+# Syntax-highlight diff lines (the colours come from [theme] syntax). Each
+# hunk is coloured on its own, the old and new side apart; files over 10k
+# diff lines and lines over 2k bytes stay plain.
 # highlight = true
 
-## ---------------------------------------------------------------------------
-## Keys
+
+# ── Theme ───────────────────────────────────────────────────────────────────
+
+# [theme]
+
+# The colour scheme: a built-in (catppuccin-mocha, catppuccin-macchiato,
+# catppuccin-frappe, catppuccin-latte, solarized-dark, solarized-light,
+# gruvbox-dark, gruvbox-light), or the path to a base16 or base24 scheme
+# file (tinted-theming YAML). A name with a "/" or ending in .yaml or .yml
+# is a path: "~" is your home directory, and a relative path is relative to
+# this file's directory.
+# name = "catppuccin-mocha"
+
+# The code-highlighting theme, a two-face theme name matched without regard
+# to case (for example "Nord", "Dracula", "gruvbox-dark"). Unset, it
+# follows `name`.
+# syntax = "Catppuccin Mocha"
+
+# Paint the theme background behind everything and draw text in the theme's
+# text colour. Needed for a light scheme on a dark terminal, or the
+# reverse. false leaves the terminal's own background.
+# fill = false
+
+# Overrides: any subset of the keys below, each replacing one colour of
+# whatever `name` selected. Values are "#rrggbb" or "rrggbb". The role
+# keys (cursor_bg, selection_bg, add_bg, del_bg, hunk_bg) follow the
+# palette when unset; their values here are Mocha's.
+# For example, Mocha with a stronger cursor row:
+#   [theme.colors]
+#   cursor_bg = "#585b70"
+
+[theme.colors]
+
+# Main background; popups, and dark text on coloured badges.
+# bg = "#1e1e2e"
+
+# Status line, and the chip row over the log.
+# bg_dark = "#181825"
+
+# Subtle highlight; the split divider.
+# surface0 = "#313244"
+
+# Stronger highlight.
+# surface1 = "#45475a"
+
+# Strongest highlight.
+# surface2 = "#585b70"
+
+# Borders, hints and dim text.
+# muted = "#6c7086"
+
+# Text.
+# text = "#cdd6f4"
+
+# Accent; removed lines.
+# red = "#f38ba8"
+
+# Accent.
+# orange = "#fab387"
+
+# Accent.
+# yellow = "#f9e2af"
+
+# Accent; added lines.
+# green = "#a6e3a1"
+
+# Accent.
+# cyan = "#94e2d5"
+
+# Accent.
+# sky = "#89dceb"
+
+# Accent.
+# blue = "#89b4fa"
+
+# Accent.
+# purple = "#cba6f7"
+
+# Accent.
+# pink = "#f5c2e7"
+
+# Cursor row (log, diff, file and commit lists, picker), and the open
+# commit's row. Unset, it follows surface0.
+cursor_bg = "#45475a"
+
+# Visual selection, and the rows of a comment being typed. Unset, it
+# follows surface2.
+# selection_bg = "#585b70"
+
+# Background of added rows. Unset, green blended 20% over bg.
+# add_bg = "#394545"
+
+# Background of removed rows. Unset, red blended 20% over bg.
+# del_bg = "#483346"
+
+# Background of hunk headers. Unset, purple blended 12% over bg.
+# hunk_bg = "#322e46"
+
+
+# ── Keys ────────────────────────────────────────────────────────────────────
+
 # [keys]
-## The <leader> key (one character).
+
+# The <leader> key (one character).
 # leader = " "
-## After a pause in a key sequence, show the keys that can come next.
+
+# After a pause in a key sequence, show the keys that can come next.
 # clue = true
-## C-h/j/k/l move between panes (the file list, the diff and its halves
-## side by side), as C-w h / C-w l do; where there is no pane that way,
-## inside tmux they move to the tmux pane. false unbinds them (the C-w keys
-## stay).
+
+# C-h/j/k/l move between panes (the file list, the diff and its halves
+# side by side), as C-w h / C-w l do; where there is no pane that way,
+# inside tmux they move to the tmux pane. false unbinds them (the C-w keys
+# stay).
 # pane_nav = true
 
-## ---------------------------------------------------------------------------
-## Mouse
+
+# ── Mouse ───────────────────────────────────────────────────────────────────
+
 # [mouse]
-## Capture the mouse: click to focus a pane and select a row (double-click
-## opens), drag in the diff to select lines, the wheel scrolls the pane
-## under the pointer. Shift+drag still selects text in most terminals.
-## false: no capture, the terminal keeps its own selection and scrolling
-## (and the wheel no longer scrolls the log's stats pane).
+
+# Capture the mouse: click to focus a pane and select a row (double-click
+# opens), drag in the diff to select lines, the wheel scrolls the pane
+# under the pointer. Shift+drag still selects text in most terminals.
+# false: no capture, the terminal keeps its own selection and scrolling
+# (and the wheel no longer scrolls the log's stats pane).
 # enabled = true
 
-## ---------------------------------------------------------------------------
-## Comment kinds (the same shape as ramble's). Tab in the comment box
-## cycles untyped -> kinds in order -> untyped. A typed comment exports as
-## "## Item N [ISSUE]", with a legend of the kinds used. A list replaces
-## the built-ins below (ids are trimmed and lowercased; an empty or
-## duplicate id is dropped with a warning); `kinds = []` leaves every
-## comment untyped.
+
+# ── Review comments ─────────────────────────────────────────────────────────
+
 # [review]
+
+# Comment kinds (the same shape as ramble's). Tab in the comment box
+# cycles untyped -> kinds in order -> untyped. A typed comment exports as
+# "## Item N [ISSUE]", with a legend of the kinds used. A list replaces
+# the built-ins below (ids are trimmed and lowercased; an empty or
+# duplicate id is dropped with a warning); an empty list leaves every
+# comment untyped.
 # kinds = [
 #   { id = "issue", definition = "Something is wrong. Fix it." },
 #   { id = "suggestion", definition = "A better way to do it. Apply it, or say in your reply why not." },
@@ -107,40 +254,53 @@ tmux_zoom = true
 #   { id = "nit", definition = "Minor or cosmetic. Fix it if it's cheap." },
 # ]
 
-## ---------------------------------------------------------------------------
-## <leader>rr sends the batch: the markdown goes to `command` on stdin (with
-## DEBRIEF_ROOT set). An empty command, a failure, or a 10 s timeout copies
-## it to the clipboard instead. Once delivered, the sent comments leave
-## the batch; on an error they stay and the status line says why.
-##   command = ["sh", "-c", "mu agent send worker-1 \"$(cat)\""]
-## `preamble` replaces the export's opening paragraph ("" drops it):
-##   preamble = "Please address these review comments."
+
+# ── Sending the batch ───────────────────────────────────────────────────────
+
 # [send]
+
+# <leader>rr sends the batch: the markdown goes to `command` on stdin (with
+# DEBRIEF_ROOT set). An empty command, a failure, or a 10 s timeout copies
+# it to the clipboard instead. Once delivered, the sent comments leave
+# the batch; on an error they stay and the status line says why.
+# For example:
+#   command = ["sh", "-c", "mu agent send worker-1 \"$(cat)\""]
 # command = []
 
-## ---------------------------------------------------------------------------
-## Launchers: run a command with the TUI suspended, then come back.
-## Arguments are not passed through a shell. Variables: ${file} ${line}
-## ${root} ${editor} (an argument that is exactly "${editor}" expands to
-## $VISUAL / $EDITOR / vi, split into words). `key` is <leader> followed
-## by plain characters; a bad key is skipped with a warning. A launcher
-## key wins over a built-in <leader> key it shares a prefix with. An entry
-## with the same name replaces a default (keeping what it leaves out); new
-## names are added; `disabled = true` removes a default, e.g.:
-##   [[launch]]
-##   name = "lazygit"
-##   key = "<leader>g"
-##   command = ["lazygit"]
-##
-##   [[launch]]
-##   name = "edit"
-##   disabled = true
+# `preamble` replaces the export's opening paragraph ("" drops it).
+# For example:
+#   preamble = "Please address these review comments."
 
-## Enter on a .md file header; no key.
+
+# ── Launchers ───────────────────────────────────────────────────────────────
+
+# Launchers run a command with the TUI suspended, then come back.
+# Arguments are not passed through a shell. Variables: ${file} ${line}
+# ${root} ${editor} (an argument that is exactly "${editor}" expands to
+# $VISUAL / $EDITOR / vi, split into words). `key` is <leader> followed
+# by plain characters; a bad key is skipped with a warning. A launcher
+# key wins over a built-in <leader> key it shares a prefix with. An entry
+# with the same name replaces a default (keeping what it leaves out); new
+# names are added; `disabled = true` removes a default.
+# For example:
+#   [[launch]]
+#   name = "lazygit"
+#   key = "<leader>g"
+#   command = ["lazygit"]
+#
+#   [[launch]]
+#   name = "edit"
+#   disabled = true
+
+# The default "md" launcher: Enter in a .md file's diff (its header: line
+# 1), and on a .md comment in the review list; no key. ${line} is the
+# row's working-copy line, as <leader>o's (ramble 0.3.2 or later reads
+# --line).
 # [[launch]]
 # name = "md"
-# command = ["ramble", "${file}"]
+# command = ["ramble", "--line", "${line}", "${file}"]
 
+# The default "edit" launcher, on <leader>o.
 # [[launch]]
 # name = "edit"
 # key = "<leader>o"
