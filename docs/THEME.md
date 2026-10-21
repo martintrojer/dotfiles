@@ -185,6 +185,10 @@ generator. Each is in `AUDIT_ALLOWLIST`:
   the Catppuccin upstream. Update via their distribution.
 - `yazi/.config/yazi/flavors/catppuccin-mocha.yazi/` — vendored
   Catppuccin flavor.
+- `debrief/.config/debrief/config.toml`, `ramble/.config/ramble/config.toml`
+  — regenerated from `--init-config`, whose commented `[theme.colors]`
+  lists the Mocha values. debrief's one live override (`cursor_bg`) is
+  a palette value too.
 - `ghostty/.config/ghostty/config` — uses the built-in named theme
   (`theme = catppuccin-mocha`); no hex in our config.
 - `nvim/.config/nvim/` — `catppuccin/nvim` plugin handles theming.

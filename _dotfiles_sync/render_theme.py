@@ -187,6 +187,12 @@ AUDIT_ALLOWLIST: dict[str, str] = {
     "bat/.config/bat/themes/Catppuccin Mocha.tmTheme": "vendored upstream",
     "yazi/.config/yazi/flavors/catppuccin-mocha.yazi/flavor.toml": "vendored upstream",
     "yazi/.config/yazi/flavors/catppuccin-mocha.yazi/tmtheme.xml": "vendored upstream",
+    "debrief/.config/debrief/config.toml": (
+        "debrief --init-config output; its commented [theme.colors] lists Mocha"
+    ),
+    "ramble/.config/ramble/config.toml": (
+        "ramble --init-config output; its commented [theme.colors] lists Mocha"
+    ),
 }
 
 
