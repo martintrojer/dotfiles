@@ -9,9 +9,7 @@ brew "python@3"
 
 # Terminal (ghostty/) and its fonts. Geist is the configured one; the other
 # two are the commented-out alternatives in ghostty/.config/ghostty/config.
-# @tip: stable releases lag main by months; tip builds update themselves via
-# Sparkle (Check for Updates…), so `brew upgrade` leaves them alone.
-cask "ghostty@tip"
+cask "ghostty"
 cask "font-geist-mono-nerd-font"
 cask "font-hack-nerd-font"
 cask "font-jetbrains-mono-nerd-font"
