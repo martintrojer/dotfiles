@@ -83,8 +83,8 @@ SECTION_KEYS: dict[str, set[str]] = {
         "C-Right",
     },
     # `y` lives in the copy-mode-vi table, not the prefix table, so it never
-    # reaches classify(); Tab/BTab come from the plugin footer below.
-    "Copy & Pick": {"[", "]", "=", "#", "v", "Tab", "BTab"},
+    # reaches classify(); Tab comes from the plugin footer below.
+    "Copy & Pick": {"[", "]", "=", "#", "v", "Tab"},
     "Tools": {"F", "C-g", "a", "?", "I", "/", ":", "t"},
 }
 
@@ -92,7 +92,6 @@ SECTION_KEYS: dict[str, set[str]] = {
 # annotated `bind -N ...` entries in list-keys. Update when adding plugins.
 PLUGIN_EXTRAS: list[tuple[str, str]] = [
     ("Tab", "tmux-fingers-rs: pick visible token"),
-    ("BTab", "tmux-fingers-rs: pick + jump to token"),
     ("F", "tmux-fzf menu (sessions / windows / panes / clipboard / ...)"),
     ("I", "TPM: install plugins"),
     ("U", "TPM: update plugins"),
