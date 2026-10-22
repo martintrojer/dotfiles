@@ -100,6 +100,16 @@ tmux_zoom = true
 #   trunk = "develop"
 
 
+# ── Running git ─────────────────────────────────────────────────────────────
+
+[vcs]
+
+# The git program debrief runs: a name looked up on PATH, or a path. Point
+# it at a faster git when the one on PATH is a slow wrapper (debrief runs
+# git often). $DEBRIEF_GIT overrides it.
+git = "/usr/bin/git"
+
+
 # ── Rendering ───────────────────────────────────────────────────────────────
 
 # [render]
