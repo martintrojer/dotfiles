@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Manage sway wallpapers, lock-screen render cache, and fzf previews."""
+"""Manage sway wallpapers, display render cache, and fzf previews."""
 
 from __future__ import annotations
 
@@ -34,22 +34,12 @@ CACHE_DIR = XDG_CACHE_HOME / "wallpaper"
 
 
 # ----------------------------------------------------------------------
-# Lock-image render recipe
+# Display render recipe
 # ----------------------------------------------------------------------
 
-BLUR_SIGMA = 8.0
-# Bump only the version for the artifact whose recipe changed. Keeping these
-# separate prevents display tuning from making lock-screen fall back to the raw
-# source until its cache is rebuilt.
-LOCK_RENDER_VERSION = 19
+# Bump only the version for the artifact whose recipe changed.
 DISPLAY_RENDER_VERSION = 1
 PREVIEW_RENDER_VERSION = 18
-# Lock images are display artifacts, not archival copies. Downscale very
-# large wallpapers before blur rendering so cache rebuilds stay fast and
-# do not hit subprocess timeouts on 5K/8K sources.
-LOCK_MAX_WIDTH = 2560
-LOCK_MAX_HEIGHT = 1440
-LOCK_RENDER_TIMEOUT = 20
 DISPLAY_FALLBACK_WIDTH = 2560
 DISPLAY_FALLBACK_HEIGHT = 1440
 DISPLAY_FALLBACK_COLOR = "#08090c"
@@ -153,17 +143,17 @@ def restart_swaybg() -> None:
 
 
 # ----------------------------------------------------------------------
-# Cache: display, lock-screen, and per-pane-size sixel renders
+# Cache: display and per-pane-size sixel renders
 #
 # Files live at $XDG_CACHE_HOME/wallpaper/<sha>.<kind>-vN[-WxH].*.
 # The shared key identifies the source; each artifact carries its own recipe
 # version so changing one recipe does not invalidate unrelated caches.
 # Entries are removed when the source archive entry is deleted; there
 # is no time-based pruning, so a wallpaper kept around for years keeps
-# its warm lock-screen cache for years.
+# its warm cache for years.
 #
-# Lock-screen reads the PNG via `wallpaper status`. Wallpaper set/use
-# pre-render it so the next lock is instant. Sixels are rendered on
+# swaybg and swaywardlock both show the display render (`wallpaper
+# current`); swaywardlock blurs it itself. Sixels are rendered on
 # demand by `wallpaper preview` (used by the fzf picker) and cached per
 # (cols x lines) pane size on first paint.
 # ----------------------------------------------------------------------
@@ -178,13 +168,6 @@ def _cache_key(wallpaper: Path) -> str | None:
         return None
     raw = f"{source}\0{mtime}".encode()
     return hashlib.sha1(raw).hexdigest()[:16]
-
-
-def _cache_path(wallpaper: Path) -> Path | None:
-    key = _cache_key(wallpaper)
-    if key is None:
-        return None
-    return CACHE_DIR / f"{key}.lock-v{LOCK_RENDER_VERSION}.png"
 
 
 def _display_cache_path(wallpaper: Path, width: int, height: int) -> Path | None:
@@ -361,27 +344,6 @@ def _run_image_render(
             tmp_path.unlink()
 
 
-def _build_lock_image(src: Path, dst: Path) -> tuple[bool, str | None]:
-    """Render a downscaled blurred wallpaper to dst."""
-    return _run_image_render(
-        [
-            "magick",
-            str(src),
-            "-sample",
-            f"{LOCK_MAX_WIDTH}x{LOCK_MAX_HEIGHT}>",
-            "-blur",
-            f"0x{BLUR_SIGMA}",
-            "-alpha",
-            "remove",
-            "-strip",
-            "-define",
-            "png:compression-level=1",
-        ],
-        dst,
-        LOCK_RENDER_TIMEOUT,
-    )
-
-
 def _build_display_image(
     src: Path, dst: Path, width: int, height: int
 ) -> tuple[bool, str | None]:
@@ -471,41 +433,6 @@ def build_display_cache(
     return (image_path, None) if ok else (None, error)
 
 
-def build_lock_cache(
-    wallpaper: Path,
-    *,
-    render_source: Path | None = None,
-    force: bool = False,
-    verbose: bool = False,
-) -> tuple[Path | None, str | None]:
-    """Render the lock image from the display composition when available."""
-    img_path = _cache_path(wallpaper)
-    if img_path is None:
-        return None, "wallpaper path could not be stat'd"
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-    cache_hit = not force and img_path.is_file() and img_path.stat().st_size > 0
-    if verbose and not cache_hit:
-        print("Generating lock-screen image... ", end="", flush=True)
-
-    image: Path | None = None
-    error: str | None = None
-    if cache_hit:
-        image = img_path
-    else:
-        # Never unlink the existing cache first: _build_lock_image renders to a
-        # temp file and os.replace()s it, so a failed rebuild leaves the last
-        # good lock image in place instead of leaving the lock screen bare.
-        ok, error = _build_lock_image(render_source or wallpaper, img_path)
-        if ok:
-            image = img_path
-
-    if verbose and not cache_hit:
-        print("done" if image else f"failed: {error or 'unknown error'}", flush=True)
-
-    return image, error
-
-
 # ----------------------------------------------------------------------
 # Activate (shared by `set` and `use`)
 # ----------------------------------------------------------------------
@@ -553,14 +480,9 @@ def activate(archive_path: Path) -> None:
         CURRENT_LINK.unlink()
     CURRENT_LINK.symlink_to(archive_path)
     width, height = _active_output_size()
-    # Both renders are best-effort. A display-render failure falls back to the
-    # source; a lock-render failure falls back through lock-screen's chain.
-    display, _ = build_display_cache(archive_path, width, height, verbose=True)
+    # Best-effort: a display-render failure falls back to the source.
+    build_display_cache(archive_path, width, height, verbose=True)
     restart_swaybg()
-    # Pre-render the lock image so the next lock is instant. Best-effort
-    # — a render failure here doesn't fail the activate; lock-screen
-    # falls back to a solid-color lock when the cache is missing.
-    build_lock_cache(archive_path, render_source=display, verbose=True)
 
 
 # ----------------------------------------------------------------------
@@ -636,36 +558,8 @@ def _resolve_current() -> Path | None:
         return CURRENT_LINK
 
 
-def cmd_status(_args: argparse.Namespace) -> int:
-    """Print JSON describing the active wallpaper plus lock-cache state.
-
-    Pure cache read — doesn't render on demand. Returns exit 1 with
-    `null` when no wallpaper is set; lock-screen treats that as the
-    'fall back to solid color' signal.
-    """
-    path = _resolve_current()
-    if path is None:
-        print("null")
-        return 1
-
-    lock_image: str | None = None
-    img_path = _cache_path(path)
-    if img_path is not None and img_path.is_file() and img_path.stat().st_size > 0:
-        lock_image = str(img_path)
-
-    print(
-        json.dumps(
-            {
-                "path": str(path),
-                "lock_image": lock_image,
-            }
-        )
-    )
-    return 0
-
-
 def cmd_rebuild_cache(_args: argparse.Namespace) -> int:
-    """Force-rebuild the display and lock images for the current wallpaper."""
+    """Force-rebuild the display image for the current wallpaper."""
     path = _resolve_current()
     if path is None:
         die("no current wallpaper to rebuild cache for")
@@ -673,15 +567,11 @@ def cmd_rebuild_cache(_args: argparse.Namespace) -> int:
     display, display_error = build_display_cache(path, width, height, force=True)
     if display is None:
         die(f"display image rebuild failed: {display_error or 'unknown error'}")
-    lock, lock_error = build_lock_cache(path, render_source=display, force=True)
-    if lock is None:
-        die(f"lock image rebuild failed: {lock_error or 'unknown error'}")
     print(
         json.dumps(
             {
                 "path": str(path),
                 "display_image": str(display),
-                "lock_image": str(lock),
             }
         )
     )
@@ -727,8 +617,8 @@ def cmd_preview(args: argparse.Namespace) -> int:
     # Cached per (wallpaper key, cols x lines): first preview pays the
     # ~200-400ms magick startup + decode + sixel encode cost, subsequent
     # cursor moves over the same entry at the same pane size are a
-    # bytes-to-stdout pass. Cache entries share <key>.* with the lock
-    # PNG and get cleaned together when the archive entry is
+    # bytes-to-stdout pass. Cache entries share <key>.* with the display
+    # render and get cleaned together when the archive entry is
     # deleted.
     if shutil.which("magick") is not None:
         cols = _env_positive_int("FZF_PREVIEW_COLUMNS", 80)
@@ -834,7 +724,7 @@ def pick_with_fzf() -> Path | None:
             # entry under cursor is shown in the picker. _delete-archive
             # refuses to delete the currently-active wallpaper (would
             # leave a dangling `current` symlink) and opportunistically
-            # cleans the lock-screen cache for the deleted entry.
+            # cleans the cache for the deleted entry.
             "--bind",
             (
                 f"ctrl-D:execute-silent({self_path} _delete-archive {{}})"
@@ -871,7 +761,7 @@ def cmd__list_archive(_args: argparse.Namespace) -> int:
 
 
 def cmd__delete_archive(args: argparse.Namespace) -> int:
-    """Delete an archive entry + opportunistically nuke its lock cache.
+    """Delete an archive entry + opportunistically nuke its cache.
 
     Refuses to delete the currently-active wallpaper (would leave a
     dangling `current` symlink). Errors are printed to stderr but the
@@ -897,7 +787,7 @@ def cmd__delete_archive(args: argparse.Namespace) -> int:
 
     # Compute the cache key before unlinking — once the file is gone we
     # can't stat its mtime. Then glob <key>.* under CACHE_DIR to scoop
-    # up the lock PNG and every per-pane-size sixel in
+    # up the display render and every per-pane-size sixel in
     # one pass.
     key = _cache_key(target)
 
@@ -936,15 +826,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_current = sub.add_parser("current", help="print the active wallpaper path")
     p_current.set_defaults(func=cmd_current)
 
-    p_status = sub.add_parser(
-        "status",
-        help="print JSON {path, lock_image} for the active wallpaper",
-    )
-    p_status.set_defaults(func=cmd_status)
-
     p_rebuild = sub.add_parser(
         "rebuild-cache",
-        help="force-rebuild display and lock images for the current wallpaper",
+        help="force-rebuild the display image for the current wallpaper",
     )
     p_rebuild.set_defaults(func=cmd_rebuild_cache)
 

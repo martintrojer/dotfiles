@@ -78,7 +78,7 @@ def main() -> int:
     action = next((action for label, action in options if label == selected), "")
 
     if action == "lock":
-        run([str(lock_screen), "--daemonize"], check=False)
+        run([str(lock_screen)], check=False)
     elif action == "suspend":
         run(["systemctl", "suspend"], check=False)
     elif action == "shutdown":

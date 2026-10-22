@@ -1,7 +1,7 @@
 # Sway
 
 This package configures the Wayland desktop with sway, waybar, fuzzel, kanshi,
-mako, swayidle, and swaylock. It keeps each tool close to its upstream defaults.
+mako, swayidle, and swaywardlock. It keeps each tool close to its upstream defaults.
 
 > **New to sway?** [Sway School](https://martintrojer.github.io/sway-school/) is
 > a tree-first tutorial that explains the i3/sway layout model from the ground
@@ -220,32 +220,33 @@ slow service cannot hold the desktop open.
 
 ## Lock Screen
 
-`~/.config/sway/scripts/lock-screen` is a small wrapper around
-`swaylock`. Image work — blur and cache management — lives in the
-[`wallpaper`](../fedora/bin/.local/bin/wallpaper) helper. The
-lock-screen script just:
+`~/.config/sway/scripts/lock-screen` runs
+[swaywardlock](https://github.com/swayward-wm/swaywardlock) with `-f`, so it
+returns only once the session is locked. swaywardlock draws everything from
+[`swaywardlock/.config/swaywardlock/config.kdl`](../swaywardlock/.config/swaywardlock/config.kdl):
+the current wallpaper, blurred live, a live clock and date, and the glowing
+ring. The wrapper does no image work.
 
-1. Calls `wallpaper status`, which returns JSON like
-   `{"path": "...", "lock_image": "..."}`.
-2. Builds `swaylock --image <lock_image> --scaling fill <passthrough-args>`.
-3. exec's into `swaylock`.
+- **Idempotent.** If a real locker is already running (a `--preview` window
+  doesn't count) it exits 0. swayidle's lock timeout and `before-sleep` both
+  call it bare.
+- **Recovery path.** If swaywardlock is missing from `PATH` or exits nonzero
+  (config error, missing PAM file, refused lock), it runs
+  `swaylock -f --color 1e1e2e` instead. Keep the `swaylock` package installed.
+- `--print-command` shows what would run. `--daemonize` is accepted and
+  ignored, since `-f` is always on.
 
-Locking must always succeed, so there's a fallback chain:
+swaywardlock authenticates through `/etc/pam.d/swaywardlock` (`auth include
+login`); without that file it refuses to lock and the swaylock fallback runs.
+Iterate on the layout with `swaywardlock --preview` and check it with
+`swaywardlock validate`.
 
-- `wallpaper` helper missing or status JSON malformed → solid Catppuccin
-  base color (`swaylock --color 1e1e2e`).
-- `lock_image` missing (e.g. magick not installed when the wallpaper
-  was set) but `path` present → raw wallpaper, no blur.
-- `path` also missing → solid color again.
+The wallpaper follows `wallpaper set/use`. The config's `path` is the
+`~/.local/share/wallpapers/current` symlink, decoded before locking.
+`reload-cmd "~/.local/bin/wallpaper current"` then swaps in the
+output-sized display render that swaybg shows.
 
-Swaylock chrome colors (ring, key-hl, state colors) come from
-`swaylock/.config/swaylock/config`, keeping the lock UI theme-coherent
-across wallpapers.
-
-Unknown flags pass through to swaylock verbatim (`parse_known_args`),
-which is why `session-swayidle` can keep calling `lock-screen --daemonize`.
-
-### Lock image rendering (lives in `wallpaper`)
+### Wallpaper rendering (lives in `wallpaper`)
 
 The rendering recipes live in `fedora/bin/.local/bin/wallpaper`. `wallpaper
 set <url-or-file>` keeps the original archive image, while `wallpaper use`
@@ -260,23 +261,16 @@ the complete visible image over a blurred, darkened copy that fills the screen.
 falls back to 2560×1440.
 `wallpaper current` returns this display render when available.
 
-The lock-screen image is a downscaled, blurred copy of the composed desktop
-render, so both use the same framing. Run `wallpaper rebuild-cache` to force
-fresh display and lock images after changing either recipe.
-
-The blur (sigma 8) and lock render cap (2560×1440) are constants at
-the top of the script. Change them and bump `RENDER_VERSION` next to
-the constants — that invalidates all cached entries automatically.
+Run `wallpaper rebuild-cache` to force a fresh display image after changing
+the recipe.
 
 Results are cached under `$XDG_CACHE_HOME/wallpaper/<sha>.<kind>-vN[-WxH].*`.
-The lock, display, and preview recipes have separate versions, so changing one
-does not invalidate the others.
-The warm path (cache hit during `wallpaper status`) is essentially
-instant. Cold render is ~3–6 s depending on wallpaper size. Cache
+The display and preview recipes have separate versions, so changing one does
+not invalidate the other. Cache
 entries are kept for the lifetime of the source archive entry — when
 you delete a wallpaper via the fzf picker, every `<key>.*` artifact
 is cleaned up alongside it. There is no time-based pruning, so a
-wallpaper kept for years keeps its warm lock-screen cache for years.
+wallpaper kept for years keeps its warm cache for years.
 The `sixel-WxH` siblings are per-pane-size thumbnails for the fzf
 picker preview pane (see `wallpaper preview`): first paint pays the
 full ImageMagick cost, subsequent cursor moves over the same entry

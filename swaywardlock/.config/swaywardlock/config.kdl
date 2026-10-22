@@ -1,0 +1,102 @@
+// swaywardlock: the "ring glow-up" README composition
+// (swayward-wm/scratch/readme-shots/ring.kdl), adapted for daily use.
+//
+// Sized for DP-1: 3840x2160 at scale 1.5 = 2560x1440 logical, exactly 2x the
+// 1280x720 logical canvas the screenshot was composed on. Every position,
+// font size and ring dimension is the original x2.
+//
+// Launched by ~/.config/sway/scripts/lock-screen (falls back to swaylock if
+// this locker cannot lock). Iterate with:
+//   swaywardlock --preview        swaywardlock validate
+
+general {
+    // Carried over from the old swaylock config (ignore-empty-password).
+    ignore-empty-input
+}
+
+background {
+    // Shown if no picture loads.
+    // THEME BEGIN: swaywardlock-fallback-color
+    color "#1e1e2e"
+    // THEME END: swaywardlock-fallback-color
+    // Dynamic wallpaper: `wallpaper set/use` repoints this symlink, so the
+    // lock always follows the desktop. It is decoded before locking, so the
+    // first locked frame already has the wallpaper.
+    path "~/.local/share/wallpapers/current"
+    fit "cover"
+    // Then switch to the output-sized composition that swaybg shows (it
+    // letterboxes portrait art the same way). The command runs once at
+    // startup and again on SIGUSR2.
+    reload-cmd "~/.local/bin/wallpaper current"
+    crossfade-ms 400
+    // Blur happens here, live. Nothing is pre-rendered any more.
+    // Light blur: one pass keeps the wallpaper recognisable. The README shot
+    // used passes 3, offset 4 (= 8 here); offset 2 is lighter still. At least
+    // one pass is needed, or vibrancy, noise and saturation do nothing.
+    blur { passes 1; offset 4; noise 0.008; saturation 1.05; }
+    brightness 0.68
+    vibrancy 0.15
+    vibrancy-darkness 0.05
+}
+
+label {
+    text "$TIME"
+    font "Sans Light 224"
+    position 0 380
+    // THEME BEGIN: swaywardlock-clock
+    color "#cdd6f4ff"
+    text-shadow { passes 2; size 6; color "#11111baa"; boost 1.2; }
+    // THEME END: swaywardlock-clock
+}
+
+label {
+    // e.g. THURSDAY, 22 OCTOBER
+    text "cmd[update:30000] date '+%^A, %-d %^B'"
+    font "Sans Medium 56"
+    // THEME BEGIN: swaywardlock-date
+    color "#bac2deff"
+    // THEME END: swaywardlock-date
+    position 0 204
+}
+
+ring-indicator {
+    style "swayward"
+    radius 244
+    thickness 24
+    glow 48
+    // No idle-visible: hidden until a key is pressed, as swaylock did by default.
+    // Carried over from the old swaylock config.
+    show-failed-attempts
+    font "Sans Medium"
+    font-size 68
+    position 0 -164
+    // THEME BEGIN: swaywardlock-ring
+    colors {
+        state "input" inside="#11111b70" ring="#b4befeff" line="#00000000" text="#cdd6f4ff"
+        state "clear" inside="#11111b70" ring="#f9e2afff" line="#00000000" text="#cdd6f4ff"
+        state "verifying" inside="#11111b70" ring="#74c7ecff" line="#00000000" text="#cdd6f4ff"
+        state "wrong" inside="#11111b70" ring="#f38ba8ff" line="#00000000" text="#cdd6f4ff"
+        state "caps-lock" inside="#11111b70" ring="#fab387ff" line="#00000000" text="#fab387ff"
+        key-highlight "#a6e3a1ff"
+        bs-highlight "#f38ba8ff"
+        separator "#00000000"
+    }
+    // THEME END: swaywardlock-ring
+}
+
+label {
+    // user@host. $USER is substituted by the locker; cmd[] with no update
+    // interval runs once at lock time.
+    text "cmd[] echo \"$USER@$(uname -n)\""
+    font "Sans Bold 44"
+    // THEME BEGIN: swaywardlock-footer
+    color "#cdd6f4ff"
+    // THEME END: swaywardlock-footer
+    position 0 -584
+}
+
+animations {
+    fade-in { off; }
+    ring-colors { duration-ms 350; curve "ease-out-cubic"; }
+    ring-highlight { duration-ms 350; curve "ease-out-cubic"; }
+}

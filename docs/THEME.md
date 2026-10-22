@@ -99,6 +99,7 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `eza/.config/eza/theme.yml` | `eza-colors` |
 | `local-bin/.local/bin/solo` | `solo-glyphs` |
 | `sway/.config/sway/scripts/lock-screen` | `lock-screen-fallback-color` |
+| `swaywardlock/.config/swaywardlock/config.kdl` | `swaywardlock-fallback-color`, `swaywardlock-clock`, `swaywardlock-date`, `swaywardlock-ring`, `swaywardlock-footer` |
 | `sway/.config/sway/scripts/session-wallpaper` | `session-wallpaper-fallback-color` |
 | `fedora/bin/.local/bin/wallpaper` | `wallpaper-fallback-color` |
 | `waybar/.config/waybar/scripts/caffeinate` | `waybar-caffeinate-glyph` |
@@ -196,6 +197,8 @@ generator. Each is in `AUDIT_ALLOWLIST`:
   generated (`waybar-palette`), but the alpha derivations further down
   the file (`alpha(@base, 0.55)`) are hand-written GTK CSS on top of
   the generated names.
+- `docs/DECISIONS.md` — decision records quote the colours a reverted
+  setup used (the SwayFX shadow and alpha values), as history.
 - `tmux/.config/tmux/scripts/test-status-tools` — carries no hex. It
   asserts that the generated `tmux-mu-crew-glyphs` overrides carry the
   vocabulary's agent glyphs and come after mu-crew's own defaults.

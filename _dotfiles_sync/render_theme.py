@@ -127,6 +127,16 @@ CONSUMERS: tuple[Consumer, ...] = (
         ("lock-screen-fallback-color",),
     ),
     Consumer(
+        repo("swaywardlock/.config/swaywardlock/config.kdl"),
+        (
+            "swaywardlock-fallback-color",
+            "swaywardlock-clock",
+            "swaywardlock-date",
+            "swaywardlock-ring",
+            "swaywardlock-footer",
+        ),
+    ),
+    Consumer(
         repo("sway/.config/sway/scripts/session-wallpaper"),
         ("session-wallpaper-fallback-color",),
     ),
@@ -183,6 +193,9 @@ AUDIT_ALLOWLIST: dict[str, str] = {
     "docs/THEME.md": "human-readable gloss of the palette",
     "swayward/.config/swayward/config.kdl": (
         "hand-maintained Sway migration whose colors track the source config"
+    ),
+    "docs/DECISIONS.md": (
+        "decision records quote the colours a reverted setup used (SwayFX)"
     ),
     "bat/.config/bat/themes/Catppuccin Mocha.tmTheme": "vendored upstream",
     "yazi/.config/yazi/flavors/catppuccin-mocha.yazi/flavor.toml": "vendored upstream",
@@ -382,7 +395,9 @@ def apply_edits(
 # Blindspot audit
 # ---------------------------------------------------------------------
 
-HEX_RE = re.compile(r"#[0-9a-fA-F]{6}\b")
+# Six hex digits plus an optional alpha pair: swaywardlock, mako and foot
+# write #rrggbbaa, and the colour part of those is still palette drift.
+HEX_RE = re.compile(r"#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?\b")
 
 
 def palette_values(palette: dict[str, dict[str, str]]) -> set[str]:
@@ -415,7 +430,7 @@ def unmanaged_palette_hex(path: Path, known: set[str]) -> list[tuple[int, str]]:
         hits += [
             (lineno, m.group(0))
             for m in HEX_RE.finditer(line)
-            if m.group(0).lower() in known
+            if m.group(0)[:7].lower() in known
         ]
     return hits
 

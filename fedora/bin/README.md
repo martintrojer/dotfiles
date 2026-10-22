@@ -57,7 +57,7 @@ this wrapper remains useful for ad-hoc CLI commands.
 - `wallpaper set <url-or-file>` keeps the original under `~/.local/share/wallpapers/archive/`, renders it for the active display, updates `~/.local/share/wallpapers/current`, and restarts `swaybg.service`
 - `wallpaper use` opens an `fzf` archive picker with sixel previews and activates the selected wallpaper; it does not accept a filename
 - `wallpaper current` prints the display-sized render when available and the original archive path as a fallback
-- `wallpaper rebuild-cache` rebuilds the display render, then creates the blurred lock-screen image from that same composition
+- `wallpaper rebuild-cache` rebuilds the display render (swaybg and swaywardlock both show it; swaywardlock blurs it itself)
 - `wallpaper restart` restarts `swaybg.service` to re-apply the current wallpaper
 - `wallpaper preview <archive-file>` renders a wallpaper as sixel (`magick … sixel:-`) into the fzf preview pane; this is an internal picker command
 
