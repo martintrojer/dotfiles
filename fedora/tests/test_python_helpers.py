@@ -151,87 +151,6 @@ class FedoraPythonHelperTests(unittest.TestCase):
         wallpaper.CACHE_DIR.mkdir()
         return wallpaper
 
-    def test_status_json_is_the_contract_lock_screen_parses(self) -> None:
-        """sway's lock-screen falls back to a solid colour whenever `wallpaper
-        status` exits nonzero or prints something it can't parse, so a
-        regression here degrades locking silently.
-        """
-        with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp).resolve()
-            wallpaper = self.wallpaper_env(root)
-            args = argparse.Namespace()
-
-            with contextlib.redirect_stdout(io.StringIO()) as out:
-                self.assertEqual(wallpaper.cmd_status(args), 1)
-            self.assertEqual(json.loads(out.getvalue()), None)
-
-            image = wallpaper.ARCHIVE_DIR / "20240101-000000-pic.abcdef.png"
-            image.write_bytes(b"not really a png")
-            wallpaper.CURRENT_LINK.symlink_to(image)
-
-            # No cache rendered yet: status still succeeds, lock_image is null.
-            with contextlib.redirect_stdout(io.StringIO()) as out:
-                self.assertEqual(wallpaper.cmd_status(args), 0)
-            self.assertEqual(
-                json.loads(out.getvalue()), {"path": str(image), "lock_image": None}
-            )
-
-            # An empty cache file must not be advertised as a lock image.
-            cache = wallpaper._cache_path(image)
-            cache.touch()
-            with contextlib.redirect_stdout(io.StringIO()) as out:
-                wallpaper.cmd_status(args)
-            self.assertIsNone(json.loads(out.getvalue())["lock_image"])
-
-            cache.write_bytes(b"rendered")
-            with contextlib.redirect_stdout(io.StringIO()) as out:
-                self.assertEqual(wallpaper.cmd_status(args), 0)
-            self.assertEqual(
-                json.loads(out.getvalue()),
-                {"path": str(image), "lock_image": str(cache)},
-            )
-
-    def test_lock_cache_uses_display_render_when_supplied(self) -> None:
-        with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp).resolve()
-            wallpaper = self.wallpaper_env(root)
-            original = wallpaper.ARCHIVE_DIR / "original.jpg"
-            display = root / "display.png"
-            original.write_bytes(b"original")
-            display.write_bytes(b"composed")
-
-            with mock.patch.object(
-                wallpaper, "_build_lock_image", return_value=(True, None)
-            ) as build:
-                cached, error = wallpaper.build_lock_cache(
-                    original, render_source=display
-                )
-
-            self.assertIsNone(error)
-            self.assertEqual(cached, wallpaper._cache_path(original))
-            build.assert_called_once_with(display, cached)
-
-    def test_failed_rebuild_keeps_the_previous_lock_image(self) -> None:
-        """A forced rebuild that fails must not destroy the working cache --
-        that would leave the next lock screen bare until magick works again.
-        """
-        with tempfile.TemporaryDirectory() as raw_tmp:
-            root = Path(raw_tmp).resolve()
-            wallpaper = self.wallpaper_env(root)
-            image = wallpaper.ARCHIVE_DIR / "pic.png"
-            image.write_bytes(b"source")
-            cached = wallpaper._cache_path(image)
-            cached.write_bytes(b"previous good render")
-
-            with mock.patch.object(
-                wallpaper, "_build_lock_image", return_value=(False, "magick exploded")
-            ):
-                built, error = wallpaper.build_lock_cache(image, force=True)
-
-            self.assertIsNone(built)
-            self.assertEqual(error, "magick exploded")
-            self.assertEqual(cached.read_bytes(), b"previous good render")
-
     def test_crop_loss_selects_only_small_crops(self) -> None:
         wallpaper = cast(Any, load_script("wallpaper_test", WALLPAPER))
         self.assertLessEqual(wallpaper._crop_loss(1687, 884, 3840, 2160), 0.10)
@@ -401,26 +320,24 @@ class FedoraPythonHelperTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 2)
 
     def test_cache_paths_version_artifacts_independently(self) -> None:
-        """A display recipe change must not invalidate the lock image."""
+        """A display recipe change must not invalidate the sixel previews."""
         with tempfile.TemporaryDirectory() as raw_tmp:
             root = Path(raw_tmp).resolve()
             wallpaper = self.wallpaper_env(root)
             image = wallpaper.ARCHIVE_DIR / "pic.png"
             image.write_bytes(b"source")
 
-            lock = wallpaper._cache_path(image)
             display = wallpaper._display_cache_path(image, 3840, 2160)
             preview = wallpaper._sixel_cache_path(image, 80, 24)
 
             wallpaper.DISPLAY_RENDER_VERSION += 1
-            self.assertEqual(wallpaper._cache_path(image), lock)
             self.assertNotEqual(
                 wallpaper._display_cache_path(image, 3840, 2160), display
             )
             self.assertEqual(wallpaper._sixel_cache_path(image, 80, 24), preview)
 
             os.utime(image, ns=(0, 1234567890))
-            self.assertNotEqual(wallpaper._cache_path(image), lock)
+            self.assertNotEqual(wallpaper._sixel_cache_path(image, 80, 24), preview)
             self.assertIsNone(wallpaper._cache_key(wallpaper.ARCHIVE_DIR / "gone.png"))
 
     def test_delete_archive_clears_cache_but_spares_the_active_wallpaper(self) -> None:
@@ -433,7 +350,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
             stale.write_bytes(b"stale")
             wallpaper.CURRENT_LINK.symlink_to(active)
 
-            active_cache = wallpaper._cache_path(active)
+            active_cache = wallpaper._display_cache_path(active, 3840, 2160)
             active_cache.write_bytes(b"png")
             key = wallpaper._cache_key(stale)
             for name in (

@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
-"""Lock the session with swaylock.
+"""Lock the session with swaywardlock, falling back to swaylock.
 
-Reads `wallpaper status` for the pre-rendered lock image, builds a
-swaylock command, and exec's into it. Falls back to a solid Catppuccin
-base if anything's missing — locking must always succeed.
+swaywardlock draws everything itself (wallpaper, blur, clock, ring) from
+`~/.config/swaywardlock/config.kdl`, so this wrapper only picks the locker:
 
-All swaylock colors (ring, key-hl, state colors) come from
-`swaylock/config`, so theme coherence is preserved across wallpapers.
+  1. A locker is already running        -> exit 0 (idempotent: swayidle's
+                                           timeout and before-sleep both call us)
+  2. `swaywardlock -f` locks             -> exit 0 once the session is locked
+  3. swaywardlock missing or nonzero    -> `swaylock -f` with a solid colour
+     (config error, missing PAM file,     (the recovery path; locking must
+     no ext-session-lock, refused lock)   always succeed)
 
-Unknown flags pass through to swaylock (`parse_known_args`), so
-`session-swayidle` can pass e.g. `--daemonize`.
+Always daemonized: `-f` returns 0 only once the session is locked, which is
+what `swayidle -w before-sleep` needs to hold back suspend. Anything that
+fails after that happens in the forked child; the compositor keeps the
+session locked, and running `lock-screen` again replaces the dead lock.
+
+Extra arguments pass through to swaywardlock. `--daemonize`/`-f` are
+accepted for old callers and ignored, since -f is always on.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import shlex
 import shutil
@@ -23,7 +30,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-WALLPAPER_HELPER = Path.home() / ".local" / "bin" / "wallpaper"
+PRIMARY = "swaywardlock"
+FALLBACK = "swaylock"
 # THEME BEGIN: lock-screen-fallback-color
 FALLBACK_COLOR = "1e1e2e"  # Catppuccin Mocha base
 # THEME END: lock-screen-fallback-color
@@ -38,85 +46,77 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument(
         "--print-command",
         action="store_true",
-        help="print the swaylock command that would run, then exit (dry-run)",
+        help="print the commands that would run, then exit (dry-run)",
     )
+    p.add_argument("-f", "--daemonize", action="store_true", help=argparse.SUPPRESS)
     args, passthrough = p.parse_known_args(argv)
     if passthrough and passthrough[0] == "--":
         passthrough = passthrough[1:]
-    args.swaylock_args = passthrough
+    args.passthrough = passthrough
     return args
 
 
-def wallpaper_status() -> dict | None:
-    """Return the parsed `wallpaper status` JSON, or None on any failure."""
-    if not os.access(WALLPAPER_HELPER, os.X_OK):
-        return None
-    try:
-        res = subprocess.run(
-            [str(WALLPAPER_HELPER), "status"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    if res.returncode != 0:
-        return None
-    try:
-        data = json.loads(res.stdout)
-    except (ValueError, json.JSONDecodeError):
-        return None
-    if not isinstance(data, dict):
-        return None
-    return data
+def locker_running(proc: Path = Path("/proc")) -> bool:
+    """True if a real (not --preview/validate) locker process exists.
 
-
-def build_swaylock_cmd(passthrough: list[str]) -> list[str]:
-    """Build the swaylock command from `wallpaper status`, with fallbacks.
-
-    Decision tree:
-      - wallpaper helper missing OR no current wallpaper      -> solid color
-      - lock_image present and on disk                         -> -i lock_image
-      - lock_image missing but wallpaper path present and OK   -> -i wallpaper
-        (raw wallpaper, no blur — degraded but still locked)
-      - everything missing                                     -> solid color
+    Replaces `pidof swaylock`: a bare name match would count a
+    `swaywardlock --preview` window and skip the idle lock.
     """
-    status = wallpaper_status()
+    me = os.getuid()
+    for entry in proc.iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            if entry.stat().st_uid != me:
+                continue
+            argv = (entry / "cmdline").read_bytes().split(b"\0")
+        except OSError:
+            continue
+        name = os.path.basename(argv[0].decode(errors="replace"))
+        rest = {a.decode(errors="replace") for a in argv[1:]}
+        if name == FALLBACK:
+            return True
+        if name == PRIMARY and not rest & {"--preview", "validate", "completions"}:
+            return True
+    return False
 
-    image: Path | None = None
-    if status:
-        for key in ("lock_image", "path"):
-            v = status.get(key)
-            if isinstance(v, str) and Path(v).is_file():
-                image = Path(v)
-                break
 
-    if image is None:
-        return ["swaylock", "--color", FALLBACK_COLOR, *passthrough]
-
-    return ["swaylock", "--image", str(image), "--scaling", "fill", *passthrough]
+def commands(passthrough: list[str]) -> tuple[list[str], list[str]]:
+    primary = [PRIMARY, "-f", *passthrough]
+    fallback = [FALLBACK, "-f", "--color", FALLBACK_COLOR]
+    return primary, fallback
 
 
-def exec_swaylock(cmd: list[str], *, dry_run: bool) -> int:
-    if dry_run:
-        print(shlex.join(cmd))
-        return 0
-    if shutil.which(cmd[0]) is None:
-        print(f"lock-screen: {cmd[0]} not on PATH", file=sys.stderr)
-        return 127
+def run(cmd: list[str]) -> int:
     try:
-        os.execvp(cmd[0], cmd)
+        return subprocess.run(cmd, check=False).returncode
     except OSError as e:
-        print(f"lock-screen: failed to exec {cmd[0]}: {e}", file=sys.stderr)
+        print(f"lock-screen: failed to run {cmd[0]}: {e}", file=sys.stderr)
         return 1
 
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    cmd = build_swaylock_cmd(args.swaylock_args)
-    rc = exec_swaylock(cmd, dry_run=args.print_command)
-    return rc if rc is not None else 1
+    primary, fallback = commands(args.passthrough)
+    if args.print_command:
+        print(shlex.join(primary))
+        print(f"# if that fails or is missing: {shlex.join(fallback)}")
+        return 0
+    if locker_running():
+        return 0
+
+    if shutil.which(PRIMARY) is not None:
+        rc = run(primary)
+        if rc == 0:
+            return 0
+        print(f"lock-screen: {PRIMARY} exited {rc}; using {FALLBACK}", file=sys.stderr)
+    else:
+        print(f"lock-screen: {PRIMARY} not on PATH; using {FALLBACK}", file=sys.stderr)
+
+    if shutil.which(FALLBACK) is None:
+        print(f"lock-screen: {FALLBACK} not on PATH either", file=sys.stderr)
+        return 127
+    return run(fallback)
 
 
 if __name__ == "__main__":

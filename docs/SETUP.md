@@ -258,7 +258,14 @@ Action:
 ```bash
 rm -rf ~/.cache/lock-screen
 # The new cache at ~/.cache/wallpaper/ will be (re)populated next time
-# `wallpaper set/use` runs or on next `lock-screen` invocation.
+# `wallpaper set/use` runs.
+```
+
+swaywardlock now blurs the wallpaper itself, so the pre-rendered
+`~/.cache/wallpaper/*.lock-v*.png` files are orphaned too:
+
+```bash
+rm -f ~/.cache/wallpaper/*.lock-v*.png
 ```
 
 ### 9. niri → sway (Linux only)

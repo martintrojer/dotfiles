@@ -12,6 +12,9 @@ rm -f "$saved_flag"  # clear stale flag from crashed/logged-out session
 dim_cmd="[ -f \"$saved_flag\" ] || { brightnessctl -s && touch \"$saved_flag\"; }; brightnessctl set 10"
 restore_cmd="brightnessctl -r; rm -f \"$saved_flag\""
 
+# lock-screen is idempotent (it returns at once if a locker already runs)
+# and always daemonizes: it returns only once the session is locked, so
+# `-w before-sleep` holds suspend until the lock is up.
 lock_screen="${HOME}/.config/sway/scripts/lock-screen"
 
 # Caffeinate flag: when present, the suspend timeout below is skipped and
@@ -28,10 +31,10 @@ lock_screen="${HOME}/.config/sway/scripts/lock-screen"
 caffeinate_flag="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/caffeinate"
 
 exec swayidle -w \
-  before-sleep "pidof swaylock || \"$lock_screen\" --daemonize" \
+  before-sleep "\"$lock_screen\"" \
   timeout 300 "$dim_cmd" \
   resume "$restore_cmd" \
-  timeout 330 "pidof swaylock || \"$lock_screen\" --daemonize" \
+  timeout 330 "\"$lock_screen\"" \
   timeout 350 'swaymsg "output * power off"' \
   resume 'swaymsg "output * power on"' \
   timeout 3600 "[ -f '$caffeinate_flag' ] || systemctl suspend"

@@ -183,6 +183,12 @@ class AuditTests(RendererFixture):
             [],
         )
 
+    def test_palette_hex_with_an_alpha_suffix_is_reported(self) -> None:
+        # swaywardlock/mako/foot write #rrggbbaa; a 6-digit-only match
+        # with a trailing \b silently skipped every one of them.
+        self.assertEqual(self.scan('ring="#abcdefff"\n'), [(1, "#abcdefff")])
+        self.assertEqual(self.scan('fill = "#abcdef70"\n'), [(1, "#abcdef70")])
+
     def test_non_palette_hex_is_not_drift(self) -> None:
         # guides/style.css:55 picks #eef2ff deliberately; it is not
         # Catppuccin, so the audit must leave it alone.
