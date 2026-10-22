@@ -11,10 +11,10 @@ esac
 
 if [ "$(uname)" = Darwin ]; then
   case "$MURMUR_KIND" in
-    done) sound=Tink ;;
+    done) sound=Bottle ;;
     blocked) sound=Glass ;;
     error) sound=Basso ;;
-    *) sound=Sosumi ;;
+    *) sound=Submarine ;;
   esac
   exec afplay "/System/Library/Sounds/$sound.aiff"
 fi

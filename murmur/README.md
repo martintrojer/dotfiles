@@ -8,10 +8,10 @@ Config for [murmur](https://github.com/mu-crew/murmur), the agent-state tool beh
 
 | Kind | macOS (`afplay`, `/System/Library/Sounds`) | Fedora (`pw-play`, sound-theme-freedesktop) |
 |---|---|---|
-| done | Tink | complete |
+| done | Bottle | complete |
 | blocked | Glass | window-attention |
 | error | Basso | dialog-error |
-| crashed | Sosumi | suspend-error |
+| crashed | Submarine | suspend-error |
 
 A crew agent's `done` stays silent: that is the orchestrator's business.
 
