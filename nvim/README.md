@@ -146,6 +146,9 @@ See `lua/keymaps/` for the full list (split into `core`, `find`, `git`, `search`
 | `<leader>sG` | Git grep |
 | `<leader>sw` | Grep word under cursor |
 | **Code (`<leader>c`)** | |
+| `<leader>ca` | Code actions (e.g. typo fixes) |
+| `<leader>cf` | Format buffer (or selection) |
+| `<leader>ch` | Toggle inlay hints |
 | `<leader>ci` | Incoming calls |
 | `<leader>co` | Outgoing calls |
 | `<leader>cF` | Finder (defs+refs+impls) |
