@@ -13,7 +13,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		bmap("gi", "<cmd>FzfLua lsp_implementations<cr>", "Implementations")
 		bmap("gy", "<cmd>FzfLua lsp_typedefs<cr>", "Type Definitions")
 		bmap("K", vim.lsp.buf.hover, "Hover")
-		bmap("<leader>ca", "<cmd>FzfLua lsp_code_actions<cr>", "Code actions")
+		-- Visual mode too: link a selection, extract it to a note (mdroots).
+		map({ "n", "x" }, "<leader>ca", "<cmd>FzfLua lsp_code_actions<cr>", { buffer = ev.buf, desc = "Code actions" })
 		map({ "n", "x" }, "<leader>cf", function()
 			vim.lsp.buf.format({ async = true })
 		end, { buffer = ev.buf, desc = "Format" })
