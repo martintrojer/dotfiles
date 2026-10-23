@@ -97,8 +97,12 @@ vim.lsp.config("rust_analyzer", {
 -- mdroots finds note roots itself, so no root_markers; one client serves all.
 vim.lsp.config("mdroots", {
 	cmd = { "mdroots", "lsp" },
-	filetypes = { "markdown" },
+	filetypes = { "markdown", "org" },
 	workspace_required = false,
+	-- Complete as you type [[, ]( or # (no completion plugin in this config).
+	on_attach = function(client, buf)
+		vim.lsp.completion.enable(true, client.id, buf, { autotrigger = true })
+	end,
 })
 
 vim.lsp.config("typos_lsp", {
