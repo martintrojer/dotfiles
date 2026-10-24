@@ -99,28 +99,9 @@ The checker has no tools, so it can only judge what the agent surfaced in the co
 
 **`/goal` vs `/loop` vs `/watch`:** `/loop` is timer-driven and re-sends a fixed prompt on an interval; `/watch` is the same timer but only injects when a probe's output changes; `/goal` is turn-driven and continues until an evaluator confirms a condition. `/loop` and `/watch` are kept as separate commands, mirroring Claude Code's `/loop` plus a local change-detecting variant.
 
-### `/btw` — quick side question, no history pollution
-
-Clone of Claude Code's `/btw` ("by the way"). Opens an interactive, multi-turn, no-tools side thread that sees the current session context, and never writes to the main session history. The inverse of a subagent: full context, no tools.
-
-- `/btw what does calculate_metrics return here?`
-- `/btw` — open an empty side-thread and type the first question in the modal
-
-Context handed to the side agent: structured main-session messages from pi's session context (preserving roles/tool-results better than a flattened transcript) **and** the project context the main agent sees — cwd, any custom/appended system prompt, and loaded context files (AGENTS.md / CLAUDE.md). It cannot see the half-written in-flight turn (not yet finalized into the session) and long project context is trimmed.
-
-In the overlay:
-
-- **Enter** with text — ask a follow-up (the side thread keeps its own history for continuity)
-- **Enter** on an empty input — paste the **last answer** into the main editor and close
-- **Esc** — close without pasting (cancels any in-flight turn)
-
-An animated `⠹ Answering…` indicator shows while a turn runs. The overlay is modal (captures input), so there's only ever one `/btw` at a time. The main agent task keeps running in the background regardless, and the side thread has its own abort signal: pressing Esc to stop the main turn won't cancel `/btw`, and vice versa. Outside the TUI it falls back to a single-shot answer via notification.
-
-Uses the current session model for full context awareness, falling back to any model with configured auth.
-
 ### `/answer` — answer the agent's questions interactively
 
-When the agent ends a turn by asking you several questions, `/answer` (or `Ctrl+.`) extracts them and walks you through answering them in a modal, then sends the compiled answers back as one message. A small/fast model extracts the questions as JSON (chosen model shown in loader/notification, with serial fallback on failure); the modal (same look/feel as `/btw` — framing rules, title bar, progress dots) shows one question at a time with a multi-line editor.
+When the agent ends a turn by asking you several questions, `/answer` (or `Ctrl+.`) extracts them and walks you through answering them in a modal, then sends the compiled answers back as one message. A small/fast model extracts the questions as JSON (chosen model shown in loader/notification, with serial fallback on failure); the modal (framing rules, title bar, progress dots) shows one question at a time with a multi-line editor.
 
 - **Enter** — next question (or submit on the last)
 - **Shift+Enter** — newline in the answer
