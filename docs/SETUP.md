@@ -16,9 +16,6 @@ Pick the section that matches your starting state:
 git clone https://github.com/martintrojer/dotfiles ~/dotfiles
 cd ~/dotfiles
 ./dotfiles-sync --apply
-# Then run the manual steps the script prints:
-#   - Codex notify hook (one TOML line in ~/.codex/config.toml)
-#   - Cursor stop hook (linked hooks.json, or merge on conflict)
 ```
 
 The sections below cover each step and the available upgrade paths.
@@ -30,14 +27,9 @@ The sections below cover each step and the available upgrade paths.
 - Links the dotfile packages that match the current OS and distro.
 - Clones the pinned zsh plugins into `~/.local/share/zsh-plugins/`.
 - Clones TPM (tmux plugin manager) into `~/.tmux/plugins/tpm/` at the pinned ref. Install the tmux plugins listed in `.tmux.conf` once with `prefix + I` inside tmux.
-- Links `dotfiles/skills/.agents/skills/*` into `~/.agents/skills/` (the universal path read by Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw). Each skill lands as one directory symlink.
+- Links `dotfiles/skills/.agents/skills/*` into `~/.agents/skills/` (the universal path read by Pi and other agents). Each skill lands as one directory symlink.
 - Links `dotfiles/pi/.pi/agent/extensions/*.ts` into `~/.pi/agent/extensions/` (Pi auto-discovers these).
 - Prunes stale links when you remove a skill or Pi extension from the repo.
-
-After `--apply` completes, it prints two manual follow-ups:
-
-1. Add the printed `notify = [...]` line to `~/.codex/config.toml`. `--apply` does not rewrite the user's TOML for one line.
-2. Confirm `~/.cursor/hooks.json` is the linked Cursor stop hook (or merge the printed `murmur notify --source cursor` command if `--apply` reported a conflict).
 
 ## Upgrading from an older setup
 
@@ -175,74 +167,7 @@ cd ~/.tmux/plugins/tpm && git describe --tags --exact-match HEAD
 
 The `~/.tmux/plugins/<other-plugins>/` directories (the actual @plugin entries listed in `.tmux.conf`) are still owned by TPM and updated via `prefix + U` inside tmux. Don't touch those.
 
-### 6. Codex notify hook (repoint at murmur)
-
-The hook invoked `agent-attention`, which no longer exists. murmur now has the
-`notify` verb this section used to say was missing, so the line is repaired
-rather than deleted: codex keeps its tmux attention.
-
-Detect:
-
-```bash
-grep -n 'notify = .*agent-attention' ~/.codex/config.toml 2>/dev/null
-```
-
-Action:
-
-If it prints, replace that line with:
-
-```toml
-notify = ["murmur", "notify", "--source", "codex"]
-```
-
-No bare `sh -lc` wrapper: Codex appends the event JSON as one more argument,
-and `sh -lc '<script>' <arg>` puts that argument in `$0` rather than `$1` —
-murmur never sees which event fired. Absolute path if `murmur` is not on the
-hook's PATH. Drop `--title Codex` if you still have it; the message falls back
-to the payload.
-
-Verify it from inside a tmux pane, because a silent failure here is the whole
-hazard — a notify hook's output goes nowhere:
-
-```bash
-murmur notify --source probe --message reachable && murmur status
-murmur clear --pane "$TMUX_PANE"
-```
-
-If that reports `murmur: not found`, the hook cannot find it either. A notify
-hook inherits the PATH of whatever launched the harness — a terminal usually
-has your npm prefix; a launcher, daemon, or GUI often does not. Use the
-absolute path from `command -v murmur` in that case.
-
-opencode notifies murmur through mu-crew/dotfiles' TUI plugin
-(`opencode/plugins/murmur/tui.ts` in the pinned clone).
-`opencode/.config/opencode/plugins/murmur/tui.ts` here is a shim that re-exports
-it, because opencode only loads TUI plugins from `plugins/<name>/`. It needs
-`@opencode/plugin` 2.x in `~/.config/opencode` and no other setup.
-
-### 7. Cursor CLI stop hook
-
-The `cursor` package links `~/.cursor/hooks.json` so interactive `agent`
-sessions notify murmur on turn end. After `--apply`:
-
-```bash
-ls -la ~/.cursor/hooks.json
-# expect a symlink into ~/dotfiles/cursor/.cursor/hooks.json
-```
-
-Verify from a tmux pane (hooks inherit that PATH and `$TMUX_PANE`):
-
-```bash
-echo '{"hook_event_name":"stop","status":"completed"}' | murmur notify --source cursor
-murmur status
-murmur clear --pane "$TMUX_PANE"
-```
-
-If you already had a real `~/.cursor/hooks.json`, `--apply` will report a
-conflict — merge the `stop` entry from the package into yours, or move yours
-aside and re-apply.
-
-### 8. Wallpaper cache (Linux only)
+### 6. Wallpaper cache (Linux only)
 
 The lock-screen rendering moved from `~/.cache/lock-screen/` into the wallpaper helper at `~/.cache/wallpaper/`. The old cache is orphaned but harmless.
 
@@ -268,7 +193,7 @@ swaywardlock now blurs the wallpaper itself, so the pre-rendered
 rm -f ~/.cache/wallpaper/*.lock-v*.png
 ```
 
-### 9. niri → sway (Linux only)
+### 7. niri → sway (Linux only)
 
 If a Linux machine was running niri, this is a desktop-stack switch, not a config update — see [`DECISIONS.md` § niri](./DECISIONS.md) for the rationale and [Sway School](https://martintrojer.github.io/sway-school/) for a tree-first sway tutorial.
 
@@ -291,7 +216,7 @@ Old niri config under `~/.config/niri/` is harmless to leave in place — sway d
 rm -rf ~/.config/niri
 ```
 
-### 10. macOS-specific cleanup
+### 8. macOS-specific cleanup
 
 macOS machines should run items 1 through 7 above as relevant. Only the wallpaper/niri items are Linux-only no-ops on macOS.
 
@@ -361,7 +286,7 @@ Two recipes. Different intents:
 - **Recipe 1** (`--target=` against a temporary path): a fast dry-run of the install path. No container, no shell, just inspect what `--apply` would write into a fake `$HOME`.
 - **Recipe 2** (podman with fake `$HOME`): an interactive debug shell with `--apply` already done. Use when something is broken and you want to poke at it on a clean machine.
 
-Neither recipe exercises the manual Codex follow-up. The Pi/Codex CLIs resolve home-relative paths internally and would still touch your real `~/.pi/`, `~/.codex/`, etc. — plus they're not in the bare `fedora:latest` image. If you want to test that flow, install the CLIs first inside the container and add the Codex `notify = [...]` line by hand inside the container.
+Neither recipe exercises the agent CLIs. They resolve home-relative paths internally and would still touch your real `~/.pi/` etc. — plus they're not in the bare `fedora:latest` image.
 
 ### Recipe 1: `--target` against a temporary path (5 seconds)
 

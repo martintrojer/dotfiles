@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Link the type packages `make check-ts` needs into a repo-root node_modules.
 
-The TypeScript here (pi extensions, the opencode shim) is loaded by globally
+The TypeScript here (pi extensions) is loaded by globally
 installed hosts, so the repo has no package.json and no installed deps. tsc
 resolves bare specifiers by walking up from the source file into node_modules
 and never looks in the npm global prefix, so build a symlink farm at the repo

@@ -27,7 +27,6 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "mise",
             "murmur",
             "nvim",
-            "opencode",
             "pi",
             "ramble",
             "skills",
