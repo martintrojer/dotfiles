@@ -1,41 +1,11 @@
 # Cursor
 
-User-level Cursor Agent hooks for [murmur](https://github.com/mu-crew/murmur)
-attention.
-
-## What this package links
-
-| Path | Role |
-| --- | --- |
-| `~/.cursor/hooks.json` | `stop` → `murmur notify --source cursor` |
-
-Cursor writes the stop payload on stdin (`hook_event_name` + `status`). murmur
-maps `completed` → `done` and `aborted`/`error` → `blocked`. This is attention
-only — no pane ownership or crash detection (see murmur's README).
-
-## Requirements
-
-- murmur on PATH for the process that launches `agent` (usually your terminal)
-- agent running inside tmux (`$TMUX_PANE`)
-- interactive `agent` sessions; non-interactive `agent -p` may omit `stop`
-
-## Verify
-
-```bash
-echo '{"hook_event_name":"stop","status":"completed"}' | murmur notify --source cursor
-murmur status
-murmur clear --pane "$TMUX_PANE"
-```
-
-`./dotfiles-sync --check` fails if `~/.cursor/hooks.json` exists and its `stop`
-hooks do not call murmur.
-
-## Agent approval
+Cursor Agent CLI settings. Nothing here is linked.
 
 `~/.cursor/cli-config.json` stays the CLI's file. It holds auth, the model
 picker, and caches, so a tracked copy would commit account data and churn on
-every launch. This repo owns one key: `approvalMode: "unrestricted"` (Run
-Everything, the same as `--force` / `--yolo`). `--check` reports drift;
-`--apply` merges that key in and leaves the rest alone. A machine with no
-`cli-config.json` yet gets a file containing only that key; the CLI fills its
-defaults on the next launch.
+every launch. This repo owns one key, in `_dotfiles_sync/cursor_settings.py`:
+`approvalMode: "unrestricted"` (Run Everything, the same as `--force` /
+`--yolo`). `--check` reports drift; `--apply` merges that key in and leaves the
+rest alone. A machine with no `cli-config.json` yet gets a file containing only
+that key; the CLI fills its defaults on the next launch.

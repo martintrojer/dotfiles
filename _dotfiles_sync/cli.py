@@ -19,8 +19,6 @@ from .external import (
 from .fedora_systemd import apply_fedora_systemd_masks, check_fedora_systemd_masks
 from .integration_checks import (
     check_brew_python,
-    check_codex_notify,
-    check_cursor_notify,
     check_mu_crew_dotfiles,
     check_murmur,
     check_tmux_tpm,
@@ -200,19 +198,6 @@ def run_check_tasks(
             TaskPolicy(packages=frozenset({"cursor"})),
             lambda: check_cursor_settings(target, verbose=verbose, ignore=ignore),
         ),
-        # Not tied to a package: ~/.codex/config.toml is codex's own file,
-        # not something this repo links, so this runs everywhere and returns
-        # clean on a machine with no codex.
-        (
-            TaskPolicy(),
-            lambda: check_codex_notify(target, verbose=verbose, ignore=ignore),
-        ),
-        # hooks.json may be linked by the cursor package, or hand-written. Either
-        # way a stop hook that does not call murmur fails silently on every turn.
-        (
-            TaskPolicy(),
-            lambda: check_cursor_notify(target, verbose=verbose, ignore=ignore),
-        ),
         # Not tied to a package: every linked Python script needs it. No-op
         # off macOS.
         (
@@ -350,10 +335,8 @@ def main() -> int:
             full_run=full_run,
             verbose=args.verbose,
         )
-        if full_run:
-            print_post_apply_hints()
-        # Hints go to stdout, the report below to stderr (logging); flush so a
-        # pipe or file keeps the problems last, where they are seen.
+        # Apply output goes to stdout, the report below to stderr (logging);
+        # flush so a pipe or file keeps the problems last, where they are seen.
         sys.stdout.flush()
 
     # --apply ends with the same pass --check runs, so both report the same
@@ -393,28 +376,3 @@ def main() -> int:
         return 1
     print("\nDone.")
     return 0
-
-
-def print_post_apply_hints() -> None:
-    print()
-    print(
-        "Skills and pi extensions are now symlinked at "
-        "~/.agents/skills/ and ~/.pi/agent/extensions/."
-    )
-    print(
-        "Codex / OpenCode / Pi / Cursor / OpenClaw / etc. read those "
-        "paths automatically."
-    )
-    print()
-    print("Two manual murmur notify steps remain (skip if already configured):")
-    print()
-    print("  # 1. Codex — add this line to ~/.codex/config.toml:")
-    print('  notify = ["murmur", "notify", "--source", "codex"]')
-    print()
-    print(
-        "  # 2. Cursor CLI — ~/.cursor/hooks.json is linked by the cursor "
-        "package; if --apply reported a conflict, merge this stop command "
-        "into your existing file:"
-    )
-    print('  {"command": "murmur notify --source cursor"}')
-    print()

@@ -103,7 +103,7 @@ This config does not save or restore tmux state across reboots. The workflow is 
 - `detach-on-destroy off` keeps sessions sticky within a running tmux server, so accidental window closes don't kick you out.
 - Neovim's `shada` restores oldfiles, registers, global marks, and command/search history across restarts. Buffer lists and window layouts are **not** persisted — use `<leader>fo` (recent files) to re-enter.
 - Shell history is global via zsh.
-- Agent CLIs (`codex`, `opencode`, `pi`) keep their conversation state in their own session stores, not in tmux pane state.
+- Agent CLIs (`pi`, `agent`) keep their conversation state in their own session stores, not in tmux pane state.
 
 ### `tsesh` config
 
@@ -194,14 +194,8 @@ reports that gap as `UNREACHABLE`.
 **pi** is first-class: murmur's extension runs in-process and pushes activity,
 so `running`, `done`, and crash detection are real rather than inferred.
 
-**codex, opencode, and Cursor CLI** use `murmur notify` (attention only — no
-ownership or crash detection). This repo wires:
-
-| Harness | Where |
-| --- | --- |
-| codex | `notify = [...]` in `~/.codex/config.toml` (manual; snippet in mu-crew/dotfiles `codex/config.toml`) |
-| opencode | `opencode/.config/opencode/plugins/murmur/tui.ts`, a shim re-exporting mu-crew/dotfiles' `opencode/plugins/murmur/tui.ts` (TUI plugin, runs in the terminal so `$TMUX_PANE` is right) |
-| Cursor CLI | `cursor/.cursor/hooks.json` → `stop` → `murmur notify --source cursor` |
+Other harnesses can report attention with `murmur notify`; mu-crew/dotfiles
+carries hook snippets for them. This repo wires none.
 
 mu-managed pi panes (`MU_MANAGED_AGENT=1`) clear on `agent_end` rather than
 showing `done`, and murmur records them as `driver = orchestrated` so pick and

@@ -16,9 +16,9 @@ live here under `.local/bin/`.
 - Busy lock: exits with code `100` and prints ` [name] lock active at [project-root]`
 
 Examples:
-- `solo codex`
+- `solo pi`
 - `solo -n review claude`
-- `solo --force -n planner opencode`
+- `solo --force -n planner pi`
 
 `bubba-lfs-curl-push` uploads Git LFS objects to a Bubba/Forgejo remote through `curl`, then optionally pushes Git refs with `GIT_LFS_SKIP_PUSH=1`. It is a workaround for repos where SSH Git access and `git-lfs-authenticate` work, but the `git-lfs` client's Go HTTP stack cannot connect to Bubba.
 

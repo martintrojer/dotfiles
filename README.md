@@ -33,7 +33,6 @@ If a new tool violates more than one rule, it does not belong here.
 git clone https://github.com/martintrojer/dotfiles ~/dotfiles
 cd ~/dotfiles
 ./dotfiles-sync --apply
-# Then follow the manual steps it prints (Codex + Cursor murmur notify hooks).
 ```
 
 [`docs/SETUP.md`](./docs/SETUP.md) covers installation, updates, isolated tests, and cleanup on machines that run an older version of the repo.
@@ -59,7 +58,7 @@ Most top-level directories are packages mirroring `$HOME`. The notable exception
 
 The repo doubles as a multi-target agent source. Distribution model:
 
-- **Handled by `--apply`:** `skills/.agents/skills/<name>/` and `pi/.pi/agent/extensions/*.ts` link into `~/.agents/skills/` and `~/.pi/agent/extensions/`. Codex, OpenCode, Pi, Cursor, Amp, Cline, Warp, OpenClaw all read these paths natively. Edits in the repo show up live. Skills are a `bundle_dirs` package so each skill links as one directory symlink (vendored README/LICENSE ride along); pi extensions link per-file. Pi helper modules (such as `_lib.ts`) must export a harmless default because pi may auto-load them.
+- **Handled by `--apply`:** `skills/.agents/skills/<name>/` and `pi/.pi/agent/extensions/*.ts` link into `~/.agents/skills/` and `~/.pi/agent/extensions/`. Pi and other agents read these paths natively. Edits in the repo show up live. Skills are a `bundle_dirs` package so each skill links as one directory symlink (vendored README/LICENSE ride along); pi extensions link per-file. Pi helper modules (such as `_lib.ts`) must export a harmless default because pi may auto-load them.
 
 Why this works: `~/.agents/skills/` is the universal path *all* the agents already read, so linking there covers everyone in one move.
 

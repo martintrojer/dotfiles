@@ -95,7 +95,7 @@ help:
 	  '  make check-desktop-tests # focused fuzzel/sway/waybar script regression tests' \
 	  '  make theme             # render docs/palette.toml into every THEME BEGIN..END region' \
 	  '  make check-theme       # renderer behavior tests + theme regions in sync with docs/palette.toml' \
-	  '  make check-ts          # tsc --noEmit on pi extensions + opencode plugin' \
+	  '  make check-ts          # tsc --noEmit on pi extensions' \
 	  '  make check-ts-tests    # node --test on the pi extension helper tests' \
 	  '  make format-ts         # alias for format-prettier' \
 	  '  make build-guides      # render guides/*.md → guides/build/*.html' \
