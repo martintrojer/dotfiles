@@ -8,7 +8,7 @@
  */
 
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { Api, AssistantMessage, Message, Model, ProviderHeaders } from "@earendil-works/pi-ai";
+import type { Api, AssistantMessage, Model, ProviderHeaders } from "@earendil-works/pi-ai";
 import { exec } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -17,8 +17,8 @@ import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
 // Glyphs the extension UI draws. Generated from docs/glyphs.toml -- edit
-// there, run `make theme`. Selection circles (answer.ts) and the Braille
-// spinner (btw.ts) stay local: they are structural furniture, not vocabulary.
+// there, run `make theme`. Selection circles (answer.ts) stay local: they are
+// structural furniture, not vocabulary.
 // THEME BEGIN: pi-glyphs
 export const GLYPH = {
 	refresh: "",
@@ -115,11 +115,6 @@ export function textContent(content: AssistantMessage["content"]): string {
 		.trim();
 }
 
-/** Keep conversation history while letting the caller own the prompt and tools. */
-export function withoutSystemMessages(messages: Message[]): Message[] {
-	return messages.filter((message) => message.role !== "system");
-}
-
 // Structural, deliberately minimal: it names only the fields these extensions
 // actually read, so the SDK adding more to ResolvedRequestAuth (it has already
 // gained baseUrl/env) cannot break us again. ProviderHeaders is imported rather
@@ -135,7 +130,7 @@ export interface ModelPickerContext {
 }
 
 // Fast/reliable model tiers for lightweight meta-work (question extraction,
-// goal checks). Avoid size-only hints like "4b": those tend to select local
+// goal checks, session names). Avoid size-only hints like "4b": those tend to select local
 // Ollama models that are cheap but less reliable for strict JSON/judgment.
 // Haiku leads: current Haiku is fast, cheap and reliable enough for meta-work.
 // Within a tier the picker prefers the newest version (e.g. sonnet-5 > 4.6).
@@ -179,7 +174,7 @@ function compareVersionDesc(a: Model<Api>, b: Model<Api>): number {
 	return 0;
 }
 
-export function modelLabel(model: Model<Api>): string {
+function modelLabel(model: Model<Api>): string {
 	return `${model.provider}/${model.id}`;
 }
 
@@ -243,7 +238,7 @@ function lastSuccess(state: FastModelState, task: string, m: Model<Api>): number
 	return recordFor(state, task, m)?.lastSuccess ?? 0;
 }
 
-export function markModelFailure(task: string, model: Model<Api>): void {
+function markModelFailure(task: string, model: Model<Api>): void {
 	const state = readFastModelState();
 	const records = taskRecords(state, task);
 	const label = modelLabel(model);
@@ -251,7 +246,7 @@ export function markModelFailure(task: string, model: Model<Api>): void {
 	writeFastModelState(state);
 }
 
-export function markModelSuccess(task: string, model: Model<Api>): void {
+function markModelSuccess(task: string, model: Model<Api>): void {
 	const state = readFastModelState();
 	const records = taskRecords(state, task);
 	const label = modelLabel(model);
@@ -259,22 +254,9 @@ export function markModelSuccess(task: string, model: Model<Api>): void {
 	writeFastModelState(state);
 }
 
-export async function pickSessionModel(
-	ctx: ModelPickerContext,
-): Promise<{ model: Model<Api>; apiKey: string; headers?: ProviderHeaders } | null> {
-	const candidates: Model<Api>[] = [];
-	if (ctx.model) candidates.push(ctx.model);
-	candidates.push(...ctx.modelRegistry.getAvailable());
-	for (const m of candidates) {
-		const a = await ctx.modelRegistry.getApiKeyAndHeaders(m);
-		if (a?.ok && a.apiKey) return { model: m, apiKey: a.apiKey, headers: a.headers };
-	}
-	return null;
-}
-
 export type PickedModel = { model: Model<Api>; apiKey: string; headers?: ProviderHeaders };
 
-export async function pickFastModels(ctx: ModelPickerContext, task = "default"): Promise<PickedModel[]> {
+async function pickFastModels(ctx: ModelPickerContext, task = "default"): Promise<PickedModel[]> {
 	const available = ctx.modelRegistry.getAvailable();
 	const state = readFastModelState();
 	const seen = new Set<string>();

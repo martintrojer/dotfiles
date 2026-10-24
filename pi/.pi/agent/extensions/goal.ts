@@ -104,7 +104,7 @@ async function runChecker(
 	const outcome = await withFastModelFallback(ctx, "goal.check", async (picked) => {
 		const { model, apiKey, headers } = picked;
 		if (ctx.signal?.aborted) throw new FastModelCancelled();
-		// Pass ctx.signal on purpose (unlike btw.ts): the checker IS part of the main
+		// Pass ctx.signal on purpose: the checker IS part of the main
 		// goal loop, so if the user aborts the agent the checker should abort too.
 		let response;
 		try {

@@ -3,7 +3,7 @@
  * them in an interactive modal, then send the compiled answers back.
  *
  * A clean reimplementation: a fast model extracts questions as JSON, then a
- * modal (same look/feel as /btw — framing rules, title bar, themed colors)
+ * modal (framing rules, title bar, themed colors)
  * walks you through them one at a time with a multi-line editor. On submit it
  * sends a single user message with all the Q/A pairs. Extraction prefers a
  * small/fast model and falls back across ranked candidates on failure. The model
@@ -35,7 +35,7 @@ import {
 } from "@earendil-works/pi-tui";
 import { FastModelCancelled, lastCompletedAssistantText, textContent, withFastModelFallback } from "./_lib.ts";
 
-interface Question {
+export interface Question {
 	question: string;
 	context?: string;
 	/** The marker the assistant used for this question verbatim (e.g. "1", "a)", "iii."), if any. */
@@ -48,7 +48,11 @@ Output ONLY a JSON object:
 {"questions": [{"label": "original marker, if any", "question": "...", "context": "optional essential context"}]}
 
 Rules:
-- Include every question that requires user input, in order.
+- Include every question that requires user input, in order. A question that
+  comes with the assistant's recommended answer (a "➡️" line, "I recommend",
+  "I lean") still requires input: the user confirms or overrides it. Never drop
+  a question because a recommendation is attached, or because the assistant
+  says only one of them is still open.
 - If the assistant numbered or labeled its questions (1/2/3, a)/b)/c), bullets,
   "First.../Second...", etc.), copy that marker VERBATIM into "label" so answers
   can be matched back unambiguously. Use the assistant's own scheme — don't
@@ -107,6 +111,28 @@ function parseQuestions(text: string): Question[] | null {
 	}
 }
 
+// Question markers a fast model must not miss: the brainstorm skill's "❓"
+// lead-in, or a numbered "Q6"/"Q12". Cheap to over-match: a hit only means an
+// empty extraction is retried on the next model instead of believed.
+const QUESTION_MARKER = /❓|\bQ\d+\b/;
+
+/**
+ * An empty extraction from text that visibly asks questions is a model miss
+ * (cheap extractors drop them), not an answer: throw so the fallback tries the
+ * next model. Questions found, or no markers, pass through.
+ */
+export function checkExtraction(questions: Question[], source: string): Question[] {
+	if (questions.length === 0 && QUESTION_MARKER.test(source))
+		throw new Error("Extractor found no questions in a message with question markers.");
+	return questions;
+}
+
+/** Modal/reply prefix. Labels like "Q6" already carry the Q; don't print "Q Q6". */
+export function questionPrefix(label: string | undefined): string {
+	if (!label) return "Q: ";
+	return /^q/i.test(label) ? `${label} ` : `Q ${label} `;
+}
+
 type ExtractOutcome =
 	{ kind: "ok"; questions: Question[]; model: string } | { kind: "cancelled" } | { kind: "error"; message: string };
 
@@ -143,7 +169,7 @@ async function extractQuestions(ctx: ExtensionContext, source: string): Promise<
 				const text = textContent(response.content);
 				const questions = parseQuestions(text);
 				if (!questions) throw new Error("Extractor returned invalid JSON.");
-				return questions;
+				return checkExtraction(questions, source);
 			});
 
 			if (outcome.kind === "ok") return finish({ kind: "ok", questions: outcome.result, model: outcome.model });
@@ -158,7 +184,7 @@ type AnswerResult = { answers: string } | { cancelled: true };
 
 /**
  * Interactive Q&A modal. One question at a time with a multi-line editor;
- * a progress dot row shows answered/current/pending. Framed like /btw.
+ * a progress dot row shows answered/current/pending.
  *
  * Implements the focus contract: pi calls setFocus() on the returned component,
  * so we forward focus + keystrokes to the embedded Editor.
@@ -210,8 +236,7 @@ function buildQnA(questions: Question[]) {
 			questions.forEach((q, i) => {
 				// Prefix with the assistant's own marker (verbatim) when present so it can
 				// match answers back to its original numbering/lettering unambiguously.
-				const q_label = q.label ? `Q ${q.label} ` : "Q: ";
-				parts.push(`${q_label}${q.question}`, `A: ${answers[i].trim() || "(no answer)"}`, "");
+				parts.push(`${questionPrefix(q.label)}${q.question}`, `A: ${answers[i].trim() || "(no answer)"}`, "");
 			});
 			done({ answers: parts.join("\n").trim() });
 		}
@@ -276,8 +301,9 @@ function buildQnA(questions: Question[]) {
 			const qBox = new Box(1, 0, (s) => t.bg("userMessageBg", s));
 			// Show the assistant's own marker (verbatim) when present, so the modal
 			// matches the numbering the user saw in the original message.
-			const qPrefix = q.label ? `Q ${q.label} ` : "Q: ";
-			qBox.addChild(new Text(t.fg("text", t.bold(qPrefix)) + t.fg("userMessageText", q.question), 0, 0));
+			qBox.addChild(
+				new Text(t.fg("text", t.bold(questionPrefix(q.label))) + t.fg("userMessageText", q.question), 0, 0),
+			);
 			if (q.context) qBox.addChild(new Markdown(q.context, 0, 0, mdTheme, { color: (s) => t.fg("muted", s) }));
 			for (const line of qBox.render(width)) add(line, lines);
 			lines.push("");
