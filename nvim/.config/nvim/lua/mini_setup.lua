@@ -30,6 +30,18 @@ indentscope.setup({
 	draw = { animation = indentscope.gen_animation.none() },
 })
 require("mini.trailspace").setup()
+vim.api.nvim_create_autocmd("BufWritePre", {
+	desc = "Trim trailing whitespace and blank lines at EOF",
+	callback = function()
+		if not vim.bo.modifiable or vim.bo.binary then
+			return
+		end
+		local view = vim.fn.winsaveview()
+		vim.cmd([[silent keeppatterns %s/\s\+$//e]])
+		vim.cmd([[silent keeppatterns %s/\n\+\%$//e]])
+		vim.fn.winrestview(view)
+	end,
+})
 require("mini.tabline").setup({
 	tabpage_section = "right",
 })
