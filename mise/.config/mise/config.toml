@@ -16,6 +16,8 @@ GOBIN = "{{env.HOME}}/go/bin"
 
 [tools]
 bat = "latest"
+# Cursor Agent CLI (`cursor-agent`). Settings: cursor/README.md.
+cursor-cli = "latest"
 eza = "latest"
 fastfetch = "latest"
 fd = "latest"
@@ -36,6 +38,9 @@ neovim = "latest"
 # Pinned to a major, not latest: global npm installs live in ~/.local (see
 # [env]) and survive bumps, but native addons can break on a new major's ABI.
 node = "26"
+# OpenCode 2 (npm:@opencode/cli). allow_builds lets its postinstall fetch the
+# platform binary; mise's npm backend skips lifecycle scripts by default.
+opencode = { version = "latest", allow_builds = ["@opencode/cli"] }
 # prettier/shellcheck/stylua are here for editor format-on-save, bashls linting
 # and ad-hoc CLI
 # use. The repo's `make check-*` gate does not use them: it pins its own
