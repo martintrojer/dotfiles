@@ -117,19 +117,30 @@ Uses a small/fast model to generate a short friendly title for the current sessi
 - `/namesession` — generate/replace a title from the current transcript
 - `/namesession auth cleanup` — optional hint to steer the title
 
-### `brave_search` — Brave LLM Context tool
+### `web_search` — Brave / Tavily / Exa, muxed
 
-Adds the model-callable `brave_search` tool: the LLM Context API (`/res/v1/llm/context`) for extracted page snippets and source metadata ready for LLM grounding. The news, image and video search tools were dropped on 2026-10-19 (one call in 434 sessions).
+Adds one model-callable `web_search` tool (`query`, `count`, `maxTokens`, `domains`, `freshness`) over three vendors, so one vendor's monthly cap no longer kills search. Each call picks a random vendor with a key, tries the others one at a time only if it fails, and never fans out. A 200 with zero results counts as success.
 
-`brave_search` supports context-budget controls (`maxTokens`, `maxUrls`, snippet/token per-URL limits), `contextThresholdMode`, Goggles, freshness, and explicit local-recall/location parameters.
-
-Set the `BRAVE_SEARCH_API_KEY` environment variable before starting pi (e.g. via your shell profile or a secrets manager):
+Set any subset of the keys before starting pi; vendors without a key are skipped, and with none the tool is not registered:
 
 ```bash
-export BRAVE_SEARCH_API_KEY="your-brave-search-api-key"
+export BRAVE_SEARCH_API_KEY=...   # Brave LLM Context
+export TAVILY_API_KEY=...         # 1,000 free searches/month
+export EXA_API_KEY=...            # $10 free credit/month
 ```
 
-Then ask for web/current information normally; the model can call `brave_search` and cite returned URLs. Ask specifically for news, images, or videos when you want the model to use those specialized Brave tools.
+Quota errors (Brave/Exa 402, Tavily 432/433) mark the vendor out for 24 h; 429 for 60 s. Marked vendors are tried last, not never. Markers live in `~/.pi/agent/extension-state/web-search.json`, shared by every pi session; delete the file (or one entry) to reset. Each attempt has a 30 s deadline.
+
+`domains` takes hostnames or host/path prefixes. Tavily and Exa honour the path; Brave uses `site:` operators, which match the host only.
+
+Usage and failure trends come from the session logs: each result's `details` records `vendor` (absent when every vendor failed) and `attempts`.
+
+```bash
+# answering vendor (or all-failed), then each failed attempt as vendor:class
+cat ~/.pi/agent/sessions/*/*.jsonl | jq -r 'select(.message.toolName? == "web_search") | .message.details // empty
+  | (.vendor // "all-failed"), (.attempts[] | select(.class) | "\(.vendor):\(.class)")' | sort | uniq -c | sort -rn
+```
+
 ### `refusal` — bypassing a refused check gets nudged
 
 No command, no model. When a gate rejects a bash command and the next attempt at
@@ -176,7 +187,7 @@ invocation at all.
 
 ## Tests
 
-`.pi/agent/extensions/tests/lib.test.ts` covers the pure helpers in `_lib.ts` (`parseInterval`, `formatInterval`, `blockText`, `conversationTranscript`, `expandProbe`). `tests/refusal.test.ts` covers `refusal.ts`'s four matchers, weighted toward the negative cases — a legitimate `--force`, `find -name`, and a plain `command not found` must all stay silent. Run them with `make check-ts-tests`, which is part of `make check-all`.
+`.pi/agent/extensions/tests/lib.test.ts` covers the pure helpers in `_lib.ts` (`parseInterval`, `formatInterval`, `blockText`, `conversationTranscript`, `expandProbe`). `tests/web-search.test.ts` covers `web-search.ts`'s vendor selection, error classification and quota markers, and `tests/web-search-wiring.test.ts` drives the real tool with `fetch` mocked to pin marker persistence and that a broken state directory never aborts failover — the failures another vendor would silently paper over. `tests/refusal.test.ts` covers `refusal.ts`'s four matchers, weighted toward the negative cases — a legitimate `--force`, `find -name`, and a plain `command not found` must all stay silent. Run them with `make check-ts-tests`, which is part of `make check-all`.
 
 No runner dependency and no `package.json`: node strips the TS types itself, so `node --test` runs the files directly. The `tests/` directory is never linked into `$HOME` — `tests` is in `NAME_PATTERNS` (`_dotfiles_sync/ignore.py`), so pi never sees it as an extension.
 
