@@ -131,6 +131,8 @@ export EXA_API_KEY=...            # $10 free credit/month
 
 Quota errors (Brave/Exa 402, Tavily 432/433) mark the vendor out for 24 h; 429 for 60 s. Marked vendors are tried last, not never. Markers live in `~/.pi/agent/extension-state/web-search.json`, shared by every pi session; delete the file (or one entry) to reset. Each attempt has a 30 s deadline.
 
+Results are treated as untrusted: invisible characters (zero-width, bidi controls, Unicode tag characters) are stripped, and the vendor text sits inside an `<untrusted_web_content>` fence with a "data, not instructions" note; any copy of the marker inside a page is defused so it can't close the fence early. No vendor filters prompt injection (their safe-search flags are adult-content filters), so this is friction, not a barrier.
+
 `domains` takes hostnames or host/path prefixes. Tavily and Exa honour the path; Brave uses `site:` operators, which match the host only.
 
 Usage and failure trends come from the session logs: each result's `details` records `vendor` (absent when every vendor failed) and `attempts`.
