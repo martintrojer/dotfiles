@@ -153,7 +153,7 @@ default = "split"
 # left | right: the screen edge the sidebar sits at (:Sidebar left|right
 # switches it). C-w h / C-h and C-w l / C-l follow the screen: on the
 # right, C-l goes to the sidebar.
-# side = "left"
+side = "right"
 
 
 # ── Keys ────────────────────────────────────────────────────────────────────
