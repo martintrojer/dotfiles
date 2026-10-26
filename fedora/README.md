@@ -31,7 +31,8 @@ Order for a fresh install:
 3. `../mise/setup-mise.sh` — install userland tools with `mise`.
 4. `config/setup-zram.sh` — install the zram swap + VM tuning.
 5. `config/setup-resolved.sh` — allow single-label LAN hostname lookups.
-6. `os/setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
+6. `config/setup-tmp.sh` — cap the `/tmp` tmpfs at 4G.
+7. `os/setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
 
 For gaming, streaming, RGB, and controller/hardware fixes, see
 [`gaming/README.md`](./gaming/README.md).
@@ -88,6 +89,7 @@ in this table, it is drift and gets removed or added here.
 | --- | --- | --- |
 | `systemd/zram-generator.conf`, `sysctl.d/99-zram-sysctl.conf` | `config/setup-zram.sh` | zram-only swap; see [Swap](#swap-zram) |
 | `systemd/resolved.conf.d/90-single-label.conf` | `config/setup-resolved.sh` | bare LAN hostnames; see [LAN Hostnames](#lan-hostnames-systemd-resolved) |
+| `systemd/system/tmp.mount.d/90-size.conf` | `config/setup-tmp.sh` | 4G `/tmp` cap; see [/tmp size](#tmp-size) |
 | `systemd/system/flatpak-update.{service,timer}` + `timers.target.wants` link | `flatpak/setup-flatpak-update.sh` | no stock flatpak update timer on Sway Atomic |
 | `systemd/system/multi-user.target.wants/sshd.service` | manual `systemctl enable sshd` | ssh into this box from the LAN |
 | `udev/rules.d/10-trim.rules` | `~/hacking/rpi` bootstrap (`14-install-default-trim-udev-rule.sh`) | TRIM on RTL9210 USB-NVMe bridges, for the backup drive |
@@ -161,6 +163,22 @@ sysctls apply immediately; the device is only re-created at boot, because
 resizing a live zram swap means `swapoff` and the swapped-out pages have to fit
 back in RAM first. Verify with `zramctl`, `swapon --show`, and
 `sysctl vm.swappiness vm.page-cluster`.
+
+## /tmp size
+
+`/tmp` is a tmpfs, so every byte in it is RAM, and under pressure it goes to
+zram, which is RAM too. Fedora sizes it at 50% of RAM (16G here). Agents
+putting worktrees and cargo `target/` dirs there could take half the memory
+before anything failed. `config/tmp/90-size.conf` caps it at 4G, so a runaway
+writer gets `No space left on device` instead. Large scratch belongs in
+`/var/tmp`, which is disk-backed, survives reboots, and is cleaned after 30
+days (10 for `/tmp`).
+
+The drop-in's `Options=` replaces the stock line in
+`/usr/lib/systemd/system/tmp.mount` wholesale. It repeats every stock option
+and changes only `size=`; recheck it against `systemctl cat tmp.mount` after a
+major systemd update. The script also resizes the live mount, so no reboot is
+needed unless `/tmp` already holds more than 4G. Verify with `df -h /tmp`.
 
 ## LAN Hostnames (systemd-resolved)
 
