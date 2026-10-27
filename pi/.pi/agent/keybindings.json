@@ -1,4 +1,5 @@
 {
 	"$schema": "https://pi.dev/schemas/keybindings.schema.json",
-	"app.interrupt": "ctrl+c"
+	"app.interrupt": "ctrl+c",
+	"app.exit": []
 }
