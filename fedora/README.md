@@ -31,7 +31,7 @@ Order for a fresh install:
 3. `../mise/setup-mise.sh` — install userland tools with `mise`.
 4. `config/setup-zram.sh` — install the zram swap + VM tuning.
 5. `config/setup-resolved.sh` — allow single-label LAN hostname lookups.
-6. `config/setup-tmp.sh` — cap the `/tmp` tmpfs at 4G.
+6. `config/setup-tmp.sh` — put `/tmp` on disk (bind of `/var/tmp`); reboot after.
 7. `os/setup-toolbox.sh` (optional) — run inside a Fedora toolbox.
 
 For gaming, streaming, RGB, and controller/hardware fixes, see
@@ -89,7 +89,7 @@ in this table, it is drift and gets removed or added here.
 | --- | --- | --- |
 | `systemd/zram-generator.conf`, `sysctl.d/99-zram-sysctl.conf` | `config/setup-zram.sh` | zram-only swap; see [Swap](#swap-zram) |
 | `systemd/resolved.conf.d/90-single-label.conf` | `config/setup-resolved.sh` | bare LAN hostnames; see [LAN Hostnames](#lan-hostnames-systemd-resolved) |
-| `systemd/system/tmp.mount.d/90-size.conf` | `config/setup-tmp.sh` | 4G `/tmp` cap; see [/tmp size](#tmp-size) |
+| `systemd/system/tmp.mount.d/90-bind-var-tmp.conf` | `config/setup-tmp.sh` | disk-backed `/tmp`; see [/tmp on disk](#tmp-on-disk) |
 | `systemd/system/flatpak-update.{service,timer}` + `timers.target.wants` link | `flatpak/setup-flatpak-update.sh` | no stock flatpak update timer on Sway Atomic |
 | `systemd/system/multi-user.target.wants/sshd.service` | manual `systemctl enable sshd` | ssh into this box from the LAN |
 | `udev/rules.d/10-trim.rules` | `~/hacking/rpi` bootstrap (`14-install-default-trim-udev-rule.sh`) | TRIM on RTL9210 USB-NVMe bridges, for the backup drive |
@@ -164,21 +164,38 @@ resizing a live zram swap means `swapoff` and the swapped-out pages have to fit
 back in RAM first. Verify with `zramctl`, `swapon --show`, and
 `sysctl vm.swappiness vm.page-cluster`.
 
-## /tmp size
+## /tmp on disk
 
-`/tmp` is a tmpfs, so every byte in it is RAM, and under pressure it goes to
-zram, which is RAM too. Fedora sizes it at 50% of RAM (16G here). Agents
-putting worktrees and cargo `target/` dirs there could take half the memory
-before anything failed. `config/tmp/90-size.conf` caps it at 4G, so a runaway
-writer gets `No space left on device` instead. Large scratch belongs in
-`/var/tmp`, which is disk-backed, survives reboots, and is cleaned after 30
-days (10 for `/tmp`).
+Fedora mounts `/tmp` as a tmpfs at 50% of RAM. Every byte in it is RAM, and
+under pressure it goes to zram, which is RAM too. Agents park worktrees and
+cargo `target/` dirs in `/tmp`, so a tmpfs either eats memory or, capped
+smaller, fills and fails builds. `config/tmp/90-bind-var-tmp.conf` keeps
+`tmp.mount` but changes what it mounts: `/var/tmp` bind-mounted over `/tmp`,
+`nosuid,nodev` as before. `/tmp` is then the `/var` btrfs, with no RAM cost.
 
-The drop-in's `Options=` replaces the stock line in
-`/usr/lib/systemd/system/tmp.mount` wholesale. It repeats every stock option
-and changes only `size=`; recheck it against `systemctl cat tmp.mount` after a
-major systemd update. The script also resizes the live mount, so no reboot is
-needed unless `/tmp` already holds more than 4G. Verify with `df -h /tmp`.
+Why a bind and not the usual fixes:
+
+- `systemctl mask tmp.mount` leaves `/tmp` on the root, and the root here is
+  a read-only composefs, so `/tmp` becomes unwritable.
+- A `/tmp -> /var/tmp` symlink can only be made inside the image, and
+  `tmp.mount` silently skips itself when `/tmp` is a symlink.
+
+The same drop-in is what Fedora Atomic's cloud images used
+([rpm-ostree#820](https://github.com/coreos/rpm-ostree/issues/820)) and what
+[agenticlinux](https://github.com/ericcurtin/agenticlinux/pull/27) ships, for
+the same reason. SELinux needs nothing: `/var/tmp` is already `tmp_t`.
+
+What changes:
+
+- `/tmp` survives reboots; it is no longer emptied at boot.
+- `/tmp` and `/var/tmp` are one directory, so both tmpfiles rules (`q /tmp
+  10d`, `q /var/tmp 30d`) apply to it and the 10-day one wins. Stale agent
+  scratch goes in 10 days instead of piling up.
+- Builds write to the NVMe instead of RAM.
+
+The swap takes a reboot; the script installs the drop-in and stops there.
+Verify with `findmnt /tmp` (source the `/var` device, type btrfs). If `/tmp`
+ever fails to mount, delete the drop-in and reboot to get the tmpfs back.
 
 ## LAN Hostnames (systemd-resolved)
 
