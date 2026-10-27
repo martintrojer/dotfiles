@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: "Use when asked to review code or tests: dead code, duplication, unnecessary complexity, non-idiomatic patterns, over-mocked or meaningless tests."
-version: 0.4.0
+version: 0.5.0
 ---
 
 # Code Reviewer
@@ -100,10 +100,21 @@ Two rules bind the baseline:
   `do not remove`, but nothing enforces it. Prefer a type, test, lint rule,
   metadata flag, runtime check, or canonical helper. Keep prose when the rule
   genuinely requires judgment.
+<!-- local addition: pstack architect red flags and principle-make-operations-idempotent @ 519d36a -->
+- **Two ways to do one task** — a new path beside an old one. Keep one; move
+  the callers and delete the other in the same change.
+- **Hand-synced lists** — the same set spelled out in several places. Derive
+  the rest from one list; if that's impossible, make the build fail when they
+  disagree.
+- **Not rerunnable** — a state-mutating command, lifecycle step, or loop that
+  breaks if run twice or after a crash at any point. Derive each step from the
+  state that exists, not what the last run meant to do; leftovers (locks, temp
+  files, claimed jobs) must be recognisable as stale (write-then-rename,
+  compare by content).
 
 ### 7. Tests
 
-For each test in the diff: would it fail if the behaviour broke?
+For each test in the diff: would it fail if the behaviour broke, and still pass if only the internals changed? <!-- local: refactor half from pstack principle-test-behavior-not-implementation @ 519d36a -->
 
 - **Excessive mocking** — mocks outnumber real objects, mock setup mirrors production logic, or mock-call verification replaces behaviour verification.
 - **Fake tests** — code runs with no meaningful assertion; assertions recreate the implementation or compare a value to itself.

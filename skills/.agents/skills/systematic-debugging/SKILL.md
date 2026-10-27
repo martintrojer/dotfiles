@@ -123,13 +123,19 @@ Fix the root cause, not the symptom:
 2. **Implement Single Fix**
    - Address the identified root cause, ONE change at a time
    - No "while I'm here" improvements or bundled refactoring
+   <!-- local addition: pstack principle-fix-root-causes @ 519d36a -->
+   - **Is the triggering state legitimate?** If the system may be in it, the code that broke on it is the root cause; handle it there. If it should never exist, a check where it broke hides the bug: find what produced the state. Guards, retries, swallowed errors, clamped values and discarded state are the usual hiding places.
+   <!-- local addition: pstack statechart / create-formal-verification-skill @ 519d36a -->
+   - **A check that disagrees with the code** (model, harness, test): replay its failing case on the real code before blaming either. Never weaken the check until it passes.
 
 3. **Verify Fix**
    - The check passes, no other tests broke, the issue is resolved
    - Use `verification-before-completion` before claiming success
+   <!-- local addition: pstack principle-fix-root-causes @ 519d36a -->
+   - If the deciding fact took a deep dig to find, propose the cheap, always-on signal (a log line, an assert, a status field) that would have shown it at first look.
 
-<!-- local: replaces upstream "3+ failed fixes = question the architecture". -->
-Repeated failed fixes mean the root-cause model is wrong; go back to Phase 1.
+<!-- local: replaces upstream "3+ failed fixes = question the architecture"; sharpened from pstack principle-attack-the-premise @ 519d36a. -->
+**Two failed fixes that share a premise: attack the premise, not the next fix.** Write down the one sentence every failed fix assumed. Make an observation that would come out differently if it were false; look at how the failures are distributed, not only how large they are. If it's false, go back to Phase 1 with what the failures have in common. If one part always lands on the losing side, remove what puts it there rather than compensating. No next fix until the premise is written down and tested.
 
 ## Supporting Techniques
 

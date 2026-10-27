@@ -38,8 +38,10 @@ BEFORE claiming any status:
 | Output is correct | Comparison against something you did not author | Your own script agreeing with itself |
 | Endpoint serves | A real request and its response body | A `LISTEN` line, an open socket |
 | Artifact renders | The image read back | A screenshot saved but never opened |
+| Works on the target | A run on the real target (seat, machine, VM) | A run in a stand-in (container, nested or headless session); every setup step it did that the target won't stays unverified |
+| X is N% faster | Named limiter (from a profile, not code reading), ≥5 alternating runs with median and range, error count | One run, a gap inside the noise |
 
-<!-- local: last three rows added. -->
+<!-- local: last five rows added; the last two from pstack create-verification-skill and principle-explain-the-number @ 519d36a. -->
 
 ## Could the Check Have Failed?
 
@@ -53,6 +55,8 @@ A check that cannot fail is not evidence.
 - **Proxy evidence is not observation.** Read the image back; make the request and read the body.
 - **Verification is read-only.** If verifying forces a change, restart from the first check.
 - **Exercise each item, not the family.** "All endpoints" is many claims; drive each.
+- **Break it once.** For a new or changed check, break the code it guards (remove the check, reorder the step) and watch it fail. A pass that survived a code change under it is stale until broken again. <!-- local: pstack create-/maintain-formal-verification-skill @ 519d36a -->
+- **Explain the number.** Ask why it isn't double. Rule out errors, skipped or cached work, code that never ran, an untuned side, and noise; removing 10% of a run caps the speedup near 11%. <!-- local: pstack principle-explain-the-number @ 519d36a -->
 
 ## Prove the Safety Invariant
 
