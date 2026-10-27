@@ -44,6 +44,16 @@ on redesign and sleeps through bugs. Test the behavior that depends on
 the decision: not `expect(MAX_RETRIES).toBe(5)` but "a failing call is
 retried 5 times and the 6th attempt never happens."
 
+<!-- local addition: pstack principle-test-behavior-not-implementation @ 519d36a -->
+**Survive a refactor.** Imagine keeping every observable result the same
+and restructuring underneath. A test that fails then is pinned to the
+implementation. The payload a mocked external service receives is
+behavior; a call to an internal helper is implementation.
+
+**Pair a negative assertion.** When "no call" or "no write" is the
+contract, add a case where the call does happen, so the test shows it
+can see one.
+
 **Behavior, not text.** Asserting that a script, skill, or config
 contains an exact line proves only that the source is the source. Run
 scripts against controlled inputs and assert outputs, side effects, or
