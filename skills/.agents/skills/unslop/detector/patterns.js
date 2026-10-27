@@ -74,7 +74,10 @@ const AIDetector = (() => {
   const HOMOGLYPH_RE = /[Ѐ-ӿͰ-Ͽ]/u;
   const HOMOGLYPH_GLOBAL_RE = /[Ѐ-ӿͰ-Ͽ]/gu;
   const LATIN_LETTER_RE = /\p{Script=Latin}/u;
-  const LATIN_LETTER_GLOBAL_RE = /\p{Script=Latin}/gu;
+  // Dates, versions and ASCII filenames keep internal dots; prose may hard-wrap.
+  // Other sentence punctuation and Markdown/HTML block starts separate units, even
+  // without a space, so unrelated Russian text cannot hide an English word.
+  const SENTENCE_UNIT_GLOBAL_RE = /(?:[^.!?\r\n]|(?<=[A-Za-z0-9_])\.(?=[A-Za-z0-9_])|\r?\n(?![ \t]*(?:\r?\n|(?:[-*+]|#{1,6}|\d+[.)])\s|[><|]|`{3}|~{3}|(?:(?:-+|=+)[\t ]*|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,})(?:\r?\n|$)|:?-+:?[\t ]*(?:\|[\t ]*:?-+:?[\t ]*)+(?:\|[\t ]*)?(?:\r?\n|$))))+/g;
   // Words are letter runs; a hyphen splits them, so "API-сервис" stays two
   // words and its Russian half is not swapped.
   const LETTER_RUN_GLOBAL_RE = /[\p{L}\p{M}]+/gu;
@@ -137,18 +140,23 @@ const AIDetector = (() => {
     //    text, so only two word shapes are swapped:
     //    - mixed-script words ("pаypal", "dеlve"), anywhere;
     //    - words of two or more letters spelled entirely in lookalike
-    //      letters ("аст" for "act"), when the sentence or line around them
-    //      is not Russian or Greek prose: either Latin letters dominate and
-    //      neither neighbouring word uses Cyrillic or Greek, or every
-    //      Cyrillic and Greek letter in the unit is a lookalike. Deciding
-    //      per unit, not per document, keeps Russian padding from hiding
-    //      such a word in an English sentence.
-    //    Ordinary Russian words contain non-lookalike letters (з, п, и, н);
-    //    short words such as "со" next to other Russian words stay put, and
-    //    one-letter prepositions (с, о, у) are too short.
+    //      letters ("аст" for "act"), when the sentence around them has no
+    //      Russian or Greek in it: every Cyrillic and Greek letter in the
+    //      sentence is a lookalike. Deciding per sentence, not per document,
+    //      keeps Russian padding from hiding such a word in an English
+    //      sentence.
+    //    Sentence punctuation, blank lines and Markdown block starts separate units.
+    //    Internal ASCII-token dots ("07.10", "v1.2", "report.pdf") and a prose
+    //    hard wrap do not end it: cutting there left pieces such as "поста в
+    //    r/StableDiffusion от 07" that looked like Latin text.
+    //    Ordinary Russian words contain non-lookalike letters (з, п, и, л),
+    //    so short Russian words in Russian technical prose ("на Enum",
+    //    "от 07.10") stay put, and one-letter prepositions (с, о, у) are too
+    //    short.
     //    Known limits, because no letter-level rule separates these from
     //    real Russian: a fully substituted word inside or next to Russian
-    //    words ("МЕТА поможет", "пароль: аст") is left alone; a one-letter
+    //    words ("МЕТА поможет", "пароль: аст"), including across prose hard wraps,
+    //    is left alone; a one-letter
     //    lookalike split off by a hyphen ("а-ct") is left alone; and a short
     //    Russian sentence spelled only in lookalike letters ("Он сам.") is
     //    swapped.
@@ -161,21 +169,17 @@ const AIDetector = (() => {
     const letterCount = (word) => (word.match(/\p{L}/gu) || []).length;
     const allLookalike = (word) => letterCount(word) >= 2
       && [...word].every((ch) => lookalikeFor(ch) || !/\p{L}/u.test(ch));
-    out = out.replace(/[^.!?\r\n]+/g, (unit) => {
+    out = out.replace(SENTENCE_UNIT_GLOBAL_RE, (unit) => {
       const scriptLetters = unit.match(HOMOGLYPH_GLOBAL_RE) || [];
-      const latinLetters = (unit.match(LATIN_LETTER_GLOBAL_RE) || []).length;
-      const latinDominant = scriptLetters.length < latinLetters;
       const onlyLookalikes = scriptLetters.length > 0 && scriptLetters.every((ch) => lookalikeFor(ch));
       const words = [...unit.matchAll(LETTER_RUN_GLOBAL_RE)];
       let result = '';
       let last = 0;
-      words.forEach((match, i) => {
+      words.forEach((match) => {
         const word = match[0];
         let next = word;
         if (HOMOGLYPH_RE.test(word)) {
-          const isolated = ![words[i - 1], words[i + 1]].some((w) => w && HOMOGLYPH_RE.test(w[0]));
-          if (LATIN_LETTER_RE.test(word)
-              || (allLookalike(word) && ((latinDominant && isolated) || onlyLookalikes))) {
+          if (LATIN_LETTER_RE.test(word) || (allLookalike(word) && onlyLookalikes)) {
             next = word.replace(HOMOGLYPH_GLOBAL_RE, swapLookalike);
           }
         }
@@ -244,7 +248,7 @@ const AIDetector = (() => {
   // ─── Tier 1: Always flag ───────────────────────────────────────────
   const TIER1 = {
     'delve': 'explore, dig into, look at',
-    'tapestry': 'describe the actual complexity',
+    'tapestry': 'complex structure, rich history',
     'paradigm': 'model, approach, framework',
     'beacon': 'rewrite entirely',
     'robust': 'strong, reliable, solid',
@@ -255,10 +259,10 @@ const AIDetector = (() => {
     'meticulously': 'carefully, precisely',
     'seamless': 'smooth, easy, without friction',
     'seamlessly': 'smoothly, easily',
-    'game-changer': 'describe what changed',
-    'game-changing': 'describe what changed',
+    'game-changer': 'changes how [X] works',
+    'game-changing': 'changes how [X] works',
     'nestled': 'is located, sits',
-    'vibrant': 'describe what makes it active',
+    'vibrant': 'lively, active',
     'thriving': 'growing, active',
     'bustling': 'busy, active',
     'intricate': 'complex, detailed',
@@ -271,14 +275,139 @@ const AIDetector = (() => {
     'actionable': 'practical, useful, concrete',
     'impactful': 'effective, significant',
     'learnings': 'lessons, findings, takeaways',
-    'synergy': 'describe the combined effect',
-    'synergies': 'describe the combined effect',
+    'synergy': 'combined effect, benefit of working together',
+    'synergies': 'combined effect, benefit of working together',
     'interplay': 'relationship, connection',
-    'symphony': 'describe the coordination',
+    'symphony': 'coordination, balance',
     'embrace': 'adopt, accept, use',
   };
 
   // Multi-word tier 1 phrases
+  // "features" is copula avoidance only as a verb: "the app features a
+  // dashboard". The plural noun ("three new features", a "Features" heading,
+  // "the features we shipped") is ordinary product and technical writing, and
+  // it is most of what the word does in corpus/ (#351). A verb needs a subject
+  // before it and an object after it, so the word counts as a noun when it
+  // opens a sentence, line or list item; follows a determiner, number,
+  // possessive, quantifier, "of", "or" or a compound modifier; or comes
+  // before punctuation, a line break, a preposition, a conjunction, a pronoun
+  // or a verb.
+  // Singular "this", "that" and "each" cannot determine the plural noun:
+  // here they are subjects ("each features a...") or a relative pronoun.
+  const FEATURES_NOUN_BEFORE_RE = /(?:^|[.!?:;(]\s*|(?:^|\n)[ \t]*(?:[-*+>#]+[ \t]*)?|\b(?:the|a|an|these|those|its|their|our|your|my|his|her|of|or|new|key|main|core|top|other|more|most|many|several|some|all|any|few|no|both|only|about|over|just|free|similar|common|specific|distinct|additional|extra|premium|advanced|basic|best|unique|missing|upcoming|existing|latest|major|minor|useful|important|various|different|certain|such|\d+|two|three|four|five|six|seven|eight|nine|ten|whose)\s+|\w['’]s\s+|\w[-/]\w+\s+)$/i;
+  // "on-device" is an object modifier, not the preposition "on".
+  const FEATURES_NOUN_AFTER_RE = /^(?:[ \t]*(?:[.,;:!?()[\]"'’”\n]|$)|\s+(?:of|for|in|on|at|into|and|or|but|nor|are|were|is|was|be|been|being|that|which|who|whose|like|such|to|from|with|without|than|help|helps|helped|let|allow|make|keep|give|provide|enable|offer|save|protect|ensure|improve|reduce|support|remain|vary|need|unlock|bring|include|includes|included|work|works|worked|will|can|could|should|would|may|might|must|do|did|does|have|has|had|we|you|they|i|it)(?![\w-]))/i;
+  // Bare product objects: "we ship features", "teams build features".
+  // A subject is required so noun subjects such as "the ship"/"the build"
+  // still flag. One optional modifier preserves "we ship GPT-5 features".
+  const FEATURES_NOUN_OBJECT_RE = /\b(?:i|we|you|they|teams?|developers?|engineers?|users?|companies|vendors|the\s+(?:release|update))\s+(?:(?:can|could|will|would|should|must)\s+)?(?:ship|ships|shipped|shipping|build|builds|built|building|add|adds|added|adding)\s+(?:[\w./-]+\s+)?$/i;
+  // Leads that make "which/what features" an indirect question (#384): a question
+  // verb that opens its clause ("Decide which...", "we should check which..."),
+  // or which/what at the start of a sentence or list item. A lead word inside a
+  // noun phrase ("a security check which features...") does not count.
+  const FEATURES_QUESTION_LEAD_RE = /(?:^|[.!?:;]\s*|(?:^|\n)[ \t]*(?:[-*+>#]+[ \t]*)?|(?:^|[.!?:;,]\s*|(?:^|\n)[ \t]*(?:[-*+>#]+[ \t]*)?|\b(?:i|we|you|they|he|she|let['’]?s|to|can|could|should|must|will|would|please|just|then|first|now|and|or|but|so)\s+)(?:decide|decides|deciding|choose|choosing|pick|check|checking|see|know|knowing|learn|find\s+out|figure\s+out|work\s+out|identify|determine|ask|asking|asked|tell\s+(?:me|us|them|you)|show\s+(?:me|us|them|you)|understand|explain|wonder|discover|confirm|consider|evaluate|prioritize|about)\s+)(?:which|what)\s+$/i;
+
+  // A lead word after a determiner is a noun ("a track which features...",
+  // "the review which features..."), not a question verb.
+  const FEATURES_LEAD_AS_NOUN_RE = /\b(?:a|an|the|this|that|these|those|my|our|your|their|its|his|her|each|every)\s+[\w-]+\s+(?:which|what)\s+$/i;
+
+  // Subjects that definitively make "features" a verb, avoiding ambiguity with
+  // plural-noun subjects like "The experimental features" or "Security features".
+  const FEATURES_VERB_SUBJECTS = /\b(?:library|tool|app|application|platform|system|language|service|product|update|release|version|site|website|game|device|model|framework|package|plugin|extension|which|what|that|who|it|he|she)\s+$/i;
+
+  function featuresIsNoun(text, index) {
+    const end = index + 'features'.length;
+    const before = text.slice(Math.max(0, index - 40), index);
+    const after = text.slice(end, end + 40);
+    if (FEATURES_NOUN_OBJECT_RE.test(before)) return true;
+    // A recognizable model/version followed by an object article is a
+    // subject: "GPT-5 features a...", "Windows 11 features a...".
+    // Determiner-led counts ("These 3 features a customer requested") and
+    // the explicit object contexts above remain nouns. This is a bounded
+    // context heuristic, not a grammatical parse of every use of the word.
+    const product = /\b([A-Z][\w]*)(?:[-/]\d[\w.-]*|[ \t]+\d+(?:\.\d+)*)[ \t]+$/.exec(before);
+    if (product && !FEATURES_NOUN_BEFORE_RE.test(`${product[1]} `)
+        && /^\s+(?:a|an|the)(?![\w-])/i.test(after)) return false;
+    // A short comma-delimited aside can precede the verb's article-led
+    // object. Strong noun contexts still take priority over punctuation.
+    if (!FEATURES_NOUN_BEFORE_RE.test(before)
+        && /^[ \t]*,[^,\n]{1,80},\s*(?:a|an|the)(?![\w-])/i.test(text.slice(end, end + 110))) return false;
+
+    // "which/what features" is a noun in an indirect question: right after a
+    // question verb ("Decide which features matter") or at the start of a
+    // sentence ("Which features matter most..."). Every other context falls
+    // through to the checks below unchanged, so relative clauses ("a library
+    // which features dashboards") keep their verb finding (#384).
+    if (FEATURES_QUESTION_LEAD_RE.test(before) && !FEATURES_LEAD_AS_NOUN_RE.test(before)) {
+      // If there is no trailing verb (e.g. end of clause), it's the verb case ("Check what features a dashboard and export tools.").
+      // Look past a compound subject and optional appositive for a trailing verb before returning the verb classification.
+      const match = /^\s+(?:a|an|the)\s+[\w-]+\s*(?:(?:and\b|or\b)\s+(?:a\s+|an\s+|the\s+)?(?:[\w-]+\s+){0,2}[\w-]+\s*)?(?:([,.!?;])|$)/i.exec(after);
+      if (match) {
+        const predicateRe = /\b(?:can|could|should|will|would|may|might|must|is|are|was|were|has|have|had|do|does|did|include|includes|disable|disables|reject|accept|allow|deny|provide|require|use|make|work|help|give|take|need|become|seem|look|show|offer|support|supports|fail|pass|lack|prefer|choose|prevent|stop)\b/i;
+        
+        // If the matched subject ends with a predicate right before the punctuation, 
+        // the predicate was consumed as part of the compound subject.
+        const subjectText = match[0].slice(0, match[1] ? -match[1].length : undefined).trim();
+        const lastWord = subjectText.split(/\s+/).pop();
+        if (predicateRe.test(lastWord)) {
+          return true;
+        }
+
+        if (match[1] === ',') {
+          // If the comma leads into a phrase, limit noun classification to a predicate 
+          // belonging to the article-led subject (after the next comma), excluding predicates inside subordinate clauses.
+          const remainder = text.slice(end + match[0].length, end + 120);
+          // An adverb can sit between the closing comma and the predicate.
+          const remainderPredicateRe = new RegExp(`^[^,]+,\\s*(?:(?:[\\w-]+ly|also|not|never)\\s+){0,2}${predicateRe.source}`, 'i');
+          if (remainderPredicateRe.test(remainder)) {
+            return true;
+          }
+        }
+        return false;
+      }
+      return true;
+    }
+
+    // "The library features support for..." is a verb.
+    // "Security features support for..." is a plural noun subject + verb.
+    if (FEATURES_VERB_SUBJECTS.test(before) && /^\s+support\s+for\b/i.test(after)) {
+      // A nearby quantifier in an earlier clause cannot make a singular pronoun plural.
+      if (/\b(?:it|he|she)\s+$/i.test(before)) return false;
+      const hasPluralDeterminer = /\b(?:these|those|all|some|many|few|various|multiple|several|both)\s+(?:[\w-]+\s+){1,2}$/i.test(before);
+      // Count words modify "features" only when they follow its determiner.
+      // A digit inside a product name ("This Windows 11 app") or a date before
+      // the subject ("In 2024 the library") is not a plural count.
+      const hasPluralCount = /\b(?:the|a|an|this|that|my|our|your|their|its|his|her|each|every)\s+(?:(?:\d{1,2}|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|dozen)\s+(?:[\w-]+\s+){1,2}|(?!(?:19|20)\d{2}\s)\d{3,}\s+(?!(?:[\w-]+\s+)?(?:app|release|model|version|update)\s+$)(?:[\w-]+\s+){1,2})$/i.test(before);
+      const extendedAfter = text.slice(end, end + 100);
+      // A predicate inside a relative clause modifying the object (e.g. "teams that connect and remain online")
+      // is not coordinated with the main subject. Limit predicate search to the direct prepositional object.
+      const hasPartitivePlural = /\b(?:all|some|many|most|few|several|both|\d+|two|three|four|five|six|seven|eight|nine|ten)\s+of\s+(?:the|my|our|your|their|its|his|her)\s+(?:[\w-]+\s+){1,3}$/i.test(before);
+      const hasPluralPredicate = /^\s+support\s+for(?:(?!\b(?:that|which|who|whom|whose|where|when)\b)[^.?!;]){0,80}?\b(?:and|but|or|nor)\s+(?:are|were|have|do|reject|accept|allow|deny|provide|require|use|make|work|help|give|take|need|become|seem|look|show|include|offer|support|remain|fail|pass|lack|prefer|choose|prevent|stop)\b/i.test(extendedAfter);
+      const hasForObject = /^\s+support\s+for(?:-|\s+)(?:profit|loops?)\b/i.test(after);
+      // Numeric modifiers and plural cues exclude a singular-subject reading:
+      // "The two platform features..." has plural noun "features".
+      // Do not borrow a determiner across a preposition or conjunction:
+      // "a suite of system features" still has plural noun "features".
+      // "that" can introduce a clause and "which" can determine plural nouns.
+      // A relative pronoun needs its own determiner-led subject evidence.
+      const hasUnambiguousSingular = /\b(?:a|an|this|that|every|each|one)\s+(?:(?!(?:of|for|in|with|and|or|which|what|that|who|two|three|four|five|six|seven|eight|nine|ten|multiple|several|many|few|both|various)\b)[\w-]+\s+){1,3}$/i.test(before)
+        || /\b(?:it|he|she)\s+$/i.test(before)
+        || /\b(?:a|an|this|that|each|every|one)\s+[\w-]+\s+(?:which|that|who)\s+$/i.test(before);
+
+      const hasSingularEvidence = hasUnambiguousSingular
+        || /\b(?:the|my|our|your|their|its|his|her)\s+(?:(?!(?:of|for|in|with|and|or|which|what|that|who|two|three|four|five|six|seven|eight|nine|ten|multiple|several|many|few|both|various)\b)[\w-]+\s+){1,3}$/i.test(before)
+        || /\b(?:the|my|our|your|their|its|his|her)\s+[\w-]+\s+(?:which|that|who)\s+$/i.test(before);
+      
+      // Unambiguous singular subjects ("It", "This app") cannot be plural-noun phrases,
+      // so hasForObject ("support for loops") only suppresses ambiguous determiners ("The library").
+      if (!hasPluralDeterminer && !hasPluralCount && !hasPartitivePlural && !hasPluralPredicate && (hasUnambiguousSingular || (!hasForObject && hasSingularEvidence))) {
+        return false;
+      }
+    }
+
+    return FEATURES_NOUN_BEFORE_RE.test(before) || FEATURES_NOUN_AFTER_RE.test(after);
+  }
+
   const TIER1_PHRASES = [
     { pattern: /\bdelve\s+into\b/gi, replace: 'explore, dig into' },
     { pattern: /\blandscape\b/gi, replace: 'field, space, industry', filter: true },
@@ -286,21 +415,21 @@ const AIDetector = (() => {
     { pattern: /\btestament\s+to\b/gi, replace: 'shows, proves' },
     { pattern: /\bleverag(?:e|es|ing|ed)\b/gi, replace: 'use' },
     { pattern: /\bwatershed\s+moment\b/gi, replace: 'turning point, shift' },
-    { pattern: /\bmarking\s+a\s+pivotal\s+moment\b/gi, replace: 'state what happened' },
+    { pattern: /\bmarking\s+a\s+pivotal\s+moment\b/gi, replace: 'changing [X], leading to [Y]' },
     { pattern: /\bthe\s+future\s+looks\s+bright\b/gi, replace: 'cut or say something specific' },
     { pattern: /\bonly\s+time\s+will\s+tell\b/gi, replace: 'cut or say something specific' },
-    { pattern: /\bdespite\s+challenges[^.]*continues?\s+to\s+thrive\b/gi, replace: 'name the challenge and response' },
+    { pattern: /\bdespite\s+challenges[^.]*continues?\s+to\s+thrive\b/gi, replace: 'keeps growing despite [named difficulty], continues to succeed despite [named difficulty]' },
     { pattern: /\bdeep\s+dive\b/gi, replace: 'look at, examine' },
     { pattern: /\bdive\s+into\b/gi, replace: 'look at, examine' },
     { pattern: /\bunpack(?:ing)?\b/gi, replace: 'explain, break down' },
-    { pattern: /\bcomplexities\b/gi, replace: 'name the actual problems' },
+    { pattern: /\bcomplexities\b/gi, replace: 'problems, details' },
     { pattern: /\bthought\s+leader(?:ship)?\b/gi, replace: 'expert, authority' },
     { pattern: /\bbest\s+practices\b/gi, replace: 'what works, proven methods' },
     { pattern: /\bat\s+its\s+core\b/gi, replace: 'cut, just state it' },
     { pattern: /\bin\s+order\s+to\b/gi, replace: 'to', clarity: true },
     { pattern: /\bdue\s+to\s+the\s+fact\s+that\b/gi, replace: 'because', clarity: true },
     { pattern: /\bserves\s+as\b/gi, replace: 'is', clarity: true },
-    { pattern: /\bfeatures\b/gi, replace: 'has, includes', filter: true, clarity: true },
+    { pattern: /\bfeatures\b/gi, replace: 'has, includes', filter: true, clarity: true, skip: featuresIsNoun },
     { pattern: /\bboasts\b/gi, replace: 'has', clarity: true },
     { pattern: /\butiliz(?:e|es|ing|ed)\b/gi, replace: 'use', clarity: true },
     { pattern: /\bshowcas(?:e|es|ing|ed)\b/gi, replace: 'show, demonstrate' },
@@ -339,7 +468,7 @@ const AIDetector = (() => {
     'underpin': 'support, form the basis of',
     'nuanced': 'specific, subtle, detailed',
     'crucial': 'important, key, necessary',
-    'multifaceted': 'describe the actual facets',
+    'multifaceted': 'having several parts, with several aspects',
     'ecosystem': 'system, community, network',
     'myriad': 'many, numerous',
     'plethora': 'many, a lot of',
@@ -352,8 +481,8 @@ const AIDetector = (() => {
     'illuminate': 'clarify, explain, show',
     'elucidate': 'explain, clarify',
     'juxtapose': 'compare, contrast',
-    'transformative': 'describe what changed',
-    'transformation': 'describe what changed',
+    'transformative': 'changes how [X] works',
+    'transformation': 'major change, overhaul',
     'cornerstone': 'foundation, basis, key part',
     'paramount': 'most important, top priority',
     'poised': 'ready, set, about to',
@@ -364,7 +493,7 @@ const AIDetector = (() => {
     'quietly': 'cut, or name the concrete contrast',
     'underpinning': 'basis, foundation',
     'underpinnings': 'basis, foundations',
-    'paradigm-shifting': 'describe what shifted',
+    'paradigm-shifting': 'changes the basic model, changes how [X] is understood',
   };
 
   // Conditional Tier 2 entries: everyday words whose AI tell is a specific
@@ -507,7 +636,9 @@ const AIDetector = (() => {
     'fake-casual-prop': 8,
     'title-case-header': 4,
     'parenthetical-hedge': 3,
-    'smart-punct-signature': 6,
+    // House-style typography is a style review prompt, not authorship
+    // evidence. Keep it neutral in both the score and classifier (#351).
+    'smart-punct-signature': 0,
     'punct-distribution': 6,
     'fnword-trigram-entropy': 5,
     'cross-para-burstiness': 5,
@@ -989,7 +1120,8 @@ const AIDetector = (() => {
     /(?:['\u2019]s|\b(?:is|was|are|were))\s+the\s+(?:whole|entire)\s+(?:point|game|ballgame|trick|pitch|idea|play|business\s+model|value\s+proposition)\b/gi,
     /\b(?:that|this)(?:['\u2019]s|\s+(?:is|was))\s+the\s+part\s+(?:that|I|you|we|nobody|no\s+one|most\s+people)\b/gi,
     /\bthe\s+only\s+[\w'\u2019-]+\s+that\s+(?:matters|counts)\b/gi,
-    /\bis\s+dead\s*[.;,:\u2013\u2014]\s*long\s+live\b/gi,
+    // "X is dead; long live Y" also names an essay or a literal succession
+    // announcement. Whether the contrast earns its place needs reading (#351).
     /\b(?:that|this)(?:['\u2019]s|\s+(?:is|was))\s+why\s+[^.!?\n]{0,60}\s+mattered\b/gi,
   ];
 
@@ -2144,13 +2276,18 @@ const AIDetector = (() => {
     };
   }
 
+  // The analysis contexts and source modes analyzeText() accepts. The CLIs
+  // import these lists instead of keeping their own copies.
+  const CONTEXT_MODES = Object.freeze(['general', 'technical', 'marketing', 'personal']);
+  const SOURCE_MODES = Object.freeze(['plain', 'rendered-markdown']);
+
   function analyzeText(text, options = {}) {
 
     if (typeof text !== 'string') {
       throw new TypeError('analyzeText(text): argument must be a string');
     }
 
-    const VALID_CONTEXT_MODES = new Set(['general', 'technical', 'marketing', 'personal']);
+    const VALID_CONTEXT_MODES = new Set(CONTEXT_MODES);
     const requestedMode = options.contextMode === undefined ? 'general' : options.contextMode;
     const contextMode = VALID_CONTEXT_MODES.has(requestedMode) ? requestedMode : 'general';
     const contextModeFallback = requestedMode !== contextMode ? requestedMode : null;
@@ -2159,7 +2296,7 @@ const AIDetector = (() => {
     // Plain remains the compatibility default. Rendered Markdown masks only
     // initial YAML frontmatter and HTML comments; source-hygiene checks for
     // hidden TODO/placeholder comments remain available through plain mode.
-    const VALID_SOURCE_MODES = new Set(['plain', 'rendered-markdown']);
+    const VALID_SOURCE_MODES = new Set(SOURCE_MODES);
     const requestedSourceMode = options.sourceMode === undefined ? 'plain' : options.sourceMode;
     const sourceMode = VALID_SOURCE_MODES.has(requestedSourceMode) ? requestedSourceMode : 'plain';
     const sourceModeFallback = requestedSourceMode !== sourceMode ? requestedSourceMode : undefined;
@@ -2326,6 +2463,7 @@ const AIDetector = (() => {
       while ((match = regex.exec(text)) !== null) {
         const lower = match[0].toLowerCase();
         if (contextMode === 'technical' && TECHNICAL_EXEMPT.has(lower)) continue;
+        if (phrase.skip && phrase.skip(text, match.index)) continue;
         if (tier1Found.has(lower)) continue;
         tier1Found.add(lower);
         issues.push({
@@ -2544,13 +2682,15 @@ const AIDetector = (() => {
     }
 
     // ── Smart-punctuation co-occurrence signature ────────────────────
-    // Curly quotes + em-dash + Oxford comma all present + zero typos
-    // (no double-spaces, no missing apostrophes in common contractions)
-    // is a near-dispositive paste-from-LLM signature: humans typing
-    // directly into a textarea don't produce all four. Standalone any of
-    // these is meaningless — co-occurrence is the signal. Separator-position
-    // dashes are typography and don't corroborate it.
-    {
+    // Curly punctuation + prose em dash + Oxford comma, with no sampled
+    // spacing or common-contraction anomalies,
+    // can also come from house style or editor settings. Keep the existing
+    // narrow shape as a low-priority style check in plain source only.
+    // Rendered Markdown deliberately preserves publication typography.
+    // This finding has no weight or classifier corroborator. Separator-only
+    // dashes do not complete the shape, and the spacing/contraction checks
+    // below are limited heuristics, not proof that a document has no typos.
+    if (sourceMode === 'plain') {
       const hasCurly = /[“”‘’]/.test(text);
       const totalEmDashes = (text.match(/—/g) || []).length;
       const separatorEmDashes = (text.match(SEPARATOR_DASH_RE) || []).length
@@ -2565,9 +2705,9 @@ const AIDetector = (() => {
       if (signals >= 4 && wordCount >= 80) {
         issues.push({
           type: 'smart-punct-signature',
-          text: 'curly-quotes + em-dash + Oxford comma + zero typos',
-          severity: 'high',
-          suggestion: 'Smart-punctuation signature consistent with LLM output. Humans typing into textareas rarely produce all four.',
+          text: 'curly punctuation + prose em dash + Oxford comma',
+          severity: 'low',
+          suggestion: 'Check destination style before changing punctuation. Preserve house-style typography; this combination is not evidence of AI authorship.',
         });
       }
     }
@@ -3193,6 +3333,12 @@ const AIDetector = (() => {
       let idx = 0;
       let matched = false;
       while ((idx = lowerText.indexOf(needle, idx)) !== -1) {
+        // Deduplicated verb issues must not highlight skipped noun matches.
+        // Reuse the same predicate and retain all qualifying verb locations.
+        if (issue.type === 'tier1-clarity' && needle === 'features' && featuresIsNoun(text, idx)) {
+          idx += needle.length;
+          continue;
+        }
         matched = true;
         for (let i = 0; i < sentences.length; i++) {
           if (idx >= sentences[i].start && idx < sentences[i].end) {
@@ -3280,13 +3426,12 @@ const AIDetector = (() => {
       (hasReasoning && hasChatbot ? 1 : 0) +
       (denseAIVocab ? 1 : 0);
 
-    // Weak (stylometric) corroborators — suggestive on their own,
-    // dispositive in combination. Smart-punct-signature matches
-    // Word-edited human prose so doesn't count without other support.
+    // Weak stylometric corroborators. The style-only smart-punct finding
+    // must not alter classification, probabilities, or confidence even when
+    // other findings already put the score near a classification boundary.
     const stylometricHits = ['punct-distribution', 'cross-para-burstiness', 'fnword-trigram-entropy']
       .filter((t) => issues.some((i) => i.type === t)).length;
-    const hasSmartPunct = issues.some((i) => i.type === 'smart-punct-signature');
-    const weakCorrob = (stylometricHits >= 2 ? 1 : 0) + (hasSmartPunct ? 1 : 0);
+    const weakCorrob = stylometricHits >= 2 ? 1 : 0;
 
     // Thresholds:
     //   score < 15 with no strong → HUMAN_ONLY
@@ -3440,6 +3585,8 @@ const AIDetector = (() => {
     getColor,
     SEVERITY_LABELS,
     TYPE_LABELS,
+    CONTEXT_MODES,
+    SOURCE_MODES,
   };
 })();
 

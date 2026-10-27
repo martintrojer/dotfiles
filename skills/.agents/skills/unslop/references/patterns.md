@@ -8,13 +8,20 @@ The main skill's preservation rules, context calibration, and supplied house
 style override generic thresholds in this catalog. In particular, an em dash is
 not a defect by itself; judge repeated splice-shaped use in context.
 
+The editorial decision cards below pilot a common format for selected rules.
+A card's stable ID identifies an editorial decision, not a detector type.
+Detector mappings are partial: a match does not establish applicability,
+authorize an edit, or prove authorship. These cards reuse the catalog's existing
+exceptions and sources; none adds a measured authorship claim. Apply protection,
+context, and scope before selecting **edit**, **keep**, or **flag a gap**.
+
 ### Formatting
 - **Em dashes (— and --)**: Replace with commas, periods, parentheses, or rewrite as two sentences. Target: zero. Hard max: one per 1,000 words. This applies to headings and section titles too, not just body prose. Catch both the Unicode em dash (—) and the double-hyphen substitute (--). Carve-out: an em dash acting as the separator in a bulleted or numbered list item that opens with a bolded lead term or a markdown link (`- **Term** — description`, `- [label](url) — description`) is typography, not a prose splice — don't count it toward the rate. Only the list-item form qualifies: a mid-sentence splice still counts, as does a line-initial `**Bold lead** — full sentence` outside a list (itself an AI tell), and the double-hyphen substitute is never carved out.
 - **Bold overuse**: Strip bold from most phrases. One bolded phrase per major section at most, or none. If something's important enough to bold, restructure the sentence to lead with it instead.
 - **Emoji in headers**: Remove entirely. No `## 🚀 What This Means`. Exception: social posts may use one or two emoji sparingly — at the end of a line, never mid-sentence.
 - **Excessive bullet lists**: Flag bullet-heavy sections whose content is not genuinely list-like. Convert them to prose only when the user's scope permits restructuring; otherwise report the structural problem. Feature comparisons, step-by-step instructions, and API parameters stay as lists.
-- **Curly quotation marks (“ ” ‘ ’) and apostrophes**: Curly quotes and apostrophes (U+201C/U+201D, U+2018/U+2019) are a *weak* paste-from-chat signal — meaningful mainly in plain-text contexts like code comments, commit messages, or plaintext drafts, where nothing auto-curls. Treat as corroborating, never conclusive: Word, Google Docs, macOS, and iOS curl quotes by default, so most human prose contains them too. Don't flag curly apostrophes (U+2019) on their own. Replace with straight quotes in plain-text/code; leave them in finished publications and locale-correct punctuation (French « », German „ “).
-- **Immaculate typography in casual registers**: Same tier as curly quotes — a *weak*, register-scoped signal, never conclusive alone. Perfect spacing, punctuation, and capitalization in a context where humans type fast (issue/PR comments, chat, DMs) is corroborating evidence, not proof: a careful human can type a flawless comment, and a rushed one can type a sloppy one. Judge it alongside other signals. Inverse case worth flagging the other direction: when editing a human's casual text (a Slack message, a quick reply), preserve their typos, contractions, and idiosyncratic capitalization rather than correcting them — smoothing away the rough edges erases the fingerprint that marks the text as theirs.
+- **Curly quotation marks (“ ” ‘ ’) and apostrophes**: Check the destination's style, not authorship. Word, Google Docs, macOS, and iOS curl quotes by default; an editor or house style can also produce curly punctuation, prose em dashes, and Oxford commas together. That combination does not establish machine authorship. Do not flag curly apostrophes (U+2019) on their own. Use straight quotes when the destination requires them; preserve finished-publication and locale-correct punctuation (French « », German „ “). The detector keeps a low-priority, style-only co-occurrence finding in plain mode and omits it in rendered-Markdown mode; it affects no authorship output.
+- **Immaculate typography in casual registers**: Review it as a style choice, not evidence of authorship. Correct spacing, punctuation, and capitalization can reflect a careful writer or an editor. When editing casual text, preserve the source's contractions, idiosyncratic capitalization, and deliberate rough edges; do not impose a formal house style or add mistakes to imitate a person.
 
 ### Sentence structure
 - **"It's not X — it's Y" / "This isn't about X, it's about Y"**: Rewrite as a direct positive statement. Max one per piece, and only if it serves the argument. This includes the **split-sentence form**, where the negation and the correction fall in two separate sentences rather than pivoting on a single dash or comma: "The headline isn't the speed. The real story is Y." Read on its own, each sentence looks like an innocent declarative, which is exactly why the split version slips past a check tuned to the joined phrasing — flag it the same way. AI also stacks the negation across several options before the reveal ("It's not the price. It's not the features. It's the trust."). The multi-negation countdown is the same move inflated; flag it and cut straight to the positive claim. The **tailing negation** is the clipped cousin: a bare negation fragment tacked onto the end of a sentence — "The options come from the selected item, no guessing." Write the constraint as a real clause ("without forcing the user to guess") or cut it. Carve-out: negations enumerating spec constraints in a list ("no dependencies, no telemetry") are list content, not a reveal. The detector matches only the joined frame with a restated "it / this / that / they" + be after the comma, semicolon, colon, or dash. It flags the minimizer form ("isn't just / merely / simply X, it's Y") on sight; the plain "isn't X, it's Y", "isn't only X, it's Y", and the split-sentence "isn't just X. It's Y." flag only when another frame starts within three sentences in the same paragraph, so one real correction ("It isn't raining, it's snowing.") passes. "Not only X but also Y" and "not X but Y" are ordinary correlatives and stay judgment calls. Adapted from `blader/humanizer` P9.
@@ -24,12 +31,32 @@ not a defect by itself; judge repeated splice-shaped use in context.
 - **Missing bridge sentences**: Each paragraph should connect to the last. If paragraphs could be rearranged without the reader noticing, report the missing through-line. Add connective tissue only when the relationship already exists in the source and the user's scope permits structural editing.
 - **Compulsive rule of three**: Review repeated ornamental triads. Preserve a grouping of three when the source has three real items or the repetition serves an intentional rhetorical purpose; do not add or remove an item to meet a rhythm quota.
 
+**Editorial decision card: `ec-supported-contrast`**
+
+**Detector types:** `negative-parallelism` (partial).
+
+- **Apply:** Read what the negation corrects. A literal correction or a contrast that carries the argument stays; repetition alone does not authorize its removal. When simplifying a frame, retain both supplied propositions, including a stated value judgment.
+- **Edit:** “It is not just a dashboard, it is a foundation for trust. It shows queue depth.” → “The dashboard is a foundation for trust. It shows queue depth.” The trust claim remains the writer's; flag missing support rather than silently dropping it.
+- **Keep:** “It is not a timeout, it is a refused connection. The server sent a reset.” Keep the correction and diagnostic reason.
+- **Flag a gap:** If the positive claim is not supplied, report the empty contrast; do not invent a differentiator.
+
+**Editorial decision card: `ec-meaningful-actually`**
+
+**Detector types:** none (judgment only; `hollow-intensifier` does not cover this word).
+
+- **Apply:** Check whether the word marks an expectation or correction supplied nearby, including another sentence. Remove it only when it adds emphasis without that relationship.
+- **Edit:** “This actually makes the process simpler.” → “This makes the process simpler.”
+- **Keep:** “We expected a cache hit. It was actually a miss.” Preserve the expectation gap; a local word match cannot decide it.
+- **Flag a gap:** Do not invent an expectation to justify the word or delete a correction because its reason is elsewhere in the source.
+
 ### Words and phrases to replace
 
 Words are organized into three tiers based on how reliably they signal AI-generated text. This tiered approach — adapted from [brandonwise/humanizer](https://github.com/brandonwise/humanizer)'s vocabulary research — reduces false positives on words that are fine in isolation but suspicious in clusters.
 
+In replacement tables (`| Replace | With |`), the **Replace** column defines catalog patterns to flag; the **With** column provides suggested human alternatives to use. Words appearing only as suggested replacements are never catalog patterns.
+
 - **Tier 1 — Review every match.** These words are strong candidates in their listed senses. Apply the context exceptions and preserve legitimate technical or author-specific uses.
-- **Tier 2 — Flag in clusters.** Individually fine, but two or more in the same paragraph is a strong AI signal. Flag when they appear together.
+- **Tier 2 — Flag in clusters.** Individually fine, but two or more in the same paragraph is a strong AI signal. Flag when they appear together; an isolated single occurrence does not meet the threshold and must not be reported as a standalone finding.
 - **Tier 3 — Flag by density.** Common words that AI simply overuses. Flag a word only when that one word repeats heavily: at least `max(3, floor(wordCount × 0.03))` uses. Round 3% of the total word count down to a whole number, with a minimum of three uses. Count each listed form on its own (`significant` and `significantly` are separate), so several different Tier 3 words that together pass 3% do not trigger the rule. The threshold is deliberately conservative: in a 1,000-word piece, one word has to appear 30 times.
 
 **Match inflected forms.** Each entry below covers the listed word *and its morphological variants* — adverb (`-ly`), gerund/participle (`-ing`), plural, comparative/superlative, and verb conjugations — unless a variant carries a distinct, legitimate meaning. So `genuine` also flags `genuinely`, `leverage` also flags `leveraging` / `leveraged`, `delve` covers `delving`, and `meticulous` covers `meticulously`. When a variant has a separate honest sense (e.g. `real` meaning factual, not the intensifier in "a real improvement"), judge by context rather than matching blindly. For Tier 3 density, keep separately listed forms in separate counts as specified above; this matching guidance does not combine them.
@@ -52,7 +79,7 @@ Caveat worth keeping visible: the "appears far more often in AI text" claim behi
 |---|---|
 | delve / delve into | explore, dig into, look at |
 | landscape (metaphor) | field, space, industry, world |
-| tapestry | (describe the actual complexity) |
+| tapestry | complex structure, rich history (or describe the actual complexity) |
 | realm | area, field, domain |
 | paradigm | model, approach, framework |
 | embark | start, begin |
@@ -66,22 +93,22 @@ Caveat worth keeping visible: the "appears far more often in AI text" claim behi
 | underscores | highlights, shows |
 | meticulous / meticulously | careful, detailed, precise |
 | seamless / seamlessly | smooth, easy, without friction |
-| game-changer / game-changing | describe what specifically changed and why it matters |
-| hit differently / hits different | (say what specifically changed, or cut) |
+| game-changer / game-changing | changes how [X] works (or describe what specifically changed) |
+| hit differently / hits different | feels different, affects [me/us] differently (or cut) |
 | watershed moment | turning point, shift (or describe what changed) |
-| marking a pivotal moment | (state what happened) |
+| marking a pivotal moment | changing [X], leading to [Y] (or state what happened) |
 | the future looks bright | (cut — say something specific or nothing) |
 | only time will tell | (cut — say something specific or nothing) |
 | nestled | is located, sits, is in |
-| vibrant | (describe what makes it active, or cut) |
+| vibrant | lively, active (or describe what makes it active) |
 | thriving | growing, active (or cite a number) |
-| despite challenges… continues to thrive | (name the challenge and the response, or cut) |
+| despite challenges… continues to thrive | keeps growing despite [named difficulty], continues to succeed despite [named difficulty] (or name the challenge and the response, or cut) |
 | showcasing | showing, demonstrating (or cut the clause) |
 | deep dive / dive into | look at, examine, explore |
 | unpack / unpacking | explain, break down, walk through |
 | bustling | busy, active (or cite what makes it busy) |
 | intricate / intricacies | complex, detailed (or name the specific complexity) |
-| complexities | (name the actual complexities, or use "problems" / "details") |
+| complexities | problems, details (or name the actual complexities) |
 | ever-evolving | changing, growing (or describe how) |
 | enduring | lasting, long-running (or cite how long) |
 | daunting | hard, difficult, challenging |
@@ -92,11 +119,11 @@ Caveat worth keeping visible: the "appears far more often in AI text" claim behi
 | thought leader / thought leadership | expert, authority (or describe their actual contribution) |
 | best practices | what works, proven methods, standard approach |
 | at its core | (cut — just state the thing) |
-| synergy / synergies | (describe the actual combined effect) |
+| synergy / synergies | combined effect, benefit of working together (or describe the actual effect) |
 | interplay | relationship, connection, interaction |
 | keen (as intensifier) | interested, eager, enthusiastic (or cut — just state the interest) |
 | genuinely / genuine (as intensifier) | (cut — just state the fact) |
-| symphony (metaphor) | (describe the actual coordination or combination) |
+| symphony (metaphor) | coordination, balance (or describe the actual combination) |
 | embrace (metaphor) | adopt, accept, use, switch to |
 | load-bearing *(metaphor)* | essential, critical, necessary — or say what breaks if you remove it |
 
@@ -123,7 +150,7 @@ Wordiness and formality, not authorship evidence. Same fix, weaker claim.
 
 #### Tier 2 — Flag when 2+ appear in the same paragraph
 
-These words are legitimate on their own. When two or more show up together, the paragraph likely needs a rewrite.
+These words are legitimate on their own. When two or more show up together, the paragraph likely needs a rewrite. A single occurrence in a paragraph does not meet the threshold and must not be reported as a standalone finding.
 
 | Replace | With |
 |---|---|
@@ -142,7 +169,7 @@ These words are legitimate on their own. When two or more show up together, the 
 | underpin | support, form the basis of |
 | nuanced | specific, subtle, detailed (or name the actual nuance) |
 | crucial | important, key, necessary |
-| multifaceted | (describe the actual facets, or cut) |
+| multifaceted | having several parts, with several aspects (or describe the actual facets) |
 | ecosystem (metaphor) | system, community, network, market |
 | myriad | many, numerous (or give a number) |
 | plethora | many, a lot of (or give a number) |
@@ -155,8 +182,8 @@ These words are legitimate on their own. When two or more show up together, the 
 | illuminate | clarify, explain, show |
 | elucidate | explain, clarify, spell out |
 | juxtapose | compare, contrast, set side by side |
-| paradigm-shifting | (describe what actually shifted) |
-| transformative / transformation | (describe what changed and how) |
+| paradigm-shifting | changes the basic model, changes how [X] is understood (or describe what actually shifted) |
+| transformative / transformation | changes how [X] works (adj.); major change, overhaul where it fits (noun) (or describe what changed and how) |
 | cornerstone | foundation, basis, key part |
 | paramount | most important, top priority |
 | poised (to) | ready, set, about to |
@@ -214,6 +241,15 @@ In cryptography writing, flag generic "proof" or "proof point" only when a reade
 | "The launch is our proof" in a discussion of cryptographic guarantees | "The launch is evidence of demand" only if demand is the claim being supported; otherwise ask what the launch demonstrates. |
 | "This demo is our proof point" when readers could infer a security proof | Name what the demo demonstrates; preserve "proof point" when the passage already distinguishes it from a cryptographic proof. |
 
+**Editorial decision card: `ec-technical-vocabulary`**
+
+**Detector types:** `tier1`, `tier2` (partial; context exceptions differ by term).
+
+- **Apply:** Read the listed sense, technical context, and cluster threshold before replacing a term. A named technical concept and an isolated weak match can remain.
+- **Edit:** In ordinary launch copy, “We will delve into the results.” → “We will examine the results.”
+- **Keep:** “The robust estimator tolerates outliers.” Keep the statistical term in technical prose. One isolated Tier 2 word is not a standalone finding.
+- **Flag a gap:** Do not substitute a mechanism or performance property the source never states. A clarity edit is not evidence of authorship.
+
 ### Template phrases (avoid)
 
 These slot-fill constructions signal that a sentence was generated, not written. If a phrase has a blank where a noun or adjective could go and still sound the same, it's too generic.
@@ -258,6 +294,15 @@ These slot-fill constructions signal that a sentence was generated, not written.
 - Stacking a modal with a hedge adverb: "could potentially create," "may eventually unlock," "might ultimately transform." Either word alone is acceptable; the stack is the tell. Each hedge cancels the next, leaving a sentence that asserts nothing while sounding cautious and thoughtful.
 - Fix: keep the one qualifier that retains the source's intended uncertainty. If the intended confidence is unclear and the distinction matters, leave it and ask rather than choosing a stronger claim.
 
+**Editorial decision card: `ec-necessary-uncertainty`**
+
+**Detector types:** `hedge-stack` (partial).
+
+- **Apply:** Distinguish redundant qualifiers from different conditions, uncertainty, or timing. Preserve the source confidence even when a requested voice is blunt.
+- **Edit:** “The cache could potentially reduce latency; we have not measured it.” → “The cache could reduce latency; we have not measured it.”
+- **Keep:** “The cache might reduce latency if the working set fits in memory.” Keep both the uncertainty and condition.
+- **Flag a gap:** When two qualifiers carry an unclear distinction, retain them and report the uncertainty instead of upgrading a hypothesis to a result.
+
 ### "Real/actual" adjective inflation
 - "Real on-chain tokenomics," "actual reward sustainability," "genuine utility," "true product-market fit." Using `real` / `actual` / `genuine` / `true` as an empty intensifier on an abstract noun implies the rest of the field is fake or superficial — without naming what makes this instance the real one. Common in crypto/AI/web3 content where the writer wants to signal sophistication.
 - Distinct from the existing "hollow intensifiers" rule (genuine / truly / quite frankly as sentence-level hedges). This is the noun-modifier form, where the intensifier latches onto an abstract noun to manufacture a contrast that goes unsaid.
@@ -291,6 +336,15 @@ These slot-fill constructions signal that a sentence was generated, not written.
 - Review passages that replace "is" or "has" with fancier verbs such as "serves as," "features," "boasts," "presents," or "represents." The substitutions can make plain prose sound like a press release when they add no meaning.
 - Default to "is" or "has" unless a more specific verb genuinely adds meaning.
 
+**Editorial decision card: `ec-copula-sense`**
+
+**Detector types:** `tier1-clarity` (partial).
+
+- **Apply:** Replace an inflated verb only when its sense is clear. Product nouns and an actual role or function stay; the detector uses a narrower grammatical heuristic.
+- **Edit:** “The app features a dashboard.” → “The app has a dashboard.”
+- **Keep:** “The app has three features.” Preserve the noun. “Mina serves as chair during the hearing” states a role, not a forced substitute for a copula.
+- **Flag a gap:** Do not turn an uncertain role into an identity or invent what a feature does to make the sentence concrete.
+
 ### Subjectless fragments and agentless passives
 - Sentences with the subject dropped or the actor hidden: "No configuration file needed." "The results are preserved automatically." "Support for nested queries was added." In flowing prose, the clipped form can hide the subject, and the passive can hide who does what. This is a clarity judgment, not a measured authorship signal.
 - Fix: name the actor when the source identifies it and the actor clarifies the sentence. Prefer active voice unless the actor is irrelevant; do not invent `you`, a team, or a system component.
@@ -305,8 +359,26 @@ These slot-fill constructions signal that a sentence was generated, not written.
 - Review a paragraph that rotates synonyms such as "developers… engineers… practitioners… builders" for the same referent. If the variation obscures the clearest term, use that term consistently.
 - If the same noun or verb appears three times in a paragraph and that's the right word, keep all three. Forced variation reads as thesaurus abuse.
 
+**Editorial decision card: `ec-stable-terms`**
+
+**Detector types:** none (judgment only).
+
+- **Apply:** Check whether different labels name the same thing or distinct concepts. Preserve a repeated precise term, established voice, and quoted wording.
+- **Edit:** When the source explicitly defines both labels as the same queue, replace “the queue … the conduit … the queue” with the consistent term “queue”.
+- **Keep:** “The queue feeds the stream.” Keep both terms when the source describes separate components.
+- **Flag a gap:** If equivalence is unclear, leave the labels and flag the ambiguity; do not merge components or manufacture variety.
+
 ### Vague attributions
 - "Experts believe," "Studies show," "Research suggests," "Industry leaders agree" — without naming the expert, study, or leader. Cite the specific source when the user or source supplies it. Otherwise flag the gap or cut the unsupported claim; do not turn an attributed claim into the writer's own assertion by simply dropping the attribution.
+
+**Editorial decision card: `ec-attribution-gap`**
+
+**Detector types:** `vague-attribution` (partial).
+
+- **Apply:** Check whether the source identifies who supports the claim. Attribution and uncertainty are part of the claim; removing them can change its meaning.
+- **Edit:** With the attribution supplied: “Experts say retries help. The cited authors are Mina and Jo.” → “Mina and Jo say retries help.”
+- **Keep:** “Mina and Jo report fewer retries in their test.” Keep the attribution and the scope of their result.
+- **Flag a gap:** For “Experts say retries help” without a source, flag the missing attribution. Do not invent an expert, study, result, or citation, or silently present it as an established fact.
 
 ### Filler phrases
 - Strip mechanical padding that adds words without meaning:
@@ -315,8 +387,8 @@ These slot-fill constructions signal that a sentence was generated, not written.
   - "The reality is that" → (cut or just state the claim)
 - Note: "In order to," "Due to the fact that," and "At the end of the day" are covered in the word/phrase table and transition sections above — don't duplicate rules.
 
-### Generic conclusions
-- "The future looks bright," "Only time will tell," "One thing is certain," "As we move forward" — these are filler disguised as conclusions. Cut them. Add a closing thought only when the source supplies one; do not invent a specific conclusion to replace filler.
+### Generic conclusions (P2)
+- "The future looks bright," "Only time will tell," "One thing is certain," "As we move forward" — these are filler disguised as conclusions. Cut them. Add a closing thought only when the source supplies one; do not invent a specific conclusion to replace filler. Treat this as a P2 clarity judgment.
 
 ### Chatbot artifacts
 - "I hope this helps!", "Certainly!", "Absolutely!", "Great question!", "Feel free to reach out," "Let me know if you need anything else" — these are conversational tics from chat interfaces, not writing. Remove entirely.
@@ -378,6 +450,15 @@ These slot-fill constructions signal that a sentence was generated, not written.
 ### Speculative gap-filling
 - When the model lacks a fact, it fills the gap with hedged speculation dressed up as background: "maintains a relatively low public profile," "is believed to have," "likely began his career in," "appears to have studied." These are guesses formatted as statements. Distinct from cutoff disclaimers, which *admit* the gap — this one hides it behind plausible-sounding filler, which is worse because the reader can't tell what's known from what's invented. Cut the speculation, or use a fact supplied in the source or an explicit user correction. Adapted from `blader/humanizer` P21.
 
+**Editorial decision card: `ec-source-gaps`**
+
+**Detector types:** none (judgment only).
+
+- **Apply:** Preserve a hypothesis the writer actually makes. Flag an unsupported added explanation instead of treating fluent wording as evidence for it.
+- **Edit:** Given “The log records a disconnect. The cause is unknown,” remove an editor-added claim that the router failed and retain the unknown cause.
+- **Keep:** “The router may have failed, but we have not checked it.” Keep the source hypothesis and its uncertainty.
+- **Flag a gap:** When a fix needs a missing name, number, mechanism, or experience, report that gap. Do not invent it; a useful bounded cleanup need not wait for an answer.
+
 ### Unfilled placeholders
 - Bracketed slot-fillers that were meant to be replaced before publishing: `[Your Name]`, `[INSERT SOURCE URL]`, `[Describe the specific section]`, `2025-XX-XX`, `<!-- Add citation if available -->`. A visible placeholder in publication-ready prose is an editorial bug: fill it only with content the user supplies, or flag the missing value and leave or delete the surrounding sentence as the authorized scope permits. Preserve placeholders in templates and drafts where they are intentional.
 - Catch the obvious shapes: `\[(?:Your|Insert|Add|Enter|Describe|Specify|Choose)[^\]]+\]`, `\b\d{4}-XX-XX\b`, HTML/Markdown comments with placeholder verbs (`add`, `fill in`, `todo`, `insert`).
@@ -430,9 +511,18 @@ These slot-fill constructions signal that a sentence was generated, not written.
 ### Stock reaction framing
 - Treat this as a **style heuristic, not an authorship signal**. The current corpus produces no detector hits for this category in either class, so it cannot estimate a direction. For this challenged, unobserved category, the precision-first choice is to keep the finding visible without moving the authorship score.
 - Flag the **stock framing**, not the existence of a named emotion: "What surprised me most," "I was fascinated to discover," "What struck me was," "I was excited to learn," "The most interesting part," and the bare section-header variant: "Interesting part of the project:" / "Interesting thing here:" / "Interesting aspect:". These can function as generic list introductions or significance pre-announcements when the sentence would say the same thing without them.
-- Keep authentic, specific reactions. "I was surprised" is not a machine tell by itself, and a rewrite must not replace a named emotion with theatrical body language just to satisfy "show, don't tell." Add the changed expectation and reason only when the source supplies them; otherwise preserve the reaction as written.
+- Keep authentic reactions and subjective judgments, including an unexplained preference or ranking. "I was surprised" and "the most interesting part" can carry the writer's stance even without a reason. A rewrite must not replace a named emotion with theatrical body language or drop a judgment just to satisfy "show, don't tell." Add the changed expectation and reason only when the source supplies them; otherwise preserve the reaction as written.
 - Fix only the empty frame. If the reaction adds nothing, lead with the source's concrete fact. If the source supplies the expectation and reason, a specific form such as "I expected X; the 40% drop surprised me because Y" can preserve the reaction. Otherwise keep the authentic reaction or flag the missing context rather than inventing experience.
 - Related pattern: "hit differently" / "hits different." Treat it the same way: a vague relatability shortcut is a style problem; a concrete description of what changed or why it mattered is better. Do not infer authorship from the phrase alone.
+
+**Editorial decision card: `ec-grounded-reaction`**
+
+**Detector types:** `emotional-flatline` (partial; zero authorship weight).
+
+- **Apply:** Remove a stock introduction only when the supplied fact carries its entire meaning. Treat a stated reaction, preference, or ranking as source meaning even when its rationale is missing. A bare fact does not preserve "most interesting," "favorite," or "most surprising." Rephrase the frame only while retaining that judgment; when unsure, keep it and report the ambiguity.
+- **Edit:** “What surprised me most was that the export had 31 rows; I expected 40.” → “I expected 40 rows; the export had 31, which surprised me most.” Preserve the reaction, ranking, expectation, and counts together.
+- **Keep:** “The most interesting part: the export has 31 rows.” The ranking is a supplied judgment, not an empty introduction. “I was surprised because I expected a timeout, but the request returned immediately.” Keep the reaction and expectation.
+- **Flag a gap:** Do not add a gasp, physical gesture, personal trial, or reason the source omits. Keep the judgment when its context cannot be safely reconstructed. Missing rationale does not authorize deletion or require interrupting a useful bounded edit.
 
 ### Lingering-attention claims
 - The share-post frame that claims a thing has occupied the writer's mind: "the line I keep coming back to," "I can't stop thinking about this," "still thinking about this one," "this has been rattling around in my head all week," "I've been chewing on this since Tuesday." The claim is about the writer's attention, not about the thing, and it arrives *before* the reader has any reason to care.
@@ -442,6 +532,15 @@ These slot-fill constructions signal that a sentence was generated, not written.
 
 ### False concession structure
 - "While X is impressive, Y remains a challenge" or "Although X has made strides, Y is still an open question." AI uses this to sound balanced without actually weighing anything. Both halves are vague. Make the concession specific only with details and stance the source supplies; otherwise cut the empty frame while preserving both claims and their uncertainty. Do not choose a side for the writer.
+
+**Editorial decision card: `ec-meaningful-concession`**
+
+**Detector types:** `false-concession` (partial).
+
+- **Apply:** Read both clauses. A factual tradeoff or temporal “while” stays. Cut empty balancing language only while retaining every supplied claim, positive or negative assessment, and limitation. Do not decide that the writer's assessment is expendable because its wording is generic.
+- **Edit:** “While the platform is impressive, challenges remain. It exports CSV but cannot export PDF.” → “The platform is impressive and still has challenges. It exports CSV but cannot export PDF.” Retain the assessment and unresolved limitations rather than choosing a side.
+- **Keep:** “While the worker restarted, the queue kept accepting jobs.” Keep the time relationship.
+- **Flag a gap:** If the source leaves a challenge or assessment vague after cleanup, preserve the claim and briefly identify its missing scope in the report. Do not silently certify it as resolved, name a challenge, or choose a preferred side unless the source supplies it. A bounded wording edit can still be delivered without waiting for an answer.
 
 ### Invented contrast-pair mirroring
 - An AI-specific form of forced symmetry: one half of a contrast pair is a legitimate term of art, and the other is the AI inventing its mirror to balance the sentence. "False precision rather than genuine accuracy" — "false precision" is a real statistical term; "genuine accuracy" is a phantom counterpart generated for parallelism. The asymmetry is invisible unless you know which half is real. The same pattern can produce pairs like "real data rather than theoretical models" (both real) or "practical results rather than abstract speculation" (both real), but the AI-specific tell is when one term is borrowed from the domain and the other is entirely fabricated.
@@ -526,6 +625,15 @@ These slot-fill constructions signal that a sentence was generated, not written.
 - Formulaic section headers: "Overview," "Key Points," "Summary," "Conclusion," "Introduction" — these are default AI scaffolding. During ordinary cleanup, flag an empty label. Rename, merge, or remove headers only when structural editing is authorized, using the source's own subject matter.
 - Fragmented headers: a heading followed by a one-line warm-up that restates it ("## Performance", then "Speed matters.") before the real content starts. Cut the warm-up; the heading already did that job. Adapted from `blader/humanizer` P29.
 
+**Editorial decision card: `ec-structure-scope`**
+
+**Detector types:** none (judgment only).
+
+- **Apply:** Diagnose empty scaffolding, then check whether the user authorizes structural changes. Ordinary cleanup preserves the outline; a list can be the right format.
+- **Edit:** When restructuring is requested, merge redundant sections using their existing claims and preserve their relationships.
+- **Keep:** During wording-only cleanup, retain headings and their order, even if a structural issue is worth reporting. Keep API parameter lists and ordered instructions.
+- **Flag a gap:** If the logical connection is missing, report it; do not invent a cause, transition claim, or new conclusion to join sections.
+
 ### Diff-anchored writing
 - Documentation or comments narrating a change instead of describing the thing as it is: "This function was added to replace the previous approach of iterating through all items." A reader without the commit history gets archaeology, not documentation. The tell comes from how assistants work — they write docs in the context of the edit they just made, so the prose anchors to the diff; a person documenting later writes from the artifact.
 - Fix: describe current behavior using implementation and rationale already present in the source. Do not replace change history with an invented data structure, complexity claim, or reason. If the history matters, it belongs in the changelog or commit message when the user's scope permits moving it.
@@ -534,7 +642,7 @@ These slot-fill constructions signal that a sentence was generated, not written.
 ### Performed-insight phrases
 - A family of essayist tics that announce profundity instead of delivering it: "sit with that for a moment", "that's not nothing", "you already know the answer", "the punchline is", "worth naming", "don't take my word for it", "that's the whole point", "is the entire business model", "that's the part nobody mentions", "the only metric that matters", "X is dead; long live X", "that's why it mattered", the sentence-initial "Turns out", and staged discoveries that frame a judgment as a twist the writer found ("the recording turned out to be the least interesting part", "the real story was"; "what surprised me most" is covered under emotional flatline). Each stages a reveal; none adds a fact.
 - One hit can be a stylistic choice — several in one piece is a tell. In short social copy (a post of a few sentences), one staged discovery that carries the post's payoff is enough to fix: it usually stands in for a concrete claim the post never makes. Fix: state the source's claim without the announcement. Replace "That's not nothing" with a size only when the source supplies one; remove "the punchline is" without inventing a new point.
-- Carve-out: quoted speech and genuinely comedic writing, where a punchline is literal. The deterministic detector omits "the punchline" and "worth naming" because their literal senses cannot be separated reliably by regex. Source: Simon Willison's [LLM cliché highlighter](https://tools.simonwillison.net/llm-cliche-highlighter).
+- Carve-out: quoted speech and genuinely comedic writing, where a punchline is literal. Preserve an essay title or supported contrast in "X is dead; long live Y" form when it names the argument; do not flag the wording alone. The deterministic detector omits that form, "the punchline", and "worth naming" because their legitimate uses need reading to distinguish. Source: Simon Willison's [LLM cliché highlighter](https://tools.simonwillison.net/llm-cliche-highlighter).
 
 ### Negation chains
 - Two or more "no …" items in a row ("No fluff, no filler, no jargon."), two or more "didn't …" clauses stacked for rhythm ("It didn't ask. It didn't wait."), and the negated-then-repeated verb ("Don't call it a pivot. Call it a correction."). The chain performs decisiveness; the items are rarely load-bearing.
@@ -573,7 +681,16 @@ These slot-fill constructions signal that a sentence was generated, not written.
 - **Repeated setup/reversal punchlines (P2, judgment-only).** A paraprosdokian reverses the expectation set up by the first part of a sentence. Review two or more such reversals in one piece, especially in hooks, closers, or final list items. Flag only when the repeated reversals replace concrete claims with generic surprise or deflation; repetition alone is not a finding. This subtype concerns setup and payoff across sentences, while the fragment rule above concerns three or more same-shape beats. Treat it as a clarity and rhythm edit, not proof of AI authorship. Adapted from [cland4449's contribution (#130)](https://github.com/conorbronsdon/avoid-ai-writing/pull/130).
 - Flag example, in an otherwise unexplained passage: "We planned for every failure mode. Except the one that happened. The migration went smoothly, which is how we knew something was wrong." Both reversals stand in for the missing explanation. A repeated scale-then-deflate line such as "Four steps, and only one of them is yours" belongs here only when the passage never explains the steps or the reader's role. Nearby negative parallelism or staccato drama can support the judgment but does not override these conditions.
 - Pass: one supported, voice-appropriate reversal, and repeated reversals that communicate concrete distinctions. "We rebuilt billing to group charges by project. Your invoice total didn't change" carries a specific contrast and stays. Intentional comedy, fiction, speeches, and quotations stay, including pieces with multiple reversals. Read the surrounding passage before deciding that an explanation is missing.
-- Fix: keep the supported claim and remove the empty twist. "We planned for every failure mode. Except the one that happened" becomes "We missed a failure mode." If the writer has not named the failure, ask for it; do not invent disk failures, network partitions, clock skew, or other causes. Preserve supplied facts and intentional voice.
+- Fix: keep the supported claim and remove the empty twist. "We planned for every failure mode. Except the one that happened" becomes "We planned for every failure mode except the one that happened." Keep the claimed scope of preparation rather than reducing it to a generic admission of failure. If the writer has not named the failure, ask for it; do not invent disk failures, network partitions, clock skew, or other causes. Preserve supplied facts and intentional voice.
+
+**Editorial decision card: `ec-earned-reversal`**
+
+**Detector types:** none (judgment only).
+
+- **Apply:** Read the full passage for a supplied distinction or intended comic voice. Repeated reversals are findings only when they substitute for explanations.
+- **Edit:** “We planned for every failure mode. Except the one that happened.” → “We planned for every failure mode except the one that happened.” Keep the claimed coverage breadth; reducing this to “We missed a failure mode” would discard it.
+- **Keep:** “We rebuilt billing to group charges by project. Your invoice total did not change.” Keep the supported contrast, and preserve intentional comedy or fiction.
+- **Flag a gap:** If the failure mode is unnamed, flag that gap. Do not fill it with disk failures, network partitions, or other plausible causes.
 
 ### Rhythm and uniformity
 
@@ -587,6 +704,15 @@ Structural regularity can matter more than a vocabulary swap. Consistent sentenc
 - **Read-aloud test**: If the text sounds like it could be read by a text-to-speech engine without sounding weird, it's probably too uniform. Human writing has rhythm that resists robotic delivery.
 - **Speaker and stance**: Preserve first person, opinions, preferences, and reactions when the source contains them. Their absence is not a finding by itself. An explicit voice transformation may recast an existing stance, but never invent a speaker experience or opinion.
 - **Over-polishing**: Aggressively editing out every irregularity can push human writing *toward* AI statistical profiles. Natural disfluency, idiosyncratic word choices, and uneven pacing are what keep text out of the "AI-generated" classification. Don't sand away all personality in pursuit of clean prose. This skill should make writing sound more human, not less — if you apply every rule at maximum strictness, you risk creating the very uniformity you're trying to avoid.
+
+**Editorial decision card: `ec-purposeful-rhythm`**
+
+**Detector types:** `uniformity` (partial).
+
+- **Apply:** Review document rhythm alongside genre, meaning, and voice. A statistical warning is a review prompt; regularity alone does not justify changing source content.
+- **Edit:** When several sentences repeat an empty opener, remove the redundant opener while retaining their distinct facts; do not impose a sentence-length quota.
+- **Keep:** Keep parallel safety instructions, technical terms, and deliberate fragments such as “We shipped the patch. I slept. Finally.”
+- **Flag a gap:** If variation requires a new example, question, opinion, or experience, report the limitation and preserve the source instead of manufacturing personality.
 
 ### Vocabulary diversity (stylometric)
 

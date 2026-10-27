@@ -122,6 +122,12 @@ List every material tell with the offending text and severity. Separate clear
 problems from context-dependent judgment calls. Treat patterns as writing
 signals, never proof of authorship.
 
+<!-- local: backported from avoid-ai-writing v3.38.0 detect-mode output -->
+Use the severity the catalog's *Severity tiers* assign, and cite only catalog
+patterns: in replacement tables only the Replace column, never a suggested
+alternative. A sub-threshold match (one Tier 2 word, say) is not a finding;
+mention it as a judgment call if at all.
+
 ### Rewrite
 
 Return the cleaned version first. Preserve meaning, facts, structure, and voice.

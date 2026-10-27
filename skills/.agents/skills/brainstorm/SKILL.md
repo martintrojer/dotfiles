@@ -6,7 +6,7 @@ description: >
   a decision tree in rounds of questions, then produces an approved spec.
   Triggers on "brainstorm", "design a feature", "think through an idea". Skip a
   genuine one-liner with no design question in it.
-version: 0.5.1
+version: 0.6.0
 ---
 
 # Brainstorm — Design Phase
@@ -81,7 +81,8 @@ Format each question:
 ```
 
 - **Always carry your recommended answer.** The user should be reacting to a
-  proposal, not staring at a blank prompt.
+  proposal, not staring at a blank prompt. <!-- local: mattpocock grilling @ 59db609 -->
+  Word each question so "yes" accepts your recommendation.
 - **Answer it from the repo if the repo can answer it.** Facts are your job,
   never the user's — read the files, run the command, check the history.
   *Decisions* are the user's. If a frontier question needs a fact you have to go
@@ -168,6 +169,13 @@ checklist.
 Write the *why* down. The what is recoverable from the code later; the why is
 not.
 
+<!-- local addition: superpowers brainstorming @ 2ce8aa1 -->
+Only what the user said goes in as theirs. Anything you filled in goes in as
+your call, with your reason, never as something they agreed to.
+
+A small change gets a short spec, a line or two per section, and skips the
+builder check in step 7. If it grows mid-task, say so and step up.
+
 ### 7. Self-review the spec
 
 Fresh eyes on what you just wrote:
@@ -182,10 +190,32 @@ Fresh eyes on what you just wrote:
 
 Fix inline. Don't re-review.
 
+<!-- local addition: builder check, adapted from superpowers brainstorming @ 2ce8aa1 -->
+**Builder check** (not for a small change). Hand the spec to a fresh
+`mu_delegate`; without one, read it as that builder yourself:
+
+> You've been handed the design document at `<path>` and asked to plan building
+> what it describes. You cannot talk to its author. Report only the questions
+> you'd need answered before you could plan this well: places where you'd have
+> to guess and a wrong guess would matter. For each, say why the answer changes
+> the plan; rank by importance. Skip anything the document leaves to the
+> builder, anything you could reasonably decide yourself, and wording nitpicks.
+> If nothing important is left, say "nothing important left".
+
+Sort what comes back:
+
+- **Answered already** by the conversation or the repo: write it into the spec.
+- **Minor**, settled without changing what gets built: decide it, mark it as
+  your call.
+- **Theirs**, changes what gets built and only the user can say: ask them in one
+  message, most important first. That is the check's only round of questions.
+
 ### 8. User review gate
 
 > "Spec written to `<path>`. Have a look before we turn it into a plan — tell me
 > what you want changed."
+
+List the calls you made with it, so the user can check those while reading.
 
 Wait. If they want changes, make them and re-run step 7.
 

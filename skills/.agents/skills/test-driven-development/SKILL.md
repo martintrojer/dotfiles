@@ -36,7 +36,7 @@ A **seam** is the public boundary you test at: the interface where you can obser
 
 **Test at an agreed seam.** Name the seam before writing the test. Prefer the public boundary and test shape the repository already uses. Ask the user only when choosing a seam would decide product or API direction; otherwise use the existing convention and proceed.
 
-Naming the seam up front puts testing effort on the critical paths and complex logic instead of spreading it over every edge case. Ask: "what's the public interface, and which seam would catch this behavior?"
+Naming the seam up front puts testing effort on the critical paths and complex logic instead of spreading it over every edge case. Ask: "what's the public interface, and which seam would catch this behavior?" <!-- local: mattpocock tdd @ 59db609 --> When you propose seams, give each a one-line note on what it catches and what it misses.
 
 When the shape of that interface is itself the open question, `brainstorm` it before writing tests against a boundary you don't believe in.
 
@@ -62,6 +62,9 @@ Good: `test('retries failed operations 3 times')` calls the real `retryOperation
 **Test passes?** You're testing existing behavior. Fix the test.
 
 **Test errors?** Fix the error, re-run until it fails correctly.
+
+<!-- local: mattpocock diagnosing-bugs @ 59db609 -->
+**Forced the red** by mutating code or a fixture? `diff` against a pristine copy to prove the mutation landed before you trust the failure.
 
 ### GREEN - Minimal Code
 
