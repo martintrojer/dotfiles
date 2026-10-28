@@ -28,8 +28,8 @@ from _dotfiles_sync import integration_checks
 class MurmurCheckTestCase(unittest.TestCase):
     """A target root that already satisfies every non-PATH requirement.
 
-    Identity and the pi extension are present so any warning the check emits
-    is about PATH and nothing else.
+    Identity is present so any warning the check emits is about PATH and
+    nothing else.
     """
 
     def setUp(self) -> None:
@@ -40,10 +40,6 @@ class MurmurCheckTestCase(unittest.TestCase):
         state = self.target / ".local" / "state" / "murmur"
         state.mkdir(parents=True)
         (state / "identity.json").write_text("{}\n")
-
-        extensions = self.target / ".pi" / "agent" / "extensions"
-        extensions.mkdir(parents=True)
-        (extensions / "murmur.ts").write_text("// stub\n")
 
         # MURMUR_STATE_DIR/XDG_STATE_HOME would redirect the identity lookup
         # away from the fixture, so a developer's own env could pass or fail
