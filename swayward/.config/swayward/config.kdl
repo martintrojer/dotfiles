@@ -236,9 +236,9 @@ hotkey-overlay {
 //
 // This is load-bearing, not cosmetic: swayward only advertises the
 // xdg-decoration globals to a client when this is set
-// (src/swayward.rs:2856). Without it, foot logs "no decoration manager
-// available - using CSDs unconditionally" and draws its own titlebar with a
-// close button, which no swayward setting can remove.
+// (src/swayward.rs:2856). Without it, a Wayland client sees "no decoration
+// manager" and falls back to drawing its own titlebar with a close button,
+// which no swayward setting can remove.
 //
 // Clients that specifically ask for CSD still get it. Also marks clients
 // tiled, removing some client-side rounded corners. Restart apps after
@@ -297,7 +297,7 @@ window-rule {
 }
 
 // Blur behind translucent terminals. Only shows up if the app is actually
-// translucent -- foot.ini has alpha=0.9, so it is. An opaque window has
+// translucent -- Ghostty's background-opacity is 0.8, so it is. An opaque window has
 // nothing to see through and blur is wasted GPU work.
 //
 // xray false selects true see-through blur: everything below the window is
@@ -309,11 +309,17 @@ window-rule {
 // or anything beneath it changes. The wiki marks non-xray blur experimental --
 // it drops out during window open/close animations and while dragging a tiled
 // window. Set xray back to true (or delete the line) if that shows.
-// The *-float match covers the footclient popups (yazi, btop, ...), which
-// replace foot's app-id via --app-id.
+// The *-float match covers the Ghostty popups (yazi, btop, ...), which
+// replace Ghostty's app-id via --class.
 window-rule {
-    match app-id="^foot(client)?$"
+    match app-id=r#"^com\.mitchellh\.ghostty$"#
     match app-id="-float$"
+
+    // Ghostty doesn't advertise server-side decorations to swayward, so
+    // without this the border/focus ring is a solid mauve rectangle behind
+    // the window and the 0.8 background shows mauve instead of the
+    // wallpaper (measured: flat #433b5a, no wallpaper detail).
+    draw-border-with-background false
 
     background-effect {
         blur true
@@ -404,7 +410,7 @@ window-rule {
 
 // Floating utility terminals, matching the Super+Shift binds above.
 window-rule {
-    match app-id="^wiremix-float$"
+    match app-id=r#"^ghostty\.wiremix-float$"#
     open-floating true
     default-column-width { proportion 0.5; }
     default-window-height { proportion 0.6; }
@@ -412,7 +418,7 @@ window-rule {
 }
 
 window-rule {
-    match app-id="^bluetui-float$"
+    match app-id=r#"^ghostty\.bluetui-float$"#
     open-floating true
     default-column-width { proportion 0.5; }
     default-window-height { proportion 0.6; }
@@ -420,7 +426,7 @@ window-rule {
 }
 
 window-rule {
-    match app-id="^nmtui-float$"
+    match app-id=r#"^ghostty\.nmtui-float$"#
     open-floating true
     default-column-width { proportion 0.5; }
     default-window-height { proportion 0.6; }
@@ -428,7 +434,7 @@ window-rule {
 }
 
 window-rule {
-    match app-id="^yazi-float$"
+    match app-id=r#"^ghostty\.yazi-float$"#
     open-floating true
     default-column-width { proportion 0.5; }
     default-window-height { proportion 0.6; }
@@ -436,7 +442,7 @@ window-rule {
 }
 
 window-rule {
-    match app-id="^btop-float$"
+    match app-id=r#"^ghostty\.btop-float$"#
     open-floating true
     default-column-width { proportion 0.5; }
     default-window-height { proportion 0.6; }
@@ -492,7 +498,7 @@ binds {
     // -- Launchers and apps ------------------------------------------------
 
     Super+F1 { command "exec ~/.config/fuzzel/scripts/hotkeys"; }
-    Super+Return { command "exec footclient"; }
+    Super+Return { command "exec ghostty"; }
     Super+space { command "exec fuzzel --prompt 'Run ' --placeholder 'Search apps...'"; }
     Super+b { command "exec ~/.config/sway/scripts/open-browser"; }
     Super+y { command "exec ~/.config/sway/scripts/open-yazi"; }
@@ -502,9 +508,9 @@ binds {
 
     // -- Floating utility terminals ----------------------------------------
 
-    Super+Shift+a { command "exec footclient --app-id=wiremix-float wiremix"; }
-    Super+Shift+b { command "exec footclient --app-id=bluetui-float zsh -il -c bluetui"; }
-    Super+Shift+w { command "exec footclient --app-id=nmtui-float nmtui"; }
+    Super+Shift+a { command "exec ghostty --class=ghostty.wiremix-float -e wiremix"; }
+    Super+Shift+b { command "exec ghostty --class=ghostty.bluetui-float -e zsh -il -c bluetui"; }
+    Super+Shift+w { command "exec ghostty --class=ghostty.nmtui-float -e nmtui"; }
 
     // -- fuzzel pickers ----------------------------------------------------
 

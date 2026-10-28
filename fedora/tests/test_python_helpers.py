@@ -320,7 +320,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 2)
 
     def test_cache_paths_version_artifacts_independently(self) -> None:
-        """A display recipe change must not invalidate the sixel previews."""
+        """A display recipe change must not invalidate the preview thumbnail."""
         with tempfile.TemporaryDirectory() as raw_tmp:
             root = Path(raw_tmp).resolve()
             wallpaper = self.wallpaper_env(root)
@@ -328,16 +328,16 @@ class FedoraPythonHelperTests(unittest.TestCase):
             image.write_bytes(b"source")
 
             display = wallpaper._display_cache_path(image, 3840, 2160)
-            preview = wallpaper._sixel_cache_path(image, 80, 24)
+            preview = wallpaper._preview_cache_path(image)
 
             wallpaper.DISPLAY_RENDER_VERSION += 1
             self.assertNotEqual(
                 wallpaper._display_cache_path(image, 3840, 2160), display
             )
-            self.assertEqual(wallpaper._sixel_cache_path(image, 80, 24), preview)
+            self.assertEqual(wallpaper._preview_cache_path(image), preview)
 
             os.utime(image, ns=(0, 1234567890))
-            self.assertNotEqual(wallpaper._sixel_cache_path(image, 80, 24), preview)
+            self.assertNotEqual(wallpaper._preview_cache_path(image), preview)
             self.assertIsNone(wallpaper._cache_key(wallpaper.ARCHIVE_DIR / "gone.png"))
 
     def test_delete_archive_clears_cache_but_spares_the_active_wallpaper(self) -> None:
@@ -356,8 +356,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
             for name in (
                 f"{key}.lock-v18.png",
                 f"{key}.display-v1-3840x2160.png",
-                f"{key}.sixel-v18-80x24",
-                f"{key}.sixel-v18-120x40",
+                f"{key}.preview-v19.png",
             ):
                 (wallpaper.CACHE_DIR / name).write_bytes(b"artifact")
             unrelated = wallpaper.CACHE_DIR / "deadbeef.png"

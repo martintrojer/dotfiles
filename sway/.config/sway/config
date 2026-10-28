@@ -1,10 +1,8 @@
 # Catppuccin-flavoured Sway config.
 
 set $mod Mod4
-# Connects to sway-foot-server.service (see fedora/systemd/). Falling back
-# to plain `foot` here would defeat the point of the server; if the daemon
-# isn't running, fix the unit rather than papering over it.
-set $term footclient
+# Plain launch: one Ghostty process per window, no server to keep alive.
+set $term ghostty
 set $menu fuzzel --prompt 'Run ' --placeholder 'Search apps...'
 set $browser ~/.config/sway/scripts/open-browser
 set $lock ~/.config/sway/scripts/lock-screen
@@ -97,12 +95,13 @@ for_window [app_id="^google-chrome$" title="^(Sign in|Task Manager)"] floating e
 for_window [app_id="^(code|vscode)$"] border pixel 2
 # Generic auth prompt title (polkit/ssh-askpass style).
 for_window [title="^Authentication Required$"] floating enable, move position center
-# Floating TUIs launched from waybar.
-for_window [app_id="^wiremix-float$"] floating enable, resize set 50 ppt 60 ppt, move position center
-for_window [app_id="^bluetui-float$"] floating enable, resize set 50 ppt 60 ppt, move position center
-for_window [app_id="^nmtui-float$"] floating enable, resize set 50 ppt 60 ppt, move position center
-for_window [app_id="^yazi-float$"] floating enable, resize set 50 ppt 60 ppt, move position center
-for_window [app_id="^btop-float$"] floating enable, resize set 50 ppt 60 ppt, move position center
+# Floating TUIs launched from waybar. Ghostty's --class must be a dotted GTK
+# app id, so the popups are ghostty.<name>-float.
+for_window [app_id="^ghostty\.wiremix-float$"] floating enable, resize set 50 ppt 60 ppt, move position center
+for_window [app_id="^ghostty\.bluetui-float$"] floating enable, resize set 50 ppt 60 ppt, move position center
+for_window [app_id="^ghostty\.nmtui-float$"] floating enable, resize set 50 ppt 60 ppt, move position center
+for_window [app_id="^ghostty\.yazi-float$"] floating enable, resize set 50 ppt 60 ppt, move position center
+for_window [app_id="^ghostty\.btop-float$"] floating enable, resize set 50 ppt 60 ppt, move position center
 # Cider (Apple Music client) auto-stashes into the scratchpad on launch.
 # Summon/toggle with $mod+m (open-cider raises it, spawning if needed);
 # $mod+n cycles the scratchpad generally. Never wastes a workspace slot.
@@ -123,9 +122,9 @@ bindsym $mod+y exec ~/.config/sway/scripts/open-yazi
 bindsym $mod+Shift+y exec thunar
 bindsym $mod+m exec ~/.config/sway/scripts/open-cider
 bindsym $mod+Shift+m exec ~/.config/fuzzel/scripts/cider
-bindsym $mod+Shift+a exec footclient --app-id=wiremix-float wiremix
-bindsym $mod+Shift+b exec footclient --app-id=bluetui-float zsh -il -c bluetui
-bindsym $mod+Shift+w exec footclient --app-id=nmtui-float nmtui
+bindsym $mod+Shift+a exec ghostty --class=ghostty.wiremix-float -e wiremix
+bindsym $mod+Shift+b exec ghostty --class=ghostty.bluetui-float -e zsh -il -c bluetui
+bindsym $mod+Shift+w exec ghostty --class=ghostty.nmtui-float -e nmtui
 
 # Powermenu kept on Shift (destructive: lock/suspend/shutdown), the
 # rest of the pickers promoted off Shift since they're frequent and

@@ -55,11 +55,11 @@ this wrapper remains useful for ad-hoc CLI commands.
 ## Wallpaper helpers
 
 - `wallpaper set <url-or-file>` keeps the original under `~/.local/share/wallpapers/archive/`, renders it for the active display, updates `~/.local/share/wallpapers/current`, and restarts `swaybg.service`
-- `wallpaper use` opens an `fzf` archive picker with sixel previews and activates the selected wallpaper; it does not accept a filename
+- `wallpaper use` opens an `fzf` archive picker with image previews and activates the selected wallpaper; it does not accept a filename
 - `wallpaper current` prints the display-sized render when available and the original archive path as a fallback
 - `wallpaper rebuild-cache` rebuilds the display render (swaybg and swaywardlock both show it; swaywardlock blurs it itself)
 - `wallpaper restart` restarts `swaybg.service` to re-apply the current wallpaper
-- `wallpaper preview <archive-file>` renders a wallpaper as sixel (`magick … sixel:-`) into the fzf preview pane; this is an internal picker command
+- `wallpaper preview <archive-file>` shows a cached PNG thumbnail in the fzf preview pane via Kitty graphics placeholders (works through tmux); this is an internal picker command
 
 The display render uses the focused output's physical resolution, or 2560×1440
 when Sway output discovery fails. It trims transparent outer padding before

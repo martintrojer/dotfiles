@@ -184,7 +184,7 @@ class AuditTests(RendererFixture):
         )
 
     def test_palette_hex_with_an_alpha_suffix_is_reported(self) -> None:
-        # swaywardlock/mako/foot write #rrggbbaa; a 6-digit-only match
+        # swaywardlock/mako/fuzzel write #rrggbbaa; a 6-digit-only match
         # with a trailing \b silently skipped every one of them.
         self.assertEqual(self.scan('ring="#abcdefff"\n'), [(1, "#abcdefff")])
         self.assertEqual(self.scan('fill = "#abcdef70"\n'), [(1, "#abcdef70")])

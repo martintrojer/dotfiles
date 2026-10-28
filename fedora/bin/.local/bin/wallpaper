@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import hashlib
 import json
@@ -39,25 +40,16 @@ CACHE_DIR = XDG_CACHE_HOME / "wallpaper"
 
 # Bump only the version for the artifact whose recipe changed.
 DISPLAY_RENDER_VERSION = 1
-PREVIEW_RENDER_VERSION = 18
+PREVIEW_RENDER_VERSION = 19
 DISPLAY_FALLBACK_WIDTH = 2560
 DISPLAY_FALLBACK_HEIGHT = 1440
 DISPLAY_FALLBACK_COLOR = "#08090c"
 DISPLAY_CROP_LIMIT = 0.10
 DISPLAY_BLUR_SIGMA = 20
 DISPLAY_RENDER_TIMEOUT = 90
-# Catppuccin Mocha base — sixel preview canvas fill. The fixed canvas
-# matters because fzf/foot don't reliably clear old sixel pixels when
-# consecutive previews have different intrinsic sizes.
-# THEME BEGIN: wallpaper-fallback-color
-PREVIEW_BACKGROUND_COLOR = "#1e1e2e"
-# THEME END: wallpaper-fallback-color
-# Keep sixel payloads well below the size where foot/fzf starts to
-# silently fail on large/high-detail wallpapers. This was observed on
-# the largest archive entries at ~1 MiB: direct `cat *.sixel-*` in foot
-# produced no image even though the sixel bytes were valid. `+dither`
-# avoids noisy diffusion patterns that compress poorly in sixel output.
-PREVIEW_COLORS = 48
+# Preview thumbnails are capped at this many pixels on the long edge. The
+# terminal scales them into the fzf pane, so one size serves every pane.
+PREVIEW_MAX_EDGE = 1280
 
 
 # ----------------------------------------------------------------------
@@ -143,7 +135,7 @@ def restart_swaybg() -> None:
 
 
 # ----------------------------------------------------------------------
-# Cache: display and per-pane-size sixel renders
+# Cache: display render and preview thumbnail
 #
 # Files live at $XDG_CACHE_HOME/wallpaper/<sha>.<kind>-vN[-WxH].*.
 # The shared key identifies the source; each artifact carries its own recipe
@@ -153,9 +145,8 @@ def restart_swaybg() -> None:
 # its warm cache for years.
 #
 # swaybg and swaywardlock both show the display render (`wallpaper
-# current`); swaywardlock blurs it itself. Sixels are rendered on
-# demand by `wallpaper preview` (used by the fzf picker) and cached per
-# (cols x lines) pane size on first paint.
+# current`); swaywardlock blurs it itself. Preview thumbnails are rendered
+# on demand by `wallpaper preview` (used by the fzf picker).
 # ----------------------------------------------------------------------
 
 
@@ -178,8 +169,8 @@ def _display_cache_path(wallpaper: Path, width: int, height: int) -> Path | None
     return CACHE_DIR / (f"{key}.display-v{DISPLAY_RENDER_VERSION}-{width}x{height}.png")
 
 
-def _sixel_cache_path(wallpaper: Path, cols: int, lines: int) -> Path | None:
-    """Cache path for a (wallpaper, cols x lines) sixel render.
+def _preview_cache_path(wallpaper: Path) -> Path | None:
+    """Cache path for a wallpaper's preview thumbnail.
 
     Shares the wallpaper's `_cache_key` with other renders so
     `cmd__delete_archive` can glob `<key>.*` and clean every artifact
@@ -189,7 +180,7 @@ def _sixel_cache_path(wallpaper: Path, cols: int, lines: int) -> Path | None:
     key = _cache_key(wallpaper)
     if key is None:
         return None
-    return CACHE_DIR / f"{key}.sixel-v{PREVIEW_RENDER_VERSION}-{cols}x{lines}"
+    return CACHE_DIR / f"{key}.preview-v{PREVIEW_RENDER_VERSION}.png"
 
 
 def _file_identity(path: Path) -> tuple[int, int, int, int] | None:
@@ -200,7 +191,7 @@ def _file_identity(path: Path) -> tuple[int, int, int, int] | None:
     doing work. Cache writes therefore re-check this identity after the
     render and only publish bytes if the path still names the same file
     content we keyed at the start. That prevents a late render from
-    populating a stale/wrong `.sixel-*` cache path after an archive entry
+    populating a stale/wrong `.preview-*` cache path after an archive entry
     is replaced, deleted, or otherwise races with the preview process.
     """
     try:
@@ -210,26 +201,35 @@ def _file_identity(path: Path) -> tuple[int, int, int, int] | None:
     return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
 
 
-def _atomic_write(path: Path, data: bytes) -> None:
-    """Write bytes via temp + rename so concurrent preview processes
-    don't see torn files. Best-effort: failures are swallowed since a
-    missing cache just means the next preview re-renders.
+def _render_preview(source: Path, path: Path) -> bool:
+    """Render a preview thumbnail to `path` via temp + rename, so
+    concurrent preview processes never see a torn file. The rename only
+    happens if `source` is still the file the render started from.
     """
+    identity = _file_identity(source)
     try:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         fd, tmp_str = tempfile.mkstemp(
-            dir=str(CACHE_DIR), prefix=".sixel.", suffix=".tmp"
+            dir=str(CACHE_DIR), prefix=".preview.", suffix=".png"
         )
+        os.close(fd)
     except OSError:
-        return
+        return False
     tmp_path = Path(tmp_str)
+    edge = PREVIEW_MAX_EDGE
+    result = subprocess.run(
+        ["magick", f"{source}[0]", "-resize", f"{edge}x{edge}>", f"png:{tmp_path}"],
+        capture_output=True,
+    )
     try:
-        with os.fdopen(fd, "wb") as fp:
-            fp.write(data)
+        if result.returncode != 0 or identity != _file_identity(source):
+            raise OSError("stale or failed render")
         os.replace(tmp_path, path)
     except OSError:
         with contextlib.suppress(OSError):
             tmp_path.unlink()
+        return False
+    return True
 
 
 def _crop_loss(
@@ -583,13 +583,53 @@ def cmd_restart(_args: argparse.Namespace) -> int:
     return 0
 
 
-def _env_positive_int(name: str, default: int) -> int:
-    """Return a positive int from an env var, falling back on bad input."""
-    try:
-        value = int(os.environ.get(name, ""))
-    except ValueError:
-        return default
-    return value if value > 0 else default
+# Kitty "row/column" diacritics: the Nth entry marks row or column N of an
+# image placeholder cell. Rows need one each; 64 covers any fzf pane.
+_KITTY_DIACRITICS = (
+    "\u0305\u030d\u030e\u0310\u0312\u033d\u033e\u033f\u0346\u034a\u034b\u034c"
+    "\u0350\u0351\u0352\u0357\u035b\u0363\u0364\u0365\u0366\u0367\u0368\u0369"
+    "\u036a\u036b\u036c\u036d\u036e\u036f\u0483\u0484\u0485\u0486\u0487\u0592"
+    "\u0593\u0594\u0595\u0597\u0598\u0599\u059c\u059d\u059e\u059f\u05a0\u05a1"
+    "\u05a8\u05a9\u05ab\u05ac\u05af\u05c4\u0610\u0611\u0612\u0613\u0614\u0615"
+    "\u0616\u0617\u0657\u0658"
+)
+_KITTY_PLACEHOLDER = "\U0010eeee"
+_KITTY_IMAGE_ID = 1
+
+
+def _kitty_image(path: Path, cols: int, lines: int) -> bytes:
+    """Show the PNG at `path` in a cols x lines cell box, Kitty style.
+
+    Uses Unicode placeholders (U=1): the image is bound to placeholder
+    characters printed as ordinary text, so it lands wherever fzf draws
+    its preview. A plain placement (a=T without U=1) draws at the real
+    cursor instead, which under tmux is fzf's prompt, not the preview.
+    Ghostty reads the file itself (t=f), so only the path crosses the pty.
+    Inside tmux the graphics command needs the passthrough wrapper.
+    """
+    lines = min(lines, len(_KITTY_DIACRITICS))
+    payload = base64.b64encode(str(path).encode()).decode()
+    cmd = (
+        f"\033_Ga=T,U=1,t=f,f=100,q=2,i={_KITTY_IMAGE_ID},c={cols},r={lines};"
+        f"{payload}\033\\"
+    )
+    if os.environ.get("TMUX"):
+        cmd = "\033Ptmux;" + cmd.replace("\033", "\033\033") + "\033\\"
+    # Colour 1 encodes the image id; later cells in a row inherit the row
+    # and the next column from the cell before, so only the first is marked.
+    row = "\033[38;5;%dm%s%s%s%s\033[39m\n"
+    rows = "".join(
+        row
+        % (
+            _KITTY_IMAGE_ID,
+            _KITTY_PLACEHOLDER,
+            _KITTY_DIACRITICS[r],
+            _KITTY_DIACRITICS[0],
+            _KITTY_PLACEHOLDER * (cols - 1),
+        )
+        for r in range(lines)
+    )
+    return (cmd + rows).encode()
 
 
 def cmd_preview(args: argparse.Namespace) -> int:
@@ -599,86 +639,22 @@ def cmd_preview(args: argparse.Namespace) -> int:
         if not candidate.is_file():
             return 0
 
-    # Sixel preview in foot (native support). Uses ImageMagick (`magick`)
-    # which ships in the Sericea base, so no extra packages are required.
-    # fzf's preview pane is sized in cells (cols x lines); rough cell
-    # geometry of 8x16 px gets us close to the actual pixel area without
-    # querying the terminal. Each preview is rendered onto a fixed-size
-    # Catppuccin canvas before sixel encoding: foot/fzf don't reliably
-    # clear old sixel pixels when the next preview is smaller, so a
-    # same-size opaque canvas makes every render overwrite the previous
-    # one. The `>` qualifier on -resize means "only shrink, never
-    # enlarge" — small thumbnails stay sharp and are centered on the
-    # canvas. The image is then quantized before sixel encoding so
-    # very detailed wallpapers don't produce ~1 MiB sixel payloads; foot
-    # can silently refuse to paint those even when `cat`ting the sixel
-    # directly outside fzf.
-    #
-    # Cached per (wallpaper key, cols x lines): first preview pays the
-    # ~200-400ms magick startup + decode + sixel encode cost, subsequent
-    # cursor moves over the same entry at the same pane size are a
-    # bytes-to-stdout pass. Cache entries share <key>.* with the display
-    # render and get cleaned together when the archive entry is
+    # Kitty graphics preview, cached per wallpaper as a PNG: the first
+    # preview pays the magick decode + resize, later cursor moves over the
+    # same entry are a path lookup. Cache entries share <key>.* with the
+    # display render and get cleaned together when the archive entry is
     # deleted.
-    if shutil.which("magick") is not None:
-        cols = _env_positive_int("FZF_PREVIEW_COLUMNS", 80)
-        lines = _env_positive_int("FZF_PREVIEW_LINES", 24)
-        source_identity = _file_identity(candidate)
-        width = cols * 8
-        height = lines * 16
-        cache_path = _sixel_cache_path(candidate, cols, lines)
-
-        # Always clear the preview pane immediately. This must happen
-        # before a possible slow render too; otherwise selecting an
-        # uncached/expensive wallpaper appears to "do nothing" until
-        # ImageMagick finishes, and quick cursor movement can leave the
-        # previous sixel visible long enough to look stuck.
-        clear_preview = b"\033[2J\033[H"
-        sys.stdout.buffer.write(clear_preview)
+    cache_path = _preview_cache_path(candidate)
+    if (
+        cache_path is not None
+        and shutil.which("magick") is not None
+        and (cache_path.is_file() or _render_preview(candidate, cache_path))
+    ):
+        cols = int(os.environ.get("FZF_PREVIEW_COLUMNS") or 80)
+        lines = int(os.environ.get("FZF_PREVIEW_LINES") or 24)
+        sys.stdout.buffer.write(_kitty_image(cache_path, cols, lines))
         sys.stdout.buffer.flush()
-
-        if (
-            cache_path is not None
-            and source_identity is not None
-            and cache_path.is_file()
-            and cache_path.stat().st_size > 0
-        ):
-            try:
-                sys.stdout.buffer.write(cache_path.read_bytes())
-                sys.stdout.buffer.flush()
-                return 0
-            except OSError:
-                pass  # fall through to re-render
-
-        result = subprocess.run(
-            [
-                "magick",
-                str(candidate),
-                "-resize",
-                f"{width}x{height}>",
-                "-background",
-                PREVIEW_BACKGROUND_COLOR,
-                "-gravity",
-                "center",
-                "-extent",
-                f"{width}x{height}",
-                "+dither",
-                "-colors",
-                str(PREVIEW_COLORS),
-                "sixel:-",
-            ],
-            capture_output=True,
-        )
-        if result.returncode == 0 and result.stdout:
-            if (
-                cache_path is not None
-                and source_identity is not None
-                and _file_identity(candidate) == source_identity
-            ):
-                _atomic_write(cache_path, result.stdout)
-            sys.stdout.buffer.write(result.stdout)
-            sys.stdout.buffer.flush()
-            return 0
+        return 0
 
     print(candidate)
     return 0
@@ -787,8 +763,7 @@ def cmd__delete_archive(args: argparse.Namespace) -> int:
 
     # Compute the cache key before unlinking — once the file is gone we
     # can't stat its mtime. Then glob <key>.* under CACHE_DIR to scoop
-    # up the display render and every per-pane-size sixel in
-    # one pass.
+    # up the display render and the preview thumbnail in one pass.
     key = _cache_key(target)
 
     try:
@@ -835,7 +810,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_restart = sub.add_parser("restart", help="restart swaybg.service")
     p_restart.set_defaults(func=cmd_restart)
 
-    p_preview = sub.add_parser("preview", help="sixel render for fzf preview pane")
+    p_preview = sub.add_parser("preview", help="image for the fzf preview pane")
     p_preview.add_argument("archive_file")
     p_preview.set_defaults(func=cmd_preview)
 

@@ -15,7 +15,7 @@ When tempted, re-read this section before touching anything.
 5. **Borrow ideas, not ecosystems.** Treat a good plugin or desktop stack as a reference. Reimplement only the useful part with local scripts and native APIs. A small Python script in this repo is easier to read, fix, and keep stable across upgrades than a third-party framework.
 6. **Recreate, do not restore.** No session snapshots or hidden state restoration. Disposable sessions force the setup to remain cheap to start.
 7. **Thin wrappers around shared lists.** Decisions live in data, not scripts. `dotfiles-sync` and `setup-*.sh` are wrappers around plain package lists.
-8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway with foot as the terminal. macOS is Hammerspoon with Ghostty as the terminal. The shared layer is the CLI/editor baseline. Each desktop uses its OS's native primitives: Spaces and Mission Control on macOS; sway IPC and Wayland layer-shell on Linux; foot's server/client and Ghostty's app-bundle launch model on their respective systems.
+8. **Opinionated, not agnostic.** Linux is Fedora + Wayland + Sway; macOS is Hammerspoon; Ghostty is the terminal on both. The shared layer is the CLI/editor baseline. Each desktop uses its OS's native primitives: Spaces and Mission Control on macOS; sway IPC and Wayland layer-shell on Linux; per-OS terminal settings live in `ghostty-linux/` and `ghostty-macos/`.
 9. **One palette, one glyph vocabulary, one layout language.** Catppuccin Mocha
    is the color system, `docs/glyphs.toml` is the semantic glyph vocabulary, and
    blocky/tmux geometry is the interaction grammar. Blocks are affordances, not
@@ -44,7 +44,7 @@ The shared layer is intentionally the CLI/editor baseline. Desktop behaviour is 
 | Where | What |
 |---|---|
 | Portable core (packages) | [`zsh/`](./zsh), [`nvim/`](./nvim), [`tmux/`](./tmux), [`git/`](./git), [`ssh/`](./ssh), [`local-bin/`](./local-bin), [`mise/`](./mise) (CLI tools, both OSes) |
-| Linux desktop stack (packages) | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`foot/`](./foot) (terminal), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaywardlock/`](./swaywardlock) (lock screen), [`swaylock/`](./swaylock) (its fallback) |
+| Linux desktop stack (packages) | [`sway/`](./sway), [`waybar/`](./waybar), [`fuzzel/`](./fuzzel), [`ghostty/`](./ghostty) (terminal, both OSes), [`kanshi/`](./kanshi), [`mako/`](./mako), [`swaywardlock/`](./swaywardlock) (lock screen), [`swaylock/`](./swaylock) (its fallback) |
 | Linux gaming layer | [`fedora/gaming/`](./fedora/gaming) — quarantined, opt-out (`--skip-gaming`) stack for the main Windows→Linux gaming rig (Steam, gamescope, OptiScaler, MangoHud, GameMode, OpenRGB); see [`fedora/gaming/README.md`](./fedora/gaming/README.md) and [`docs/DECISIONS.md`](./docs/DECISIONS.md) |
 | macOS desktop stack (packages) | [`hammerspoon/`](./hammerspoon), [`ghostty/`](./ghostty) (terminal), [`homebrew/`](./homebrew) (casks + Mac-only formulae) |
 | Fedora setup namespace | [`fedora/`](./fedora) (special case: nested packages + setup wrappers) |

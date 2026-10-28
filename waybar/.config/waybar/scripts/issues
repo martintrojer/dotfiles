@@ -52,22 +52,22 @@ ICON_MIC = "󰍭"
 ICON_BT = "󰂯"
 # THEME END: waybar-issue-glyphs
 
+
+def _popup(name: str, *cmd: str) -> list[str]:
+    """Floating Ghostty popup; sway floats app ids ending in -float."""
+    return ["ghostty", f"--class=ghostty.{name}-float", "-e", *cmd]
+
+
+BTOP = _popup("btop", "zsh", "-il", "-c", "btop")
 ACTION_OPEN = {
-    "audio": ["footclient", "--app-id=wiremix-float", "wiremix"],
-    "mic": ["footclient", "--app-id=wiremix-float", "wiremix"],
-    "network": ["footclient", "--app-id=nmtui-float", "nmtui"],
-    "bluetooth": [
-        "footclient",
-        "--app-id=bluetui-float",
-        "zsh",
-        "-il",
-        "-c",
-        "bluetui",
-    ],
-    "cpu": ["footclient", "--app-id=btop-float", "zsh", "-il", "-c", "btop"],
-    "temperature": ["footclient", "--app-id=btop-float", "zsh", "-il", "-c", "btop"],
-    "memory": ["footclient", "--app-id=btop-float", "zsh", "-il", "-c", "btop"],
-    "swap": ["footclient", "--app-id=btop-float", "zsh", "-il", "-c", "btop"],
+    "audio": _popup("wiremix", "wiremix"),
+    "mic": _popup("wiremix", "wiremix"),
+    "network": _popup("nmtui", "nmtui"),
+    "bluetooth": _popup("bluetui", "zsh", "-il", "-c", "bluetui"),
+    "cpu": BTOP,
+    "temperature": BTOP,
+    "memory": BTOP,
+    "swap": BTOP,
 }
 
 ACTION_FIX = {

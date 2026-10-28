@@ -48,7 +48,7 @@ call `rpm-ostree install`:
 
 - `os/base-packages.sh` — minimal bootstrap + CLI tooling on top of Sericea.
 - `os/sway-packages.sh` — extra desktop/session packages only (nothing Sericea
-  already ships: sway, foot, kanshi, swaybg/idle/lock, waybar, wl-clipboard,
+  already ships: sway, kanshi, swaybg/idle/lock, waybar, wl-clipboard,
   pipewire, xdg-desktop-portal-wlr, etc.).
 
 ## Decisions
@@ -252,7 +252,7 @@ After login, `sway-session.target` starts separate text and image watchers.
 
 `systemd/.config/systemd/user/` contains `sway-session.target` and the
 `lmstudio-server`, `sway-cliphist-watcher@image`,
-`sway-cliphist-watcher@text`, `sway-foot-server`, `sway-kanshi`, `sway-mako`,
+`sway-cliphist-watcher@text`, `sway-kanshi`, `sway-mako`,
 `sway-waybar`, `swaybg`, and `swayidle` services.
 
 Flow: link → reload → enable units:
@@ -268,7 +268,7 @@ Notes:
 - `sway-session.target` is started by `~/.config/sway/scripts/session-start`
   (after importing the Sway session env) and owns the desktop services
   (waybar, mako, swayidle, …); `session-quit` stops them. Vendor user units for
-  `mako`, `waybar`, `kanshi`, `foot-server` are masked by `dotfiles-sync --apply`
+  `mako`, `waybar`, `kanshi` are masked by `dotfiles-sync --apply`
   so D-Bus activation can't start duplicates.
 - Re-run `systemctl --user daemon-reload` after editing `*.service`/`*.container`.
 - `lmstudio-server.service` runs the LM Studio flatpak in its hidden

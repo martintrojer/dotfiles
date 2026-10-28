@@ -2,7 +2,7 @@
 
 # Packages layered on top of Fedora Sway Atomic (Sericea) for this setup.
 # Directly used packages intentionally left to the Sericea base image:
-# sway, foot, kanshi, swaybg, swayidle, swaylock, waybar, wl-clipboard,
+# sway, kanshi, swaybg, swayidle, swaylock, waybar, wl-clipboard,
 # grim, slurp, jq, brightnessctl, playerctl, pipewire, xdg-desktop-portal-wlr,
 # and xdg-desktop-portal-gtk.
 # shellcheck disable=SC2034  # consumed by the setup-*.sh script that sources this.
