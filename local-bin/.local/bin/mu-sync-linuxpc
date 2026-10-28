@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Sync mu segments with linuxpc over SSH."""
+"""Sync mu segments with linuxpc over SSH.
 
-import json
+mu never runs rsync itself; each machine writes only its own
+`$MU_SYNC_DIR/<machine_id>.{jsonl,manifest}`, and any mover that copies
+the folder both ways is enough (see mu's docs/guide/sync.md).
+"""
+
 import os
-import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -13,29 +16,9 @@ local_dir = Path(os.environ.get("MU_SYNC_DIR", ""))
 if not os.environ.get("MU_SYNC_DIR") or not local_dir.is_dir():
     sys.exit("MU_SYNC_DIR is unset or missing")
 
-query = ["mu", "sql", "--json", "select machine_id from machine_identity"]
-local_id = json.loads(subprocess.check_output(query, text=True))[0]["machine_id"]
-remote_id = json.loads(
-    subprocess.check_output(["ssh", host, shlex.join(query)], text=True)
-)[0]["machine_id"]
-
-rsync = ["rsync", "--checksum", "--times", "--compress"]
-subprocess.run(
-    [
-        *rsync,
-        local_dir / f"{local_id}.jsonl",
-        local_dir / f"{local_id}.manifest",
-        f"{host}:mu/",
-    ],
-    check=True,
-)
-subprocess.run(
-    [
-        *rsync,
-        f"{host}:mu/{remote_id}.jsonl",
-        f"{host}:mu/{remote_id}.manifest",
-        local_dir,
-    ],
-    check=True,
-)
+remote = f"{host}:mu/"
+# -a for directory recursion; the previous file-list form did not need it.
+rsync = ["rsync", "-a", "--checksum", "--compress"]
+subprocess.run([*rsync, f"{local_dir}/", remote], check=True)
+subprocess.run([*rsync, remote, f"{local_dir}/"], check=True)
 subprocess.run(["mu", "sync"], check=True)
