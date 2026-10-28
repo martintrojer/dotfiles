@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render theme regions across the dotfiles repo from `docs/palette.toml`.
 
-Each consumer config file (sway, waybar, tmux, foot, fuzzel, mako,
+Each consumer config file (sway, waybar, tmux, fuzzel, mako,
 swaylock, btop, eza, zsh, plus a handful of Python helpers) carries
 a marker pair around the section that needs theme hex values:
 
@@ -118,7 +118,6 @@ CONSUMERS: tuple[Consumer, ...] = (
         repo("zsh/.zsh/tools.zsh"),
         ("zsh-prompt-colors", "zsh-prompt-glyphs"),
     ),
-    Consumer(repo("foot/.config/foot/foot.ini"), ("foot-colors",)),
     Consumer(repo("fuzzel/.config/fuzzel/fuzzel.ini"), ("fuzzel-colors",)),
     Consumer(repo("btop/.config/btop/themes/current.theme"), ("btop-colors",)),
     Consumer(repo("eza/.config/eza/theme.yml"), ("eza-colors",)),
@@ -139,10 +138,6 @@ CONSUMERS: tuple[Consumer, ...] = (
     Consumer(
         repo("sway/.config/sway/scripts/session-wallpaper"),
         ("session-wallpaper-fallback-color",),
-    ),
-    Consumer(
-        repo("fedora/bin/.local/bin/wallpaper"),
-        ("wallpaper-fallback-color",),
     ),
     Consumer(repo("guides/style.css"), ("guides-palette",)),
     Consumer(
@@ -395,7 +390,7 @@ def apply_edits(
 # Blindspot audit
 # ---------------------------------------------------------------------
 
-# Six hex digits plus an optional alpha pair: swaywardlock, mako and foot
+# Six hex digits plus an optional alpha pair: swaywardlock, mako and fuzzel
 # write #rrggbbaa, and the colour part of those is still palette drift.
 HEX_RE = re.compile(r"#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?\b")
 

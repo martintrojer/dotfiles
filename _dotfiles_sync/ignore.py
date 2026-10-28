@@ -40,6 +40,8 @@ NAME_PATTERNS: Final[tuple[str, ...]] = (
     r"usage-audit\.py",
     # mise/ bootstrap script run from the repo, not a dotfile.
     r"setup-mise\.sh",
+    # ghostty/ Linux build script run from the repo, not a dotfile.
+    r"build-ghostty\.py",
     # homebrew/.Brewfile includes this from the repo; only .Brewfile links.
     r"Brewfile\.base",
     # Repo-level docs and vendored licence files. A package that genuinely

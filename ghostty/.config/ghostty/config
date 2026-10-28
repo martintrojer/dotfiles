@@ -1,15 +1,9 @@
+# Shared Ghostty config. The OS-specific half links in as os.ghostty from
+# ghostty-linux/ or ghostty-macos/, and is loaded after this file.
 theme = Catppuccin Mocha
 
-background-opacity = 0.90
-background-blur = 25
-macos-titlebar-style = transparent
-unfocused-split-opacity = 0.75
-
-font-family = "GeistMono Nerd Font Mono"
-# font-family = "JetBrainsMono Nerd Font Mono"
-# font-family = "Hack Nerd Font Mono"
-font-size = 15
 font-feature = -liga
-font-thicken = true
-
+unfocused-split-opacity = 0.75
 clipboard-write = allow
+
+config-file = ?os.ghostty

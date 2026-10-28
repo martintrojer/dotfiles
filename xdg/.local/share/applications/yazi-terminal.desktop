@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Yazi (Foot)
-Comment=Browse directories in Yazi running in Foot
-Exec=yazi-foot %f
+Name=Yazi (Ghostty)
+Comment=Browse directories in Yazi running in Ghostty
+Exec=yazi-terminal %f
 Icon=system-file-manager
 Terminal=false
 Categories=System;FileTools;FileManager;

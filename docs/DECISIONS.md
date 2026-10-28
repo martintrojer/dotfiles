@@ -89,7 +89,7 @@ After a Ghostty OOM (~160 GB resident; also nuked `~/.zsh_history` via the `shar
 - Why it didn't last: "one terminal everywhere" is a portability goal, not a quality goal. Alacritty was never the *most* Wayland-native option (foot is) nor the *most* macOS-native option (Ghostty is). Optimizing for sameness paid an opportunity cost on both sides.
 - Kept from the swap: the daily history snapshot, `option_as_alt = "OnlyLeft"` thinking (now on Ghostty), the nested-stow per-OS overlay pattern (still used by `fedora/`).
 
-Superseded by ["Each OS gets its native terminal"](#each-os-gets-its-native-terminal-foot-on-linux-ghostty-on-macos-accepted-2026-05-15) below.
+Superseded by ["Each OS gets its native terminal"](#each-os-gets-its-native-terminal-foot-on-linux-ghostty-on-macos-accepted-2026-05-15-linux-half-superseded-2026-10-28) below.
 
 ---
 
@@ -249,7 +249,7 @@ layer_effects "lockscreen"    { blur enable; blur_ignore_transparent enable; sha
 | `mako/.config/mako/config` | `background-color` (normal) | `#1e1e2e8c` (~55%) |
 | `mako/.config/mako/config` | `background-color` (critical) | `#1e1e2ed9` (~85%) |
 | `mako/.config/mako/config` | `outer-margin` | `6` (was `20`; doubles as blur halo) |
-| `foot/.config/foot/foot.ini` | `[colors-dark] alpha` | `0.8` |
+| `foot/.config/foot/foot.ini` (since removed) | `[colors-dark] alpha` | `0.8` |
 
 #### SwayFX gotchas worth remembering
 
@@ -263,7 +263,7 @@ Even if you never re-enable SwayFX, these bit on first setup:
 6. **`shadows_on_csd disable`** or GTK apps double-shadow.
 7. **Pure-black shadows clash with Catppuccin.** Use `#1e1e2eaa` instead of `#000000aa`.
 8. **Test single layer effects without a config edit:** `swaymsg layer_effects '"notifications"' '"blur enable"'`. Faster than reload-and-eyeball.
-9. **Live-reload paths:** sway `swaymsg reload`; mako `systemctl --user restart mako`; waybar `pkill -SIGUSR2 waybar` (style only); fuzzel re-reads on each invocation; foot re-reads on file change.
+9. **Live-reload paths:** sway `swaymsg reload`; mako `systemctl --user restart mako`; waybar `pkill -SIGUSR2 waybar` (style only); fuzzel re-reads on each invocation; ghostty reloads on `ctrl+shift+,`.
 
 ---
 
@@ -435,7 +435,7 @@ The walk through the alternatives:
 - **Sway-level synth with wtype** can't scope bindsym per focused window without a focus-watcher hack. Racy, not worth it.
 - **Going back to defaults** (`Ctrl+Shift+C/V` in terminals, `Ctrl+C/V` in GUI) is the obvious right answer for most people, and was briefly accepted. The two-chord cognitive split never embedded after years of trying.
 
-The accepted solution: **the programmable keyboard does the translation in firmware.** Rainy75 supports VIA. Left Cmd is `MO(1)`; on layer 1, `C`→`LCTL(KC_INS)`, `V`→`LSFT(KC_INS)`, `X`→`LSFT(KC_DEL)`. `Ctrl+Insert` / `Shift+Insert` / `Shift+Delete` are the universal Linux legacy clipboard chords that every GTK/Qt/Chromium app and every terminal already honors. Foot needed a small additive config to accept them alongside its `Ctrl+Shift+c/v` defaults (and `primary-paste=none` to free `Shift+Insert` from its default primary-selection binding).
+The accepted solution: **the programmable keyboard does the translation in firmware.** Rainy75 supports VIA. Left Cmd is `MO(1)`; on layer 1, `C`→`LCTL(KC_INS)`, `V`→`LSFT(KC_INS)`, `X`→`LSFT(KC_DEL)`. `Ctrl+Insert` / `Shift+Insert` / `Shift+Delete` are the universal Linux legacy clipboard chords that every GTK/Qt/Chromium app and every terminal already honors. The terminal needs one additive line: Ghostty already copies on `Ctrl+Insert`, and `keybind = shift+insert=paste_from_clipboard` moves `Shift+Insert` off its default primary-selection paste.
 
 Right Cmd stays raw Super so the sway `$mod+...` universe is untouched. Asymmetric split, one hand each.
 
@@ -443,7 +443,7 @@ Why this is the right layer:
 
 - Firmware doesn't care about Wayland security, app focus, or distro. The remap lives below the OS entirely.
 - Zero new infrastructure: no daemon, no udev rule, no group, no systemd unit, no COPR, no vendored binary. Repo policy intact.
-- Additive at the foot layer: every existing chord (`Ctrl+Shift+C/V`, `Ctrl+C` = SIGINT, mouse-selection-to-clipboard) still works. Anyone with standard Linux muscle memory hits zero surprises.
+- Additive at the terminal layer: every existing chord (`Ctrl+Shift+C/V`, `Ctrl+C` = SIGINT, mouse-selection-to-clipboard) still works. Anyone with standard Linux muscle memory hits zero surprises.
 - Portable: the keyboard does the same thing on any host. macOS users get Cmd+C natively from Mac mode (Win key remapped to Cmd position by firmware), so no layer needed there.
 
 **Reconsider only if:** the Rainy75 dies and the replacement keyboard lacks programmable layers, OR an app appears in the daily stack that ignores `Ctrl+Insert` / `Shift+Insert` (rare — some Electron and Java Swing apps).
@@ -477,7 +477,28 @@ Markdown table formatting was the trigger. The old autocmd called `vim.lsp.buf.f
 
 ---
 
-### Each OS gets its native terminal: foot on Linux, Ghostty on macOS (accepted 2026-05-15)
+### Ghostty on Linux too, plain launches, no foot (accepted 2026-10-28)
+
+Replaces the Linux half of ["Each OS gets its native terminal"](#each-os-gets-its-native-terminal-foot-on-linux-ghostty-on-macos-accepted-2026-05-15-linux-half-superseded-2026-10-28) below. Ghostty 1.4 fixed the two things that kept it off Linux, and measuring it on this machine settled the text weight problem foot never could.
+
+**Why it is worth it:** one terminal and one config on both OSes, and the move deletes infrastructure rather than swapping it: the foot server unit and its stop-timeout drop-in, the vendor masks, the theme template, and the wallpaper picker's Sixel workarounds all go. Unification plus net deletion is the case; the text weight made it tip.
+
+- **Text weight, measured.** Same method as ["Foot text weight"](#foot-text-weight-plain-hack-regular-no-renderer-setting-thickens-it-accepted-2026-10-03-replaces-the-2026-09-26-gamma-pick): Hack Nerd Font Mono 12pt, opaque Mocha, grim screenshots in physical pixels at 1.5x. Coverage: foot 15.1%, Ghostty default (`linear-corrected`) 15.5%, **Ghostty `alpha-blending = linear` 18.1%** (3px stroke, Hack's shape kept, bold/regular 1.14 against foot's 1.22). Hinting variants were within ±0.5%. `alpha-blending = native` greys the background on Linux. `font-thicken` is CoreText-only: byte-identical screenshots under FreeType, matching the source.
+- **Fractional scaling.** 1.4's EGL/DMABUF renderer draws at the true 1.5x scale; earlier GTK builds blurred.
+- **Images.** Ghostty has no Sixel; Kitty graphics go through tmux passthrough (`allow-passthrough on`, already set). Measured working: direct, passthrough-wrapped, Unicode placeholders, fzf preview, yazi (detects `Kgp` inside tmux on its own). The `wallpaper` picker switched to Kitty placeholders, which deleted the fixed canvas, the colour quantize and the payload cap that foot's Sixel needed. Plain placement (`a=T` without `U=1`) draws at the real cursor, which under tmux is fzf's prompt line, not the preview box.
+- **Plain launches, no daemon.** Measured window-mapped latency: footclient 19 ms, `ghostty` 240 ms, `ghostty +new-window` to a running instance 62 ms. The shared instance needs its own unit (upstream's calls a bare `ghostty` systemd can't find) and one crash closes every window, which is the failure mode this repo already met (the 2026-04-30 OOM). Always-in-tmux makes a window cheap and losing one free, so one process per window wins. 240 ms is the price.
+- **Popups use `--class=ghostty.<name>-float`.** GTK rejects an app id without a dot (`invalid 'class' in config, ignoring`), so the sway rules match `^ghostty\.<name>-float$`.
+- **Built from source, not packaged.** No Fedora package, and the COPRs have blocked Atomic rebases before. `ghostty/build-ghostty.py` builds signed release tarballs only (minisign key, Zig sha256) in a `ghostty-build` toolbox, into `~/.local/opt/ghostty-<ver>`. Sericea lacks gtk4-layer-shell, so the toolbox's copy rides in the prefix's `lib/` via RPATH; nothing is layered.
+- **Removed, not replaced:** the foot package and theme template, `sway-foot-server.service` and its drop-in, the `foot-server` vendor masks, tmux's `foot*` features line.
+- **Pillar fit:** #1 still holds for the substrate (tmux owns sessions; the terminal stays narrow), #2/#3 (one config, every line explained), #8 rewritten: one terminal on both OSes, each split by package (`ghostty-linux`, `ghostty-macos`).
+
+**Reconsider if:** Ghostty has a second OOM-class incident, a release breaks the toolbox build or drops Kitty placeholders through tmux, or 240 ms launches start to grate (then add the single-instance unit and `ghostty +new-window`).
+
+**Looking ahead:** Superlogical's Rex (from Ghostty's author) is a terminal and multiplexer in one, built on libghostty, aimed at replacing tmux. Its Linux client isn't out yet. Being on Ghostty now means the rendering, fonts and Kitty images measured here carry over. Nothing is built for Rex yet; when it lands, evaluate it against tmux under pillar #11 (age, maintainers, test surface). The tmux-only workarounds above (passthrough wrapping in `wallpaper`, `allow-passthrough`) are the parts that would go.
+
+---
+
+### Each OS gets its native terminal: foot on Linux, Ghostty on macOS (accepted 2026-05-15, Linux half superseded 2026-10-28)
 
 Replaces the brief alacritty-everywhere experiment ([above](#alacritty-as-the-cross-os-terminal-tried-2026-04-30-reverted-2026-05-15)). Principle: **let each OS bloom in its own direction.** Most-native-per-platform beats same-everywhere.
 
@@ -489,9 +510,13 @@ Replaces the brief alacritty-everywhere experiment ([above](#alacritty-as-the-cr
 
 **Reconsider only if:** Ghostty has a second OOM-class incident (then revisit, likely WezTerm or back to Alacritty), OR foot regresses on Wayland, OR always-in-tmux stops holding.
 
+**Superseded on Linux** by ["Ghostty on Linux too"](#ghostty-on-linux-too-plain-launches-no-foot-accepted-2026-10-28) above: Ghostty 1.4's renderer and `alpha-blending = linear` beat foot on the measured text weight.
+
 ---
 
 ### Foot text weight: plain Hack Regular; no renderer setting thickens it (accepted 2026-10-03, replaces the 2026-09-26 gamma pick)
+
+*Historical: foot is gone. Ghostty's `alpha-blending = linear` delivers the in-between weight this entry looked for; see ["Ghostty on Linux too"](#ghostty-on-linux-too-plain-launches-no-foot-accepted-2026-10-28).*
 
 Hack Regular read too thin on the 1.5x-scaled 4K output. The goal was text slightly fuller than Regular and still short of Bold. Hack is built on DejaVu Sans Mono and ships only Regular and Bold, so it has no in-between face.
 
@@ -538,7 +563,7 @@ Recurring temptation: every modern terminal (Alacritty, Ghostty, foot) has hint/
 |---|---|---|
 | Scrollback search/nav/copy | tmux copy-mode | sees per-pane history |
 | Pattern-pick + paste back | `tmux-fingers-rs` (`prefix + Tab`) | one-keystroke paste-back |
-| Open URL in browser | terminal | foot URL mode (`Ctrl+Shift+o`), Ghostty Cmd+click |
+| Open URL in browser | terminal | Ghostty Ctrl/Cmd+click |
 | RGB / undercurl | terminal | wired via `terminal-features` |
 
 **Carry-over notes worth keeping:**
@@ -546,7 +571,7 @@ Recurring temptation: every modern terminal (Alacritty, Ghostty, foot) has hint/
 - `Ctrl-v` rectangle-toggle and `Alt-Up`/`Alt-Down` shell-prompt jumping (OSC 133) live in copy-mode-vi.
 - tmux 3.6a's OSC 133 parser accepts only BEL, not ST (despite the man page).
 - OSC 133;A from precmd gets stomped by zsh's prompt-redraw — embed in `PROMPT` via `%{..%}`.
-- foot's URL mode is *not* expanded to non-URL patterns; those belong to tmux-fingers.
+- Terminal link handling is *not* expanded to non-URL patterns; those belong to tmux-fingers.
 
 **Reconsider only if:** workflow stops being always-inside-tmux, OR terminal gains structural access to tmux scrollback (would need IPC tmux doesn't expose), OR tmux copy-mode regresses.
 

@@ -1,7 +1,7 @@
 # Linux-only shell tweaks. Sourced early from .zshrc (like os-darwin.zsh)
 # so TERM is settled before the modular ~/.zsh/*.zsh load.
 
-# Toolbox containers often lack the host's terminfo entry (foot,
+# Toolbox containers often lack the host's terminfo entry (xterm-ghostty,
 # tmux-256color, ...). Force a known-good value inside toolbox.
 if [[ -f /run/.toolboxenv ]]; then
   export TERM=xterm-256color

@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Neovim (Foot)
-Comment=Edit text files in Neovim running in Foot
-Exec=footclient nvim %F
+Name=Neovim (Ghostty)
+Comment=Edit text files in Neovim running in Ghostty
+Exec=ghostty -e nvim %F
 Icon=nvim
 Terminal=false
 Categories=Utility;TextEditor;

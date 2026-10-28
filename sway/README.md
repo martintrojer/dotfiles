@@ -52,9 +52,9 @@ Modifier conventions inside sway:
 
   | Bind          | App            | Singleton via                                   | Re-press effect          |
   | ------------- | -------------- | ----------------------------------------------- | ------------------------ |
-  | `mod+Return`  | foot           | `footclient` → `sway-foot-server.service`       | new window               |
+  | `mod+Return`  | ghostty        | none — plain launch, one process per window     | new window               |
   | `mod+b`       | chrome         | `--user-data-dir` profile (own logic)           | new window               |
-  | `mod+y`       | yazi           | none — fresh foot + fresh yazi each time        | new yazi window          |
+  | `mod+y`       | yazi           | none — fresh ghostty + fresh yazi each time     | new yazi window          |
   | `mod+m`       | Cider          | `raise-window` script + scratchpad rule         | focus existing / spawn   |
   | `mod+Shift+m` | Cider controls | fuzzel + playerctl/MPRIS                        | media action picker      |
   | `mod+Shift+a` | Audio mixer    | `wiremix` in a centered floating terminal       | new mixer window         |
@@ -173,8 +173,7 @@ gets started exactly once when the session comes up:
 
 Vendor units that would otherwise be easy to start in parallel with these
 session-owned services are masked by `dotfiles-sync --apply`: `mako.service`,
-`waybar.service`, `kanshi.service`, `foot-server.service`, and
-`foot-server.socket`. That keeps the Sway session uniformly owned by the
+`waybar.service`, and `kanshi.service`. That keeps the Sway session uniformly owned by the
 `sway-*` units while still letting `sway-mako.service` use mako's D-Bus-aware
 `Type=dbus`/`BusName=org.freedesktop.Notifications` semantics.
 
@@ -271,10 +270,9 @@ entries are kept for the lifetime of the source archive entry — when
 you delete a wallpaper via the fzf picker, every `<key>.*` artifact
 is cleaned up alongside it. There is no time-based pruning, so a
 wallpaper kept for years keeps its warm cache for years.
-The `sixel-WxH` siblings are per-pane-size thumbnails for the fzf
-picker preview pane (see `wallpaper preview`): first paint pays the
-full ImageMagick cost, subsequent cursor moves over the same entry
-at the same pane size are a bytes-to-stdout pass.
+The `preview-vN.png` sibling is the fzf picker's thumbnail (see
+`wallpaper preview`): first paint pays the ImageMagick resize, later
+cursor moves over the same entry hand Ghostty the cached path.
 
 ## Screenshots
 
@@ -299,4 +297,4 @@ if scaling ever looks wrong after a reload, `kanshictl reload` is the fix.
 
 Catppuccin Mocha hex values are inlined at the top of `~/.config/sway/config`.
 See `docs/THEME.md` for the full palette and where it's mirrored across
-other tools (waybar, mako, foot, swaylock, etc.).
+other tools (waybar, mako, fuzzel, swaylock, etc.).

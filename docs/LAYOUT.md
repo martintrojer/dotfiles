@@ -52,7 +52,7 @@ blinking only for states that should interrupt.
 Fonts follow the same structural rule: pick the face for the role, not because a
 new surface wants novelty.
 
-- Foot uses Hack Nerd Font Mono: it is the primary Linux terminal face.
+- Ghostty on Linux uses Hack Nerd Font Mono: it is the primary Linux terminal face.
 - Waybar uses SF Compact for ambient chrome such as the clock, with JetBrains
   Mono Nerd Font as the fallback and as the forced face for workspaces, issue
   blocks, notification blocks, and Nerd-heavy status cells.

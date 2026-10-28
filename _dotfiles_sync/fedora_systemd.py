@@ -9,8 +9,6 @@ FEDORA_SYSTEMD_MASKS: tuple[str, ...] = (
     "mako.service",
     "waybar.service",
     "kanshi.service",
-    "foot-server.service",
-    "foot-server.socket",
 )
 
 

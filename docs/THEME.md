@@ -31,7 +31,7 @@ Placeholder syntax:
 
 - `{{mocha.<name>}}` — full hex with leading `#` (e.g. `#cba6f7`).
 - `{{mocha.<name>|nohash}}` — bare 6-char hex (e.g. `cba6f7`). Used
-  by swaylock/foot/fuzzel which want hex without the prefix and
+  by swaylock/fuzzel which want hex without the prefix and
   sometimes append an alpha suffix in the template.
 
 A typo in a color name or filter fails loud rather than passing the
@@ -93,7 +93,6 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `swaylock/.config/swaylock/config` | `swaylock-colors` |
 | `tmux/.tmux.conf` | `tmux-palette`, `tmux-agent-glyphs` |
 | `zsh/.zsh/tools.zsh` | `zsh-prompt-colors`, `zsh-prompt-glyphs` |
-| `foot/.config/foot/foot.ini` | `foot-colors` |
 | `fuzzel/.config/fuzzel/fuzzel.ini` | `fuzzel-colors` |
 | `btop/.config/btop/themes/current.theme` | `btop-colors` |
 | `eza/.config/eza/theme.yml` | `eza-colors` |
@@ -101,7 +100,6 @@ Files with `THEME BEGIN ... THEME END` markers, owned by the renderer:
 | `sway/.config/sway/scripts/lock-screen` | `lock-screen-fallback-color` |
 | `swaywardlock/.config/swaywardlock/config.kdl` | `swaywardlock-fallback-color`, `swaywardlock-clock`, `swaywardlock-date`, `swaywardlock-ring`, `swaywardlock-footer` |
 | `sway/.config/sway/scripts/session-wallpaper` | `session-wallpaper-fallback-color` |
-| `fedora/bin/.local/bin/wallpaper` | `wallpaper-fallback-color` |
 | `waybar/.config/waybar/scripts/caffeinate` | `waybar-caffeinate-glyph` |
 | `waybar/.config/waybar/scripts/issues` | `waybar-issue-glyphs` |
 | `waybar/.config/waybar/scripts/notifications` | `waybar-notification-glyphs` |
@@ -191,7 +189,7 @@ generator. Each is in `AUDIT_ALLOWLIST`:
   lists the Mocha values. debrief's one live override (`cursor_bg`) is
   a palette value too.
 - `ghostty/.config/ghostty/config` — uses the built-in named theme
-  (`theme = catppuccin-mocha`); no hex in our config.
+  (`theme = Catppuccin Mocha`); no hex in our config.
 - `nvim/.config/nvim/` — `catppuccin/nvim` plugin handles theming.
 - `waybar/.config/waybar/style.css` — the `@define-color` block *is*
   generated (`waybar-palette`), but the alpha derivations further down

@@ -49,5 +49,5 @@ history=0
 # Agent completion notifications should toast briefly and update tmux's
 # agent state, but repeated "waiting for input" reminders should not
 # fill mako history / Waybar's notification counter.
-[app-name=footclient summary=Pi body="Waiting for input"]
+[desktop-entry=com.mitchellh.ghostty summary=Pi body="Waiting for input"]
 history=0

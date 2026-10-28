@@ -1,0 +1,10 @@
+background-opacity = 0.90
+background-blur = 25
+macos-titlebar-style = transparent
+
+font-family = "GeistMono Nerd Font Mono"
+# font-family = "JetBrainsMono Nerd Font Mono"
+# font-family = "Hack Nerd Font Mono"
+font-size = 15
+# CoreText-only: no effect under FreeType on Linux.
+font-thicken = true

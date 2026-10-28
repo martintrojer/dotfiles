@@ -220,7 +220,7 @@ rm -rf ~/.config/niri
 
 macOS machines should run items 1 through 7 above as relevant. Only the wallpaper/niri items are Linux-only no-ops on macOS.
 
-Terminal policy on macOS is: **Ghostty only**, no fallback. `dotfiles-sync --apply` links the `ghostty` config on Darwin. Hammerspoon's terminal binds (`Hyper+T`, `Hyper+Return`, `Hyper+PadEnter`) all use `open -na "Ghostty"` for current-Space window creation. See [`DECISIONS.md`](./DECISIONS.md#each-os-gets-its-native-terminal-foot-on-linux-ghostty-on-macos-accepted-2026-05-15).
+Terminal policy is **Ghostty only** on both OSes, no fallback. `dotfiles-sync --apply` links the shared `ghostty` config plus `ghostty-macos` on Darwin. Hammerspoon's terminal binds (`Hyper+T`, `Hyper+Return`, `Hyper+PadEnter`) all use `open -na "Ghostty"` for current-Space window creation. See [`DECISIONS.md`](./DECISIONS.md#ghostty-on-linux-too-plain-launches-no-foot-accepted-2026-10-28).
 
 Verify terminal state:
 

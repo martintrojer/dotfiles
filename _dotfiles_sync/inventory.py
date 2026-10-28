@@ -21,6 +21,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "debrief",
             "eza",
             "gdu",
+            "ghostty",
             "git",
             "jj",
             "local-bin",
@@ -41,15 +42,15 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
     (
         "darwin",
         REPO_ROOT,
-        ("ghostty", "hammerspoon", "homebrew", "mise-macos"),
+        ("ghostty-macos", "hammerspoon", "homebrew", "mise-macos"),
     ),
     (
         "linux",
         REPO_ROOT,
         (
             "cliphist",
-            "foot",
             "fuzzel",
+            "ghostty-linux",
             "kanshi",
             "mise-linux",
             "mako",

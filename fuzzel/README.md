@@ -86,6 +86,6 @@ control-plane and helper scripts".
 Located at `fuzzel/.config/fuzzel/fuzzel.ini`:
 
 - Font: JetBrains Mono Nerd Font, size 14
-- Terminal: footclient (foot in server mode via sway-foot-server.service)
+- Terminal: ghostty (plain launch)
 - Theme: Catppuccin Mocha
 - Icons: Adwaita
