@@ -10,8 +10,10 @@ background-opacity = 0.8
 window-padding-x = 8
 window-padding-y = 8
 window-padding-balance = false
-# Sway draws the borders; no GTK headerbar or tab bar.
-window-decoration = none
+# Sway draws the borders; no GTK headerbar or tab bar. `server`, not `none`:
+# none sends KDE decoration mode None, which swayward (like sway) treats as
+# CSD, so a floating window drops its border and focus ring.
+window-decoration = server
 gtk-titlebar = false
 
 # Pin the shape so DECSCUSR changes don't confuse zle.
