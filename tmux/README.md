@@ -206,14 +206,16 @@ is expected to acknowledge.
 ### Setup
 
 ```bash
-murmur init      # once per machine
-murmur link pi   # installs the extension into ~/.pi/agent/extensions/
+murmur init                         # once per machine
+pi install npm:@mu-crew/murmur      # pi package (replaces murmur link pi)
 ```
 
 `dotfiles-sync --apply` does not install murmur; it is an npm package, not a
 symlink. Harness hooks, peers, and hard ssh cases:
 [murmur docs/setup.md](https://github.com/mu-crew/murmur/blob/main/docs/setup.md)
 and [SSH.md](https://github.com/mu-crew/murmur/blob/main/SSH.md).
+Older installs that still have a `murmur link pi` shim can run
+`murmur pi migrate --apply`.
 
 ## Cheatsheet
 

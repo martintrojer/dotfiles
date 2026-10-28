@@ -201,7 +201,7 @@ def _tmux_server_path() -> str | None:
 
 
 def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
-    """Verify murmur is installed, initialised, and linked into pi.
+    """Verify murmur is installed and initialised.
 
     The tmux package uses it for agent state through mu-crew/dotfiles: murmur
     publishes the @murmur_* options the glyphs and pill read, `prefix + a` runs
@@ -211,7 +211,7 @@ def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
 
     murmur is an npm package, not a symlink, so `--apply` cannot install it and
     this check cannot repair anything. It only tells you which of the steps is
-    missing.
+    missing. Its pi extension is murmur's own concern, not this check's.
 
     PATH is checked twice on purpose. This process and the tmux server can
     disagree, and it is the server's view that decides whether the hooks work.
@@ -264,22 +264,8 @@ def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
         )
         found_issue = True
 
-    # `murmur link pi` writes a real file rather than a symlink, and pins an
-    # absolute store path into it, so a moved or reinstalled murmur needs a
-    # re-link. A stale copy silently stops recording.
-    extension = target / ".pi" / "agent" / "extensions" / "murmur.ts"
-    if not extension.is_file():
-        print_header()
-        LOGGER.warning(
-            f"UNLINKED: no pi extension at {extension} "
-            f"(murmur link pi) (--ignore {issue_id})"
-        )
-        found_issue = True
-
     if not found_issue and verbose:
-        LOGGER.debug(
-            "OK: murmur installed, initialised, linked into pi, visible to tmux"
-        )
+        LOGGER.debug("OK: murmur installed, initialised, visible to tmux")
     return found_issue
 
 

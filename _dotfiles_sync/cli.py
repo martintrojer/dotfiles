@@ -182,11 +182,10 @@ def run_check_tasks(
             TaskPolicy(packages=frozenset({"tmux"})),
             lambda: check_mu_crew_dotfiles(target, verbose=verbose, ignore=ignore),
         ),
-        # Both packages depend on it: tmux reads murmur's options for the pill
-        # and glyphs, and calls it for the picker and focus hooks; pi hosts its
-        # extension.
+        # tmux reads murmur's options for the pill and glyphs, and calls it for
+        # the picker and focus hooks. Its pi extension is murmur's to install.
         (
-            TaskPolicy(packages=frozenset({"tmux", "pi"})),
+            TaskPolicy(packages=frozenset({"tmux"})),
             lambda: check_murmur(target, verbose=verbose, ignore=ignore),
         ),
         (

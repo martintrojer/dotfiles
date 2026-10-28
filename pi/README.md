@@ -21,14 +21,13 @@ Some extensions originated from [mitsuhiko/agent-stuff](https://github.com/mitsu
 ### `murmur` — agent state, installed not linked
 
 Agent state comes from [murmur](https://github.com/mu-crew/murmur), which
-aggregates across machines. Its extension is
-**not** in this package: `murmur link pi` writes it to
-`~/.pi/agent/extensions/murmur.ts`, pinning an absolute store path as it goes,
-so `dotfiles-sync` cannot symlink it and only checks that it is there.
+aggregates across machines. Its pi extension is murmur's to install, not this
+package's to link or check; `dotfiles-sync` only verifies the murmur binary and
+init.
 
 The `mu` pi extension (control socket for `mu` panes, plus the `mu_delegate`
-tool in unmanaged pi) is installed the same way, by `mu link pi`;
-`dotfiles-sync` does not link it, and `mu doctor` checks it.
+tool in unmanaged pi) is installed by `mu link pi`; `dotfiles-sync` does not
+link or check it, and `mu doctor` covers it.
 
 - On `agent_start`: marks the window `working` and records the pid, which is
   what makes crash detection possible.
