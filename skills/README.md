@@ -69,10 +69,10 @@ preference order:
 |------|-----|
 | Long-lived crew, multi-phase or review-gated work, parallel tracks, anything that must survive compaction | [`mu`](https://github.com/martintrojer/mu) — the default |
 | A helper you'll keep talking to, no DAG | `mu`'s reserved `scratch` workstream |
-| A multi-agent *pattern*: fan-out, adversarial review, refute, tournament, loop-until-done, ultrathink | `mu`'s recipes, `~/.agents/skills/mu/recipes/` — skills here link to them, never copy them |
+| A multi-agent *pattern*: refute, review panel, tournament, loop-until-done, ultrathink | `mu`'s prompts (`/mu-refute`, `/mu-review`, `/mu-tournament`, `/mu-until`, `/ultrathink`) and the recipes of its skill — skills here link to them, never copy them |
 
-`mu` is symlinked into `~/.agents/skills/mu` from its own repo, not vendored
-here. **Skills that bundle their own orchestration are not vendored** — they
+`mu` ships its skill and prompts in its own pi package (`npm:@mu-crew/mu` in
+pi's `settings.json`), not vendored here. **Skills that bundle their own orchestration are not vendored** — they
 duplicate `mu` in prose and lose the task graph, workspaces, and cherry-pick
 flow. See *Deliberately not vendored* below.
 
@@ -152,7 +152,7 @@ skills and the sessions doing the counting.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `/skill:brainstorm` | "brainstorm", "design a feature", "think through an idea" | Work a decision tree in dependency-ordered rounds, then write an approved spec at `docs/specs/`. A fresh-delegate builder check reads the spec before handover. Hard gate: no code before the user approves a design. Skip genuine one-liners with no design question. Hands the approved spec to mu's `recipes/plan.md` for the task DAG |
+| `/skill:brainstorm` | "brainstorm", "design a feature", "think through an idea" | Work a decision tree in dependency-ordered rounds, then write an approved spec at `docs/specs/`. A fresh-delegate builder check reads the spec before handover. Hard gate: no code before the user approves a design. Skip genuine one-liners with no design question. Turns the approved spec into a mu task DAG; carries the planning rules mu 4.2 dropped with `recipes/plan.md` |
 
 ### Version Control
 
@@ -204,7 +204,7 @@ orchestrator on this machine.**
 | `subagent-driven-development` (503 lines) | Fresh-subagent-per-task with two-stage review gates. That is exactly `mu`'s `implement → review → address → ship` DAG, but expressed as prose the agent has to hand-execute rather than a tool with a real task graph, workspaces, and cherry-pick flow |
 | `dispatching-parallel-agents` | Parallel fanout over independent tasks — `mu`'s parallel tracks, with automatic diamond-merge |
 | `requesting-code-review` | A reviewer-subagent prompt template. `mu` spawns `reviewer-N` roles directly |
-| `executing-plans` | Superseded by `brainstorm`'s handoff to mu's `recipes/plan.md`. Its own text says to prefer `subagent-driven-development` when subagents exist |
+| `executing-plans` | Superseded by `brainstorm`'s spec-to-DAG handoff to mu. Its own text says to prefer `subagent-driven-development` when subagents exist |
 | `using-git-worktrees` | `mu` manages per-agent workspaces itself; this repo is jj-first, and the skill is git-only |
 | `finishing-a-development-branch` | Git-branch-and-PR integration flow. Doesn't fit a jj working-copy model |
 | `using-superpowers` | Bootstrap telling the agent how to find superpowers skills. Pi discovers `~/.agents/skills/` natively |
@@ -276,7 +276,7 @@ Upstream `JuliusBrussee/caveman` also ships `ultracave` (upstream measures 35% f
 
 - **`execute-plan`** (2026-08) — never invoked in any recorded session, and its
   batching section assumed a `Task` subagent tool pi doesn't have. `brainstorm`
-  now hands the approved spec to mu's `recipes/plan.md`.
+  now turns the approved spec into a mu task DAG.
 - **`tmux`** (2026-08) — driving agents in tmux panes is `mu`'s job now, and the
   remaining niche (interactive REPL/debugger scraping) had zero recorded uses.
   Recoverable from git history if the REPL case comes back.
@@ -284,6 +284,7 @@ Upstream `JuliusBrussee/caveman` also ships `ultracave` (upstream measures 35% f
   other user had removed it (panel H3, `~/.local/share/skills-panel-2026-10-07/VERDICTS.md`).
 - **`write-plan`** (2026-10) — never requested by a user; its loads were
   `brainstorm` handoffs and worker reflex. `brainstorm` now hands off to mu's
-  `recipes/plan.md` (panel H3).
+  `recipes/plan.md` (panel H3). mu 4.2 dropped that recipe; its planning rules
+  now live in `brainstorm`'s *Next step*.
 - **`test-reviewer`** (2026-10) — merged into `code-reviewer`'s Tests section;
   the two loaded together in 1761/1813 sessions (panel H3).

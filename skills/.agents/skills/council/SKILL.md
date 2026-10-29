@@ -108,7 +108,7 @@ bending a debate into a teardown.
 
 **Works well with:**
 - **`brainstorm`** - Council to pick between approaches, then brainstorm the winner into a spec
-- **`mu`** - Supplies `mu_delegate` for the members; drive a crew directly when you want long-lived members you can interrogate. To pick one winner from many candidates rather than debate, use mu's `recipes/tournament.md`; to attack a plan or finding, `recipes/refute.md`
+- **`mu`** - Supplies `mu_delegate` for the members; drive a crew directly when you want long-lived members you can interrogate. To pick one winner from many candidates rather than debate, use mu's `/mu-tournament` prompt; to attack a plan or finding, `/mu-refute` <!-- local: mu 4.2 turned these recipes into prompts -->
 
 ## Practices
 

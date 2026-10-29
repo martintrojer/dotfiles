@@ -333,7 +333,7 @@ The 2026-08 skills audit had to decide, repeatedly, whether to vendor skills tha
 - **The duplication is prose vs. a program.** `subagent-driven-development` is `mu`'s `implement → review → address → ship` DAG written as instructions the agent hand-executes. Vendoring it trades a real task graph, per-agent workspaces, and the cherry-pick flow for a description of them.
 - **Orchestration skills assume a dispatch primitive.** They call `Task` / `subagent_type`, which pi doesn't have. `council` had been installed and broken for months for exactly this reason — every trigger word loaded 79 lines of SKILL.md that dead-ended at a nonexistent tool. Discovered only because the audit tried to run it.
 - **The four superpowers skills kept** (`test-driven-development`, `systematic-debugging`, `receiving-code-review`, `verification-before-completion`) share the property that makes them safe: they change one agent's behaviour in one context, need no dispatch, and therefore compose with `mu` — including inside a `mu` worker pane.
-- **`mu` stays a symlink, not a vendored copy.** It's a real program with its own repo and tests; `~/.agents/skills/mu` points at `~/hacking/mu/skills/mu`.
+- **`mu` stays out of this repo, not a vendored copy.** It's a real program with its own repo and tests. Originally `~/.agents/skills/mu` symlinked to its checkout; it now ships its skill and prompts as the `npm:@mu-crew/mu` pi package.
 
 The operational form of this, plus nine other rules extracted from the same audit, is *Zen Of These Skills* in [`skills/README.md`](../skills/README.md).
 
