@@ -253,13 +253,38 @@ to start building.
 
 ## Next step
 
-Once the spec is approved, turn it into a mu task DAG: read
-`~/.agents/skills/mu/recipes/plan.md`.
+<!-- local: mu 4.2 dropped recipes/plan.md; its rules that no shipped recipe
+     carries live here. Paths go through the mu skill, not a fixed install dir. -->
+
+Once the spec is approved, turn it into a mu task DAG. Load the `mu` skill and
+write each task note as its `recipes/brief.md`. The DAG is the plan: no
+separate plan file unless the user asks for one.
+
+1. **Gates first.** A new repo gets its `## Gates` before any work task
+   (`recipes/test-health.md`, *Gate contract*).
+2. **Root task.** `task_0` holds the goal, the architecture in two or three
+   sentences, and the spec's global constraints verbatim. Every task is
+   blocked by it; close it at once.
+3. **Size.** A task is the smallest unit that carries its own verification
+   and is worth a review: split only where a reviewer could reject one task
+   and accept its neighbour.
+4. **Interfaces.** Each brief adds `INTERFACES: Consumes / Produces` with the
+   exact names its neighbours use. Workers see only their own task.
+5. **Real edges only.** Block A by B when A consumes what B produces, or both
+   edit the same files. Plan order is not a dependency.
+6. **Review and close.** Each shipping unit gets a review gate
+   (`recipes/adversarial-review.md`); each milestone ends on a test-health
+   task.
+
+Done when every spec requirement maps to a task, no note holds a placeholder
+("TBD", "similar to task 3"), every claim-making brief has a refuter verdict,
+and `mu state` shows the tasks meant to run in parallel as Ready together.
+Then dispatch per `recipes/orchestrator-loop.md`.
 
 ## Related
 
 | Skill | When |
 |-------|------|
-| `mu` | Downstream — `recipes/plan.md` turns the approved spec into a task DAG |
+| `mu` | Downstream — the approved spec becomes its task DAG (*Next step*) |
 | `council` | Several viable approaches and no clear winner. Debate them, then brainstorm the survivor |
 | `ponytail` | Step 4. YAGNI applies hardest at design time, when cutting costs nothing |
