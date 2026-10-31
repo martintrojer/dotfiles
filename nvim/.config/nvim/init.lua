@@ -177,7 +177,7 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 })
 
 -- Keep `ramble --follow` previews on the cursor in markdown buffers.
-require("ramble_follow")
+require("editor_follow")
 
 -- Reload buffers changed outside Neovim when refocusing or entering them.
 vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter" }, {
