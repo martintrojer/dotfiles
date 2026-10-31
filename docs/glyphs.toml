@@ -42,6 +42,13 @@ goal = ""  # U+F140 fa-bullseye
 cpu = ""  # U+F080 fa-bar-chart
 crew = ""  # U+F0C0 fa-users
 
+# muzzle slots (mu-crew's muzzle pill): the pill's mark, then queued jobs,
+# jobs past their usual run time, and jobs queued 30 s or more.
+muzzle = ""  # U+F0E4 fa-tachometer
+muzzle_queued = ""  # U+F017 fa-clock-o
+muzzle_slow = ""  # U+F1DA fa-history
+muzzle_starved = ""  # U+F05E fa-ban
+
 # --- nf-md exceptions -------------------------------------------------
 #
 # Everything above is nf-fa. The groups below keep the nf-md shapes the
