@@ -5,6 +5,7 @@ Config for [debrief](https://github.com/martintrojer/debrief), the TUI for catch
 - `view.layout = "split"`: the commit view starts side by side (`t` toggles); below `split_min_width` (140 columns) it falls back to unified. The file list stays on the left, the default.
 - `view.sidebar_commits = true`: the sidebar is split, file tree on top (60%) and the log's commits below, like ramble's `split` sidebar (`<leader>E` toggles; `C-j`/`C-k` move between them).
 - `view.tmux_zoom = true`: inside tmux, debrief zooms its pane at start (as `PREFIX z`) and unzooms on exit. It leaves the window alone if it was already zoomed at start, or if you unzoomed it in the meantime.
+- `<leader>O` (default since 0.6.5) opens nvim in a tmux split beside debrief and the diff follows its cursor, reported by `nvim/.config/nvim/lua/editor_follow.lua`.
 - `vcs.git = "/usr/bin/git"`: debrief runs git often, so it skips any slower `git` wrapper on PATH. `$DEBRIEF_GIT` overrides it.
 
 `debrief --init-config --config /tmp/debrief.toml` writes the full commented default list to compare against.

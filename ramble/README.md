@@ -4,6 +4,6 @@ Config for [ramble](https://github.com/martintrojer/ramble), the terminal markdo
 
 - No `[[lsp.server]]`: pages use ramble's built-in mdroots for links, backlinks, notes, search and tags. Editors that need mdroots as a language server (nvim) run `mdroots lsp` themselves; see `nvim/.config/nvim/lua/lsp.lua`.
 - `sidebar.show = "auto"`: the sidebar peeks while you use it; `sidebar.default = "split"` shows files and outline together; `sidebar.side = "right"` puts it on the right edge.
-- Review comments, `<leader>rr` send (to the clipboard) and the mouse stay on by default. `<leader>o` opens `$VISUAL` (nvim) at the current line.
+- Review comments, `<leader>rr` send (to the clipboard) and the mouse stay on by default. `<leader>o` opens `$VISUAL` (nvim) at the current line; `<leader>O` (default since 0.4.6) opens it in a tmux split and follows its cursor, via `nvim/.config/nvim/lua/editor_follow.lua`.
 
 `ramble --init-config --config /tmp/ramble.toml` writes the full commented default list to compare against.

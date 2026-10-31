@@ -6,9 +6,9 @@ built-ins, and mini.nvim. It uses no framework or separate plugin manager.
 ## Philosophy
 
 - nvim is a rarely used hand editor. Markdown reading and notes are `ramble`,
-  diff review is `debrief`; neither gets a nvim counterpart. Writing markdown
-  pairs with a `ramble --follow FILE` tmux split, which `lua/ramble_follow.lua`
-  keeps on the cursor. Prefer stock behaviour over new plugins or keymaps.
+  diff review is `debrief`; neither gets a nvim counterpart. Both open nvim
+  in a tmux split with `<leader>O` and follow its cursor, which
+  `lua/editor_follow.lua` reports (`ramble --follow FILE` works too). Prefer stock behaviour over new plugins or keymaps.
 - Neovim 0.12 built-ins provide LSP, commenting, snippets, node selection, and URL opening.
 - fzf-lua handles file search, grep, LSP navigation, buffer switching, and
   `vim.ui.select`.
@@ -32,7 +32,7 @@ lua/
     lsp.lua                     — LSP navigation (definitions, references, calls)
   lsp.lua                       — LSP server configs + enable
   util.lua                      — picker cwd helpers (buffer dir, VCS root)
-  ramble_follow.lua             — tells `ramble --follow` previews where the markdown cursor is
+  editor_follow.lua             — tells following debriefs and rambles where the cursor is
   lua_globals.lua               — lua-language-server globals list
 after/ftplugin/
   markdown.lua                  — soft-wrap prose
