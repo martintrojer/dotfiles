@@ -43,11 +43,13 @@ cpu = ""  # U+F080 fa-bar-chart
 crew = ""  # U+F0C0 fa-users
 
 # muzzle slots (mu-crew's muzzle pill): the pill's mark, then queued jobs,
-# jobs past their usual run time, and jobs queued 30 s or more.
+# jobs past their usual run time, and jobs queued 30 s or more. Queued is a
+# line of jobs, not a time; the clock means overtime; starved is the empty
+# hourglass (agent_waiting is the half-full one).
 muzzle = ""  # U+F0E4 fa-tachometer
-muzzle_queued = ""  # U+F017 fa-clock-o
-muzzle_slow = ""  # U+F1DA fa-history
-muzzle_starved = ""  # U+F05E fa-ban
+muzzle_queued = ""  # U+F0CA fa-list-ul
+muzzle_slow = ""  # U+F017 fa-clock-o
+muzzle_starved = ""  # U+F253 fa-hourglass-end
 
 # --- nf-md exceptions -------------------------------------------------
 #
