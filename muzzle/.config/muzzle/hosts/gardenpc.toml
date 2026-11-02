@@ -1,0 +1,2 @@
+# Keep more cores free for interactive use.
+reserve = 4
