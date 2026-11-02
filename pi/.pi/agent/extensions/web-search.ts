@@ -8,7 +8,6 @@
  * Design and rationale: docs/specs/2026-10-25-web-search-mux.md (local).
  */
 
-import { StringEnum } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, formatSize, truncateHead } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
@@ -428,7 +427,14 @@ const WebSearchParams = Type.Object({
 		}),
 	),
 	freshness: Type.Optional(
-		StringEnum(["day", "week", "month", "year"] as const, { description: "Only results from the last period" }),
+		// A plain `{ type: "string", enum }` schema, which every provider accepts. Built with TypeBox directly:
+		// pi-ai 1.5's published StringEnum returns a pi-schema type that TypeBox's Static cannot read, so
+		// params.freshness typed as unknown (pi only swaps in a TypeBox StringEnum at runtime).
+		Type.Unsafe<Freshness>({
+			type: "string",
+			enum: ["day", "week", "month", "year"],
+			description: "Only results from the last period",
+		}),
 	),
 });
 
