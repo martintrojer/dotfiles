@@ -1,0 +1,18 @@
+# Smaller budget: weights scaled down from the shared ones.
+
+[[rule]]
+name  = "cargo-test"
+slots = 2
+
+[[rule]]
+name  = "js-test"
+slots = 2
+
+[path."~/hacking/vtmux"]
+[[path."~/hacking/vtmux".rule]]
+name  = "vtmux-check"
+slots = 4
+# why: half the budget: two can run, or one plus a harness.
+[[path."~/hacking/vtmux".rule]]
+name  = "cargo-test"
+slots = 3

@@ -27,6 +27,7 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
             "local-bin",
             "mise",
             "murmur",
+            "muzzle",
             "nvim",
             "pi",
             "ramble",

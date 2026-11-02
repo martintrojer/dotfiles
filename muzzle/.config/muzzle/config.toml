@@ -1,0 +1,195 @@
+# muzzle config, shared by every host (dotfiles: muzzle/README.md).
+# Per-host facts and weights go in the untracked ~/.config/muzzle/machine.toml,
+# merged after this file: `reserve`, and any [[rule]] or [path] entry that
+# names an existing rule to reweight it on that host.
+#
+# A `command` pattern matches a command word in command position: after
+# ; && | and in $( ), inside `bash -c '…'`, past env/timeout/nice/A=1 and
+# through mise exec, npx, uv run, flock, distrobox enter, toolbox run and
+# podman/docker exec. Quoted text, heredocs and comments are never command
+# words, so polls such as `pgrep -f 'contrib/fast-gate'` stay unclaimed.
+# The first match wins, so the gates come before the cargo rule their
+# scripts contain; a [path] table's new rules are tried before the global
+# ones. Weights below are tuned on the main workstation; path tables for
+# repos a host doesn't have are inert.
+
+include = ["machine.toml"]
+reserve = 2   # budget = logical cores - reserve; machine.toml may override
+
+[[rule]]
+name  = "oracle-sweep"
+match = '''(^|[;&|({\n]|-\w*c\s*['"]|\s--\s|\b(do|then|else)\s)\s*([A-Za-z_]\w*=\S*\s+|(\S*/)?(time|env|nice|exec|bash|sh)\s+(-\w\s+("[^"]*"|\S+)\s+)?|timeout\s+\S+\s+|\S+\.sh\s+(\d+\s+)?['"]?)*(\S*/)?oracle-sweep(\s|['"]|$)|\bflock\s+(-\w+\s+(\d+\s+)?)*\S*oracle-sweep\.lock['"]?\s+(\S*/)?(podman|distrobox|systemd-run|bash|sh|\S*oracle-sweep|contrib/)|oracle-sweep\.lock['"]?;?\s+exec\s+\d+>'''
+slots = 999
+# why: a `match` rule on purpose (C6, R7): `L=<lock>; exec 9>>$L; flock 9`
+# takes the lock with no command word. D8 replaces oracle-sweep.lock; 999
+# is capped to the whole budget, so it runs alone. `flock -n <lock> true`
+# is a probe in a poll loop and stays unclaimed.
+
+[[rule]]
+name    = "fast-gate"
+command = "contrib/fast-gate"
+slots   = 6
+# why: swayward's full gate (fmt, clippy, cargo test --all, doc checks);
+# role cap 6. Museum: median 650 s, the most frequent heavy call.
+
+[[rule]]
+name    = "gate"
+command = "contrib/gate"
+slots   = 6
+# why: swaywardlock's full gate, cargo plus pytest -n auto e2e; role cap 6.
+# Museum: median 265 s. Its own label so report tunes it apart from fast-gate.
+
+[[rule]]
+name    = "js-test"
+command = ["npm test", "npm run test*", "npm run check", "vitest"]
+slots   = 4
+# why: vitest suites; `npm run check` is murmur's gate (typecheck, lint,
+# test). 5 -> 4 globally, 2026-10-31: p90 3.3 cores over 89 clean runs
+# (7d). mu keeps 5 in its path table below.
+
+[[rule]]
+name    = "cargo-test"
+command = ["cargo test", "cargo nextest", "cargo clippy", "cargo build"]
+slots   = 3
+# why: 3 by the tune loop (63 runs at 3, p50 22->21 s). report --by repo
+# 2026-10-30: repos without a table stay at 3 (p90 2.8 cores, 326 runs).
+# `cargo +nightly fmt` stays unclaimed.
+
+[[rule]]
+name    = "zig-test"
+command = ["zig build test", "zig build test-*", "zig test"]
+slots   = 4
+# why: new 2026-11-01. ghostty's `zig build test-lib-vt` (vtmux worker
+# checking a vendored libghostty patch) ran unclaimed: a cold compile of
+# the whole lib plus ~7000 tests, several minutes on every core. 4 matches
+# vtmux-check until report has 5 clean runs. Before js-build, after the
+# gates and cargo-test whose scripts may contain it.
+
+[[rule]]
+name    = "js-build"
+command = ["npm run build", "npm run typecheck", "npm run lint", "npx tsc", "npx tsup", "npx biome"]
+slots   = 2
+# why: new 2026-10-31. tsup/tsc/biome in the crew TS repos ran unclaimed
+# (museum 7d: 168 `npm run build` and 134 `npm run typecheck` calls >30 s,
+# mostly mu workers). tsc is single-threaded plus its watcher; 2 is a
+# guess to tune once 5 clean runs exist. After js-test so a chain that
+# also runs tests claims the test weight.
+
+# --- per-repo tables (report --by repo, 2026-10-30) ---
+
+[path."~/hacking/vtmux"]
+# vtmux's slow gate and harness match no global rule. scripts/check.sh is
+# fmt + clippy --workspace + cargo test --workspace; xtask regress/oracle
+# drive tmux regress scripts and the oracle.
+[[path."~/hacking/vtmux".rule]]
+name    = "vtmux-check"
+command = "scripts/check.sh"
+slots   = 3
+# why: 4 -> 3, 2026-11-02: p90 cores 2.1 over 170 clean runs (p50 1.0),
+# mem p90 3.8 GB; three gates at once starved the rest of the queue.
+[[path."~/hacking/vtmux".rule]]
+name    = "vtmux-harness"
+command = ["cargo xtask regress", "cargo xtask oracle", "cargo xtask ref-tmux"]
+slots   = 2
+[[path."~/hacking/vtmux".rule]]
+name  = "cargo-test"
+slots = 4
+# why: p90 3.0 cores over 229 runs; one OOM at 5.9 GB under 3 slots
+# (2 GB/slot), so 4 gives 8 GB.
+
+[path."~/hacking/crew/muzzle"]
+[[path."~/hacking/crew/muzzle".rule]]
+name  = "cargo-test"
+slots = 4
+# why: p90 3.4 cores over 123 clean runs; report suggests 4.
+
+[[path."~/hacking/crew/muzzle".rule]]
+name  = "js-test"
+slots = 2
+# why: only the pi extension's node tests; p90 1.3 cores over 35 clean
+# runs (report --by repo 2026-10-31).
+
+[path."~/hacking/crew/mu"]
+[[path."~/hacking/crew/mu".rule]]
+name    = "mu-eval"
+command = "node tools/eval/main.ts"
+slots   = 3
+# why: new 2026-10-31. The black-box eval rig builds a surface and runs mu
+# with scripted faux pis; museum 7d: 158 calls >30 s, median 240 s, p90
+# 1081 s, all unclaimed. 3 is a starting guess; tune from report.
+[[path."~/hacking/crew/mu".rule]]
+name  = "js-test"
+slots = 2
+# why: 5 -> 2, 2026-11-02: p90 cores 1.3 over 197 clean runs at 5 (p50
+# 1.1); the old 5 came from 8 runs. A 5-slot high waiter at the head of
+# the queue blocked smaller jobs behind it (blocked-idle 22317 slot-s/48 h).
+
+[path."~/hacking/swayward-wm"]
+[[path."~/hacking/swayward-wm".rule]]
+name    = "e2e"
+command = ["pytest", "python3 pytest", "python pytest"]
+slots   = 6
+# why: new 2026-10-31. swaywardlock's e2e (`pytest -n auto` inside
+# distrobox) ran unclaimed; museum 7d: 65 calls, median 100 s, p90 448 s.
+# -n auto spreads over every core; 6 matches contrib/gate's role cap. In a
+# container, so admitted but not capped or measured.
+[[path."~/hacking/swayward-wm".rule]]
+name    = "targeted-oracle"
+command = "contrib/targeted-oracle"
+slots   = 6
+# why: new 2026-10-31. T1 check in swayward's AGENTS.md: a release build
+# (cargo build --release -p swayward) then the cited oracle rows. Same
+# weight as fast-gate until it has runs.
+
+[path."~/hacking/swayward-wm/oracle"]
+[[path."~/hacking/swayward-wm/oracle".rule]]
+name    = "oracle-validate"
+command = "contrib/validate"
+slots   = 3
+# why: new 2026-10-31. museum 7d: 63 calls, median 39 s, p90 284 s,
+# unclaimed. Plain validate is python checks; `validate reproduce` runs
+# compositors in the oracle container. 3 is a starting guess.
+
+[path."~/hacking/swayward-wm/swaywardlock"]
+# Gate: contrib/gate [--fast|--slow], run inside distrobox swayward-dev (so
+# admitted, not capped or measured). Fast is nightly fmt, two clippys,
+# cargo test and a test-auth build; slow is real PAM, try-lock, the
+# headless-sway pytest suite (-n auto) and a release build. Museum 7d:
+# --fast median 97 s / p90 224 s, pytest p90 448 s. Its own rule name so
+# report splits it from muzzle's test fixtures that also call contrib/gate.
+[[path."~/hacking/swayward-wm/swaywardlock".rule]]
+name    = "lock-gate"
+command = "contrib/gate"
+slots   = 6
+# why: new 2026-10-31; slow's pytest -n auto spreads over every core, role
+# cap 6 as before. Options aren't command words, so --fast and --slow share
+# it; split with a match rule only if report shows fast wastes the claim.
+[[path."~/hacking/swayward-wm/swaywardlock".rule]]
+name    = "lock-harness"
+command = ["contrib/test-try-lock", "contrib/test-real-pam"]
+slots   = 2
+# why: new 2026-10-31. One nested sway (try-lock smoke) or a cargo test
+# against a throwaway PAM service; each has a 5 min timeout in the gate.
+# contrib/try-lock itself is interactive and stays unclaimed: it holds a
+# nested session open for as long as you play with it.
+
+# --- small Rust tools (2026-10-31): debrief, mdroots, ramble ---
+# Their cargo calls (nextest fast gate, cargo test) hit the global
+# cargo-test rule. debrief's and mdroots' slow gate is a script,
+# scripts/check.sh (fmt, clippy -D warnings, cargo test --workspace;
+# mdroots adds cargo doc), which no global rule sees. AGENTS.md budgets:
+# ~1 min (debrief), ~25-40 s (mdroots), ramble's slow gate is a plain
+# cargo chain (~20 s). No runs under muzzle yet: weights match vtmux-check
+# until report has 5 clean runs.
+
+[path."~/hacking/debrief"]
+[[path."~/hacking/debrief".rule]]
+name    = "rust-check"
+command = "scripts/check.sh"
+slots   = 4
+
+[path."~/hacking/mdroots"]
+[[path."~/hacking/mdroots".rule]]
+name    = "rust-check"
+command = "scripts/check.sh"
+slots   = 4
