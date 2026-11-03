@@ -1,6 +1,6 @@
 # Rex
 
-Rex (`/Applications/Rex Beta.app`) settings, mirrored from `ghostty/`. Nothing here is linked.
+Rex (`/Applications/Rex Beta.app`) settings, mirrored from `ghostty/`. Only `.config/rex/init.lua` is linked.
 
 Rex keeps its settings in macOS user defaults (`com.superlogical.rex`), next to window frames, session state and update timestamps, so a tracked plist would churn. `_dotfiles_sync/rex_settings.py` owns a few keys. `--check` reports drift and `--apply` writes those keys. Everything else is left alone.
 
@@ -25,4 +25,10 @@ Known issue: pi's coloured sections (tool blocks) can bleed into the blank rows 
 
 Ghostty's opacity, blur and `font-thicken` have no Rex key. The fade modes seen in the app are `off`, `surface`, `content` and `both`.
 
-`~/.config/rex/init.lua` is for key bindings only (`rex config --help`). None are tracked yet.
+`.config/rex/init.lua` is linked to `~/.config/rex/init.lua` and holds key bindings only. Keep it small and lean on Rex's own defaults. Rex doesn't watch the file, so run `rex config reload` after a change and `rex keymap` to see what loaded.
+
+| Key | Does |
+|---|---|
+| `ctrl+h/j/k/l` | Focus the pane left/down/up/right. If the pane runs nvim, vim or tmux, the key goes to that program instead. nvim moves between its own splits and at its edge runs `rex focus DIR` (`nvim/.config/nvim/lua/keymaps/core.lua`), the same handoff vim-tmux-navigator does for tmux |
+
+The check reads the pane's foreground process, so debrief and ramble lose their internal pane movement here: their edge handoff calls `tmux select-pane`.

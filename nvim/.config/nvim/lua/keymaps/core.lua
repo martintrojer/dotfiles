@@ -38,22 +38,33 @@ map({ "n", "t" }, "<c-/>", toggle_terminal, { desc = "Toggle terminal" })
 map({ "n", "t" }, "<c-_>", toggle_terminal, { desc = "Toggle terminal" })
 map("t", "<esc><esc>", "<c-\\><c-n>", { desc = "Exit terminal mode" })
 
--- Tmux Navigation
-local function tmux_terminal_map(lhs, command, desc)
+-- Pane Navigation: nvim splits, then the multiplexer at the edge. Inside tmux
+-- that is vim-tmux-navigator; directly in a Rex pane it is `rex focus DIR`
+-- (rex/.config/rex/init.lua passes Ctrl+h/j/k/l through to nvim).
+local function navigate(wincmd, tmux_cmd, rex_dir)
+	return function()
+		if vim.env.TMUX then
+			vim.cmd(tmux_cmd)
+			return
+		end
+		local win = vim.api.nvim_get_current_win()
+		vim.cmd("wincmd " .. wincmd)
+		if vim.env.REX_SESSION and win == vim.api.nvim_get_current_win() then
+			vim.system({ "rex", "focus", "-s", vim.env.REX_SESSION, rex_dir })
+		end
+	end
+end
+
+local function nav_map(lhs, wincmd, tmux_cmd, rex_dir, desc)
+	local fn = navigate(wincmd, tmux_cmd, rex_dir)
+	map("n", lhs, fn, { desc = desc })
 	map("t", lhs, function()
 		vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-\\><C-N>", true, false, true), "n", false)
-		vim.schedule(function()
-			vim.cmd(command)
-		end)
+		vim.schedule(fn)
 	end, { desc = desc })
 end
 
-tmux_terminal_map("<c-h>", "TmuxNavigateLeft", "Tmux left")
-tmux_terminal_map("<c-j>", "TmuxNavigateDown", "Tmux down")
-tmux_terminal_map("<c-k>", "TmuxNavigateUp", "Tmux up")
-tmux_terminal_map("<c-l>", "TmuxNavigateRight", "Tmux right")
-
-map("n", "<c-h>", "<cmd>TmuxNavigateLeft<cr>", { desc = "Tmux left" })
-map("n", "<c-j>", "<cmd>TmuxNavigateDown<cr>", { desc = "Tmux down" })
-map("n", "<c-k>", "<cmd>TmuxNavigateUp<cr>", { desc = "Tmux up" })
-map("n", "<c-l>", "<cmd>TmuxNavigateRight<cr>", { desc = "Tmux right" })
+nav_map("<c-h>", "h", "TmuxNavigateLeft", "left", "Pane left")
+nav_map("<c-j>", "j", "TmuxNavigateDown", "down", "Pane down")
+nav_map("<c-k>", "k", "TmuxNavigateUp", "up", "Pane up")
+nav_map("<c-l>", "l", "TmuxNavigateRight", "right", "Pane right")
