@@ -3,6 +3,9 @@
 # per-machine tools go in an untracked conf.d file (e.g. conf.d/local.toml).
 
 [tools]
+# Terminal multiplexer with repo-managed config. Linux runs vtmux instead
+# (~/.local/bin/tmux -> vtmux), so mise must not shadow it there.
+tmux = "latest"
 # btop publishes no Mac release binary, so the default (aqua) backend fails
 # here; conda-forge has a Mac build. Linux uses plain `btop` (conf.d/linux.toml).
 "conda:btop" = "latest"

@@ -53,8 +53,6 @@ shellcheck = "latest"
 stylua = "latest"
 # TOML LSP for nvim.
 taplo = "latest"
-# Terminal multiplexer with repo-managed config.
-tmux = "latest"
 tokei = "latest"
 tree-sitter = "latest"
 uv = "latest"
