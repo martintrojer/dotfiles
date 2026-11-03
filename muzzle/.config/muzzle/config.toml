@@ -112,17 +112,26 @@ slots = 2
 [path."~/hacking/crew/mu"]
 [[path."~/hacking/crew/mu".rule]]
 name    = "mu-eval"
-command = "node tools/eval/main.ts"
+command = ["node tools/eval/main.ts", "npm run eval"]
 slots   = 3
 # why: new 2026-10-31. The black-box eval rig builds a surface and runs mu
 # with scripted faux pis; museum 7d: 158 calls >30 s, median 240 s, p90
 # 1081 s, all unclaimed. 3 is a starting guess; tune from report.
+# `npm run eval` (the package script) added 2026-11-03: it matched nothing.
 [[path."~/hacking/crew/mu".rule]]
 name  = "js-test"
 slots = 2
 # why: 5 -> 2, 2026-11-02: p90 cores 1.3 over 197 clean runs at 5 (p50
 # 1.1); the old 5 came from 8 runs. A 5-slot high waiter at the head of
 # the queue blocked smaller jobs behind it (blocked-idle 22317 slot-s/48 h).
+
+[path."~/hacking/crew/murmur"]
+[[path."~/hacking/crew/murmur".rule]]
+name  = "js-test"
+slots = 2
+# why: new 2026-11-03. `npm run check` (typecheck, lint, vitest) took the
+# global 4; report --by repo: p90 1.6 cores over 10 runs (p50 run 28 s).
+# Recheck once report has 5 clean runs.
 
 [path."~/hacking/swayward-wm"]
 [[path."~/hacking/swayward-wm".rule]]
