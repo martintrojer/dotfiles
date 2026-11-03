@@ -38,6 +38,7 @@ from .repo_checks import (
     check_package_coverage,
     check_systemd_unit_targets,
 )
+from .rex_settings import apply_rex_settings, check_rex_settings
 from .sync import run_apply_group, run_check_group
 from .system import active_scopes, detect_system
 
@@ -197,6 +198,11 @@ def run_check_tasks(
             TaskPolicy(packages=frozenset({"cursor"})),
             lambda: check_cursor_settings(target, verbose=verbose, ignore=ignore),
         ),
+        # macOS user defaults, not a file. Not linked.
+        (
+            TaskPolicy(packages=frozenset({"rex"})),
+            lambda: check_rex_settings(verbose=verbose, ignore=ignore),
+        ),
         # Not tied to a package: every linked Python script needs it. No-op
         # off macOS.
         (
@@ -277,6 +283,10 @@ def run_apply_tasks(
         (
             TaskPolicy(packages=frozenset({"cursor"})),
             lambda: apply_cursor_settings(target, verbose=verbose),
+        ),
+        (
+            TaskPolicy(packages=frozenset({"rex"})),
+            lambda: apply_rex_settings(verbose=verbose),
         ),
     )
 

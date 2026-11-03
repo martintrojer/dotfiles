@@ -44,6 +44,8 @@ NAME_PATTERNS: Final[tuple[str, ...]] = (
     r"build-ghostty\.py",
     # homebrew/.Brewfile includes this from the repo; only .Brewfile links.
     r"Brewfile\.base",
+    # rex/ themes go into macOS defaults (rex_settings.py), not $HOME.
+    r".+\.rex-theme\.json",
     # Repo-level docs and vendored licence files. A package that genuinely
     # needs one in $HOME (skills/) links its subtree whole, which bypasses
     # this walk entirely.

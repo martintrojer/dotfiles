@@ -43,7 +43,13 @@ PACKAGE_GROUPS: Final[tuple[tuple[PackageScope, Path, tuple[str, ...]], ...]] = 
     (
         "darwin",
         REPO_ROOT,
-        ("ghostty-macos", "hammerspoon", "homebrew", "mise-macos"),
+        (
+            "ghostty-macos",
+            "hammerspoon",
+            "homebrew",
+            "mise-macos",
+            "rex",
+        ),
     ),
     (
         "linux",
