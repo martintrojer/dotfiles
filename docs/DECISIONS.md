@@ -287,15 +287,22 @@ The biggest objection is the loss of control. With tmux, SSH, and murmur, I feel
 
 [Rex](https://www.superlogical.com) is Superlogical's (Mitchell Hashimoto's) terminal app and multiplexer in one, on libghostty: persistent sessions, built-in remote with real logins, OSC 7501 program status, a Lua config and a server API. It is free and closed source; the money is meant to come from a later layer, not the client or server. Tried it for a day and wired it into the stack: the `rex/` package (keys, owned defaults keys), a Rex branch in the nvim navigation keymaps, a third mu backend, `murmur rex-feed`, muzzle's queued-run status, and pane moves and follow splits in debrief and ramble.
 
+**Closed source disqualifies it.** The multiplexer is a critical part of the workflow: every agent, tool and session runs inside it. That layer has to be one I can read, fix and keep running whatever its vendor decides. A free closed-source app from a company whose business model is still unannounced fails that on its own. The points below would matter only if this one did not.
+
 - **The pitch is real but solved elsewhere.** Rex's best argument is no terminal inside a terminal: no tmux re-encoding the screen for Ghostty to parse again. [vtmux](https://github.com/martintrojer/vtmux) (tmux 3.8 as a drop-in, on libghostty-vt, one diffed frame per tick inside synchronized output) already fixes every rendering annoyance I had, and is already my daily driver on Linux. Key echo is now about 10x faster than the 3–5 ms it published, so latency is no longer a gap.
 - **It loses the status bar and murmur.** The status line built from murmur's counts, the muzzle pill, the poller segments and `@win_label`, the focus hooks and the `a` / `G` / `u` binds all go. The replacement is tab marks and a `murmur rex-feed` pane you have to look at. murmur does not read Rex panes.
 - **Agent status and phone control are the wrong layer for a terminal.** By the time an agent's state reaches the terminal it is one OSC 7501 record. Agent state and orchestration belong above it: mu's task graph, murmur's pi events, Cursor's cloud agents, t3code. herdr and murmur already track agents better than Rex's protocol. Phone access is Tailscale plus mosh and `tmux attach`; Rex's iOS client is nicer, not new.
+- **Remote is the real feature, and it does not fit.** It is not SSH: each host runs a Rex server, the client connects over HTTPS and WebSocket (TCP), and the server sends raw terminal output to each client's libghostty. Remote hosts therefore get native scrollback, selection, tabs and the same CLI as local, and the login server does real PAM logins. The caveats:
+  - Authentication today is Tailscale identity only, with no keys or passwords. SSH-key support is "planned". Plain HTTP gives every caller full access.
+  - devservers are not on the tailnet, and should not run a closed-source server with full access to my account.
+  - The fallback, a host reached through an `ssh -L` socket, puts SSH back underneath and spends a session channel on a `MaxSessions 1` host.
+  - It fixes the wrong problem. Remotes on my own network were never slow. On cloud hosts across the Atlantic the delay is the round trip, which no TCP transport hides. Only mosh's predictive local echo masks it, and Rex does not claim to do that.
 - **Rex is for people who never wanted a tmux setup.** That is most developers, and a good product for them. It is not for someone with seventeen years of tmux, a working stack on top, and the same setup on Linux, macOS and ssh. Rex is macOS-only for now.
-- **Open beats closed at this layer.** vtmux is mine to fix and runs everywhere, and every tmux plugin and script already works with it. Rex makes each tool add a backend, as I just did five times. Pillar #11 applies as well: Rex is a beta.
+- **Each tool needs a backend.** vtmux runs everywhere, and every tmux plugin and script already works with it. Rex makes each tool add a backend, as I just did five times. Pillar #11 applies as well: Rex is a beta.
 
 The Rex support already merged in mu, murmur, muzzle, debrief and ramble stays, but gets no new features. The `rex/` package, `_dotfiles_sync/rex_settings.py` and the nvim Rex branch go if Rex stays unused for a month or two.
 
-**Reconsider if:** vtmux stalls before it covers daily use on macOS, *or* Rex's remote model proves to beat Tailscale plus mosh and tmux on a capped remote, *or* Rex goes open source *and* runs on Linux.
+**Reconsider only if:** Rex goes open source. Even then it has to run on Linux, *and* either vtmux stalls before it covers daily use on macOS or Rex's remote gains key-based authentication *and* hides a transatlantic round trip better than mosh does. If vtmux stalls while Rex is still closed, the fallback is tmux, not Rex.
 
 ---
 
