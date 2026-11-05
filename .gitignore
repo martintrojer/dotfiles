@@ -22,5 +22,5 @@ __pycache__
 .direnv
 CACHEDIR.TAG
 
-# Scratch symlink farm built by `make check-ts` (see _dotfiles_sync/link_ts_types.py).
+# Local npm scratch (not a package).
 /node_modules

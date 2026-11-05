@@ -101,7 +101,7 @@ IGNORED_TOPLEVEL_DIRS: Final[set[str]] = {
     "docs",  # cross-cutting documentation hosted at repo root
     "fedora",  # contains its own stow packages, scope-driven
     "guides",  # interactive learning guides, rendered by guides/build.py
-    "node_modules",  # scratch type-package symlinks built by `make check-ts`
+    "node_modules",  # local npm scratch; never a stow package
 }
 
 # Package-relative dirs whose children link as opaque directory symlinks
