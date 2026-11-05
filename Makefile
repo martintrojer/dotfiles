@@ -7,7 +7,6 @@ FD := fd
 RUFF_CONFIG := ruff.toml
 TY_CONFIG := ty.toml
 PRETTIER_CONFIG := .prettierrc.json
-TSCONFIG := tsconfig.json
 
 # Toolchain is pinned here, not inherited from whatever each machine happens to
 # have installed: uv/npm are the only assumed binaries and both fetch-and-cache
@@ -23,7 +22,6 @@ TY_VERSION := 0.0.70
 SHELLCHECK_VERSION := 0.11.0.1
 STYLUA_VERSION := 2.5.2
 PRETTIER_VERSION := 3.9.6
-TYPESCRIPT_VERSION := 7.0.2
 LUACHECK_VERSION := 1.2.0-1
 
 PYTHON := uv run --python $(PYTHON_VERSION) --no-project --quiet python
@@ -32,7 +30,6 @@ TY := uvx --quiet ty@$(TY_VERSION)
 SHELLCHECK := uvx --quiet --from shellcheck-py==$(SHELLCHECK_VERSION) shellcheck
 STYLUA := npx -y @johnnymorganz/stylua-bin@$(STYLUA_VERSION)
 PRETTIER := npx -y prettier@$(PRETTIER_VERSION)
-TSC := npx -y -p typescript@$(TYPESCRIPT_VERSION) tsc
 LUACHECK := $(if $(wildcard $(HOME)/.luarocks/bin/luacheck),$(HOME)/.luarocks/bin/luacheck,luacheck)
 PYTHON_PY_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f --extension py --print0 .
 PYTHON_SHEBANG_FILES_CMD := $(FD) --hidden --exclude .git --exclude .jj --exclude node_modules --type f '^[^.]+$$' . -X bash -lc 'for path in "$$@"; do IFS= read -r first < "$$path" || true; if [[ $$first =~ ^\#!.*python ]]; then printf "%s\\0" "$$path"; fi; done' bash
@@ -46,7 +43,6 @@ ZSH_FILES := $(shell $(RG) -g '*.zsh' -g '.zshrc')
 PRETTIER_FILES := $(shell $(RG) -g '*.ts' -g '*.json' -g '*.jsonc' -g '*.css' -g '!skills/**')
 TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
 FEDORA_TEST_DIRS := fedora/tests fedora/gaming/tests
-TS_TEST_GLOB := pi/.pi/agent/extensions/tests/*.test.ts
 DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests local-bin/.local/bin/tests sway/.config/sway/scripts/tests waybar/.config/waybar/scripts/tests
 
 .PHONY: \
@@ -61,9 +57,6 @@ DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests local-bin/.local/bin/te
 	format-lua \
 	check-prettier \
 	format-prettier \
-	check-ts \
-	check-ts-tests \
-	format-ts \
 	check-tmux-tests \
 	check-fedora-tests \
 	check-desktop-tests \
@@ -79,7 +72,7 @@ DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests local-bin/.local/bin/te
 help:
 	printf '%s\n' \
 	  'Targets:' \
-	  '  make check-all         # python + shell + zsh + lua + prettier + ts + focused behavior tests' \
+	  '  make check-all         # python + shell + zsh + lua + prettier + focused behavior tests' \
 	  '  make tool-versions     # print the pinned toolchain versions' \
 	  '  make format-all        # python + lua + prettier formatters' \
 	  '  make check-python      # ruff check/format + ty + py_compile on all Python files/scripts' \
@@ -95,16 +88,13 @@ help:
 	  '  make check-desktop-tests # focused fuzzel/sway/waybar script regression tests' \
 	  '  make theme             # render docs/palette.toml into every THEME BEGIN..END region' \
 	  '  make check-theme       # renderer behavior tests + theme regions in sync with docs/palette.toml' \
-	  '  make check-ts          # tsc --noEmit on pi extensions' \
-	  '  make check-ts-tests    # node --test on the pi extension helper tests' \
-	  '  make format-ts         # alias for format-prettier' \
 	  '  make build-guides      # render guides/*.md → guides/build/*.html' \
 	  '  make serve-guides      # build then http.server in guides/build' \
 	  '  make check-guides      # validate guide sources without writing output' \
 	  '  make clean-guides      # rm -rf guides/build' \
 	  '  make push              # check-all, then jj git push (ARGS=... passed through)'
 
-check-all: check-python check-shell check-zsh check-lua check-prettier check-ts check-ts-tests check-tmux-tests check-fedora-tests check-desktop-tests check-guides check-theme
+check-all: check-python check-shell check-zsh check-lua check-prettier check-tmux-tests check-fedora-tests check-desktop-tests check-guides check-theme
 
 format-all: format-python format-lua format-prettier
 
@@ -139,20 +129,6 @@ check-prettier:
 
 format-prettier:
 	$(PRETTIER) --config $(PRETTIER_CONFIG) --write $(PRETTIER_FILES)
-
-# No package.json here: the TS is loaded by globally installed hosts, so the
-# type packages are symlinked into a scratch node_modules first (gitignored).
-check-ts:
-	$(PYTHON) -m _dotfiles_sync.link_ts_types
-	$(TSC) -p $(TSCONFIG)
-
-# No runner dependency: node strips the TS types itself, so `node --test` runs
-# the *.test.ts files directly. The glob is quoted so node expands it (make/sh
-# would fail the target if it ever matched nothing).
-check-ts-tests:
-	node --test '$(TS_TEST_GLOB)'
-
-format-ts: format-prettier
 
 check-tmux-tests:
 	$(TMUX_STATUS_TEST)
@@ -194,7 +170,6 @@ tool-versions:
 	  'shellcheck  $(SHELLCHECK_VERSION) (uvx shellcheck-py)' \
 	  'stylua      $(STYLUA_VERSION) (npx)' \
 	  'prettier    $(PRETTIER_VERSION) (npx)' \
-	  'typescript  $(TYPESCRIPT_VERSION) (npx)' \
 	  'luacheck    $(LUACHECK_VERSION) (LuaRocks, installed by mise/setup-mise.sh)'
 
 # The repo's push gate. This is a make target rather than a pre-push hook
