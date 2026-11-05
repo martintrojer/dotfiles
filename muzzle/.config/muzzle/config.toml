@@ -210,3 +210,22 @@ slots   = 4
 name    = "rust-check"
 command = "scripts/check.sh"
 slots   = 4
+
+# --- tuicr (2026-11-05) ---
+# CI gate: cargo fmt --check, cargo check, cargo clippy -D warnings, cargo
+# test (.github/workflows/ci.yml). test/clippy/build already hit the global
+# cargo-test; check, bench, install and nix build matched nothing.
+# `cargo run` stays unclaimed: it launches the TUI and would hold slots
+# for the whole interactive session.
+# Heavy crate (git2, syntect, ratatui) with a large test suite; 4 is a
+# starting guess, tune once report --by repo has 5 clean runs.
+[path."~/hacking/tuicr"]
+[[path."~/hacking/tuicr".rule]]
+name    = "tuicr-cargo"
+command = ["cargo test", "cargo nextest", "cargo clippy", "cargo build",
+           "cargo check", "cargo bench", "cargo install", "cargo doc"]
+slots   = 4
+[[path."~/hacking/tuicr".rule]]
+name    = "tuicr-nix"
+command = "nix build"
+slots   = 4
