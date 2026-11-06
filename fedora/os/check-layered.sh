@@ -5,7 +5,11 @@
 #   one-off `rpm-ostree install`. rpm-ostree has no "sync to this list" mode,
 #   so removal stays a manual, reviewed step.
 # Checks the default (next-boot) deployment, so a fresh staged install counts.
-# Local RPMs (e.g. the RPM Fusion release packages) are not checked.
+#
+# RPM Fusion release packages stay out of *-packages.sh: they enable the repos
+# the gaming list needs and are first installed by URL (see steam-packages.sh),
+# not by name. Once layered they show up in requested-packages; ignore them as
+# extras so a major-version rebase that keeps them layered stays quiet.
 set -euo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -19,11 +23,19 @@ for list in "$script_dir"/*-packages.sh "$script_dir"/../gaming/os/*-packages.sh
   unset -n arr
 done
 
+# Repo enablers for the gaming layer; not content packages in any list.
+ignore_extra=(
+  rpmfusion-free-release
+  rpmfusion-nonfree-release
+)
+
 layered=$(rpm-ostree status --json | jq -r '.deployments[0]."requested-packages"[]' | sort -u)
 listed=$(printf '%s\n' "${wanted[@]}" | sort -u)
 mapfile -t missing < <(comm -13 <(echo "$layered") <(echo "$listed"))
-mapfile -t extra < <(comm -23 <(echo "$layered") <(echo "$listed"))
-
+mapfile -t extra < <(
+  comm -23 <(echo "$layered") <(echo "$listed") |
+    grep -vxF -f <(printf '%s\n' "${ignore_extra[@]}") || true
+)
 if ((${#missing[@]})); then
   echo "Listed but not layered:" >&2
   printf '  %s\n' "${missing[@]}" >&2
