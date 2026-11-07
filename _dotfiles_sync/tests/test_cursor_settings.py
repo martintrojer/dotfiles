@@ -50,6 +50,9 @@ class CursorSettingsTest(unittest.TestCase):
         self.assertEqual(
             data["approvalMode"], cursor_settings.CURSOR_SETTINGS["approvalMode"]
         )
+        self.assertEqual(
+            data["attribution"], cursor_settings.CURSOR_SETTINGS["attribution"]
+        )
         self.assertFalse(
             cursor_settings.check_cursor_settings(
                 self.target, verbose=False, ignore=set()
