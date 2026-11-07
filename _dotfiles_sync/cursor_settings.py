@@ -17,8 +17,13 @@ ISSUE_ID: Final[str] = "cursor-settings"
 SETTINGS_PATH: Final[Path] = Path(".cursor") / "cli-config.json"
 
 # "unrestricted" is Run Everything (--force / --yolo): auto-approve tool calls.
+# attribution off: stop Co-authored-by / agent PR attribution injection.
 CURSOR_SETTINGS: Final[dict[str, object]] = {
     "approvalMode": "unrestricted",
+    "attribution": {
+        "attributeCommitsToAgent": False,
+        "attributePRsToAgent": False,
+    },
 }
 
 _FILE: Final[JsonKeys] = JsonKeys(
