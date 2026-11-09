@@ -41,7 +41,7 @@ skill-specific ones, extracted from the calls actually made during the
    direct `ponytail` loads were mu reviewer panes. So split counts by model and
    by worker/delegate/interactive, and keep a skill for an effect you can see in
    the sessions, not for its load count. The data is the museum archive of every
-   pi session (`~/.agents/skills/museum`); `usage-audit.py` below counts it.
+   pi session (the `museum` skill, from the `npm:@mu-crew/museum` pi package); `usage-audit.py` below counts it.
 7. **Vendored means re-syncable.** Pin the upstream commit in the table below
    and watch upstream: the 2026-10 re-sync pulled a real TDD rule from upstream
    `5bf4e78`. Local forks that cut or rewrite upstream text are fine when
