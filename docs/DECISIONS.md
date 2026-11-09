@@ -4,6 +4,64 @@ Past decisions about this setup — rejected alternatives and non-obvious "yes" 
 
 Each entry: context, key points, what would justify revisiting. Pillars from [`README.md`](../README.md#zen-of-this-setup); daily editing rules in [`AGENTS.md`](../AGENTS.md).
 
+## Index
+
+By topic. ✓ accepted, ✗ rejected, ↻ superseded. Add new entries here too.
+
+**Desktop (Sway, Wayland, macOS)**
+- ✗ [niri, replaced by sway](#niri-replaced-by-sway-2026-04-23)
+- ✗ [SwayFX](#swayfx-tried-and-reverted-2026-04-28)
+- ✗ [A unified QuickShell desktop shell](#a-unified-quickshell-desktop-shell-rejected-2026-08-23)
+- ✓ [Waybar is a restrained statusline](#waybar-is-a-restrained-statusline-not-a-widget-strip-accepted-2026-05-23-geometry-revised-2026-09-20)
+- ✓ [Cmd+C / Cmd+V via a Rainy75 firmware layer](#cmdc--cmdv-everywhere-via-rainy75-firmware-layer-not-xremap-accepted-2026-05-28)
+- ✗ [`Hyper+G` desktop back-and-forth in Hammerspoon](#hyperg--hyper15-as-desktop-back-and-forth-in-hammerspoon-rejected-2026-04-29)
+
+**Terminal**
+- ✓ [Ghostty on Linux too](#ghostty-on-linux-too-plain-launches-no-foot-accepted-2026-10-28)
+- ↻ [Each OS gets its native terminal](#each-os-gets-its-native-terminal-foot-on-linux-ghostty-on-macos-accepted-2026-05-15-linux-half-superseded-2026-10-28)
+- ✗ [Alacritty as the cross-OS terminal](#alacritty-as-the-cross-os-terminal-tried-2026-04-30-reverted-2026-05-15)
+- ↻ [Foot text weight](#foot-text-weight-plain-hack-regular-no-renderer-setting-thickens-it-accepted-2026-10-03-replaces-the-2026-09-26-gamma-pick)
+
+**tmux and multiplexers**
+- ✓ [vtmux as the tmux binary](#vtmux-as-the-tmux-binary-accepted-2026-11-03)
+- ✓ [tmux owns in-buffer text ops](#tmux-owns-in-buffer-text-ops-the-terminal-owns-only-what-it-structurally-can-accepted-2026-05-02-revised-2026-05-15)
+- ✓ [Agent state awareness: tmux + murmur, not herdr](#agent-state-awareness-tmux--murmur-not-herdr-accepted-2026-05-29)
+- ✗ [Rex as the multiplexer](#rex-as-the-multiplexer-tried-2026-11-03-rejected)
+- ✓ [Pane-controlled values never reach a format shell line](#pane-controlled-values-never-reach-a-tmux-format-shell-line-accepted-2026-08-09)
+- ✗ [Vendoring tmux plugins instead of TPM](#vendoring-tmux-plugins-instead-of-using-tpm-rejected-ongoing)
+- ✓ [Switch to `tmux-fingers-rs`](#switch-to-martintrojertmux-fingers-rs-accepted-2026-04-27)
+
+**Agents and orchestration**
+- ✓ [Skills are single-agent; orchestration is `mu`'s](#skills-are-single-agent-discipline-orchestration-is-mus-accepted-2026-08-04)
+- ✗ [T3 Code as the agent cockpit](#t3-code-as-the-agent-cockpit-tried-2026-09-25-retried-2026-10-22-rejected)
+- ✓ [Drop the Claude Code plugin](#drop-the-claude-code-plugin-make-skills-and-pi-plain-stow-packages-accepted-2026-07-12)
+
+**Editor, review and notes**
+- ✓ [Consolidate around ramble, debrief and mdroots](#consolidate-the-workflow-around-ramble-debrief-and-mdroots-accepted-2026-10-09)
+- ↻ [nvim format-on-save](#nvim-format-on-save-uses-a-hand-rolled-lsp--cli-fallback-not-conformnvim--none-ls-accepted-2026-05-15-superseded-2026-09-11)
+- ✓ [Per-tool learning guides under `guides/`](#per-tool-learning-guides-authored-as-markdown-under-guides-accepted-2026-05-01)
+
+**Shell, tools and OS**
+- ✗ [oh-my-zsh](#oh-my-zsh-removed-2026-04-25)
+- ✓ [mise owns CLI tools; brew only casks](#mise-owns-cli-tools-on-both-oses-brew-keeps-only-casks-and-what-mise-cant-do-accepted-2026-10-19)
+- ✓ [Quarantine the Fedora gaming layer](#quarantine-the-fedora-gaming-layer-into-fedoragaming-as-an-opt-out-scope-accepted-2026-07-12)
+- ✗ [Arch and Ubuntu toolbox scripts](#arch-and-ubuntu-toolbox-bootstrap-scripts-removed-2026-05-01)
+
+**Repo structure and control plane**
+- ✓ [Replace GNU Stow with an in-repo planner](#replace-gnu-stow-with-an-in-repo-symlink-planner-accepted-2026-08-01)
+- ✗ [chezmoi](#chezmoi-rejected-2026-04-25)
+- ✓ [Split the control plane into `dotfiles-sync` + `_dotfiles_sync/`](#split-the-repo-control-plane-into-dotfiles-sync--_dotfiles_sync-accepted-2026-04-27)
+- ✓ [Keep `_dotfiles_sync/` split across small modules](#keep-_dotfiles_sync-split-across-small-modules-accepted-2026-05-01)
+- ✗ [Splitting the big scripts into their own repos](#splitting-the-big-scripts-into-their-own-repos-rejected-2026-08-01-two-extracted-since)
+- ✗ [A shared `pylib/` helper module](#a-shared-pylib-helper-module-rejected-2026-08-01)
+- ✗ [A unified Rust CLI for the script layer](#a-unified-rust-cli-for-the-script-layer-rejected-2026-08-01-re-argued-same-day)
+- ✗ [Centralized `docs/` for package docs](#centralized-docs-folder-for-package-docs-rejected-2026-04-27)
+- ✓ [Keep one-file packages that change behaviour](#keep-one-file-packages-that-change-behaviour-not-just-looks-accepted-2026-05-01-restated-2026-10-09)
+
+**Quality gates and tests**
+- ✓ [Tests are bug-driven](#tests-are-bug-driven-not-coverage-driven-accepted-2026-05-01-rewritten-2026-08-01)
+- ✓ [Gate shellcheck and tsc](#gate-the-two-unchecked-languages-shellcheck-and-tsc-accepted-2026-08-01)
+
 ---
 
 ## Rejected
@@ -23,18 +81,20 @@ Considered replacing Waybar, Fuzzel, Mako, Swaylock, Swayidle, Swaybg, and relat
 
 ---
 
-### Splitting the four big scripts into their own repos (rejected 2026-08-01)
+### Splitting the big scripts into their own repos (rejected 2026-08-01, two extracted since)
 
-A complexity heatmap flagged four files as "programs wearing dotfile clothing": `tms` (993), `agent-attention` (976), `wallpaper` (825), `optiscaler-sync` (938) — ~3.7k lines, 14% of the repo in four files. Considered extracting them.
+A 2026-08-01 complexity heatmap flagged four files as "programs wearing dotfile clothing": `tms` (993 lines), `agent-attention` (976), `wallpaper` (825), `optiscaler-sync` (938). Extracting them was rejected: three were coupled to the repo (`_tmux_common`, generated `THEME BEGIN` blocks, a six-package state machine), and the heatmap flagged them for being big and churny, not misplaced.
 
-- **Three are coupled.** `tms` and `agent-attention` import `_tmux_common`; `tms` and `wallpaper` carry generated `THEME BEGIN` blocks from `render_theme.py`. `agent-attention` is the worst candidate — it's a protocol endpoint, not a program: six packages participate in its state machine (pi extension, opencode plugin, mako, `.tmux.conf`, `status-ai`, `integration_checks.py`).
-- **Only `optiscaler-sync` is separable** — pure stdlib, no theme block, own test file, two consumers. Still not worth its own repo alone.
-- **Cost per extracted repo:** duplicate the four-stage `check-python` gate, lose stow as the install story, turn atomic changes into two-PR dances, and let `render_theme.py` write into a directory it doesn't own.
-- The heatmap flagged these files for being **big and churny**, not **misplaced**. Extraction relocates complexity without reducing it.
+Two left anyway, each once its coupling went:
 
-**Reconsider only if:** `optiscaler-sync` attracts outside users, OR `fedora/gaming/` needs a different release cadence than the shell config (in which case the honest unit is that whole directory, not four scattered scripts).
+- **`agent-attention` → [murmur](https://github.com/mu-crew/murmur) (2026-08-29).** The forcing move was deployment: a second machine had to export state, and dotfiles don't deploy to remote hosts.
+- **`tms` → [tsesh](https://github.com/mu-crew/tmux-session-picker) (2026-09-27).** murmur's session option removed the `_tmux_common` dependency, and a THEME-region override removed the `render_theme.py` one.
 
-**Partly superseded 2026-09-27:** `tms` was extracted as `tsesh` after murmur's session option removed its `_tmux_common` coupling. See *Agent state awareness* § Extended 2026-09-27.
+`wallpaper` (839, `fedora/bin/`) and `optiscaler-sync` (948, `fedora/gaming/`) stay. Both are now pure stdlib with no theme block and one consumer, so they could move, but nothing pulls them out: no second machine, no outside users. An extra repo costs its own gate and release, and turns a one-commit change into two.
+
+**The rule:** size never justifies extraction. Extract when a script needs a different deployment or cadence than the dotfiles, and only once nothing in the repo reaches into it. Detail in *Agent state awareness* below.
+
+**Reconsider for the remaining two if:** `optiscaler-sync` attracts outside users, OR `fedora/gaming/` needs its own release cadence (then the honest unit is that whole directory).
 
 ---
 
@@ -60,11 +120,11 @@ Revisited as "fold *every* script — pickers, renderers, `_dotfiles_sync`, the 
 - **Also:** one binary means one dependency tree and one release cadence for image processing, HTTP+zip, VDF editing, symlink management and 14 pickers. Coupling bought to solve a tooling problem worth ~300 lines of config.
 - **Wrong axis.** The question was never Python-vs-Rust, it was untyped-vs-typed, and we are already on the good side. `Literal` under `ty` is a real closed sum type: `h: Action = "bogus"` is an `invalid-assignment`, and a missing branch surfaces as `invalid-return-type`. That is the guarantee the whole idea was reaching for. Go would actually be a *downgrade* here — it has no sum types at all, only string constants.
 
-**The pro that survives, narrowed:** a third of one audit's bugs were contract drift in disguise, but only the *cross-package* ones are still open. `ty` sees inside a package, so the `config.py`/`cli.py` join was fixable in place; it cannot follow `agent-attention.ts` -> `_tmux_common.py`, which is why agent-state stayed bare strings and `STATE_GLYPH` needed a codegen pipeline to have one source of truth. That gap is a stow-layout consequence, not a language one.
+**The pro that survived, then left:** a third of one audit's bugs were contract drift in disguise, and the open ones were *cross-package*: `ty` could not follow `agent-attention.ts` -> `_tmux_common.py`, so agent state stayed bare strings. That contract left the repo with murmur (2026-08-29); agent state is now murmur's tmux options, read as data.
 
-**`_dotfiles_sync/` was the one candidate — and reading it closed the case.** 2.5k lines, annotated throughout, `ty`-clean, six frozen dataclasses, `Literal` aliases for `Action`/`PackageScope`, 39 tests, eight stringly-typed lookups left. It also reads well, which is what a rewrite would most likely lose: the value in `stow.py` and `repo_checks.py` is not the types but the comments recording *why* — `--no-folding` avoids the shared-target fold bug, the prune step's parent walk depends on `iter_managed_links` order. That is knowledge about stow, not about Python, so a port carries it verbatim and improves nothing.
+**`_dotfiles_sync/` was the one candidate — and reading it closed the case.** 2.5k lines at the time, annotated throughout, `ty`-clean, frozen dataclasses, `Literal` aliases for `Action`/`PackageScope`. It also reads well, which is what a rewrite would most likely lose: the value is in the comments recording *why*, and a port carries those verbatim and improves nothing. (The stow-specific half of that knowledge went with stow, the same day; see *Replace GNU Stow*.)
 
-**Reconsider only if:** a contract spanning packages starts drifting *despite* `ty` — the agent-state strings are the live candidate, and the cheaper fix there is a shared enum plus the generator that already exists, not a language change.
+**Reconsider only if:** a contract spanning packages starts drifting *despite* `ty`; the cheaper fix is still a shared enum plus a generator, not a language change.
 
 ---
 
@@ -87,9 +147,9 @@ After a Ghostty OOM (~160 GB resident; also nuked `~/.zsh_history` via the `shar
 
 - What the swap got right: stability, `alacritty msg create-window` IPC, per-OS config via TOML `import` + nested stow packages.
 - Why it didn't last: "one terminal everywhere" is a portability goal, not a quality goal. Alacritty was never the *most* Wayland-native option (foot is) nor the *most* macOS-native option (Ghostty is). Optimizing for sameness paid an opportunity cost on both sides.
-- Kept from the swap: the daily history snapshot, `option_as_alt = "OnlyLeft"` thinking (now on Ghostty), the nested-stow per-OS overlay pattern (still used by `fedora/`).
+- Kept from the swap: the daily history snapshot, `option_as_alt = "OnlyLeft"` thinking (now on Ghostty), and per-OS overlay packages (now `ghostty-linux`/`ghostty-macos`, `mise-linux`/`mise-macos`).
 
-Superseded by ["Each OS gets its native terminal"](#each-os-gets-its-native-terminal-foot-on-linux-ghostty-on-macos-accepted-2026-05-15-linux-half-superseded-2026-10-28) below.
+Superseded by ["Each OS gets its native terminal"](#each-os-gets-its-native-terminal-foot-on-linux-ghostty-on-macos-accepted-2026-05-15-linux-half-superseded-2026-10-28), whose Linux half was in turn superseded by ["Ghostty on Linux too"](#ghostty-on-linux-too-plain-launches-no-foot-accepted-2026-10-28). Ghostty is now the terminal on both OSes, the "one terminal everywhere" this entry wanted, reached on quality rather than portability.
 
 ---
 
@@ -107,7 +167,7 @@ Recurring temptation: mirror sway's `$mod+g` (`workspace back_and_forth`) and di
 
 ### Vendoring tmux plugins instead of using TPM (rejected, ongoing)
 
-5 third-party tmux plugins via TPM (`tmux-yank`, `tmux-cpu`, `tmux-fingers`, `tmux-fzf`, `vim-tmux-navigator`). Each audited individually:
+Third-party tmux plugins via TPM, each audited individually. Today: `tmux-yank`, `tmux-fingers-rs`, `tmux-fzf`, `vim-tmux-navigator`, plus my own `tmux-session-picker` (tsesh). Audit notes:
 
 - `vim-tmux-navigator`: ~30 lines but handles fzf/ssh edge cases I'd rediscover the hard way.
 - `tmux-fingers`: too large to rewrite. *(Now `tmux-fingers-rs`, see below.)*
@@ -156,7 +216,7 @@ Used OMZ for years. Audited what it actually did.
 Audited [chezmoi](https://www.chezmoi.io/) against `dotfiles-sync`'s actual responsibilities.
 
 - chezmoi cleanly replaces the boring half (stow driver, conflict UX, OS scoping). `chezmoi diff` is nicer than custom `--check`.
-- chezmoi does **not** solve the hard half: per-skill symlink fan-out into `~/.agents/skills/` doesn't fit the static-target model (drops into `run_onchange_*.sh`, i.e. the same Python under a different roof). Files mutated by other tools (`~/.claude/settings.json`, `~/.codex/config.toml`) don't fit "chezmoi owns the target".
+- chezmoi does **not** solve the hard half: per-skill symlink fan-out into `~/.agents/skills/` doesn't fit the static-target model (drops into `run_onchange_*.sh`, i.e. the same Python under a different roof). Files mutated by other tools don't fit "chezmoi owns the target" either. Today that is `~/.pi/agent/settings.json` and `~/.cursor/cli-config.json`, which `dotfiles-sync` merges key by key (`pi_settings.py`, `cursor_settings.py`); in 2026-04 it was Claude's and Codex's configs.
 - Violates #2 (heavier abstraction), #3 (`dot_`, `executable_`, `symlink_`, `run_onchange_` + Go templates = more concepts), #10 (source tree no longer mirrors `$HOME` shape).
 - Templating, encryption, externals fetcher all unused.
 
@@ -289,7 +349,7 @@ The biggest objection is the loss of control. With tmux, SSH, and murmur, I feel
 
 **Closed source disqualifies it.** The multiplexer is a critical part of the workflow: every agent, tool and session runs inside it. That layer has to be one I can read, fix and keep running whatever its vendor decides. A free closed-source app from a company whose business model is still unannounced fails that on its own. The points below would matter only if this one did not.
 
-- **The pitch is real but solved elsewhere.** Rex's best argument is no terminal inside a terminal: no tmux re-encoding the screen for Ghostty to parse again. [vtmux](https://github.com/martintrojer/vtmux) (tmux 3.8 as a drop-in, on libghostty-vt, one diffed frame per tick inside synchronized output) already fixes every rendering annoyance I had, and is already my daily driver on Linux. Key echo is now about 10x faster than the 3–5 ms it published, so latency is no longer a gap.
+- **The pitch is real but solved elsewhere.** Rex's best argument is no terminal inside a terminal: no tmux re-encoding the screen for Ghostty to parse again. [vtmux](https://github.com/martintrojer/vtmux) (tmux 3.8 as a drop-in, on libghostty-vt, one diffed frame per tick inside synchronized output) already fixes every rendering annoyance I had, and is my daily driver (Linux at the time, both OSes since; see [vtmux as the tmux binary](#vtmux-as-the-tmux-binary-accepted-2026-11-03)). Key echo is now about 10x faster than the 3–5 ms it published, so latency is no longer a gap.
 - **It loses the status bar and murmur.** The status line built from murmur's counts, the muzzle pill, the poller segments and `@win_label`, the focus hooks and the `a` / `G` / `u` binds all go. The replacement is tab marks and a `murmur rex-feed` pane you have to look at. murmur does not read Rex panes.
 - **Agent status and phone control are the wrong layer for a terminal.** By the time an agent's state reaches the terminal it is one OSC 7501 record. Agent state and orchestration belong above it: mu's task graph, murmur's pi events, Cursor's cloud agents, t3code. herdr and murmur already track agents better than Rex's protocol. Phone access is Tailscale plus mosh and `tmux attach`; Rex's iOS client is nicer, not new.
 - **Remote is the real feature, and it does not fit.** It is not SSH: each host runs a Rex server, the client connects over HTTPS and WebSocket (TCP), and the server sends raw terminal output to each client's libghostty. Remote hosts therefore get native scrollback, selection, tabs and the same CLI as local, and the login server does real PAM logins. The caveats:
@@ -302,7 +362,7 @@ The biggest objection is the loss of control. With tmux, SSH, and murmur, I feel
 
 The Rex support already merged in mu, murmur, muzzle, debrief and ramble stays, but gets no new features. The `rex/` package, `_dotfiles_sync/rex_settings.py` and the nvim Rex branch go if Rex stays unused for a month or two.
 
-**Reconsider only if:** Rex goes open source. Even then it has to run on Linux, *and* either vtmux stalls before it covers daily use on macOS or Rex's remote gains key-based authentication *and* hides a transatlantic round trip better than mosh does. If vtmux stalls while Rex is still closed, the fallback is tmux, not Rex.
+**Reconsider only if:** Rex goes open source. Even then it has to run on Linux, *and* either vtmux stalls or Rex's remote gains key-based authentication *and* hides a transatlantic round trip better than mosh does. If vtmux stalls while Rex is still closed, the fallback is tmux, not Rex.
 
 ---
 
@@ -376,7 +436,7 @@ A repo-wide audit found `pi/` (2,955 lines of TypeScript) was prettier-formatted
 
 - **Measured, not assumed:** `shellcheck --severity=style` over all 37 shell files exits 0 with zero output today. The gate costs ~5 Makefile lines and zero remediation.
 - `tsc` closes the TS hole. `ty` was verified to already resolve per-directory sibling `_common.py` imports correctly, so Python coverage was never the gap.
-- This is a ratchet, not a testing policy change — see the entry below, which still stands.
+- This is a ratchet, not a testing policy change; [Tests are bug-driven](#tests-are-bug-driven-not-coverage-driven-accepted-2026-05-01-rewritten-2026-08-01) still stands.
 
 **Reconsider only if:** either tool starts producing noise that outweighs the regressions it catches.
 
@@ -392,7 +452,9 @@ Removed the Claude Code integration surface (`.claude-plugin/`, `hooks/`, the ma
 - **The one subtlety — folding:** the repo stows everything `--no-folding` (per-leaf) to avoid the shared-target fold bug. But skills *must* fold so each skill links as one opaque directory symlink — otherwise stow descends per-file and `.stowrc`'s global `README.md`/`LICENSE.*` ignore drops `unslop/LICENSE` and `detector/README.md`. So `skills` opts back into folding via `PackageSpec.fold`, and a `fold_anchors` mkdir (`~/.agents/skills/`) pins the fold level (without a pre-existing real dir, stow folds `~/.agents` into a single repo symlink). Pi extensions are all `.ts`, so the ignore never fires and they stow per-file under plain `--no-folding`.
 - Net: fewer moving parts (one mechanism, stow, instead of stow + bespoke fan-out), and `pi`/`skills` now show up in `--check` package coverage like every other package.
 
-**Reconsider only if:** Claude Code comes back as a daily driver (re-add the plugin surface), OR stow's folding behavior changes such that the `fold_anchors` mkdir is no longer needed.
+**Mechanism superseded 2026-08-01:** stow is gone; the planner links skills as one directory each via `bundle_dirs`, so `fold`/`fold_anchors` no longer exist. See *Replace GNU Stow*.
+
+**Reconsider only if:** Claude Code comes back as a daily driver (re-add the plugin surface).
 
 ---
 
@@ -485,16 +547,9 @@ A one-pixel seam under the bar on bright wallpapers appears to be a Sway/Wayland
 
 ### nvim format-on-save uses a hand-rolled LSP → CLI fallback, not conform.nvim / none-ls (accepted 2026-05-15, superseded 2026-09-11)
 
-**Superseded 2026-09-11** by the review-slim cut: nvim no longer formats on save. Trailing whitespace is highlighted (`mini.trailspace`) but not trimmed on `:w`. Repo markdown stays a Makefile/`make format-all` concern only for ts/json/css; nvim does not run prettier/stylua/shfmt.
+**Superseded 2026-09-11** by the review-slim cut: nvim no longer formats on save. Trailing whitespace is highlighted (`mini.trailspace`) but not trimmed on `:w`. Formatting is `make format-*` (ts/json/css) and the agents' job; nvim does not run prettier/stylua/shfmt.
 
-Historical context kept below.
-
-Markdown table formatting was the trigger. The old autocmd called `vim.lsp.buf.format()` and stopped, so filetypes whose attached LSP doesn't format (markdown, lua, sh, raw json/yaml) silently weren't formatted. Obvious answer is `conform.nvim`; chosen answer was ~30 lines of glue in `nvim/.config/nvim/lua/format_on_save.lua` (file deleted 2026-09-11).
-
-- **Flow:** on `BufWritePre`, try LSP first; if nothing formats, look filetype up in a small table (prettier for markdown/json/yaml/etc., stylua for lua, shfmt for sh/bash but not zsh); shell out via `vim.system({...}, { stdin = ... }):wait()`, replace lines only on real diff. Missing binaries are silent no-ops. Trailspace trim runs last.
-- **Why not conform/none-ls:** failed #4 (plugin wrapping shell-outs to formatters on `$PATH`), #2 (`vim.system` + a table is the builtin path), #5 (30 lines is the textbook local-script case). Conform's ordering/async/per-formatter-options features are real but unused here.
-- **Why not prettier-as-LSP via efm-langserver:** swaps a plugin for a daemon, doesn't reduce moving parts.
-- Latency: `prettier` over stdin is ~150–300ms; swap for `prettierd` if it ever bites.
+What it was: ~30 lines in `format_on_save.lua` that tried LSP formatting, then fell back to a filetype → CLI table (prettier, stylua, shfmt) over `vim.system` stdin. `conform.nvim` was rejected as a plugin wrapping shell-outs to binaries already on `$PATH` (pillars #2, #4, #5); efm-langserver as swapping a plugin for a daemon. If this comes back, start from that design, and use `prettierd` if prettier's 150–300 ms start bites.
 
 **Reconsider only if:** reviewing again becomes writing, and format-on-save for markdown/lua/sh is worth owning locally rather than leaving to agents and `make format-*`.
 
@@ -517,7 +572,7 @@ Replaces the Linux half of ["Each OS gets its native terminal"](#each-os-gets-it
 
 **Reconsider if:** Ghostty has a second OOM-class incident, a release breaks the toolbox build or drops Kitty placeholders through tmux, or 240 ms launches start to grate (then add the single-instance unit and `ghostty +new-window`).
 
-**Looking ahead:** Superlogical's Rex (from Ghostty's author) is a terminal and multiplexer in one, built on libghostty, aimed at replacing tmux. Its Linux client isn't out yet. Being on Ghostty now means the rendering, fonts and Kitty images measured here carry over. Nothing is built for Rex yet; when it lands, evaluate it against tmux under pillar #11 (age, maintainers, test surface). The tmux-only workarounds above (passthrough wrapping in `wallpaper`, `allow-passthrough`) are the parts that would go.
+**Looking ahead, since resolved:** Superlogical's Rex (from Ghostty's author, on libghostty) was the terminal-plus-multiplexer this entry expected to evaluate. It was tried on macOS on 2026-11-03 and rejected, closed source alone ruling it out; see [Rex as the multiplexer](#rex-as-the-multiplexer-tried-2026-11-03-rejected). The tmux-side fix for double rendering is vtmux, a tmux drop-in on libghostty-vt, so the passthrough workarounds above stay.
 
 ---
 
@@ -576,6 +631,18 @@ Foot has a server/client split. `footclient` windows keep the config the server 
 
 ---
 
+### vtmux as the tmux binary (accepted 2026-11-03)
+
+[vtmux](https://github.com/martintrojer/vtmux) is a drop-in tmux 3.8 in Rust on libghostty-vt: same CLI, config, formats, hooks and control mode. I wrote it to fix my own nits with tmux, and it is my daily driver on Linux and macOS, installed as `~/.local/bin/tmux`. The reasons (rendering, memory, CPU, live upgrades) and their measurements are in its README; they are not repeated here.
+
+- **It keeps the substrate.** Every argument above for tmux (plugins, `vim-tmux-navigator`, `tmux-fingers-rs`, tsesh, mu-crew's wiring, seventeen years of muscle memory) still holds, because vtmux is tmux to every script and plugin. That is the difference from herdr, tuios and Rex, which each ask for a new substrate.
+- **The config stays plain tmux.** vtmux-only options sit behind `%if "#{vtmux_version}"` in `.tmux.conf`, so the same file works under real tmux.
+- **Pillar #11 fit.** vtmux is a beta with one maintainer, but that maintainer is me: it is human-owned, and the person accountable for it is the one running it. It is heavily tested: compatibility is checked against tmux's own regress suite and a behaviour oracle recorded from real tmux 3.8. What it lacks is a track record, and that is covered by leaving costing nothing: point `~/.local/bin/tmux` back at real tmux and nothing else changes.
+
+**Reconsider if:** vtmux loses a session or data, OR it stops being drop-in (a plugin or script needs a vtmux branch), OR it stalls. The fallback is real tmux, not another multiplexer.
+
+---
+
 ### Tmux owns in-buffer text ops; the terminal owns only what it structurally can (accepted 2026-05-02, revised 2026-05-15)
 
 Recurring temptation: every modern terminal (Alacritty, Ghostty, foot) has hint/url-picker/vi-mode. Each overlaps with tmux copy-mode + `tmux-fingers-rs`. Resist.
@@ -625,6 +692,8 @@ Audited the 12-file split (1,395 lines, largest file 291). Considered collapsing
 
 **Reconsider only if:** module count crosses ~20, OR cross-imports form a real cycle, OR a single function needs to span three modules.
 
+**Trigger reached 2026-11-09:** 20 modules (3.3k lines, largest `render_theme.py` at 543). The `*_settings.py` files (cursor, pi, rex) are the likely merge candidates. Not yet re-audited.
+
 ---
 
 ### Replace GNU Stow with an in-repo symlink planner (accepted 2026-08-01)
@@ -649,10 +718,10 @@ Stow was doing very little. We passed `--no-folding` on 33 of 34 packages, which
 Was "no unit tests for the control-plane"; three amendments in one day inverted it (44 → 288 checks, seven directories). Restated as a rule rather than a pile of exceptions.
 
 - **Earns a test:** it can fail *without you noticing* — headless renderers, silent wrong answers, destructive/unattended paths.
-- **Does not:** being large, complex or important. Loud failure is covered by pillar #3. `tms` is 993 lines; only its render path is tested. Still bare on purpose: the list parsers, `compact_condition`, `infer_remote`, ~700 of `wallpaper`'s 825 lines, `local-bin/`, most of `fedora/bin/`.
+- **Does not:** being large, complex or important. Loud failure is covered by pillar #3. Still bare on purpose: `compact_condition`, `infer_remote`, most of `wallpaper`, `local-bin/`, most of `fedora/bin/`.
 - **Write it when the bug lands**, not before. Every suite here pins something that already broke; `wallpaper`'s found a live data-loss bug while being written.
 - **A test that cannot fail is worse than none.** Two shipped in one session, both asserting things true regardless of the code. Break the code, watch it fail, then commit.
-- **Location:** repo-internal under the package; for stowed scripts, beside the script (`sys.path[0]` colocation) with `.stowrc --ignore=tests`. If no `make` target discovers it, it is not a test.
+- **Location:** repo-internal under the package; for linked scripts, beside the script (`sys.path[0]` colocation), kept out of `$HOME` by the `tests` rule in `ignore.py`. If no `make` target discovers it, it is not a test.
 
 **Reconsider if:** test code outgrows script code without a bug history, OR `check-all` (~32s) gets slow enough you skip it, OR you are writing a test to satisfy the rule rather than pin a failure.
 
@@ -660,7 +729,7 @@ Was "no unit tests for the control-plane"; three amendments in one day inverted 
 
 ### Split the repo control plane into `dotfiles-sync` + `_dotfiles_sync/` (accepted 2026-04-27)
 
-Replaced a ~1300-line bootstrap script with a root entrypoint (`dotfiles-sync`) and a repo-local Python package (`_dotfiles_sync/{cli,config,system,stow,checks,external,model}.py`). Cross-cutting repo docs moved to `docs/`; the tiny `vscode/` pseudo-package was demoted to `docs/VSCODE.md`.
+Replaced a ~1300-line bootstrap script with a root entrypoint (`dotfiles-sync`) and a repo-local Python package (`_dotfiles_sync/`; `stow.py` became `link.py` with the stow removal, 2026-08-01). Cross-cutting repo docs moved to `docs/`; the tiny `vscode/` pseudo-package was demoted to `docs/VSCODE.md`.
 
 - Driver: the old script mixed stow orchestration, package inventory, pinned clones, agent fan-out, drift checks. No longer read like intentional software.
 - Top-level stow packages, `fedora/`, `skills/`, and `pi/` all stayed put.
@@ -682,7 +751,9 @@ Replaced `Morantron/tmux-fingers` (Crystal) with a personal Rust port.
 
 ---
 
-### Agent state awareness: tmux scripts, not herdr (accepted 2026-05-29)
+### Agent state awareness: tmux + murmur, not herdr (accepted 2026-05-29)
+
+**Current state (2026-11):** tmux is the substrate (the vtmux build where installed; `.tmux.conf` gates its options on `#{vtmux_version}`). [murmur](https://github.com/mu-crew/murmur) owns agent state across machines, mu orchestrates, and mule holds long remote jobs on session-capped hosts. The tmux wiring lives in [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles); this repo keeps placement and theme. `agent-attention`, `tms` and the `herdr/` package are gone. herdr, workmux, tuios and Rex were each considered and rejected. The dated sections below record how it got here; in them, the first section's `agent-attention` design is history.
 
 herdr (`github.com/ogulcancelik/herdr`) is a Rust terminal multiplexer purpose-built for coding agents. It replaces tmux and adds per-pane agent-state detection (`idle / working / blocked / done`), a cross-workspace urgency sidebar, a socket API for agents to drive panes, and persistence with session restore.
 
