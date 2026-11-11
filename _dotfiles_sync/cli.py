@@ -18,11 +18,13 @@ from .external import (
 )
 from .fedora_systemd import apply_fedora_systemd_masks, check_fedora_systemd_masks
 from .integration_checks import (
+    apply_vtmux_tmux_link,
     check_brew_python,
     check_mu_crew_dotfiles,
     check_murmur,
     check_tmux_tpm,
     check_tpm_plugins,
+    check_vtmux_tmux_link,
     check_zsh_plugins,
 )
 from .inventory import build_specs, group_active_packages, resolve_requested_packages
@@ -209,6 +211,12 @@ def run_check_tasks(
             TaskPolicy(),
             lambda: check_brew_python(verbose=verbose, ignore=ignore),
         ),
+        # vtmux is listed in the shared mise manifest; the drop-in `tmux`
+        # name is a home link, not a package file.
+        (
+            TaskPolicy(packages=frozenset({"mise"})),
+            lambda: check_vtmux_tmux_link(target, verbose=verbose, ignore=ignore),
+        ),
         (
             TaskPolicy(packages=frozenset({"systemd"})),
             lambda: check_fedora_systemd_masks(target, verbose=verbose, ignore=ignore),
@@ -263,6 +271,10 @@ def run_apply_tasks(
         (
             TaskPolicy(packages=frozenset({"systemd"})),
             lambda: apply_fedora_systemd_masks(target, verbose=verbose),
+        ),
+        (
+            TaskPolicy(packages=frozenset({"mise"})),
+            lambda: apply_vtmux_tmux_link(target, verbose=verbose),
         ),
         (
             TaskPolicy(packages=frozenset({"zsh"})),

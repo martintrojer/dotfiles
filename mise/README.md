@@ -36,3 +36,7 @@ Tools follow `latest` unless pinned (lua 5.4 and node 26, reasons in the file), 
 - `mise outdated` / `mise upgrade`: review and apply updates.
 - `mise ls --global --missing`: listed tools that aren't installed.
 - `mise ls --prunable` then `mise prune --tools`: remove installed versions nothing lists. The script never prunes.
+
+## vtmux as `tmux`
+
+[`vtmux`](https://github.com/martintrojer/vtmux) is the daily multiplexer. It ships as `vtmux`; plugins and scripts still call `tmux`. `setup-mise.sh` and `dotfiles-sync --apply` keep `~/.local/bin/tmux` pointed at `$(mise which vtmux)`. After `mise upgrade vtmux`, re-apply (or `tmux vtmux-upgrade -b "$(mise which vtmux)"` for a live server).

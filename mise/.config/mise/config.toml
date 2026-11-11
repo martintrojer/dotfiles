@@ -28,6 +28,11 @@ gh = "latest"
 "github:martintrojer/debrief" = "latest"
 "github:martintrojer/mdroots" = "latest"
 "github:martintrojer/ramble" = "latest"
+# Drop-in tmux 3.8 (libghostty-vt). setup-mise.sh and dotfiles-sync link it
+# as ~/.local/bin/tmux so plugins and scripts keep calling `tmux`.
+# Pinned, not latest: mise's github "latest" currently resolves to 3.8-beta1
+# while the newer release is 3.8-beta2.
+"github:martintrojer/vtmux" = "3.8-beta2"
 "github:tekumara/typos-lsp" = "latest"
 go = "latest"
 jj = "latest"

@@ -29,3 +29,10 @@ fi
   "$mise" install --yes
   "$mise" exec lua -- luarocks install --local luacheck 1.2.0-1
 )
+
+# vtmux ships as `vtmux`; everything else still calls `tmux`. Keep the drop-in
+# link in sync with whatever mise currently resolved (same as
+# `dotfiles-sync --apply`).
+vtmux_bin=$("$mise" which vtmux)
+mkdir -p "$HOME/.local/bin"
+ln -sfn "$vtmux_bin" "$HOME/.local/bin/tmux"

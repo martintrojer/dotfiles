@@ -1,5 +1,11 @@
 # Tmux
 
+The daily binary is [vtmux](https://github.com/martintrojer/vtmux) (tmux 3.8
+drop-in), installed via the shared mise manifest as
+`github:martintrojer/vtmux`. `mise/setup-mise.sh` and
+`./dotfiles-sync --apply` keep `~/.local/bin/tmux` linked to
+`$(mise which vtmux)` so plugins and scripts keep calling `tmux`.
+
 TPM (the tmux plugin manager) is cloned automatically by
 `./dotfiles-sync --apply` into `$HOME/.tmux/plugins/tpm` at a pinned
 ref (currently `v3.1.0`; see `_dotfiles_sync/pins.py`). After

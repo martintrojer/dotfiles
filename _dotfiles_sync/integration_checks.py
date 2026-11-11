@@ -269,6 +269,94 @@ def check_murmur(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
     return found_issue
 
 
+def _mise_bin() -> str | None:
+    found = shutil.which("mise")
+    if found:
+        return found
+    fallback = Path.home() / ".local" / "bin" / "mise"
+    return str(fallback) if fallback.is_file() else None
+
+
+def _vtmux_bin() -> Path | None:
+    """Absolute path mise currently resolves for vtmux, or None if absent."""
+    mise = _mise_bin()
+    if mise is None:
+        return None
+    result = subprocess.run(
+        [mise, "which", "vtmux"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    text = result.stdout.strip()
+    return Path(text) if text else None
+
+
+def _tmux_dropin_link(target: Path) -> Path:
+    return target / ".local" / "bin" / "tmux"
+
+
+def apply_vtmux_tmux_link(target: Path, *, verbose: bool) -> None:
+    """Point ``~/.local/bin/tmux`` at the mise-installed vtmux binary.
+
+    vtmux's release binary is named ``vtmux``; plugins, scripts and habits
+    still invoke ``tmux``. The link is recreated whenever ``mise which
+    vtmux`` moves (an upgrade), matching ``ln -sfn "$(mise which vtmux)"``.
+    """
+    want = _vtmux_bin()
+    if want is None:
+        LOGGER.warning(
+            "SKIP: vtmux not installed via mise; run mise/setup-mise.sh then re-apply"
+        )
+        return
+    link = _tmux_dropin_link(target)
+    link.parent.mkdir(parents=True, exist_ok=True)
+    if link.is_symlink() and link.readlink() == want:
+        if verbose:
+            LOGGER.info(f"OK: {link} -> {want}")
+        return
+    if link.exists() or link.is_symlink():
+        link.unlink()
+    link.symlink_to(want)
+    LOGGER.warning(f"LINK: {link} -> {want}")
+
+
+def check_vtmux_tmux_link(target: Path, *, verbose: bool, ignore: set[str]) -> bool:
+    """Return True when ``~/.local/bin/tmux`` is not the current mise vtmux."""
+    issue_id = "vtmux-tmux"
+    if issue_id in ignore:
+        return False
+    print_header = lazy_header("vtmux-tmux")
+    want = _vtmux_bin()
+    if want is None:
+        print_header()
+        LOGGER.warning(
+            f"MISSING: vtmux is not installed via mise "
+            f"(mise/setup-mise.sh) (--ignore {issue_id})"
+        )
+        return True
+    link = _tmux_dropin_link(target)
+    if link.is_symlink() and link.readlink() == want:
+        if verbose:
+            LOGGER.debug(f"OK: {link} -> {want}")
+        return False
+    print_header()
+    if link.is_symlink():
+        actual = f"symlink to {link.readlink()}"
+    elif link.exists():
+        actual = "exists but is not a symlink"
+    else:
+        actual = "missing"
+    LOGGER.warning(
+        f"DRIFT: {link} should point to {want} ({actual}); "
+        f'ln -sfn "$(mise which vtmux)" {link} '
+        f"(--ignore {issue_id})"
+    )
+    return True
+
+
 def check_brew_python(
     *, verbose: bool, ignore: set[str], os_name: str | None = None
 ) -> bool:

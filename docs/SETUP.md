@@ -167,7 +167,29 @@ cd ~/.tmux/plugins/tpm && git describe --tags --exact-match HEAD
 
 The `~/.tmux/plugins/<other-plugins>/` directories (the actual @plugin entries listed in `.tmux.conf`) are still owned by TPM and updated via `prefix + U` inside tmux. Don't touch those.
 
-### 6. Wallpaper cache (Linux only)
+### 6. Custom vtmux tree under `~/.local/share/vtmux`
+
+Older machines installed vtmux by hand into `~/.local/share/vtmux/` and linked `~/.local/bin/tmux` (and sometimes `vtmux`) there. The binary now comes from mise (`github:martintrojer/vtmux`); `setup-mise.sh` and `dotfiles-sync --apply` keep the `tmux` drop-in link.
+
+Detect:
+
+```bash
+ls -la ~/.local/share/vtmux ~/.local/bin/tmux ~/.local/bin/vtmux 2>/dev/null
+readlink ~/.local/bin/tmux 2>/dev/null
+# Old: .../.local/share/vtmux/bin/tmux
+# New: .../.local/share/mise/installs/.../vtmux
+```
+
+Action:
+
+```bash
+rm -rf ~/.local/share/vtmux
+rm -f ~/.local/bin/vtmux   # mise puts `vtmux` on PATH; only `tmux` stays a home link
+cd ~/dotfiles && mise/setup-mise.sh && ./dotfiles-sync --apply mise
+# Expect ~/.local/bin/tmux -> $(mise which vtmux)
+```
+
+### 7. Wallpaper cache (Linux only)
 
 The lock-screen rendering moved from `~/.cache/lock-screen/` into the wallpaper helper at `~/.cache/wallpaper/`. The old cache is orphaned but harmless.
 
@@ -193,7 +215,7 @@ swaywardlock now blurs the wallpaper itself, so the pre-rendered
 rm -f ~/.cache/wallpaper/*.lock-v*.png
 ```
 
-### 7. niri → sway (Linux only)
+### 8. niri → sway (Linux only)
 
 If a Linux machine was running niri, this is a desktop-stack switch, not a config update — see [`DECISIONS.md` § niri](./DECISIONS.md) for the rationale and [Sway School](https://martintrojer.github.io/sway-school/) for a tree-first sway tutorial.
 
@@ -216,9 +238,9 @@ Old niri config under `~/.config/niri/` is harmless to leave in place — sway d
 rm -rf ~/.config/niri
 ```
 
-### 8. macOS-specific cleanup
+### 9. macOS-specific cleanup
 
-macOS machines should run items 1 through 7 above as relevant. Only the wallpaper/niri items are Linux-only no-ops on macOS.
+macOS machines should run items 1 through 9 above as relevant. Only the wallpaper/niri items are Linux-only no-ops on macOS.
 
 Terminal policy is **Ghostty only** on both OSes, no fallback. `dotfiles-sync --apply` links the shared `ghostty` config plus `ghostty-macos` on Darwin. Hammerspoon's terminal binds (`Hyper+T`, `Hyper+Return`, `Hyper+PadEnter`) all use `open -na "Ghostty"` for current-Space window creation. See [`DECISIONS.md`](./DECISIONS.md#ghostty-on-linux-too-plain-launches-no-foot-accepted-2026-10-28).
 
