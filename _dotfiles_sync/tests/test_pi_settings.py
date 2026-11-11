@@ -46,7 +46,8 @@ class PiSettingsTest(unittest.TestCase):
         self.assertEqual(data["defaultModel"], "m")
         self.assertEqual(data["defaultTools"], pi_settings.PI_SETTINGS["defaultTools"])
         self.assertEqual(
-            data["terminal"], {"showImages": False, "showTerminalProgress": True}
+            data["terminal"],
+            {"showImages": False, "showTerminalProgress": True, "images": "kitty"},
         )
         self.assertFalse(
             pi_settings.check_pi_settings(self.target, verbose=False, ignore=set())

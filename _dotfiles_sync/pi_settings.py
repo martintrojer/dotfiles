@@ -24,7 +24,10 @@ PI_SETTINGS: Final[dict[str, object]] = {
     # the visible rows, at the cost of tmux copy-mode not seeing pi.
     "tuiMode": "fullscreen",
     # Object values merge one level deep; other terminal.* keys stay pi's.
-    "terminal": {"showTerminalProgress": True},
+    # images: kitty, not auto: inside vtmux pi's detection sees tmux and
+    # turns inline images off; vtmux-graphics draws pi's unwrapped kitty
+    # images in the pane (under real tmux an APC would set the pane title).
+    "terminal": {"showTerminalProgress": True, "images": "kitty"},
 }
 
 _FILE: Final[JsonKeys] = JsonKeys(
