@@ -31,9 +31,9 @@ gh = "latest"
 "github:martintrojer/vecgrep" = "latest"
 # Drop-in tmux 3.8 (libghostty-vt). setup-mise.sh and dotfiles-sync link it
 # as ~/.local/bin/tmux so plugins and scripts keep calling `tmux`.
-# Pinned, not latest: mise's github "latest" currently resolves to 3.8-beta1
-# while the newer release is 3.8-beta2.
-"github:martintrojer/vtmux" = "3.8-beta2"
+# Pinned, not latest: mise's github "latest" has resolved to an older 3.8
+# pre-release (3.8-beta1 when 3.8-beta2 was out).
+"github:martintrojer/vtmux" = "3.8-rc1"
 "github:tekumara/typos-lsp" = "latest"
 go = "latest"
 jj = "latest"
