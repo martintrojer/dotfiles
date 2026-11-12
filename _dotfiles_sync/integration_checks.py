@@ -154,8 +154,8 @@ def _murmur_state_dir(target: Path) -> Path:
         return Path(explicit)
     xdg = os.environ.get("XDG_STATE_HOME")
     if xdg:
-        return Path(xdg) / "murmur"
-    return target / ".local" / "state" / "murmur"
+        return Path(xdg) / "murmur2"
+    return target / ".local" / "state" / "murmur2"
 
 
 def check_mu_crew_dotfiles(target: Path, *, verbose: bool, ignore: set[str]) -> bool:

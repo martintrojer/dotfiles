@@ -37,7 +37,7 @@ class MurmurCheckTestCase(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.target = Path(tmp.name)
 
-        state = self.target / ".local" / "state" / "murmur"
+        state = self.target / ".local" / "state" / "murmur2"
         state.mkdir(parents=True)
         (state / "identity.json").write_text("{}\n")
 
