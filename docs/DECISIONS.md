@@ -32,6 +32,7 @@ By topic. ✓ accepted, ✗ rejected, ↻ superseded. Add new entries here too.
 - ✓ [Switch to `tmux-fingers-rs`](#switch-to-martintrojertmux-fingers-rs-accepted-2026-04-27)
 
 **Agents and orchestration**
+- ✓ [Agent tooling is composable layers, not a kitchen sink](#agent-tooling-is-composable-layers-not-a-kitchen-sink-accepted-2026-11-11)
 - ✓ [Skills are single-agent; orchestration is `mu`'s](#skills-are-single-agent-discipline-orchestration-is-mus-accepted-2026-08-04)
 - ✗ [T3 Code as the agent cockpit](#t3-code-as-the-agent-cockpit-tried-2026-09-25-retried-2026-10-22-rejected)
 - ✓ [Drop the Claude Code plugin](#drop-the-claude-code-plugin-make-skills-and-pi-plain-stow-packages-accepted-2026-07-12)
@@ -339,6 +340,8 @@ Even if you never re-enable SwayFX, these bit on first setup:
 
 The biggest objection is the loss of control. With tmux, SSH, and murmur, I feel in control of everything: I can inspect every agent, including each `mu_delegate`, attach to its pane, and see what it is doing. T3 puts the conversation in one app, with its own terminal panels and window-bound keybindings. Even though `mu` still works, I lose the direct visibility and control that make the current setup comfortable. The better rendering and simpler HUD do not make up for that today.
 
+The general rule behind this verdict is [Agent tooling is composable layers](#agent-tooling-is-composable-layers-not-a-kitchen-sink-accepted-2026-11-11). T3 owns three layers and replaces the multiplexer, which is where the loss of control comes from.
+
 **Reconsider if:** T3 lets me inspect and control every agent as directly as the terminal setup, while preserving the nvim prompt-editing workflow. Native pi support and workable remote access are already here; the remaining question is how much control I give up to use them. Pillar #11 still applies: T3 is young, fast-moving infrastructure compared with tmux.
 
 ---
@@ -351,7 +354,7 @@ The biggest objection is the loss of control. With tmux, SSH, and murmur, I feel
 
 - **The pitch is real but solved elsewhere.** Rex's best argument is no terminal inside a terminal: no tmux re-encoding the screen for Ghostty to parse again. [vtmux](https://github.com/martintrojer/vtmux) (tmux 3.8 as a drop-in, on libghostty-vt, one diffed frame per tick inside synchronized output) already fixes every rendering annoyance I had, and is my daily driver (Linux at the time, both OSes since; see [vtmux as the tmux binary](#vtmux-as-the-tmux-binary-accepted-2026-11-03)). Key echo is now about 10x faster than the 3–5 ms it published, so latency is no longer a gap.
 - **It loses the status bar and murmur.** The status line built from murmur's counts, the muzzle pill, the poller segments and `@win_label`, the focus hooks and the `a` / `G` / `u` binds all go. The replacement is tab marks and a `murmur rex-feed` pane you have to look at. murmur does not read Rex panes.
-- **Agent status and phone control are the wrong layer for a terminal.** By the time an agent's state reaches the terminal it is one OSC 7501 record. Agent state and orchestration belong above it: mu's task graph, murmur's pi events, Cursor's cloud agents, t3code. herdr and murmur already track agents better than Rex's protocol. Phone access is Tailscale plus mosh and `tmux attach`; Rex's iOS client is nicer, not new.
+- **Agent status and phone control are the wrong layer for a terminal.** By the time an agent's state reaches the terminal it is one OSC 7501 record. Agent state and orchestration belong above it: mu's task graph, murmur's pi events, Cursor's cloud agents, t3code. herdr and murmur already track agents better than Rex's protocol. Phone access is Tailscale plus mosh and `tmux attach`; Rex's iOS client is nicer, not new. Rex has the best layering of the bundles: it merges terminal and hosting, which is legitimate, and stays out of orchestration. But it owns presentation, and it is closed source; see [Agent tooling is composable layers](#agent-tooling-is-composable-layers-not-a-kitchen-sink-accepted-2026-11-11).
 - **Remote is the real feature, and it does not fit.** It is not SSH: each host runs a Rex server, the client connects over HTTPS and WebSocket (TCP), and the server sends raw terminal output to each client's libghostty. Remote hosts therefore get native scrollback, selection, tabs and the same CLI as local, and the login server does real PAM logins. The caveats:
   - Authentication today is Tailscale identity only, with no keys or passwords. SSH-key support is "planned". Plain HTTP gives every caller full access.
   - devservers are not on the tailnet, and should not run a closed-source server with full access to my account.
@@ -367,6 +370,39 @@ The Rex support already merged in mu, murmur, muzzle, debrief and ramble stays, 
 ---
 
 ## Accepted (non-obvious)
+
+---
+
+### Agent tooling is composable layers, not a kitchen sink (accepted 2026-11-11)
+
+This is the principle behind the herdr, Rex and T3 Code verdicts. Agent tooling splits into four layers. Each layer is owned by a separate tool that talks to its neighbours through open interfaces, so any one tool can be swapped without touching the rest.
+
+| Layer | Mine | herdr / cmux | Rex | T3 Code |
+|---|---|---|---|---|
+| Views (HUD, phone, GUI) | murmur, the tmux status bar | built in | tab dots, iOS app | desktop, web and mobile apps |
+| Orchestration (tasks, delegates, review) | mu | built in | none | threads, worktrees, MCP subagents, handoffs |
+| Process and session hosting | tmux (vtmux) | built in | the core product | the T3 server owns agent processes and terminals |
+| Terminal | Ghostty | Ghostty | built in | embedded terminal panels |
+
+- **herdr and cmux put agent features into the multiplexer.** Agent state ends up wherever the multiplexer happens to see it, and replacing either half means replacing both. See [herdr](#agent-state-awareness-tmux--murmur-not-herdr-accepted-2026-05-29).
+- **Rex has the right scope and the wrong licence.** It stays in the bottom two layers and leaves orchestration to someone else, which is the correct split. Its one design fault is that it keeps presentation for itself. It lost on closed source, not on design. See [Rex](#rex-as-the-multiplexer-tried-2026-11-03-rejected).
+- **T3 Code is not a layer above tmux.** It takes the top three layers and replaces the multiplexer with its own Node server and terminal panels. That is why I lost control there: I could not attach to every agent, the terminal was unusable, and keybindings were bound to its window. See [T3](#t3-code-as-the-agent-cockpit-tried-2026-09-25-retried-2026-10-22-rejected). It is the strongest open candidate for the *view* layer, not a replacement for mu plus tmux.
+- **The "next-gen" path is better parts, not a new bundle.** vtmux replaces the core under tmux and is invisible to everything above it. mu stays the orchestration core and runs agents in panes I can attach to. Views stack on top: murmur, the status line, and possibly a GUI or phone client that reads and steers mu's tasks without owning the processes.
+- **Prefer open protocols between layers.** OSC 7501 and similar standards let each layer change on its own. A protocol is welcome as one input to a layer. It does not replace the layer above it: 7501 is too thin to stand in for murmur or the status bar.
+
+**Test for a new tool:** which layers does it own, and can the layers above it still plug in?
+
+- **A candidate** owns one layer and talks to its neighbours through open interfaces.
+- **An adjacent merge is allowed when the merge is the point.** Terminal plus hosting, merged to avoid rendering a terminal inside a terminal, is an example. Every layer above must still plug in through open interfaces: a session API, a protocol, programmable presentation.
+- **A kitchen sink** owns orchestration, or locks the view layer so I can't draw my own. Borrow its ideas (pillar 5), not the bundle.
+
+Applied:
+
+- **herdr and T3** own orchestration, so they are kitchen sinks.
+- **Rex** merges terminal and hosting, which is legitimate, and exposes Lua, a server API and OSC 7501 upward. That makes it architecturally the best of the three. It is docked for owning its own presentation: tab dots and the session picker, with no programmable status area. That falls short of locking the view layer, because other views can still be built on its server API (`murmur rex-feed` was one). It is ruled out on licence.
+- **vtmux** gets most of Rex's rendering win with the layers kept apart and the view layer left open.
+
+**Reconsider if:** a bundled tool exposes each of its layers separately, for example a T3 view that can show and steer agents that mu runs in tmux. Then judge it layer by layer.
 
 ---
 
@@ -762,7 +798,7 @@ Evaluated it against the existing tmux setup. Decision: stay on tmux, port the o
 - **What herdr does better:** real-time agent-state sidebar across workspaces. Our old `agent-attention` script had a binary flag (`!` or nothing). herdr's model is richer.
 - **What we'd lose:** `vim-tmux-navigator` (prefix-free nvim↔tmux pane movement), `tmux-fingers-rs` (hint picking), `tms` session recipes, the TPM plugin ecosystem, 17 years of tmux stability, and full control over the status bar. herdr's always-visible left sidebar wastes screen real estate for information you only need occasionally — `prefix+a` surfaces the same data on demand without a permanent column tax. herdr is v0.x, one maintainer, AGPL, with active churn.
 - **What we built instead:** upgraded `agent-attention` from a binary attention flag to a three-state push model (`working / blocked / crashed`) using an `IntEnum` with urgency as the value. Pi's extension pushes state on `agent_start`, `agent_end`, and `session_shutdown`. A pid-liveness reaper detects crashes (zero-fork `os.kill(pid, 0)`). Events are stored in SQLite WAL for crash detection and picker history; `@agent_state` tmux window option is the authoritative display state, written by the extension (direct tmux calls for `agent_end`/`session_shutdown`, Python script for `agent_start` which records the pid). Status pill and window glyphs color by state. `prefix+a` popup groups by urgency with idle agents at the bottom.
-- **Design rule applied:** port the idea, keep the substrate. tmux is the substrate. herdr is a collection of ideas, one of which was worth stealing.
+- **Design rule applied:** port the idea, keep the substrate. tmux is the substrate. herdr is a collection of ideas, one of which was worth stealing. Generalised 2026-11-11 as [Agent tooling is composable layers](#agent-tooling-is-composable-layers-not-a-kitchen-sink-accepted-2026-11-11).
 - **Scope guard:** push-only, no terminal scraping. Pi extension resolves the tmux pane at load time via `tmux display-message` (works across toolbox/container boundaries where `TMUX_PANE` is stripped). Other agents (codex, opencode) still emit the old single-bit `blocked` signal via the `notify` subcommand — they don't get `working` or `done` because they don't push `agent_start`/`agent_end`, and their own signals can't stand in: opencode's `session.idle` fires both for "finished" and "waiting on you", and codex's `notify` carries no state at all, so inferring `done` would mean guessing or scraping. It cuts the other way too: pi has no permission *event* (approval is an in-process `ctx.ui.confirm()`), so its unfocused `agent_end` writes `done` and `blocked` is now notify-only. Capability table in [`tmux/README.md`](../tmux/README.md#harness-support).
 
 **Reconsider if:** something extraordinary happens. tmux has been the terminal substrate for 17 years and the switching cost is total.
