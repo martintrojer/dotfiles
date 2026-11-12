@@ -1,11 +1,14 @@
-# y: Open Yazi file manager in the current directory, exit with the selected directory.
+# y: Open Yazi; on quit (q), cd the shell to the last real directory.
+# Matches upstream shell wrapper: cwd-file is NUL-terminated, and quitting from
+# an fd/rg search or VFS writes a URL (fd://…, sftp://…) that is not a local
+# directory — [ -d ] skips those so we don't cd into a search view or error.
 function y() {
-	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
-	yazi "$@" --cwd-file="$tmp"
-	if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
-		builtin cd -- "$cwd"
-	fi
-	rm -f -- "$tmp"
+	local tmp cwd
+	tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
+	command yazi "$@" --cwd-file="$tmp"
+	IFS= read -r -d '' cwd < "$tmp"
+	[ "$cwd" != "$PWD" ] && [ -d "$cwd" ] && builtin cd -- "$cwd" || builtin true
+	command rm -f -- "$tmp"
 }
 
 # Remove all history lines matching a pattern
