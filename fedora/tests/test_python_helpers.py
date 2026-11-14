@@ -367,7 +367,7 @@ class FedoraPythonHelperTests(unittest.TestCase):
                     wallpaper.cmd__delete_archive(
                         argparse.Namespace(basename="active.png")
                     ),
-                    0,
+                    1,
                 )
             self.assertIn("refusing to delete currently-active", err.getvalue())
             self.assertTrue(active.is_file())
@@ -382,6 +382,48 @@ class FedoraPythonHelperTests(unittest.TestCase):
                 sorted(p.name for p in wallpaper.CACHE_DIR.iterdir()),
                 sorted([active_cache.name, unrelated.name]),
             )
+
+    def test_set_rejects_non_image_before_activate(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            root = Path(raw_tmp).resolve()
+            wallpaper = self.wallpaper_env(root)
+            bad = root / "1-eyes-wide.webp"
+            bad.write_text("<!DOCTYPE html><html><body>nope</body></html>\n")
+
+            with (
+                mock.patch.object(wallpaper, "_image_geometry", return_value=None),
+                mock.patch.object(wallpaper, "activate") as activate,
+                contextlib.redirect_stderr(io.StringIO()) as err,
+                self.assertRaises(SystemExit) as raised,
+            ):
+                wallpaper.cmd_set(argparse.Namespace(source=str(bad)))
+
+            self.assertEqual(raised.exception.code, 1)
+            self.assertIn("not a readable image", err.getvalue())
+            activate.assert_not_called()
+            self.assertEqual(list(wallpaper.ARCHIVE_DIR.iterdir()), [])
+
+    def test_picker_delete_uses_ctrl_x_and_surfaces_status(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            root = Path(raw_tmp).resolve()
+            wallpaper = self.wallpaper_env(root)
+            (wallpaper.ARCHIVE_DIR / "pic.png").write_bytes(b"png")
+            run = mock.Mock(return_value=subprocess.CompletedProcess([], 1, "", ""))
+            with (
+                mock.patch.object(
+                    wallpaper.shutil, "which", return_value="/usr/bin/fzf"
+                ),
+                mock.patch.object(wallpaper.subprocess, "run", run),
+            ):
+                self.assertIsNone(wallpaper.pick_with_fzf())
+
+            argv = run.call_args.args[0]
+            self.assertEqual(argv[0], "fzf")
+            bind = argv[argv.index("--bind") + 1]
+            self.assertTrue(bind.startswith("ctrl-x:"), bind)
+            self.assertIn("transform-header", bind)
+            self.assertIn("_delete-archive", bind)
+            self.assertNotIn("ctrl-D:", bind)
 
     def test_tbx_host_lookup_skips_its_wrapper_directory(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:

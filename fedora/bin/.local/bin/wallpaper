@@ -9,6 +9,7 @@ import contextlib
 import hashlib
 import json
 import os
+import shlex
 import shutil
 import string
 import subprocess
@@ -118,6 +119,12 @@ def make_archive_path(stem: str, ext: str, timestamp: str | None = None) -> Path
 
 def ensure_dirs() -> None:
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def ensure_image(path: Path, label: str | None = None) -> None:
+    """Refuse non-images so a failed download cannot enter the archive."""
+    if _image_geometry(path) is None:
+        die(f"not a readable image: {label or path}")
 
 
 def require_systemctl() -> None:
@@ -513,6 +520,8 @@ def cmd_set(args: argparse.Namespace) -> int:
             if result.returncode != 0:
                 die(f"download failed (curl exit {result.returncode})")
 
+        ensure_image(incoming_path, label=src)
+
         install_path = make_archive_path(stem, ext)
         # mkstemp created install_path empty; replace it with the download.
         shutil.move(str(incoming_path), install_path)
@@ -684,27 +693,33 @@ def pick_with_fzf() -> Path | None:
         return None
 
     self_path = Path(__file__).resolve()
+    # ctrl-x: Ctrl-Shift-D never reaches fzf here (terminal collapses it to
+    # ctrl-d, which is "delete char"). Status file + transform-header so a
+    # refuse/error is visible; execute-silent would hide it.
+    delete_status = CACHE_DIR / "fzf-delete-status"
+    header = "enter: use   ctrl-x: delete   esc: cancel"
+    cache_dir_q = shlex.quote(str(CACHE_DIR))
+    status_q = shlex.quote(str(delete_status))
+    self_q = shlex.quote(str(self_path))
+    header_q = shlex.quote(header)
     fzf = subprocess.run(
         [
             "fzf",
             "--prompt=wallpaper> ",
             "--border-label= wallpapers ",
-            "--header=enter: use   ctrl-shift-d: delete   esc: cancel",
+            f"--header={header}",
             "--no-multi",
             "--preview-window=up:60%",
             "--preview",
-            f"{self_path} preview {{}} 2>/dev/null",
-            # Ctrl-Shift-D triggers immediate delete via _delete-archive,
-            # then reload re-emits the archive listing. The shortcut is
-            # deliberate enough that no extra confirmation is needed; the
-            # entry under cursor is shown in the picker. _delete-archive
-            # refuses to delete the currently-active wallpaper (would
-            # leave a dangling `current` symlink) and opportunistically
-            # cleans the cache for the deleted entry.
+            f"{self_q} preview {{}} 2>/dev/null",
             "--bind",
             (
-                f"ctrl-D:execute-silent({self_path} _delete-archive {{}})"
-                f"+reload({self_path} _list-archive)"
+                f"ctrl-x:execute-silent("
+                f"mkdir -p {cache_dir_q} && "
+                f"{self_q} _delete-archive {{}} >{status_q} 2>&1)"
+                f"+reload({self_q} _list-archive)"
+                f"+transform-header("
+                f"cat {status_q} 2>/dev/null; echo; echo {header_q})"
             ),
         ],
         input="\n".join(entries),
@@ -740,17 +755,14 @@ def cmd__delete_archive(args: argparse.Namespace) -> int:
     """Delete an archive entry + opportunistically nuke its cache.
 
     Refuses to delete the currently-active wallpaper (would leave a
-    dangling `current` symlink). Errors are printed to stderr but the
-    return code is intentionally always 0 — fzf's reload path doesn't
-    care, and a non-zero exit would surface as a confusing fzf error
-    line. The user just sees the entry vanish (or not, if it's the
-    active one).
+    dangling `current` symlink). Failures return 1 and print to
+    stderr; the fzf bind captures that into the picker header.
     """
     name = args.basename
     target = ARCHIVE_DIR / name
     if not target.is_file():
         print(f"wallpaper: not in archive: {name}", file=sys.stderr)
-        return 0
+        return 1
 
     active = _resolve_current()
     if active is not None and active.resolve() == target.resolve():
@@ -759,7 +771,7 @@ def cmd__delete_archive(args: argparse.Namespace) -> int:
             f"({name}); switch to another first",
             file=sys.stderr,
         )
-        return 0
+        return 1
 
     # Compute the cache key before unlinking — once the file is gone we
     # can't stat its mtime. Then glob <key>.* under CACHE_DIR to scoop
@@ -770,12 +782,13 @@ def cmd__delete_archive(args: argparse.Namespace) -> int:
         target.unlink()
     except OSError as exc:
         print(f"wallpaper: failed to delete {name}: {exc}", file=sys.stderr)
-        return 0
+        return 1
 
     if key is not None:
         for cache_file in CACHE_DIR.glob(f"{key}.*"):
             with contextlib.suppress(OSError):
                 cache_file.unlink()
+    print(f"wallpaper: deleted {name}", file=sys.stderr)
     return 0
 
 

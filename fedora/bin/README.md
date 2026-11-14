@@ -54,8 +54,8 @@ this wrapper remains useful for ad-hoc CLI commands.
 
 ## Wallpaper helpers
 
-- `wallpaper set <url-or-file>` keeps the original under `~/.local/share/wallpapers/archive/`, renders it for the active display, updates `~/.local/share/wallpapers/current`, and restarts `swaybg.service`
-- `wallpaper use` opens an `fzf` archive picker with image previews and activates the selected wallpaper; it does not accept a filename
+- `wallpaper set <url-or-file>` keeps the original under `~/.local/share/wallpapers/archive/`, renders it for the active display, updates `~/.local/share/wallpapers/current`, and restarts `swaybg.service`. Non-images (failed HTML downloads, etc.) are rejected before they enter the archive.
+- `wallpaper use` opens an `fzf` archive picker with image previews and activates the selected wallpaper; it does not accept a filename. `ctrl-x` deletes the entry under the cursor (refuses the active wallpaper and shows the reason in the header).
 - `wallpaper current` prints the display-sized render when available and the original archive path as a fallback
 - `wallpaper rebuild-cache` rebuilds the display render (swaybg and swaywardlock both show it; swaywardlock blurs it itself)
 - `wallpaper restart` restarts `swaybg.service` to re-apply the current wallpaper
