@@ -1,3 +1,4 @@
 hidden = true
 skip_vcs = true
 hybrid = true
+hybrid_index = true
