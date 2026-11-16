@@ -41,6 +41,23 @@ For daily automatic flatpak updates (no stock Fedora timer on Sway Atomic) and
 per-app flatpak fixes (e.g. the Cider Apple Music client), see
 [`flatpak/README.md`](./flatpak/README.md).
 
+## Remote access (Tailscale + Rex) — not in this package
+
+linuxpc (and gardenpc) join the home Tailscale mesh and optionally run a Rex
+personal server. That setup is **not** layered or linked from `fedora/` —
+Atomic cannot keep a normal Tailscale rpm, and Rex is a `--user` tarball.
+
+| What | Where (private Forgejo on bubba) | On this host |
+| --- | --- | --- |
+| Mesh design + Atomic Quadlet | `~/hacking/tailscale` (`scripts/install-atomic.sh`) | rootful `tailscale.service`, state `/var/lib/tailscale`, env `/etc/tailscale/tailscale.env` |
+| Rex personal server | `~/hacking/rex` (`scripts/install-host.sh`) | `~/.local/bin/rex` + user `rex.socket` |
+| Pi half of the same mesh | `~/hacking/rpi` (`19-install-tailscale.sh`) | N/A here |
+
+Do not `rpm-ostree install tailscale` or put `.ts.net` HostNames in public
+`ssh/.ssh/config`. LAN SSH stays the on-LAN fallback; Tailscale is the overlay.
+Rex for Mac reaches this box with `ssh://martintrojer@linuxpc.tail342c50.ts.net`
+(suffix may change — check `tailscale status`).
+
 ## Package Lists
 
 The `os/` setup scripts are thin wrappers around shared package arrays; all
@@ -92,6 +109,7 @@ in this table, it is drift and gets removed or added here.
 | `systemd/system/tmp.mount.d/90-bind-var-tmp.conf` | `config/setup-tmp.sh` | disk-backed `/tmp`; see [/tmp on disk](#tmp-on-disk) |
 | `systemd/system/flatpak-update.{service,timer}` + `timers.target.wants` link | `flatpak/setup-flatpak-update.sh` | no stock flatpak update timer on Sway Atomic |
 | `systemd/system/multi-user.target.wants/sshd.service` | manual `systemctl enable sshd` | ssh into this box from the LAN |
+| `containers/systemd/tailscale.container`, `tailscale/tailscale.env` | sibling `~/hacking/tailscale` (`install-atomic.sh`) | Tailscale mesh; see [Remote access](#remote-access-tailscale--rex--not-in-this-package) |
 | `udev/rules.d/10-trim.rules` | `~/hacking/rpi` bootstrap (`14-install-default-trim-udev-rule.sh`) | TRIM on RTL9210 USB-NVMe bridges, for the backup drive |
 | `udev/rules.d/99-powercap.rules` | Mission Center's `missioncenter-magpie-setup` (2026-09-03) | makes RAPL `energy_uj` world-readable so Mission Center shows CPU power. Deliberately undoes the kernel's Platypus lockdown; acceptable on a single-user desktop |
 | `yum.repos.d/google-chrome.repo` (modified) | stock `fedora-workstation-repositories` file, enabled | Chrome repo, the one non-Fedora baseline repo |
