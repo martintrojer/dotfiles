@@ -81,4 +81,3 @@ Report the rung reached; if unobservable, label it `unproven`.
 | `test-driven-development` | "The test passes" needs a watched failure first |
 | `systematic-debugging` | "Bug fixed" needs the original symptom retested |
 | `code-reviewer` (its Tests section) | The check passed but you suspect it could not fail |
-| `refusal` extension (`pi/.pi/agent/extensions/refusal.ts`) | Catches bypassing a refused gate |
