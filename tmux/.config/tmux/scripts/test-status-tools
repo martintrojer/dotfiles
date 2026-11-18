@@ -98,6 +98,15 @@ def test_window_label(pane: str) -> None:
 
     tmux("set", "-p", "-t", pane, "@murmur_pane_label", "agent task")
     expect("murmur pane label wins", label(), "agent task")
+    tmux("select-pane", "-t", pane, "-T", "π - Fix Auth - repo")
+    expect("other murmur labels ignore a pi title", label(), "agent task")
+
+    tmux("set", "-p", "-t", pane, "@murmur_pane_label", "pi")
+    expect("named pi session shows its name", label(), "Fix Auth")
+    tmux("select-pane", "-t", pane, "-T", "π - Refactor Auth Middleware Flow - repo")
+    expect("long pi name is cut to 24", label(), "Refactor Auth Middleware…")
+    tmux("select-pane", "-t", pane, "-T", "π - repo")
+    expect("unnamed pi session stays pi", label(), "pi")
     tmux("set", "-pu", "-t", pane, "@murmur_pane_label")
 
     tmux("set", "-g", "@win_label_shells", f"|{command}|")

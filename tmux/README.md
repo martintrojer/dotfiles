@@ -58,7 +58,7 @@ From your current `tmux/.tmux.conf`:
 - Vim split to tmux pane movement comes from `christoomey/vim-tmux-navigator`.
 - CPU, RAM (a pressure score on macOS) and uptime come from mu-crew's poller: one background loop writes them into tmux options, and the segments are pure formats with warn and high levels.
 - Agent state (`working / waiting / done / blocked / error / crashed / idle`) is owned by [murmur](https://github.com/mu-crew/murmur), an installed tool; mu-crew/dotfiles renders it and this package places it. See [AI Agent Attention](#ai-agent-attention).
-- Window labels use the active pane's `@murmur_pane_label`, else an editor's command, else a meaningful title (not empty, the hostname, or path-shaped), else the cwd basename for shells or the command otherwise, through the pure tmux format `@win_label`.
+- Window labels use the active pane's `@murmur_pane_label` (when that is plain `pi`, the pi session's name from the pane title `π - <name> - <dir>`, cut to 24 columns; unnamed sessions stay `pi`), else an editor's command, else a meaningful title (not empty, the hostname, or path-shaped), else the cwd basename for shells or the command otherwise, through the pure tmux format `@win_label`.
 - The agent pill in `status-right` is mu-crew's `@mu_crew_pill`: a robot icon, then one coloured `<count><glyph>` run per state, most urgent first, then a dim crew total. It is pure tmux format over murmur's `@murmur_count_*` options (this host) and mu-crew's poller for remote peers, so no process runs on a redraw. `.tmux.conf` supplies the box background and hides the box when no agents exist.
 
 ## Status bar layout
