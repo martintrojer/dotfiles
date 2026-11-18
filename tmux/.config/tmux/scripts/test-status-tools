@@ -98,6 +98,9 @@ def test_window_label(pane: str) -> None:
 
     tmux("set", "-p", "-t", pane, "@murmur_pane_label", "agent task")
     expect("murmur pane label wins", label(), "agent task")
+    tmux("set", "-p", "-t", pane, "@murmur_pane_label", "Refactor Auth Middleware Flow")
+    expect("long murmur label is cut to 24", label(), "Refactor Auth Middleware…")
+    tmux("set", "-p", "-t", pane, "@murmur_pane_label", "agent task")
     tmux("select-pane", "-t", pane, "-T", "π - Fix Auth - repo")
     expect("other murmur labels ignore a pi title", label(), "agent task")
 
