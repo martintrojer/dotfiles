@@ -111,10 +111,14 @@ Extraction prefers a small/fast model, falls back through ranked candidates (inc
 
 ### `/namesession` — generated `/resume` title
 
-Uses a small/fast model to generate a short friendly title for the current session, then persists it with pi's built-in session-name mechanism so `/resume` shows it instead of the first prompt. Unnamed persisted sessions are also auto-named just before `/new`, `/resume`, `/fork`, or quit. `/reload` is skipped.
+Uses a small/fast model to generate a short friendly title for the current session, then persists it with pi's built-in session-name mechanism so `/resume` shows it instead of the first prompt.
 
-- `/namesession` — generate/replace a title from the current transcript
+Auto-naming runs in the background after a turn settles, so it never slows the turn: an unnamed session is named after its first turn with a reply, which keeps sessions killed by SIGHUP or a crash from coming back nameless. A name the extension set is refreshed as the session grows (at 10 prompts, then 3x the count it was named at: 30, 90, ...), and the model is asked to keep it unless the goal has clearly moved. Each generated name is recorded in a `namesession` custom entry; a name that doesn't match the record came from `/name` or `--name` and is never overwritten. The shutdown path (`/new`, `/resume`, `/fork`, quit; not `/reload`) only names sessions still unnamed. mu workers and delegates (`MU_MANAGED_AGENT=1` without `MU_ORCHESTRATOR=1`) are never named.
+
+- `/namesession` — generate/replace a title from the current transcript (stays auto-refreshable)
 - `/namesession auth cleanup` — optional hint to steer the title
+
+The model sees the whole transcript when it fits in 12k characters. Longer sessions get a digest instead (`_session-name.ts`): the first user prompt, every later prompt clipped, and the first and last assistant replies, with middle prompts dropped first. An earlier version kept only the transcript tail, which named long sessions after their wrap-up (commit, release, teardown); `tests/session-name.test.ts` pins that.
 
 ### `web_search` — Brave / Tavily / Exa, muxed
 
@@ -144,7 +148,7 @@ cat ~/.pi/agent/sessions/*/*.jsonl | jq -r 'select(.message.toolName? == "web_se
 
 ## Tests
 
-`.pi/agent/extensions/tests/lib.test.ts` covers the pure helpers in `_lib.ts` (`parseInterval`, `formatInterval`, `blockText`, `conversationTranscript`, `expandProbe`). `tests/web-search.test.ts` covers `web-search.ts`'s vendor selection, error classification and quota markers, and `tests/web-search-wiring.test.ts` drives the real tool with `fetch` mocked to pin marker persistence and that a broken state directory never aborts failover — the failures another vendor would silently paper over.
+`.pi/agent/extensions/tests/lib.test.ts` covers the pure helpers in `_lib.ts` (`parseInterval`, `formatInterval`, `blockText`, `conversationTranscript`, `expandProbe`). `tests/session-name.test.ts` covers `_session-name.ts` (the transcript digest, name parsing, and the auto-naming policy). `tests/web-search.test.ts` covers `web-search.ts`'s vendor selection, error classification and quota markers, and `tests/web-search-wiring.test.ts` drives the real tool with `fetch` mocked to pin marker persistence and that a broken state directory never aborts failover — the failures another vendor would silently paper over.
 
 These are not part of `make check-all`: they need `@earendil-works/pi-coding-agent` types that are missing on hosts where pi is uninstalled or installed without a type-reachable global. When that package is available, run them with `node --test 'pi/.pi/agent/extensions/tests/*.test.ts'`. The `tests/` directory is never linked into `$HOME` — `tests` is in `NAME_PATTERNS` (`_dotfiles_sync/ignore.py`), so pi never sees it as an extension. Prettier still formats the extension sources via `make check-prettier`.
 
