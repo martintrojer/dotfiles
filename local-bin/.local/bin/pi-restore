@@ -1,0 +1,391 @@
+#!/usr/bin/env python3
+"""fzf picker that relaunches lost or starred pi sessions in tmux.
+
+State comes from the pi restore extension (see docs/specs/2026-11-18-pi-restore.md):
+$PI_RESTORE_STATE or ~/.pi/agent/extension-state/restore.json, a JSON object
+keyed by pi session id.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+PRUNE_MS = 14 * 24 * 3600 * 1000
+TITLE_MAX = 60
+SEP = "\t"
+
+
+def state_path() -> Path:
+    env = os.environ.get("PI_RESTORE_STATE")
+    if env:
+        return Path(env)
+    return Path.home() / ".pi/agent/extension-state/restore.json"
+
+
+def load_state() -> dict:
+    """Missing/empty/corrupt file means no entries; never overwrite a corrupt one."""
+    path = state_path()
+    try:
+        text = path.read_text()
+    except OSError:
+        return {}
+    if not text.strip():
+        return {}
+    try:
+        data = json.loads(text)
+    except ValueError:
+        print(f"pi-restore: corrupt state file {path}, ignoring", file=sys.stderr)
+        return {}
+    if not isinstance(data, dict):
+        print(f"pi-restore: corrupt state file {path}, ignoring", file=sys.stderr)
+        return {}
+    return {k: v for k, v in data.items() if isinstance(v, dict)}
+
+
+def save_state(state: dict) -> None:
+    path = state_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".")
+    try:
+        with os.fdopen(fd, "w") as fh:
+            json.dump(state, fh, indent=2)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+def modify_state(fn) -> None:
+    """Read-modify-write; refuses to write over a corrupt file."""
+    path = state_path()
+    if path.exists() and path.read_text().strip():
+        try:
+            if not isinstance(json.loads(path.read_text()), dict):
+                raise ValueError
+        except ValueError:
+            print(
+                f"pi-restore: corrupt state file {path}, not writing", file=sys.stderr
+            )
+            return
+    state = load_state()
+    fn(state)
+    save_state(state)
+
+
+def is_pi_process(pid) -> bool:
+    """True when pid is alive and is a pi process (guards against pid reuse)."""
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        pass
+    except OSError:
+        return False
+    try:
+        comm = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "comm="],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+    except OSError:
+        return False
+    base = os.path.basename(comm)
+    if base == "pi" or base.startswith("pi."):
+        return True
+    if base == "node":
+        args = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "args="],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout
+        return any(os.path.basename(a) in ("pi", "pi.real") for a in args.split())
+    return False
+
+
+def now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def visible(
+    state: dict, now: int | None = None
+) -> tuple[list[tuple[str, dict]], list[str]]:
+    """Return (rows newest first, ids to prune)."""
+    now = now_ms() if now is None else now
+    rows, prune = [], []
+    for sid, e in state.items():
+        starred = bool(e.get("starred"))
+        if is_pi_process(e.get("pid")):
+            continue  # already open
+        lost = e.get("state") in ("live", "lost")  # live + dead pid = crash
+        if lost and not starred and now - (e.get("lastActiveAt") or 0) > PRUNE_MS:
+            prune.append(sid)
+            continue
+        if lost or starred:
+            rows.append((sid, e))
+    rows.sort(key=lambda r: r[1].get("lastActiveAt") or 0, reverse=True)
+    return rows, prune
+
+
+def iter_entries(file):
+    try:
+        with open(file) as fh:
+            for line in fh:
+                try:
+                    d = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(d, dict):
+                    yield d
+    except OSError:
+        return
+
+
+def message_text(msg: dict) -> str:
+    content = msg.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(
+            b.get("text", "")
+            for b in content
+            if isinstance(b, dict) and b.get("type") == "text"
+        )
+    return ""
+
+
+def title_of(file) -> str:
+    name = first_prompt = None
+    for d in iter_entries(file):
+        if d.get("type") == "session_info" and d.get("name"):
+            name = d["name"]
+        elif d.get("type") == "message" and first_prompt is None:
+            m = d.get("message") or {}
+            if m.get("role") == "user" and message_text(m).strip():
+                first_prompt = message_text(m)
+    title = name or first_prompt or "(untitled)"
+    title = " ".join(title.split())
+    return title if len(title) <= TITLE_MAX else title[: TITLE_MAX - 1] + "…"
+
+
+def rounds_of(file) -> list[tuple[str, str]]:
+    """(user prompt, last assistant reply text) per round, oldest first."""
+    rounds: list[list[str]] = []
+    for d in iter_entries(file):
+        if d.get("type") != "message":
+            continue
+        m = d.get("message") or {}
+        text = message_text(m).strip()
+        if m.get("role") == "user" and text:
+            rounds.append([text, ""])
+        elif m.get("role") == "assistant" and text and rounds:
+            rounds[-1][1] = text
+    return [(u, a) for u, a in rounds]
+
+
+def age(ms) -> str:
+    s = max(0, (now_ms() - (ms or 0)) // 1000)
+    for unit, n in (("d", 86400), ("h", 3600), ("m", 60)):
+        if s >= n:
+            return f"{s // n}{unit}"
+    return f"{s}s"
+
+
+def drop_pruned(prune) -> None:
+    if prune:
+        modify_state(lambda s: [s.pop(p, None) for p in prune])
+
+
+def cmd_rows() -> int:
+    state = load_state()
+    rows, prune = visible(state)
+    drop_pruned(prune)
+    for sid, e in rows:
+        title = title_of(e.get("file", ""))
+        star = "★" if e.get("starred") else ""
+        print(
+            SEP.join(
+                [
+                    sid,
+                    e.get("tmuxSession") or "-",
+                    title,
+                    age(e.get("lastActiveAt")),
+                    star,
+                ]
+            )
+        )
+    return 0
+
+
+def cmd_preview(sid: str) -> int:
+    e = load_state().get(sid)
+    if not e:
+        print("no such entry")
+        return 0
+    head = f"{e.get('cwd')}  |  tmux: {e.get('tmuxSession') or '-'}  |  {sid}"
+    print(head)
+    print()
+    rounds = rounds_of(e.get("file", ""))
+    if not rounds:
+        print("(no messages)")
+        return 0
+    cols = max(1, int(os.environ.get("FZF_PREVIEW_COLUMNS", "80")))
+    budget = int(os.environ.get("FZF_PREVIEW_LINES", "40")) - rendered(head, cols) - 1
+    out: list[str] = []
+    used = 0
+    for i, (u, a) in enumerate(reversed(rounds)):
+        if i == 0:
+            block = [f"> {u}"] + ([a] if a else []) + [""]
+        else:
+            block = [f"> {u[:200]}"] + ([a[:300]] if a else []) + [""]
+        n = rendered("\n".join(block), cols)
+        if i > 0 and used + n > budget:
+            break
+        out.extend(block)
+        used += n
+    print("\n".join(out))
+    return 0
+
+
+def rendered(text: str, cols: int) -> int:
+    """Terminal lines `text` takes when wrapped at `cols`."""
+    return sum(max(1, -(-len(ln) // cols)) for ln in text.split("\n"))
+
+
+def cmd_star(sid: str) -> int:
+    def fn(s):
+        if sid in s:
+            s[sid]["starred"] = not s[sid].get("starred")
+
+    modify_state(fn)
+    return 0
+
+
+def cmd_dismiss(sid: str) -> int:
+    modify_state(lambda s: s.pop(sid, None))
+    return 0
+
+
+def tmux(*args: str, capture: bool = True) -> subprocess.CompletedProcess:
+    """The only place tmux is invoked."""
+    return subprocess.run(
+        ["tmux", *args], capture_output=capture, text=True, check=False
+    )
+
+
+def tmux_fail(r: subprocess.CompletedProcess, what: str) -> int:
+    msg = (r.stderr or "").strip() or f"exit {r.returncode}"
+    print(f"pi-restore: tmux {what} failed: {msg}", file=sys.stderr)
+    return r.returncode or 1
+
+
+def restore(sid: str) -> int:
+    e = load_state().get(sid)
+    if not e:
+        print(f"pi-restore: no entry {sid}", file=sys.stderr)
+        return 1
+    file, cwd = e.get("file"), e.get("cwd")
+    if not file or not os.path.isfile(file):
+        print(
+            f"pi-restore: session file missing, dropping entry: {file}", file=sys.stderr
+        )
+        cmd_dismiss(sid)
+        return 1
+    if not cwd or not os.path.isdir(cwd):
+        print(f"pi-restore: cwd no longer exists: {cwd}", file=sys.stderr)
+        return 1
+    name = e.get("tmuxSession") or os.path.basename(cwd.rstrip("/")) or "pi"
+    # `=name:` (trailing colon): without it tmux reads dots as window.pane
+    exact = f"={name}:"
+    if tmux("has-session", "-t", exact).returncode != 0:
+        r = tmux("new-session", "-d", "-s", name, "-c", cwd)
+        if r.returncode != 0:
+            return tmux_fail(r, "new-session")
+    r = tmux(
+        "new-window", "-P", "-F", "#{window_id}", "-t", exact, "-c", cwd, "--",
+        "pi", "--session", file,
+    )  # fmt: skip
+    if r.returncode != 0:
+        return tmux_fail(r, "new-window")
+    win = (r.stdout or "").strip()
+    if win:
+        r = tmux("select-window", "-t", win)
+        if r.returncode != 0:
+            return tmux_fail(r, "select-window")
+    if os.environ.get("TMUX"):
+        r = tmux("switch-client", "-t", exact)
+        what = "switch-client"
+    else:
+        r = tmux("attach-session", "-t", exact, capture=False)
+        what = "attach-session"
+    return tmux_fail(r, what) if r.returncode != 0 else 0
+
+
+def cmd_pick() -> int:
+    state = load_state()
+    rows, prune = visible(state)
+    drop_pruned(prune)
+    if not rows:
+        print("pi-restore: nothing to restore")
+        return 0
+    me = os.path.abspath(sys.argv[0])
+    cmd = [
+        "fzf", "--delimiter", SEP, "--with-nth", "2..", "--no-sort", "--ansi",
+        "--header", "enter restore | ctrl-s star | ctrl-x dismiss",
+        "--preview", f"{me} --preview {{1}}",
+        "--bind", f"ctrl-s:execute-silent({me} --star {{1}})+reload({me} --rows)",
+        "--bind", f"ctrl-x:execute-silent({me} --dismiss {{1}})+reload({me} --rows)",
+    ]  # fmt: skip
+    p = subprocess.run(
+        cmd, input=run_rows(), stdout=subprocess.PIPE, text=True, check=False
+    )
+    line = p.stdout.strip("\n")
+    if p.returncode != 0 or not line:
+        return 0
+    return restore(line.split(SEP)[0])
+
+
+def run_rows() -> str:
+    r = subprocess.run(
+        [sys.executable, os.path.abspath(sys.argv[0]), "--rows"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return r.stdout
+
+
+def main(argv: list[str]) -> int:
+    if not argv:
+        return cmd_pick()
+    flag, rest = argv[0], argv[1:]
+    if flag == "--rows":
+        return cmd_rows()
+    if flag in ("--preview", "--star", "--dismiss", "--restore") and rest:
+        return {
+            "--preview": cmd_preview,
+            "--star": cmd_star,
+            "--dismiss": cmd_dismiss,
+            "--restore": restore,
+        }[flag](rest[0])
+    print(
+        "usage: pi-restore [--rows | --preview ID | --star ID | --dismiss ID]",
+        file=sys.stderr,
+    )
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
