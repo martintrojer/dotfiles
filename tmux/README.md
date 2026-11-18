@@ -91,6 +91,7 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `a`: agent jump list (`murmur pick`) — type to narrow, enter jumps
   local or remote; `ctrl-a` toggles crew. For a live fleet view run
   `murmur dash` in a pane (see [AI Agent Attention](#ai-agent-attention))
+- `prefix` + `P`: `pi-restore` popup, relaunch a lost or starred pi session (see [pi/README.md](../pi/README.md#restore--bring-back-lost-pi-sessions))
 - `prefix` + `Ctrl-g`: cheatsheet popup
 - mouse click on the left status session block: opens the tmux session picker
 - built-in menus, prompts, and popups use Mocha background/foreground colors with a sky selection highlight

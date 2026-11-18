@@ -120,6 +120,20 @@ Auto-naming runs in the background after a turn settles, so it never slows the t
 
 The model sees the whole transcript when it fits in 12k characters. Longer sessions get a digest instead (`_session-name.ts`): the first user prompt, every later prompt clipped, and the first and last assistant replies, with middle prompts dropped first. An earlier version kept only the transcript tail, which named long sessions after their wrap-up (commit, release, teardown); `tests/session-name.test.ts` pins that.
 
+### `restore` — bring back lost pi sessions
+
+`restore.ts` records every human-driven pi session (skips `MU_MANAGED_AGENT=1` and ephemeral sessions) in `~/.pi/agent/extension-state/restore.json`, per machine. Per session id: session file, cwd, tmux session name, pid, start and last-active times, star, and state `live|lost|closed`. `PI_RESTORE_STATE=<path>` overrides the file (tests set it). `tmux` `prefix` + `P` runs the `pi-restore` picker (`local-bin`), which relaunches one session per pick as `pi --session <file>` in a new window of the recorded tmux session (created if missing), in the recorded cwd. Sessions already running are hidden, so repeating the picker converges.
+
+| How the session ended | Listed by `pi-restore`? |
+| --- | --- |
+| Lost: tmux killed it (`kill-server`, window or pane closed), crash, SIGKILL, reboot, or SIGHUP/SIGTERM to pi | yes, for 14 days since last activity (then pruned) |
+| Starred, then closed (`/quit`, `/new`, `/resume`, `/fork`) | yes, until dismissed |
+| Closed, not starred | no, the entry is deleted |
+
+- `/star` toggles the star on the current session. Picker keys: `enter` restore, `ctrl-s` star, `ctrl-x` dismiss (drops the entry). The preview shows the recent rounds.
+- Lost detection: pi exits on tmux teardown before it can write anything, so the entry stays `live` with a dead pid and the picker treats that as lost. Direct SIGHUP/SIGTERM is caught and written as `lost`. A starred session never expires.
+- `tmux kill-server` and window kills therefore count as lost, not closed: unstarred sessions closed by tmux come back in the picker, and `ctrl-x` is how to remove them.
+
 ### `web_search` — Brave / Tavily / Exa, muxed
 
 Adds one model-callable `web_search` tool (`query`, `count`, `maxTokens`, `domains`, `freshness`) over three vendors, so one vendor's monthly cap no longer kills search. Each call picks a random vendor with a key, tries the others one at a time only if it fails, and never fans out. A 200 with zero results counts as success.
