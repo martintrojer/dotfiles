@@ -87,7 +87,7 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `Tab`: tmux-fingers-rs pick visible matches
 - `prefix` + `!`: break the current pane out into a new window
 - `prefix` + `M`: move the current pane into the selected window or pane as a split
-- `prefix` + `w`: built-in tmux session-window tree picker
+- `prefix` + `w`: built-in tmux session-window tree picker; window rows show the status-bar label (`@win_label`, so a named pi session reads its name), as does `prefix` + `S`
 - `prefix` + `a`: agent jump list (`murmur pick`) — type to narrow, enter jumps
   local or remote; `ctrl-a` toggles crew. For a live fleet view run
   `murmur dash` in a pane (see [AI Agent Attention](#ai-agent-attention))
