@@ -112,8 +112,11 @@ slots = 2
 [path."~/hacking/crew/mu"]
 [[path."~/hacking/crew/mu".rule]]
 name    = "mu-eval"
-command = ["node tools/eval/main.ts", "npm run eval"]
+command = ["npm run eval"]
 slots   = 3
+# 2026-11-09: `node tools/eval/main.ts` dropped. Since crew-hill2 f_eval_muzzle
+# (mu d9acd750) the rig claims per row itself (probe 1, guess 1, aut 2,
+# design 2 slots); an outer claim made those nested and claim nothing.
 # why: new 2026-10-31. The black-box eval rig builds a surface and runs mu
 # with scripted faux pis; museum 7d: 158 calls >30 s, median 240 s, p90
 # 1081 s, all unclaimed. 3 is a starting guess; tune from report.
