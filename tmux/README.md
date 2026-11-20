@@ -26,8 +26,8 @@ Two pieces live in their own repos so they can move forward with the tools they 
 
 | Repo | What it gives this config | How it arrives |
 | --- | --- | --- |
-| [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles) | murmur focus hooks; `prefix` + `a` / `C-m` / `G` / `u`; pane-border format; agent window, pane and pill formats | cloned by `dotfiles-sync --apply` to `~/.local/share/mu-crew-dotfiles` at the ref in [`_dotfiles_sync/pins.py`](../_dotfiles_sync/pins.py); `.tmux.conf` sources `tmux/mu-crew.conf` from it |
-| [mu-crew/tmux-session-picker](https://github.com/mu-crew/tmux-session-picker) | `tsesh`: `prefix` + `s` / `g` / `T` | TPM `@plugin`; config in the [`tsesh/`](../tsesh) package |
+| [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles) | murmur focus hooks; `prefix` + `C-m` / `G` / `u`; pane-border format; agent window, pane and pill formats | cloned by `dotfiles-sync --apply` to `~/.local/share/mu-crew-dotfiles` at the ref in [`_dotfiles_sync/pins.py`](../_dotfiles_sync/pins.py); `.tmux.conf` sources `tmux/mu-crew.conf` from it |
+| [mu-crew/tmux-session-picker](https://github.com/mu-crew/tmux-session-picker) | `tsesh`: `prefix` + `s` / `a` / `g` / `T` | TPM `@plugin`; config in the [`tsesh/`](../tsesh) package |
 
 To move forward: bump `MU_CREW_DOTFILES` in `pins.py` and run `./dotfiles-sync --apply tmux`; update tsesh with `prefix` + `U`. `.tmux.conf` overrides mu-crew's colours and glyphs after sourcing it, from `docs/palette.toml` and `docs/glyphs.toml` (region `tmux-mu-crew-glyphs`).
 
@@ -45,7 +45,7 @@ status-line plugins.
 - `tmux-plugins/tpm`: tmux plugin manager. It installs, updates, and loads the rest of the plugins from `.tmux.conf`.
 - `tmux-plugins/tmux-yank`: copies from tmux into the system clipboard. Most useful in copy mode and for pushing text out of tmux into the desktop clipboard.
 - `martintrojer/tmux-fingers-rs`: hint-based picking inside visible pane content, similar to Vimium-style jump labels for paths, URLs, SHAs, numbers, and other matches. This is a Rust port of `Morantron/tmux-fingers`; configuration is the same (`@fingers-*` options), the binary is `tmux-fingers-rs`.
-- `mu-crew/tmux-session-picker`: `tsesh`, the session picker behind `prefix` + `s` / `g` / `T`. See its README for keys and config.
+- `mu-crew/tmux-session-picker`: `tsesh`, the session picker and agents view behind `prefix` + `s` / `a` / `g` / `T`. See its README for keys and config.
 - `sainnhe/tmux-fzf`: fzf-powered tmux management for sessions, windows, panes, bindings, clipboard history, and process actions.
 - `christoomey/vim-tmux-navigator`: moves between Neovim splits and tmux panes with the same control-key motions, no prefix. `@vim_navigator_pattern` also forwards the keys to debrief and ramble, which move between their own panes and hand off to tmux at their edge.
 
@@ -88,9 +88,8 @@ Repo-defined bindings in the current `tmux/.tmux.conf`:
 - `prefix` + `!`: break the current pane out into a new window
 - `prefix` + `M`: move the current pane into the selected window or pane as a split
 - `prefix` + `w`: built-in tmux session-window tree picker; window rows show the status-bar label (`@win_label`, so a named pi session reads its name), as does `prefix` + `S`
-- `prefix` + `a`: agent jump list (`murmur pick`) — type to narrow, enter jumps
-  local or remote; `ctrl-a` toggles crew. For a live fleet view run
-  `murmur dash` in a pane (see [AI Agent Attention](#ai-agent-attention))
+- `prefix` + `a`: `tsesh` agents view, across every machine murmur peers with;
+  enter jumps local or remote. For a live fleet view run `murmur dash` in a pane (see [AI Agent Attention](#ai-agent-attention))
 - `prefix` + `P`: `pi-restore` popup, relaunch a lost or starred pi session (see [pi/README.md](../pi/README.md#restore--bring-back-lost-pi-sessions))
 - `prefix` + `Ctrl-g`: cheatsheet popup
 - mouse click on the left status session block: opens the tmux session picker
@@ -174,7 +173,7 @@ Agent state is owned by [murmur](https://github.com/mu-crew/murmur), an
 installed tool rather than a script in this package, so it can answer "is
 anything blocked on me right now" across every machine.
 
-The tmux side of it is [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles): focus hooks that call `murmur clear`, the `prefix` + `a` / `C-m` / `G` / `u` keys, and the window, pane-border and pill formats that read murmur's `@murmur_*` options. This package sources it, places the formats in the status bar, and overrides its colours and glyphs from `docs/palette.toml` and `docs/glyphs.toml`, so murmur state looks the same here as in waybar and zsh.
+The tmux side of it is [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles): focus hooks that call `murmur clear`, the `prefix` + `C-m` / `G` / `u` keys, and the window, pane-border and pill formats that read murmur's `@murmur_*` options. This package sources it, places the formats in the status bar, and overrides its colours and glyphs from `docs/palette.toml` and `docs/glyphs.toml`, so murmur state looks the same here as in waybar and zsh.
 
 What murmur owns is behaviour: reported state, peer collect, crash detection, `status` / `pick` / `dash`. The boundary is *tools own behaviour; mu-crew/dotfiles owns the shared tmux wiring; this repo owns placement and theme*. Why tmux + murmur + mu + mule (and not herdr or workmux) is in [`docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state awareness.
 
