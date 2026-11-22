@@ -232,3 +232,17 @@ slots   = 4
 name    = "tuicr-nix"
 command = "nix build"
 slots   = 4
+
+[path."~/hacking/tmux"]
+# tmux upstream-PR work (vtmux-upstream workstream): autotools + make of an
+# ASAN build and regress/*.sh scripts, each spawning tmux servers and shells.
+# 2026-11-19: four workers' unclaimed make -j8 and regress loops swamped the
+# laptop. Starting guesses; tune from report.
+[[path."~/hacking/tmux".rule]]
+name    = "tmux-build"
+command = ["make", "sh autogen.sh", "./configure", "sh ./configure"]
+slots   = 4
+[[path."~/hacking/tmux".rule]]
+name    = "tmux-regress"
+command = ["sh", "bash regress", "timeout"]
+slots   = 2
