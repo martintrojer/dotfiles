@@ -41,7 +41,7 @@ slots   = 6
 
 [[rule]]
 name    = "js-test"
-command = ["npm test", "npm run test*", "npm run check", "vitest"]
+command = ["npm test", "npm run test*", "npm run check", "vitest", "node node_modules/vitest/vitest.mjs"]
 slots   = 4
 # why: vitest suites; `npm run check` is murmur's gate (typecheck, lint,
 # test). 5 -> 4 globally, 2026-10-31: p90 3.3 cores over 89 clean runs
@@ -49,7 +49,7 @@ slots   = 4
 
 [[rule]]
 name    = "cargo-test"
-command = ["cargo test", "cargo nextest", "cargo clippy", "cargo build"]
+command = ["cargo test", "cargo nextest", "cargo clippy", "cargo build", "cargo check", "cargo run"]
 slots   = 3
 # why: 3 by the tune loop (63 runs at 3, p50 22->21 s). report --by repo
 # 2026-10-30: repos without a table stay at 3 (p90 2.8 cores, 326 runs).
@@ -67,7 +67,7 @@ slots   = 4
 
 [[rule]]
 name    = "js-build"
-command = ["npm run build", "npm run typecheck", "npm run lint", "npx tsc", "npx tsup", "npx biome"]
+command = ["npm run build", "npm run typecheck", "npm run lint", "npm ci", "npm install", "npx tsc", "npx tsup", "npx biome"]
 slots   = 2
 # why: new 2026-10-31. tsup/tsc/biome in the crew TS repos ran unclaimed
 # (museum 7d: 168 `npm run build` and 134 `npm run typecheck` calls >30 s,
