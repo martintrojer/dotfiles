@@ -53,6 +53,9 @@ opencode = { version = "latest", allow_builds = ["@opencode/cli"] }
 # versions and runs them via uvx/npx (see docs/SETUP.md).
 prettier = "latest"
 ripgrep = "latest"
+# Python LSPs for nvim (`ruff server`, `ty server`). Like prettier above, the
+# gate runs its own pinned copies via uvx.
+ruff = "latest"
 rust = "latest"
 rust-analyzer = "latest"
 shellcheck = "latest"
@@ -61,6 +64,7 @@ stylua = "latest"
 taplo = "latest"
 tokei = "latest"
 tree-sitter = "latest"
+ty = "latest"
 uv = "latest"
 vale = "latest"
 yazi = "latest"

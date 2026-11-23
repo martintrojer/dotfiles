@@ -81,14 +81,13 @@ after/ftplugin/
 
 First launch clones all plugins via `vim.pack`. The CLI tools and most LSP
 servers (fzf, ripgrep, fd, tree-sitter, zoxide, tmux, lua-language-server,
-typos-lsp, rust-analyzer, mdroots, taplo, plus shellcheck for bashls linting)
+typos-lsp, rust-analyzer, mdroots, taplo, ruff, ty, plus shellcheck for bashls linting)
 come from the shared mise manifest; see [`mise/README.md`](../mise/README.md). The rest, on both OSes:
 
 ```bash
 go install golang.org/x/tools/gopls@latest
 npm i -g bash-language-server typescript
 npm i -g vscode-langservers-extracted
-uv tool install ty ruff
 ```
 
 For treesitter parser installs, `nvim-treesitter` also needs the `tree-sitter`
