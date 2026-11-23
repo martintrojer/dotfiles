@@ -15,6 +15,7 @@
 
 include = ["machine.toml"]
 reserve = 2   # budget = logical cores - reserve; machine.toml may override
+grace_s = 5.0 # retroactively claim slots for opaque heavy commands in pi (0.4.0+)
 
 [[rule]]
 name  = "oracle-sweep"
