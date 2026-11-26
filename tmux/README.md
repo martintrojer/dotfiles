@@ -173,11 +173,11 @@ Agent state is owned by [murmur](https://github.com/mu-crew/murmur), an
 installed tool rather than a script in this package, so it can answer "is
 anything blocked on me right now" across every machine.
 
-The tmux side of it is [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles): focus hooks that call `murmur clear`, the `prefix` + `C-m` / `G` / `u` keys, and the window, pane-border and pill formats that read murmur's `@murmur_*` options. This package sources it, places the formats in the status bar, and overrides its colours and glyphs from `docs/palette.toml` and `docs/glyphs.toml`, so murmur state looks the same here as in waybar and zsh.
+The tmux side of it is [mu-crew/dotfiles](https://github.com/mu-crew/dotfiles): the `prefix` + `C-m` / `G` / `u` keys, the window and pane-border formats that read vtmux's native OSC 7501 `#{window_program_state}` / `#{pane_program_state}` formats (with focus clearing handled in-process by vtmux), and the global pill format that reads murmur's `@murmur_count_*` options. This package sources it, places the formats in the status bar, and overrides its colours and glyphs from `docs/palette.toml` and `docs/glyphs.toml`, so agent state looks the same here as in waybar and zsh.
 
-What murmur owns is behaviour: reported state, peer collect, crash detection, `status` / `pick` / `dash`. The boundary is *tools own behaviour; mu-crew/dotfiles owns the shared tmux wiring; this repo owns placement and theme*. Why tmux + murmur + mu + mule (and not herdr or workmux) is in [`docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state awareness.
+What murmur owns is multi-machine behaviour: reading local vtmux/Rex 7501+7577 panes, peer collect over ssh, crash detection, `status` / `dash` / `sidepanel` / `jump`. The boundary is *tools own behaviour; mu-crew/dotfiles owns the shared tmux wiring; this repo owns placement and theme*. Why vtmux + OSC 7501/7577 + murmur + mu + mule (and not herdr or workmux) is in [`docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state awareness.
 
-murmur publishes `@murmur_session_state`, `@murmur_window_state`, `@murmur_pane_state`, `@murmur_pane_label`, and the global `@murmur_count_<state>` options; see its ARCHITECTURE.md. The pane label requires a murmur release newer than 0.6.0; the session state is what `tsesh` colours its rows from.
+Window, pane, and session glyphs come directly from vtmux's `#{window_program_state}`, `#{pane_program_state}`, and `#{session_program_state}` (used by `tsesh`); murmur 3.0 publishes only the global `@murmur_count_<state>` options for the fleet pill.
 
 Because murmur aggregates across machines, the status bar paints the whole
 fleet. A blocked agent on another host shows up here.

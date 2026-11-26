@@ -24,6 +24,7 @@ By topic. ✓ accepted, ✗ rejected, ↻ superseded. Add new entries here too.
 
 **tmux and multiplexers**
 - ✓ [vtmux as the tmux binary](#vtmux-as-the-tmux-binary-accepted-2026-11-03)
+- ✓ [mu-crew targets vtmux/Rex OSC 7501 + 7577, murmur 2.x for vanilla tmux](#mu-crew-targets-vtmuxrex-osc-7501--7577-murmur-2x-is-the-vanilla-tmux-out-accepted-2026-11-26)
 - ✓ [tmux owns in-buffer text ops](#tmux-owns-in-buffer-text-ops-the-terminal-owns-only-what-it-structurally-can-accepted-2026-05-02-revised-2026-05-15)
 - ✓ [Agent state awareness: tmux + murmur, not herdr](#agent-state-awareness-tmux--murmur-not-herdr-accepted-2026-05-29)
 - ✗ [Rex as the multiplexer](#rex-as-the-multiplexer-tried-2026-11-03-rejected)
@@ -907,6 +908,18 @@ This was live: `#{pane_title}` was interpolated into the window-label command. A
 **The rule:** a `#()` command line may only carry values this config generates — ids (`#{pane_id}`, `#{window_id}`), integers, flags. Anything a pane can write is fetched by the script itself, over a pipe, as data. `#{T:}`/`#{E:}` re-expansion of a script's *output* is safe by contrast: neither re-expands `#()`.
 
 **Reconsider if:** never for the rule itself. Re-audit whenever a new `#()` call site is added — the audit that found this also found a second hole (`prefix+T` passing `#{pane_current_path}` to `run-shell`) that the original report had missed.
+
+### mu-crew targets vtmux/Rex OSC 7501 + 7577; murmur 2.x is the vanilla-tmux out (accepted 2026-11-26)
+
+`mu-crew` (murmur 3.0, mu, `mu-crew.conf`, tsesh) now targets the OSC 7501 (program status) and OSC 7577 (program resume) surface of vtmux (>= 3.8-rc3, with `vtmux-program-status on` and `vtmux-program-resume on`) and Rex, not the lowest common denominator of tmux 3.8. pi, Claude Code and Codex speak both natively; Cursor is bridged in ~100 lines. That deleted ~20,000 lines of harness hooks, inboxes, process-chain walking, pi extensions and `@murmur_*` option publishing, and made window/pane/session decorations instant with native focus clearing. Spec: `~/hacking/crew/docs/specs/2026-11-26-osc-7501-all-in.md`.
+
+**Cost, stated plainly:** stock tmux 3.8 drops both sequences. There, `mu-crew.conf` glyphs are blank (only `crashed` on dead panes works), tsesh loses its state column and local agents in `PREFIX a`, murmur 3.0 sees no local panes, and mu's non-pi workers go `state: unknown` (pi workers still work via `ctl`). mule and muzzle are unaffected.
+
+**Rejected:** a dual path (7501 plus legacy hooks/inbox on vanilla tmux). It saves almost no code and doubles the test matrix. Instead murmur keeps a `release/2.x` branch as the clean out for vanilla tmux users.
+
+**Reconsider if:** tmux upstream adopts OSC 7501/7577, or vtmux stops being viable on a platform I use.
+
+---
 
 ---
 
