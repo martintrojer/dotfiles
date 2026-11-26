@@ -21,3 +21,11 @@ owned keys; the CLI fills its defaults on the next launch.
 native OSC 7501 support (Claude Code, Pi, and Codex already emit it natively);
 watch upstream and remove it along with `cursor/.cursor/hooks/osc7501` once
 native support lands.
+
+## OSC 7577 resume record
+
+With `$OSC7577_TOKEN` set, the hook also signs an OSC 7577 record
+(`argv=["cursor-agent","--resume",<conversation id>]`, cwd from
+`workspace_roots`) on `sessionStart`/`beforeSubmitPrompt` and `clear=1` on
+`sessionEnd`, reported for the hook's parent pid (the long-lived cursor-agent).
+Tests: `_dotfiles_sync/tests/test_osc7577_cursor.py`.

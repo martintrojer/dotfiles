@@ -44,6 +44,18 @@ See [`tmux/README.md` § AI Agent Attention](../tmux/README.md#ai-agent-attentio
 and [`docs/DECISIONS.md`](../docs/DECISIONS.md) § Agent state awareness (tmux +
 murmur + mu + mule).
 
+### `osc7577` — program resume record
+
+When `$OSC7577_TOKEN` is set (vtmux with `vtmux-program-resume on`), signs and
+writes an OSC 7577 record to `/dev/tty` on `session_start` (startup, `/new`,
+`/resume`, `/fork`, reload): `argv=["pi","--session",<file>]` plus the session
+cwd, so `#{pane_resume_command}` / `#{pane_resume_cwd}` name the live session.
+`session_shutdown` sends `clear=1` (not on reload). No-op for ephemeral sessions
+and without a token; non-blocking and fail-silent. Wire format and MAC follow
+vtmux `docs/PROGRAM-RESUME.md`; the Cursor hook (`cursor/.cursor/hooks/osc7501`)
+emits the same record. `tests/osc7577.test.ts` checks it against a mirror of
+vtmux's verifier.
+
 ### `/loop` — recurring prompt scheduler
 
 This command repeats a prompt on an interval within the current session. It is
