@@ -34,6 +34,7 @@ from .managed_links import (
     prune_stale_managed_links,
 )
 from .model import Args, Overwrite, PackageSpec, TaskPolicy
+from .osc7501_hooks import apply_osc7501_hooks, check_osc7501_hooks
 from .pi_settings import apply_pi_settings, check_pi_settings
 from .private_env import check_private_env_mistakes
 from .repo_checks import (
@@ -200,6 +201,12 @@ def run_check_tasks(
             TaskPolicy(packages=frozenset({"cursor"})),
             lambda: check_cursor_settings(target, verbose=verbose, ignore=ignore),
         ),
+        # Temporary OSC 7501 bridge until Cursor Agent ships native support;
+        # hooks.json is shared with murmur/mu/muzzle/museum. Not linked.
+        (
+            TaskPolicy(packages=frozenset({"cursor"})),
+            lambda: check_osc7501_hooks(target, verbose=verbose, ignore=ignore),
+        ),
         # macOS user defaults, not a file. Not linked.
         (
             TaskPolicy(packages=frozenset({"rex"})),
@@ -295,6 +302,10 @@ def run_apply_tasks(
         (
             TaskPolicy(packages=frozenset({"cursor"})),
             lambda: apply_cursor_settings(target, verbose=verbose),
+        ),
+        (
+            TaskPolicy(packages=frozenset({"cursor"})),
+            lambda: apply_osc7501_hooks(target, verbose=verbose),
         ),
         (
             TaskPolicy(packages=frozenset({"rex"})),

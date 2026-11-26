@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""Emit Rex OSC 7501 program-status reports from Cursor Agent hooks.
+
+Temporary bridge until Cursor Agent ships native OSC 7501 support (Claude Code
+>= 2.1.295, Pi >= 1.1.0, and Codex >= 0.164.0 already emit it natively). Watch
+upstream and remove this script + _dotfiles_sync/osc7501_hooks.py once native
+support lands.
+
+Reads one hook JSON payload from stdin, maps it to an OSC 7501 sequence
+(https://www.superlogical.com/rex/docs/build/program-status), and writes it
+directly to the controlling terminal (or the nearest ancestor process's TTY
+when the harness detaches hooks from /dev/tty).
+
+Always exits 0 and produces no stdout/stderr so hook execution is never
+disrupted.
+"""
+
+from __future__ import annotations
+
+import base64
+import json
+import os
+import re
+import subprocess
+import sys
+from typing import Any
+
+_CONTROL_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]+")
+_MAX_MSG_BYTES = 200
+_MAX_ANCESTOR_HOPS = 16
+
+
+def sanitize_text(text: str, max_bytes: int = _MAX_MSG_BYTES) -> str:
+    """Collapse control characters and whitespace into one safe UTF-8 line."""
+    cleaned = _CONTROL_RE.sub(" ", text)
+    cleaned = " ".join(cleaned.split())
+    encoded = cleaned.encode("utf-8")
+    if len(encoded) <= max_bytes:
+        return cleaned
+    return encoded[:max_bytes].decode("utf-8", errors="ignore").rstrip()
+
+
+def encode_b64(text: str, max_bytes: int = _MAX_MSG_BYTES) -> str:
+    cleaned = sanitize_text(text, max_bytes=max_bytes)
+    if not cleaned:
+        return ""
+    return base64.b64encode(cleaned.encode("utf-8")).decode("ascii")
+
+
+def format_osc7501(
+    state: str,
+    *,
+    app: str | None = None,
+    kind: str | None = None,
+    msg: str | None = None,
+) -> bytes:
+    """Format one OSC 7501 sequence terminated by ST (ESC \\)."""
+    if state == "clear":
+        return b"\x1b]7501;state=clear\x1b\\"
+
+    pairs = [f"state={state}"]
+    if app:
+        pairs.append(f"app={app}")
+    if state == "blocked" and kind:
+        pairs.append(f"kind={kind}")
+    if msg:
+        encoded = encode_b64(msg)
+        if encoded:
+            pairs.append(f"msg={encoded}")
+    return f"\x1b]7501;{':'.join(pairs)}\x1b\\".encode("ascii")
+
+
+def _str(value: Any) -> str | None:
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped or None
+    return None
+
+
+def _failure_msg(payload: dict[str, Any]) -> str | None:
+    parts = [
+        text
+        for key in ("error_message", "error", "error_details", "message")
+        if (text := _str(payload.get(key))) is not None
+    ]
+    return ": ".join(parts) if parts else None
+
+
+def map_cursor(payload: dict[str, Any]) -> bytes | None:
+    event = _str(payload.get("hook_event_name"))
+    if event == "sessionStart":
+        return format_osc7501("idle", app="cursor")
+    if event == "beforeSubmitPrompt":
+        return format_osc7501("working", app="cursor")
+    if event == "beforeShellExecution":
+        cmd = _str(payload.get("command"))
+        label = cmd.split()[0] if cmd else "shell"
+        return format_osc7501("working", app="cursor", msg=label)
+    if event in ("preToolUse", "postToolUse"):
+        return format_osc7501(
+            "working", app="cursor", msg=_str(payload.get("tool_name"))
+        )
+    if event == "stop":
+        status = _str(payload.get("status"))
+        if status == "aborted":
+            return format_osc7501("idle", app="cursor")
+        if status == "error":
+            return format_osc7501("error", app="cursor", msg=_failure_msg(payload))
+        return format_osc7501("done", app="cursor")
+    if event == "sessionEnd":
+        return format_osc7501("clear")
+    return None
+
+
+def _ancestor_tty(start_pid: int) -> str | None:
+    pid = start_pid
+    for _ in range(_MAX_ANCESTOR_HOPS):
+        if pid <= 1:
+            return None
+        try:
+            proc = subprocess.run(
+                ["ps", "-o", "ppid=,tty=", "-p", str(pid)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=False,
+                timeout=1,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        if proc.returncode != 0:
+            return None
+        fields = proc.stdout.strip().split()
+        if len(fields) < 2:
+            return None
+        ppid_str, tty = fields[0], fields[1]
+        if tty not in ("?", "??", "-"):
+            return tty if tty.startswith("/dev/") else f"/dev/{tty}"
+        try:
+            next_pid = int(ppid_str)
+        except ValueError:
+            return None
+        if next_pid == pid:
+            return None
+        pid = next_pid
+    return None
+
+
+def write_to_tty(seq: bytes) -> bool:
+    flags = os.O_WRONLY | os.O_NOCTTY | os.O_NONBLOCK
+    for path in ("/dev/tty",):
+        try:
+            fd = os.open(path, flags)
+        except OSError:
+            continue
+        try:
+            os.write(fd, seq)
+            return True
+        except OSError:
+            return False
+        finally:
+            os.close(fd)
+
+    tty_path = _ancestor_tty(os.getppid())
+    if not tty_path:
+        return False
+    try:
+        fd = os.open(tty_path, flags)
+    except OSError:
+        return False
+    try:
+        os.write(fd, seq)
+        return True
+    except OSError:
+        return False
+    finally:
+        os.close(fd)
+
+
+def main() -> int:
+    try:
+        raw = sys.stdin.read()
+        payload = json.loads(raw) if raw.strip() else {}
+    except (OSError, ValueError):
+        return 0
+    if not isinstance(payload, dict):
+        return 0
+
+    seq = map_cursor(payload)
+    if seq is not None:
+        write_to_tty(seq)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
