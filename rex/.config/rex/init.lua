@@ -31,5 +31,11 @@ rex.bind("ctrl+l", navigate("right"))
 package.path = os.getenv("HOME") .. "/.local/share/mu-crew-dotfiles/rex/?.lua;" .. package.path
 local ok, crew = pcall(require, "mu-crew")
 if ok then
-	crew.setup({ key = "cmd+j" })
+	-- The Rex server runs with launchd's PATH; murmur is a node script and
+	-- node comes from mise, so its shims must be on the switcher's PATH.
+	local home = os.getenv("HOME")
+	crew.setup({
+		key = "cmd+j",
+		path = { home .. "/.local/bin", home .. "/.local/share/mise/shims", "/opt/homebrew/bin", "/usr/local/bin" },
+	})
 end
