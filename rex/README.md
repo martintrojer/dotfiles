@@ -10,6 +10,8 @@ Rex keeps its settings in macOS user defaults (`com.superlogical.rex`), next to 
 | `Workspace.terminalFontPointSize` | `16` | `font-size` |
 | `Workspace.terminalAllowsLigatures` | `false` | `font-feature = -liga` |
 | `Workspace.inactivePaneFadeMode` | `surface` | `unfocused-split-opacity` (subtle: text stays full strength) |
+| `Workspace.terminalCursorBlinkIntervalMilliseconds` | `0` | steady cursor (Ghostty default; Rex's `Off` preset) |
+| `Workspace.terminalCursorBlinkUsesCustomInterval` | `false` | paired with interval `0` for Rex's `Off` preset |
 | `Workspace.darkThemeID` | the theme below | `theme` |
 
 `catppuccin-mocha.rex-theme.json` is the entry Rex wrote to `Workspace.customThemes` after importing Ghostty's `Catppuccin Mocha` (Settings → Appearance, or `client.theme.import`). `--apply` adds it or replaces it by `id`, and any other custom themes stay. To re-export it after re-importing in the app:

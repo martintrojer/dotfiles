@@ -42,6 +42,10 @@ REX_SETTINGS: Final[dict[str, object]] = {
     # Ghostty: unfocused-split-opacity. "both" fades the pane surface and its
     # text; "surface" leaves text at full strength, a subtler dim.
     "Workspace.inactivePaneFadeMode": "surface",
+    # Ghostty: cursor does not blink by default. Rex stores the "Off" preset as
+    # interval 0 with custom-interval disabled.
+    "Workspace.terminalCursorBlinkIntervalMilliseconds": 0,
+    "Workspace.terminalCursorBlinkUsesCustomInterval": False,
 }
 
 
