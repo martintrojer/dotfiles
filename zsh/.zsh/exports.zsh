@@ -27,6 +27,10 @@ fi
 
 export CLICOLOR=1
 
+# Cursor Agent CLI: keep the subscription login in ~/.cursor/auth.json (0600)
+# instead of the macOS login keychain. Not a secret, so it stays tracked.
+export AGENT_CLI_CREDENTIAL_STORE=file
+
 # Editor configuration
 export EDITOR=nvim
 export VISUAL=nvim
