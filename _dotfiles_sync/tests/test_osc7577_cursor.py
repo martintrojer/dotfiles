@@ -153,8 +153,8 @@ class WriteAllTest(unittest.TestCase):
     def test_short_writes_complete(self) -> None:
         chunks: list[bytes] = []
 
-        def fake(fd: int, data: object) -> int:
-            b = bytes(data)[:3]  # type: ignore[arg-type]
+        def fake(fd: int, data: memoryview) -> int:
+            b = bytes(data)[:3]
             chunks.append(b)
             return len(b)
 
