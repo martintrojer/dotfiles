@@ -59,7 +59,8 @@ slots   = 3
 [[rule]]
 name    = "zig-test"
 command = ["zig build test", "zig build test-*", "zig test"]
-slots   = 4
+slots   = 5
+# 4 -> 5, 2026-11-27: p90 4.1 cores over 13 clean runs, mem peak 5.7 GB.
 # why: new 2026-11-01. ghostty's `zig build test-lib-vt` (vtmux worker
 # checking a vendored libghostty patch) ran unclaimed: a cold compile of
 # the whole lib plus ~7000 tests, several minutes on every core. 4 matches
@@ -111,6 +112,15 @@ slots = 2
 # runs (report --by repo 2026-10-31).
 
 [path."~/hacking/crew/mu"]
+[[path."~/hacking/crew/mu".rule]]
+name  = "js-build"
+slots = 4
+# why: 2 -> 4, 2026-11-27: p90 4.0 cores over 213 clean runs (7d).
+[[path."~/hacking/crew/mu".rule]]
+name  = "gate"
+slots = 3
+# why: 6 -> 3, 2026-11-27: p90 2.9 cores over 54 clean runs (7d); at 6 one
+# gate held more than half the 10-slot laptop budget.
 [[path."~/hacking/crew/mu".rule]]
 name    = "mu-eval"
 command = ["npm run eval"]
@@ -228,7 +238,14 @@ slots   = 4
 name    = "tuicr-cargo"
 command = ["cargo test", "cargo nextest", "cargo clippy", "cargo build",
            "cargo check", "cargo bench", "cargo install", "cargo doc"]
-slots   = 4
+slots   = 3
+# why: 4 -> 3, 2026-11-27: p90 1.8 cores over 85 clean runs, p90 wait 131 s.
+# Not 2 (report's figure): p90 20 procs/s, and launches are the cost here.
+[[path."~/hacking/tuicr".rule]]
+name  = "gate"
+slots = 1
+# why: new 2026-11-27. contrib/gate here matched the global 6-slot rule made
+# for swaywardlock: 159 runs, p90 0.4 cores / 0.1 GB, p90 wait 442 s.
 [[path."~/hacking/tuicr".rule]]
 name    = "tuicr-nix"
 command = "nix build"
