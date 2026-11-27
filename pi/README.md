@@ -52,7 +52,7 @@ writes an OSC 7577 record to `/dev/tty` on `session_start` (startup, `/new`,
 cwd, so `#{pane_resume_command}` / `#{pane_resume_cwd}` name the live session.
 `session_shutdown` sends `clear=1` (not on reload). No-op for ephemeral sessions
 and without a token; non-blocking and fail-silent. Wire format and MAC follow
-vtmux `docs/PROGRAM-RESUME.md`; the Cursor hook (`cursor/.cursor/hooks/osc7501`)
+vtmux `docs/PROGRAM-RESUME.md`; the Cursor bridge in `mu-crew/dotfiles` (`cursor/osc7501`)
 emits the same record. `tests/osc7577.test.ts` checks it against a mirror of
 vtmux's verifier.
 

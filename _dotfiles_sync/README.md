@@ -36,7 +36,7 @@ It does not own:
 - `json_keys.py`: check/apply helper that merges owned keys into a JSON file another tool rewrites
 - `pi_settings.py`: keys this repo owns in `~/.pi/agent/settings.json`
 - `cursor_settings.py`: keys this repo owns in `~/.cursor/cli-config.json` (the CLI keeps auth, model, and caches)
-- `osc7501_hooks.py`: temporary `$HOME/.cursor/hooks/osc7501` entries merged into `~/.cursor/hooks.json` (shared with murmur, mu, muzzle, museum; remove once Cursor Agent ships native OSC 7501)
+- `osc7501_hooks.py`: temporary `$HOME/.local/share/mu-crew-dotfiles/cursor/osc7501` entries merged into `~/.cursor/hooks.json` (the bridge lives in `mu-crew/dotfiles`; remove once Cursor Agent ships native OSC 7501)
 - `rex_settings.py`: keys and the custom theme this repo owns in Rex's macOS defaults (`com.superlogical.rex`)
 - `external.py`: pinned third-party clone management for zsh plugins and TPM
 - `model.py`: typed dataclasses and shared aliases

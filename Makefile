@@ -43,7 +43,7 @@ ZSH_FILES := $(shell $(RG) -g '*.zsh' -g '.zshrc')
 PRETTIER_FILES := $(shell $(RG) -g '*.ts' -g '*.json' -g '*.jsonc' -g '*.css' -g '!skills/**')
 TMUX_STATUS_TEST := tmux/.config/tmux/scripts/test-status-tools
 FEDORA_TEST_DIRS := fedora/tests fedora/gaming/tests
-DESKTOP_TEST_DIRS := cursor/.cursor/hooks/tests fuzzel/.config/fuzzel/scripts/tests local-bin/.local/bin/tests sway/.config/sway/scripts/tests waybar/.config/waybar/scripts/tests
+DESKTOP_TEST_DIRS := fuzzel/.config/fuzzel/scripts/tests local-bin/.local/bin/tests sway/.config/sway/scripts/tests waybar/.config/waybar/scripts/tests
 
 .PHONY: \
 	help \

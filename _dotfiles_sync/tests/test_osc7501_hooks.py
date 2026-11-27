@@ -95,6 +95,60 @@ class Osc7501HooksTest(unittest.TestCase):
             )
         )
 
+    def test_migrates_legacy_hook_path_and_keeps_other_hooks(self) -> None:
+        self.cursor_path.parent.mkdir(parents=True)
+        self.cursor_path.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "hooks": {
+                        "stop": [
+                            {
+                                "command": "mu hook stop cursor-agent --timeout 600 || true"
+                            },
+                            {"command": "$HOME/.cursor/hooks/osc7501"},
+                        ],
+                        "sessionStart": [
+                            {"command": "museum hook cursor-agent"},
+                            {"command": "$HOME/.cursor/hooks/osc7501"},
+                        ],
+                    },
+                }
+            )
+        )
+
+        with self.assertLogs(osc7501_hooks.LOGGER):
+            self.assertTrue(
+                osc7501_hooks.check_osc7501_hooks(
+                    self.target, verbose=False, ignore=set()
+                )
+            )
+        with self.assertLogs(osc7501_hooks.LOGGER):
+            osc7501_hooks.apply_osc7501_hooks(self.target, verbose=False)
+
+        cursor = json.loads(self.cursor_path.read_text())
+        self.assertEqual(
+            cursor["hooks"]["stop"],
+            [
+                {"command": "mu hook stop cursor-agent --timeout 600 || true"},
+                {"command": osc7501_hooks.CURSOR_COMMAND},
+            ],
+        )
+        self.assertEqual(
+            cursor["hooks"]["sessionStart"],
+            [
+                {"command": "museum hook cursor-agent"},
+                {"command": osc7501_hooks.CURSOR_COMMAND},
+            ],
+        )
+        for event in osc7501_hooks.CURSOR_EVENTS:
+            commands = [e["command"] for e in cursor["hooks"][event]]
+            self.assertNotIn("$HOME/.cursor/hooks/osc7501", commands)
+            self.assertIn(osc7501_hooks.CURSOR_COMMAND, commands)
+        self.assertFalse(
+            osc7501_hooks.check_osc7501_hooks(self.target, verbose=False, ignore=set())
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
