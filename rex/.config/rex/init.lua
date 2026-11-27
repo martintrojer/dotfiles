@@ -23,3 +23,13 @@ rex.bind("ctrl+h", navigate("left"))
 rex.bind("ctrl+j", navigate("down"))
 rex.bind("ctrl+k", navigate("up"))
 rex.bind("ctrl+l", navigate("right"))
+
+-- Cmd+J: the mu-crew agent switcher (jump to any agent murmur sees, Rex or
+-- tmux, this Mac or a peer). It lives in mu-crew/dotfiles (rex/mu-crew.lua),
+-- cloned by dotfiles-sync at the pin in _dotfiles_sync/pins.py, like the
+-- tmux/mu-crew.conf .tmux.conf sources. Fail-soft until that clone has rex/.
+package.path = os.getenv("HOME") .. "/.local/share/mu-crew-dotfiles/rex/?.lua;" .. package.path
+local ok, crew = pcall(require, "mu-crew")
+if ok then
+	crew.setup({ key = "cmd+j" })
+end

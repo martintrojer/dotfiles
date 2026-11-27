@@ -37,6 +37,6 @@ TPM_DEST: Final[Path] = Path(".tmux/plugins/tpm")
 MU_CREW_DOTFILES: Final[tuple[str, str, str]] = (
     "mu-crew-dotfiles",
     "https://github.com/mu-crew/dotfiles",
-    "ba189f281298ae86d419447f14c3e3a9107bbfdb",
+    "c0f9537d0a5338f1aeb7a56ed5eb99049c34efe7",
 )
 MU_CREW_DOTFILES_DEST: Final[Path] = Path(".local/share/mu-crew-dotfiles")
