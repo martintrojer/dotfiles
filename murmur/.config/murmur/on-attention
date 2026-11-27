@@ -4,9 +4,11 @@
 # tmux pill and `murmur dash` already show who it was.
 # murmur runs it detached with MURMUR_* set (see murmur's docs/setup.md).
 
-# A crew agent finishing is the orchestrator's business, not mine.
+# A crew agent finishing, or mu closing one mid-work, is the orchestrator's
+# business, not mine. (murmur >= 186e651 records no such crash at all.)
 case "$MURMUR_KIND:$MURMUR_EVENT" in
   done:*'"driver":"orchestrated"'*) exit 0 ;;
+  crashed:*'"driver":"orchestrated"'*) exit 0 ;;
 esac
 
 if [ "$(uname)" = Darwin ]; then
