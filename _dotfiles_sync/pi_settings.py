@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Final
 
 from .json_keys import JsonKeys
+from .pins import MU_CREW_DOTFILES_DEST
 
 ISSUE_ID: Final[str] = "pi-settings"
 SETTINGS_PATH: Final[Path] = Path(".pi") / "agent" / "settings.json"
@@ -19,6 +20,9 @@ SETTINGS_PATH: Final[Path] = Path(".pi") / "agent" / "settings.json"
 PI_SETTINGS: Final[dict[str, object]] = {
     # On top of pi's default tools (read, bash, edit, write).
     "defaultTools": ["+codemode"],
+    # Temporary OSC 7577 resume extension from mu-crew/dotfiles (pi emits
+    # OSC 7501 natively, not 7577; remove once pi ships native OSC 7577).
+    "extensions": [f"~/{MU_CREW_DOTFILES_DEST}/pi/osc7577.ts"],
     # Not "regular": there, any tmux pane resize clears scrollback and
     # replays the whole transcript into the pane. Fullscreen redraws only
     # the visible rows, at the cost of tmux copy-mode not seeing pi.
