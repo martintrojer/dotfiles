@@ -35,7 +35,7 @@ from typing import NoReturn
 
 MINISIGN_KEY = "RWQlAjJC23149WL2sEpT/l0QKy7hMIFhYdQOFy0Z7z7PbneUgvlsnYcV"
 RELEASES = "https://release.files.ghostty.org"
-LATEST_API = "https://api.github.com/repos/ghostty-org/ghostty/releases/latest"
+TAGS_API = "https://api.github.com/repos/ghostty-org/ghostty/tags?per_page=100"
 ZIG_INDEX = "https://ziglang.org/download/index.json"
 TOOLBOX = "ghostty-build"
 BUILD_PACKAGES = (
@@ -93,8 +93,14 @@ def ensure_toolbox() -> None:
 
 
 def latest_version() -> str:
-    tag = json.loads(fetch(LATEST_API))["tag_name"]
-    return tag.removeprefix("v")
+    # The releases/latest endpoint 404s for this repo, so take the highest
+    # stable vX.Y.Z tag. vt-* tags are libghostty-vt and are skipped.
+    names = [t["name"] for t in json.loads(fetch(TAGS_API))]
+    stable = [n for n in names if VERSION_RE.match(n.removeprefix("v"))]
+    if not stable:
+        die("no stable vX.Y.Z tags found upstream")
+    best = max(stable, key=lambda n: tuple(map(int, n[1:].split("."))))
+    return best.removeprefix("v")
 
 
 def fetch_source(version: str) -> Path:
