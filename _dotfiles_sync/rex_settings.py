@@ -32,13 +32,15 @@ DOMAIN: Final[str] = "com.superlogical.rex"
 THEMES_KEY: Final[str] = "Workspace.customThemes"
 THEME_PATH: Final[Path] = REPO_ROOT / "rex" / "catppuccin-mocha.rex-theme.json"
 
-# Mirrors ghostty/.config/ghostty/config. Ghostty's font-thicken, opacity, and
-# blur have no Rex equivalent.
+# Mirrors ghostty/.config/ghostty/config. Ghostty's opacity and blur have no
+# Rex equivalent.
 REX_SETTINGS: Final[dict[str, object]] = {
     "Workspace.terminalFontName": "GeistMono Nerd Font Mono",
     "Workspace.terminalFontPointSize": 16.0,
     # Ghostty: font-feature = -liga
     "Workspace.terminalAllowsLigatures": False,
+    # Ghostty (macOS): font-thicken = true (CoreText font smoothing).
+    "Workspace.terminalFontSmoothing": True,
     # vtmux: vtmux-pane-inactive-blend 'fg=bg/20' (dims inactive pane text,
     # leaving the surface alone). Stored as "text" in defaults (called
     # "content" in Rex's Settings UI and client.setting.interface.active_panes.fade).

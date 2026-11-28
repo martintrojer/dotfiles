@@ -9,6 +9,7 @@ Rex keeps its settings in macOS user defaults (`com.superlogical.rex`), next to 
 | `Workspace.terminalFontName` | `GeistMono Nerd Font Mono` | `font-family` |
 | `Workspace.terminalFontPointSize` | `16` | `font-size` |
 | `Workspace.terminalAllowsLigatures` | `false` | `font-feature = -liga` |
+| `Workspace.terminalFontSmoothing` | `true` | `font-thicken = true` (macOS) |
 | `Workspace.inactivePaneFadeMode` | `text` | dims inactive pane text (`content` in Settings/actions; closest to vtmux `vtmux-pane-inactive-blend 'fg=bg/20'`; no fade strength or active-pane lift) |
 | `Workspace.terminalCursorBlinkIntervalMilliseconds` | `0` | steady cursor (Ghostty default; Rex's `Off` preset) |
 | `Workspace.terminalCursorBlinkUsesCustomInterval` | `false` | paired with interval `0` for Rex's `Off` preset |
@@ -25,7 +26,7 @@ Rex caches settings while it runs, so quit it before `dotfiles-sync --apply` and
 
 Known issue: pi's coloured sections (tool blocks) can bleed into the blank rows between them in Rex but not in Ghostty. `rex capture --format=vt` shows those rows have no background, so Rex stores the screen correctly. Static blocks and a scripted imitation of pi's redraw both render correctly, and turning smooth scrolling off made no difference. Unresolved.
 
-Ghostty's opacity, blur and `font-thicken` have no Rex key. The fade modes seen in the app are `off`, `surface`, `content` (stored as `text` in defaults) and `both`.
+Ghostty's opacity and blur have no Rex key. The fade modes seen in the app are `off`, `surface`, `content` (stored as `text` in defaults) and `both`.
 
 `.config/rex/init.lua` is linked to `~/.config/rex/init.lua` and holds key bindings only. Keep it small and lean on Rex's own defaults. Rex doesn't watch the file, so run `rex config reload` after a change and `rex keymap` to see what loaded.
 
