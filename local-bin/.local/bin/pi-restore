@@ -216,20 +216,26 @@ def cmd_rows() -> int:
     state = load_state()
     rows, prune = visible(state)
     drop_pruned(prune)
-    for sid, e in rows:
-        title = title_of(e.get("file", ""))
-        star = "★" if e.get("starred") else ""
-        print(
-            SEP.join(
-                [
-                    sid,
-                    session_of(e) or "-",
-                    title,
-                    age(e.get("lastActiveAt")),
-                    star,
-                ]
-            )
+    items = [
+        (
+            sid,
+            session_of(e) or "-",
+            title_of(e.get("file", "")),
+            age(e.get("lastActiveAt")),
+            "★" if e.get("starred") else "",
         )
+        for sid, e in rows
+    ]
+    if not items:
+        return 0
+    sw = max(len(s) for _, s, _, _, _ in items)
+    tw = max(len(t) for _, _, t, _, _ in items)
+    aw = max(len(a) for _, _, _, a, _ in items)
+    for sid, sess, title, ag, star in items:
+        display = f"{sess:<{sw}}  {title:<{tw}}  {ag:>{aw}}"
+        if star:
+            display += f"  {star}"
+        print(f"{sid}{SEP}{display}")
     return 0
 
 
