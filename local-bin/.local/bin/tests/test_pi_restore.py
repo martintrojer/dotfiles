@@ -341,7 +341,8 @@ class RexRestoreTests(unittest.TestCase):
         self.file = self.root / "sess.jsonl"
         self.file.write_text("{}\n")
         self.calls = []
-        self.rc = 0
+        self.sessions = [{"session_id": "session:1", "label": "work"}]
+        self.fail_cmd = None
         env = mock.patch.dict(
             os.environ,
             {"PI_RESTORE_STATE": str(self.p), "REX_BLOCK": "block:abc"},
@@ -349,14 +350,25 @@ class RexRestoreTests(unittest.TestCase):
         env.start()
         self.addCleanup(env.stop)
         os.environ.pop("TMUX", None)
+        os.environ.pop("REX_CLIENT", None)
         m = mock.patch.object(pr, "rex", self.fake_rex)
         m.start()
         self.addCleanup(m.stop)
 
     def fake_rex(self, *args):
         self.calls.append(args)
-        err = "rex boom" if self.rc else ""
-        return mock.Mock(returncode=self.rc, stdout="", stderr=err)
+        key = " ".join(args[:2]) if args[0] == "window" else args[0]
+        if key == self.fail_cmd:
+            return mock.Mock(returncode=1, stdout="", stderr="rex boom")
+        if args[0] == "ls":
+            out = json.dumps({"sessions": self.sessions})
+        elif args[:2] == ("window", "new"):
+            out = json.dumps({"window_id": "window:9"})
+        elif args[0] == "new":
+            out = json.dumps({"session_id": "session:new"})
+        else:
+            out = "{}"
+        return mock.Mock(returncode=0, stdout=out, stderr="")
 
     def put(self, **kw):
         e = entry(
@@ -369,53 +381,46 @@ class RexRestoreTests(unittest.TestCase):
         )
         self.p.write_text(json.dumps({"id1": e}))
 
-    def test_inside_rex_opens_new_tab_in_current_session(self):
+    def test_existing_session_opens_tab_and_selects_it(self):
         self.put()
         self.assertEqual(pr.restore("id1"), 0)
+        wn = next(c for c in self.calls if c[:2] == ("window", "new"))
+        self.assertEqual(wn[wn.index("-s") + 1], "session:1")
+        self.assertEqual(wn[wn.index("-c") + 1], str(self.root))
+        self.assertEqual(wn[-3:], ("pi", "--session", str(self.file)))
         self.assertEqual(
-            self.calls,
-            [
-                (
-                    "window",
-                    "new",
-                    "-c",
-                    str(self.root),
-                    "--",
-                    "pi",
-                    "--session",
-                    str(self.file),
-                )
-            ],
+            self.calls[-1],
+            ("do", "session.select", "session_id=session:1", "window_id=window:9"),
         )
 
-    def test_outside_rex_creates_named_session(self):
+    def test_missing_session_creates_and_selects_it(self):
+        self.sessions = []
         self.put()
-        os.environ.pop("REX_BLOCK", None)
         self.assertEqual(pr.restore("id1"), 0)
+        nc = next(c for c in self.calls if c[0] == "new")
+        self.assertEqual(nc[1], "work")
+        self.assertEqual(nc[nc.index("-c") + 1], str(self.root))
+        self.assertEqual(nc[-3:], ("pi", "--session", str(self.file)))
         self.assertEqual(
-            self.calls,
-            [
-                (
-                    "new",
-                    "work",
-                    "-c",
-                    str(self.root),
-                    "--",
-                    "pi",
-                    "--session",
-                    str(self.file),
-                )
-            ],
+            self.calls[-1], ("do", "session.select", "session_id=session:new")
         )
 
     def test_failed_rex_step_is_nonzero_with_error(self):
-        self.rc = 1
-        self.put()
-        err = io.StringIO()
-        with contextlib.redirect_stderr(err):
-            rc = pr.restore("id1")
-        self.assertNotEqual(rc, 0)
-        self.assertIn("rex boom", err.getvalue())
+        for cmd in ("ls", "window new", "new", "do"):
+            with self.subTest(cmd=cmd):
+                self.calls.clear()
+                self.sessions = (
+                    []
+                    if cmd == "new"
+                    else [{"session_id": "session:1", "label": "work"}]
+                )
+                self.fail_cmd = cmd
+                self.put()
+                err = io.StringIO()
+                with contextlib.redirect_stderr(err):
+                    rc = pr.restore("id1")
+                self.assertNotEqual(rc, 0)
+                self.assertIn("rex boom", err.getvalue())
 
     def test_target_mux_precedence(self):
         # REX_BLOCK set, TMUX unset -> rex even for legacy tmux entry

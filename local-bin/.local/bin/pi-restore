@@ -328,13 +328,54 @@ def restore_tmux(file: str, cwd: str, name: str) -> int:
     return mux_fail("tmux", r, what) if r.returncode != 0 else 0
 
 
+def _rex_json(r: subprocess.CompletedProcess) -> dict:
+    try:
+        data = json.loads(r.stdout or "{}")
+        return data if isinstance(data, dict) else {}
+    except ValueError:
+        return {}
+
+
 def restore_rex(file: str, cwd: str, name: str) -> int:
-    if os.environ.get("REX_BLOCK"):
-        cmd = ("window", "new", "-c", cwd, "--", "pi", "--session", file)
+    r = rex("ls", "--json")
+    if r.returncode != 0:
+        return mux_fail("rex", r, "ls")
+    sessions = _rex_json(r).get("sessions") or []
+    target_sid = next(
+        (
+            s.get("session_id")
+            for s in sessions
+            if isinstance(s, dict) and s.get("label") == name and s.get("session_id")
+        ),
+        None,
+    )
+    if target_sid:
+        r = rex(
+            "window", "new", "-s", target_sid, "-c", cwd, "--json", "--",
+            "pi", "--session", file,
+        )  # fmt: skip
+        if r.returncode != 0:
+            return mux_fail("rex", r, "window new")
+        win = _rex_json(r).get("window_id")
     else:
-        cmd = ("new", name, "-c", cwd, "--", "pi", "--session", file)
-    r = rex(*cmd)
-    return mux_fail("rex", r, cmd[0]) if r.returncode != 0 else 0
+        r = rex("new", name, "-c", cwd, "--json", "--", "pi", "--session", file)
+        if r.returncode != 0:
+            return mux_fail("rex", r, "new")
+        target_sid = _rex_json(r).get("session_id")
+        win = None
+    if target_sid:
+        client = os.environ.get("REX_CLIENT")
+        args = [
+            *(["-C", client] if client else []),
+            "do",
+            "session.select",
+            f"session_id={target_sid}",
+            *([f"window_id={win}"] if isinstance(win, str) and win else []),
+        ]
+        r = rex(*args)
+        if r.returncode != 0:
+            return mux_fail("rex", r, "session.select")
+    return 0
 
 
 def target_mux(e: dict) -> str:
