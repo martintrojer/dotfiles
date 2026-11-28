@@ -134,7 +134,7 @@ The model sees the whole transcript when it fits in 12k characters. Longer sessi
 
 ### `restore` — bring back lost pi sessions
 
-`restore.ts` records every human-driven pi session (skips `MU_MANAGED_AGENT=1` and ephemeral sessions) in `~/.pi/agent/extension-state/restore.json`, per machine. Per session id: session file, cwd, tmux session name, pid, start and last-active times, star, and state `live|lost|closed`. `PI_RESTORE_STATE=<path>` overrides the file (tests set it). `tmux` `prefix` + `P` runs the `pi-restore` picker (`local-bin`), which relaunches one session per pick as `pi --session <file>` in a new window of the recorded tmux session (created if missing), in the recorded cwd. Sessions already running are hidden, so repeating the picker converges.
+`restore.ts` records every human-driven pi session (skips `MU_MANAGED_AGENT=1` and ephemeral sessions) in `~/.pi/agent/extension-state/restore.json`, per machine. Per session id: session file, cwd, mux (`tmux|rex|null`) and session label, pid, start and last-active times, star, and state `live|lost|closed`. `PI_RESTORE_STATE=<path>` overrides the file (tests set it). vtmux `prefix` + `P` and Rex `cmd+b` `P` open the `pi-restore` fzf picker (`local-bin`), which relaunches one session per pick as `pi --session <file>` in a new window/tab of the recorded session (created if missing), in the recorded cwd. Sessions already running are hidden, so repeating the picker converges.
 
 | How the session ended | Listed by `pi-restore`? |
 | --- | --- |

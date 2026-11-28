@@ -1,11 +1,12 @@
 /**
  * `/star` + session recorder for `pi-restore` (local-bin), the picker that
- * relaunches pi sessions after a reboot, crash or `tmux kill-server`.
+ * relaunches pi sessions after a reboot, crash, or mux teardown (vtmux or Rex).
  *
  * Records every human-driven pi session in ~/.pi/agent/extension-state/restore.json
  * (override: env PI_RESTORE_STATE=<path>), a map keyed by session id:
- *   { file, cwd, tmuxSession, pid, startedAt, lastActiveAt, starred, state }
- * state is "live" | "lost" | "closed". Skipped: MU_MANAGED_AGENT=1 and ephemeral sessions.
+ *   { file, cwd, session, mux, pid, startedAt, lastActiveAt, starred, state }
+ * state is "live" | "lost" | "closed"; mux is "tmux" | "rex" | null.
+ * Skipped: MU_MANAGED_AGENT=1 and ephemeral sessions.
  *
  * Lost vs closed mechanism shipped: PRIMARY, a process.on SIGHUP/SIGTERM listener
  * that synchronously (writeFileSync + renameSync) writes state "lost". pi reports
@@ -35,11 +36,13 @@ import { dirname, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 type RestoreState = "live" | "lost" | "closed";
+type MuxKind = "tmux" | "rex" | null;
 
 interface Entry {
 	file: string;
 	cwd: string;
-	tmuxSession: string | null;
+	session: string | null;
+	mux: MuxKind;
 	pid: number;
 	startedAt: number;
 	lastActiveAt: number;
@@ -80,20 +83,35 @@ function update(fn: (store: Store) => void): void {
 	}
 }
 
-/** tmux session name of this pane, or null outside tmux. */
-function tmuxSessionName(): string | null {
+/** Current mux and session label (inner mux wins: vtmux over Rex). */
+function muxContext(): { mux: MuxKind; session: string | null } {
 	const pane = process.env.TMUX_PANE;
-	if (!process.env.TMUX || !pane) return null;
-	try {
-		const name = execFileSync("tmux", ["display", "-p", "-t", pane, "#S"], {
-			encoding: "utf8",
-			timeout: 2000,
-			stdio: ["ignore", "pipe", "ignore"],
-		}).trim();
-		return name || null;
-	} catch {
-		return null;
+	if (process.env.TMUX && pane) {
+		try {
+			const name = execFileSync("tmux", ["display", "-p", "-t", pane, "#S"], {
+				encoding: "utf8",
+				timeout: 2000,
+				stdio: ["ignore", "pipe", "ignore"],
+			}).trim();
+			return { mux: "tmux", session: name || null };
+		} catch {
+			return { mux: "tmux", session: null };
+		}
 	}
+	if (process.env.REX_BLOCK) {
+		try {
+			const out = execFileSync("rex", ["session", "inspect", "--json"], {
+				encoding: "utf8",
+				timeout: 2000,
+				stdio: ["ignore", "pipe", "ignore"],
+			});
+			const label = JSON.parse(out)?.label;
+			return { mux: "rex", session: typeof label === "string" && label ? label : null };
+		} catch {
+			return { mux: "rex", session: null };
+		}
+	}
+	return { mux: null, session: null };
 }
 
 export default function (pi: ExtensionAPI) {
@@ -128,13 +146,14 @@ export default function (pi: ExtensionAPI) {
 		sessionId = id;
 		signalled = false;
 		const now = Date.now();
-		const tmuxSession = tmuxSessionName();
+		const { mux, session } = muxContext();
 		update((store) => {
 			const prev = store[id];
 			store[id] = {
 				file,
 				cwd: ctx.cwd,
-				tmuxSession,
+				session,
+				mux,
 				pid: process.pid,
 				startedAt: prev?.startedAt ?? now,
 				lastActiveAt: now,

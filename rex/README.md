@@ -32,5 +32,7 @@ Ghostty's opacity, blur and `font-thicken` have no Rex key. The fade modes seen 
 | Key | Does |
 |---|---|
 | `ctrl+h/j/k/l` | Focus the pane left/down/up/right. If the pane runs nvim, vim or tmux, the key goes to that program instead. nvim moves between its own splits and at its edge runs `rex focus DIR` (`nvim/.config/nvim/lua/keymaps/core.lua`), the same handoff vim-tmux-navigator does for tmux |
+| `cmd+j` | Jump to any live agent murmur sees (`mu-crew` action `agent_jump`) |
+| `cmd+b` `P` | Open `pi-restore` fzf picker in an 80% floating layer (`mu_crew_leader/shift+p` → `pi_restore`, parity with vtmux `prefix` + `P`) |
 
 The check reads the pane's foreground process, so debrief and ramble lose their internal pane movement here: their edge handoff calls `tmux select-pane`.

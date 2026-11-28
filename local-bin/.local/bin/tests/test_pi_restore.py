@@ -236,6 +236,7 @@ class RestoreTests(unittest.TestCase):
         env.start()
         self.addCleanup(env.stop)
         os.environ.pop("TMUX", None)
+        os.environ.pop("REX_BLOCK", None)
         self.fail_cmd = None
         m = mock.patch.object(pr, "tmux", self.fake_tmux)
         m.start()
@@ -329,6 +330,108 @@ class RestoreTests(unittest.TestCase):
         self.assertEqual(pr.restore("id1"), 1)
         self.assertEqual(self.calls, [])
         self.assertEqual(json.loads(self.p.read_text()), {})
+
+
+class RexRestoreTests(unittest.TestCase):
+    def setUp(self):
+        t = tempfile.TemporaryDirectory()
+        self.addCleanup(t.cleanup)
+        self.root = Path(t.name)
+        self.p = self.root / "restore.json"
+        self.file = self.root / "sess.jsonl"
+        self.file.write_text("{}\n")
+        self.calls = []
+        self.rc = 0
+        env = mock.patch.dict(
+            os.environ,
+            {"PI_RESTORE_STATE": str(self.p), "REX_BLOCK": "block:abc"},
+        )
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop("TMUX", None)
+        m = mock.patch.object(pr, "rex", self.fake_rex)
+        m.start()
+        self.addCleanup(m.stop)
+
+    def fake_rex(self, *args):
+        self.calls.append(args)
+        err = "rex boom" if self.rc else ""
+        return mock.Mock(returncode=self.rc, stdout="", stderr=err)
+
+    def put(self, **kw):
+        e = entry(
+            file=str(self.file),
+            cwd=str(self.root),
+            session="work",
+            tmuxSession=None,
+            mux="rex",
+            **kw,
+        )
+        self.p.write_text(json.dumps({"id1": e}))
+
+    def test_inside_rex_opens_new_tab_in_current_session(self):
+        self.put()
+        self.assertEqual(pr.restore("id1"), 0)
+        self.assertEqual(
+            self.calls,
+            [
+                (
+                    "window",
+                    "new",
+                    "-c",
+                    str(self.root),
+                    "--",
+                    "pi",
+                    "--session",
+                    str(self.file),
+                )
+            ],
+        )
+
+    def test_outside_rex_creates_named_session(self):
+        self.put()
+        os.environ.pop("REX_BLOCK", None)
+        self.assertEqual(pr.restore("id1"), 0)
+        self.assertEqual(
+            self.calls,
+            [
+                (
+                    "new",
+                    "work",
+                    "-c",
+                    str(self.root),
+                    "--",
+                    "pi",
+                    "--session",
+                    str(self.file),
+                )
+            ],
+        )
+
+    def test_failed_rex_step_is_nonzero_with_error(self):
+        self.rc = 1
+        self.put()
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            rc = pr.restore("id1")
+        self.assertNotEqual(rc, 0)
+        self.assertIn("rex boom", err.getvalue())
+
+    def test_target_mux_precedence(self):
+        # REX_BLOCK set, TMUX unset -> rex even for legacy tmux entry
+        self.assertEqual(pr.target_mux({"tmuxSession": "aiv"}), "rex")
+        # TMUX wins when nested inside Rex
+        with mock.patch.dict(os.environ, {"TMUX": "/tmp/x,1,0"}):
+            self.assertEqual(pr.target_mux({"mux": "rex"}), "tmux")
+        # Outside both -> entry mux
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(pr.target_mux({"mux": "rex"}), "rex")
+            self.assertEqual(pr.target_mux({"tmuxSession": "aiv"}), "tmux")
+
+    def test_session_of_reads_new_and_legacy_field(self):
+        self.assertEqual(pr.session_of({"session": "r", "tmuxSession": "t"}), "r")
+        self.assertEqual(pr.session_of({"tmuxSession": "t"}), "t")
+        self.assertIsNone(pr.session_of({}))
 
 
 if __name__ == "__main__":

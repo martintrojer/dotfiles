@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""fzf picker that relaunches lost or starred pi sessions in tmux.
+"""fzf picker that relaunches lost or starred pi sessions in vtmux or Rex.
 
 State comes from the pi restore extension (see docs/specs/2026-11-18-pi-restore.md):
 $PI_RESTORE_STATE or ~/.pi/agent/extension-state/restore.json, a JSON object
@@ -208,6 +208,10 @@ def drop_pruned(prune) -> None:
         modify_state(lambda s: [s.pop(p, None) for p in prune])
 
 
+def session_of(e: dict) -> str | None:
+    return e.get("session") or e.get("tmuxSession") or None
+
+
 def cmd_rows() -> int:
     state = load_state()
     rows, prune = visible(state)
@@ -219,7 +223,7 @@ def cmd_rows() -> int:
             SEP.join(
                 [
                     sid,
-                    e.get("tmuxSession") or "-",
+                    session_of(e) or "-",
                     title,
                     age(e.get("lastActiveAt")),
                     star,
@@ -234,7 +238,8 @@ def cmd_preview(sid: str) -> int:
     if not e:
         print("no such entry")
         return 0
-    head = f"{e.get('cwd')}  |  tmux: {e.get('tmuxSession') or '-'}  |  {sid}"
+    mux = e.get("mux") or ("tmux" if e.get("tmuxSession") else "session")
+    head = f"{e.get('cwd')}  |  {mux}: {session_of(e) or '-'}  |  {sid}"
     print(head)
     print()
     rounds = rounds_of(e.get("file", ""))
@@ -279,16 +284,65 @@ def cmd_dismiss(sid: str) -> int:
 
 
 def tmux(*args: str, capture: bool = True) -> subprocess.CompletedProcess:
-    """The only place tmux is invoked."""
+    """The only place tmux/vtmux is invoked."""
     return subprocess.run(
         ["tmux", *args], capture_output=capture, text=True, check=False
     )
 
 
-def tmux_fail(r: subprocess.CompletedProcess, what: str) -> int:
+def rex(*args: str) -> subprocess.CompletedProcess:
+    """The only place rex is invoked."""
+    return subprocess.run(["rex", *args], capture_output=True, text=True, check=False)
+
+
+def mux_fail(mux: str, r: subprocess.CompletedProcess, what: str) -> int:
     msg = (r.stderr or "").strip() or f"exit {r.returncode}"
-    print(f"pi-restore: tmux {what} failed: {msg}", file=sys.stderr)
+    print(f"pi-restore: {mux} {what} failed: {msg}", file=sys.stderr)
     return r.returncode or 1
+
+
+def restore_tmux(file: str, cwd: str, name: str) -> int:
+    # `=name:` (trailing colon): without it tmux reads dots as window.pane
+    exact = f"={name}:"
+    if tmux("has-session", "-t", exact).returncode != 0:
+        r = tmux("new-session", "-d", "-s", name, "-c", cwd)
+        if r.returncode != 0:
+            return mux_fail("tmux", r, "new-session")
+    r = tmux(
+        "new-window", "-P", "-F", "#{window_id}", "-t", exact, "-c", cwd, "--",
+        "pi", "--session", file,
+    )  # fmt: skip
+    if r.returncode != 0:
+        return mux_fail("tmux", r, "new-window")
+    win = (r.stdout or "").strip()
+    if win:
+        r = tmux("select-window", "-t", win)
+        if r.returncode != 0:
+            return mux_fail("tmux", r, "select-window")
+    if os.environ.get("TMUX"):
+        r = tmux("switch-client", "-t", exact)
+        what = "switch-client"
+    else:
+        r = tmux("attach-session", "-t", exact, capture=False)
+        what = "attach-session"
+    return mux_fail("tmux", r, what) if r.returncode != 0 else 0
+
+
+def restore_rex(file: str, cwd: str, name: str) -> int:
+    if os.environ.get("REX_BLOCK"):
+        cmd = ("window", "new", "-c", cwd, "--", "pi", "--session", file)
+    else:
+        cmd = ("new", name, "-c", cwd, "--", "pi", "--session", file)
+    r = rex(*cmd)
+    return mux_fail("rex", r, cmd[0]) if r.returncode != 0 else 0
+
+
+def target_mux(e: dict) -> str:
+    if os.environ.get("TMUX"):
+        return "tmux"
+    if os.environ.get("REX_BLOCK"):
+        return "rex"
+    return "rex" if e.get("mux") == "rex" else "tmux"
 
 
 def restore(sid: str) -> int:
@@ -306,31 +360,10 @@ def restore(sid: str) -> int:
     if not cwd or not os.path.isdir(cwd):
         print(f"pi-restore: cwd no longer exists: {cwd}", file=sys.stderr)
         return 1
-    name = e.get("tmuxSession") or os.path.basename(cwd.rstrip("/")) or "pi"
-    # `=name:` (trailing colon): without it tmux reads dots as window.pane
-    exact = f"={name}:"
-    if tmux("has-session", "-t", exact).returncode != 0:
-        r = tmux("new-session", "-d", "-s", name, "-c", cwd)
-        if r.returncode != 0:
-            return tmux_fail(r, "new-session")
-    r = tmux(
-        "new-window", "-P", "-F", "#{window_id}", "-t", exact, "-c", cwd, "--",
-        "pi", "--session", file,
-    )  # fmt: skip
-    if r.returncode != 0:
-        return tmux_fail(r, "new-window")
-    win = (r.stdout or "").strip()
-    if win:
-        r = tmux("select-window", "-t", win)
-        if r.returncode != 0:
-            return tmux_fail(r, "select-window")
-    if os.environ.get("TMUX"):
-        r = tmux("switch-client", "-t", exact)
-        what = "switch-client"
-    else:
-        r = tmux("attach-session", "-t", exact, capture=False)
-        what = "attach-session"
-    return tmux_fail(r, what) if r.returncode != 0 else 0
+    name = session_of(e) or os.path.basename(cwd.rstrip("/")) or "pi"
+    if target_mux(e) == "rex":
+        return restore_rex(file, cwd, name)
+    return restore_tmux(file, cwd, name)
 
 
 def cmd_pick() -> int:

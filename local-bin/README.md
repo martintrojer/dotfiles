@@ -20,7 +20,7 @@ Examples:
 - `solo -n review claude`
 - `solo --force -n planner pi`
 
-`pi-restore` is a Python fzf picker that relaunches lost or starred pi sessions in tmux (`prefix` + `P`). It reads `~/.pi/agent/extension-state/restore.json` (override: `PI_RESTORE_STATE`), written by the pi `restore` extension, and hides sessions whose pi process is still running. One pick restores one session: `tmux new-window -c <cwd> -- pi --session <file>` in the recorded tmux session, then switches to it. Keys: `enter` restore, `ctrl-s` star, `ctrl-x` dismiss. Prints `nothing to restore` when the list is empty. See `pi/README.md` (`restore`).
+`pi-restore` is a Python fzf picker that relaunches lost or starred pi sessions in vtmux (`prefix` + `P`) or Rex (`cmd+b` `P`, 80% floating layer). It reads `~/.pi/agent/extension-state/restore.json` (override: `PI_RESTORE_STATE`), written by the pi `restore` extension, and hides sessions whose pi process is still running. One pick restores one session as `pi --session <file>` in a new window/tab of the recorded session (created if missing), in the recorded cwd — into vtmux when called from `$TMUX`, or into Rex when called from `$REX_BLOCK`. Keys: `enter` restore, `ctrl-s` star, `ctrl-x` dismiss. Prints `nothing to restore` when the list is empty. See `pi/README.md` (`restore`).
 
 `bubba-lfs-curl-push` uploads Git LFS objects to a Bubba/Forgejo remote through `curl`, then optionally pushes Git refs with `GIT_LFS_SKIP_PUSH=1`. It is a workaround for repos where SSH Git access and `git-lfs-authenticate` work, but the `git-lfs` client's Go HTTP stack cannot connect to Bubba.
 
