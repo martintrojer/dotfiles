@@ -39,9 +39,12 @@ REX_SETTINGS: Final[dict[str, object]] = {
     "Workspace.terminalFontPointSize": 16.0,
     # Ghostty: font-feature = -liga
     "Workspace.terminalAllowsLigatures": False,
-    # Ghostty: unfocused-split-opacity. "both" fades the pane surface and its
-    # text; "surface" leaves text at full strength, a subtler dim.
-    "Workspace.inactivePaneFadeMode": "surface",
+    # vtmux: vtmux-pane-inactive-blend 'fg=bg/20' (dims inactive pane text,
+    # leaving the surface alone). Stored as "text" in defaults (called
+    # "content" in Rex's Settings UI and client.setting.interface.active_panes.fade).
+    # Rex has no fade percentage or active-pane text lift equivalent to
+    # vtmux-pane-active-blend.
+    "Workspace.inactivePaneFadeMode": "text",
     # Ghostty: cursor does not blink by default. Rex stores the "Off" preset as
     # interval 0 with custom-interval disabled.
     "Workspace.terminalCursorBlinkIntervalMilliseconds": 0,
