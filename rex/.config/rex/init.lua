@@ -2,10 +2,10 @@
 -- luacheck: read globals rex
 
 -- Ctrl+h/j/k/l move between panes, vim-tmux-navigator style. When the focused
--- pane runs nvim (or tmux, which has its own navigator) the key goes to it,
--- and nvim hands focus back with `rex focus DIR` at its edge (keymaps/core.lua).
+-- pane runs nvim, debrief, ramble (or tmux, which has its own navigator) the
+-- key goes to it, and it hands focus back with `rex focus DIR` at its edge.
 local terminal = "com.superlogical.terminal"
-local passthrough = { nvim = true, vim = true, tmux = true }
+local passthrough = { nvim = true, vim = true, tmux = true, debrief = true, ramble = true }
 
 local function navigate(direction)
 	return function(ctx)

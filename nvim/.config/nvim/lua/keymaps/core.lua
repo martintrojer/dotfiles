@@ -43,14 +43,19 @@ map("t", "<esc><esc>", "<c-\\><c-n>", { desc = "Exit terminal mode" })
 -- (rex/.config/rex/init.lua passes Ctrl+h/j/k/l through to nvim).
 local function navigate(wincmd, tmux_cmd, rex_dir)
 	return function()
-		if vim.env.TMUX then
+		if vim.env.TMUX and vim.env.TERM_PROGRAM ~= "rex" then
 			vim.cmd(tmux_cmd)
 			return
 		end
 		local win = vim.api.nvim_get_current_win()
 		vim.cmd("wincmd " .. wincmd)
-		if vim.env.REX_SESSION and win == vim.api.nvim_get_current_win() then
-			vim.system({ "rex", "focus", "-s", vim.env.REX_SESSION, rex_dir })
+		if vim.env.REX_BLOCK and win == vim.api.nvim_get_current_win() then
+			local cmd = { "rex", "--autostart=false", "focus" }
+			if vim.env.REX_SESSION then
+				vim.list_extend(cmd, { "-s", vim.env.REX_SESSION })
+			end
+			table.insert(cmd, rex_dir)
+			vim.system(cmd)
 		end
 	end
 end
